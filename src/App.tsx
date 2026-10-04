@@ -20,6 +20,7 @@ import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
 import { PrivateDashboard } from './modules/dashboard/PrivateDashboard.tsx';
 import { useTenantBranding } from './core/use-tenant-branding';
+import { getCountryOption } from './core/countries';
 import {
   Search,
   ArrowRight,
@@ -36,6 +37,7 @@ import {
 export default function App() {
   const { user, activeMembership } = useAuth();
   const { branding } = useTenantBranding();
+  const countryProfile = getCountryOption(branding.country);
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(false);
   // Catalog state
   const [properties, setProperties] = useState<Property[]>(PROPERTIES);
@@ -260,7 +262,7 @@ export default function App() {
           <div className="absolute inset-0">
             <ResilientImage
               src={HERO_IMAGE}
-              alt="Residencia de arquitectura contemporánea en Colombia"
+              alt={`Residencia de arquitectura contemporánea en ${countryProfile.name}`}
               className="w-full h-full object-cover opacity-65"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-slate-950/30" />
@@ -270,7 +272,7 @@ export default function App() {
             <div className="max-w-3xl space-y-6">
               {/* Unboxed regional & heritage metadata with typographic separators */}
               <p className="text-xs md:text-sm font-medium text-stone-300 tracking-wide">
-                Colombia · Gestión inmobiliaria especializada · Plataforma profesional
+                {countryProfile.name} · Gestión inmobiliaria especializada · Plataforma profesional
               </p>
 
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold tracking-tight leading-[1.08] text-white balance-text">
@@ -278,7 +280,7 @@ export default function App() {
               </h1>
 
               <p className="text-base md:text-lg text-stone-200 max-w-2xl leading-relaxed font-normal">
-                Gestionamos tu patrimonio inmobiliario en Colombia mediante procesos comerciales, administrativos y documentales centralizados en una sola plataforma.
+                Gestionamos tu patrimonio inmobiliario en {countryProfile.name} mediante procesos comerciales, administrativos y documentales centralizados en una sola plataforma.
               </p>
 
               {/* Quantitative proof bar in clean unboxed layout */}
@@ -341,7 +343,7 @@ export default function App() {
                   <select
                     value={zoneFilter}
                     onChange={(e) => setZoneFilter(e.target.value as 'Todas' | Property['neighborhood'])}
-                    aria-label="Filtrar por zona en Colombia"
+                    aria-label={`Filtrar por zona en ${countryProfile.name}`}
                     className="w-full px-3 py-2.5 bg-[#F6F6F4] border border-stone-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-[#0F2942]"
                   >
                     <option value="Todas">Todas las zonas</option>
@@ -374,7 +376,7 @@ export default function App() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
             <div>
               <p className="text-xs font-medium text-stone-500 tracking-wide mb-2">
-                Inventario inmobiliario · Colombia
+                Inventario inmobiliario · {countryProfile.name}
               </p>
               <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
                 Propiedades en Venta, Renta y Administración
@@ -492,7 +494,7 @@ export default function App() {
                 No se encontraron propiedades con los filtros seleccionados.
               </p>
               <p className="text-xs text-stone-500 max-w-md mx-auto">
-                Restablece los criterios de búsqueda o solicita a nuestro comité comercial una búsqueda personalizada en nuestro inventario privado en Colombia.
+                Restablece los criterios de búsqueda o solicita a nuestro comité comercial una búsqueda personalizada en nuestro inventario privado en {countryProfile.name}.
               </p>
               <button
                 type="button"
@@ -642,7 +644,7 @@ export default function App() {
                   Arquitectura de Servicios · Soluciones Inmobiliarias Integrales
                 </p>
                 <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
-                  Gestión inmobiliaria de principio a fin en Colombia
+                  Gestión inmobiliaria de principio a fin en {countryProfile.name}
                 </h2>
               </div>
 
@@ -657,7 +659,7 @@ export default function App() {
                       Cobranza garantizada, investigación jurídica de inquilinos y cero desgaste operativo para el propietario.
                     </h3>
                     <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
-                      Nos hacemos cargo de la relación completa con el arrendatario: investigación en buró legal y crediticio, contratos blindados ante extinción de dominio ratificados mediante mecanismos de conciliación aplicables en Colombia, cobro puntual, pago de predial, cuotas de administración y supervisión física semestral.
+                      Nos hacemos cargo de la relación completa con el arrendatario: investigación en buró legal y crediticio, contratos blindados ante extinción de dominio ratificados mediante mecanismos de conciliación aplicables en {countryProfile.name}, cobro puntual, pago de predial, cuotas de administración y supervisión física semestral.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-stone-200/80 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600">
@@ -801,7 +803,7 @@ export default function App() {
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
               <div className="max-w-2xl">
                 <p className="text-xs font-medium text-stone-300 tracking-wide mb-2">
-                  División Académica Exclusiva · Capacitación inmobiliaria en Colombia
+                  División Académica Exclusiva · Capacitación inmobiliaria en {countryProfile.name}
                 </p>
                 <h2 className="text-3xl md:text-4xl font-display font-semibold tracking-tight text-white balance-text">
                   JC Inmobilearning: Formación Jurídica, Comercial y Patrimonial
@@ -926,7 +928,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-xs text-stone-500">
-                      Modalidad presencial y virtual en Colombia.
+                      Modalidad presencial y virtual en {countryProfile.name}.
                     </span>
                     <button
                       type="submit"
@@ -955,7 +957,7 @@ export default function App() {
                     Atención Patrimonial Personalizada
                   </p>
                   <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
-                    Oficina y atención en Colombia
+                    Oficina y atención en {countryProfile.name}
                   </h2>
                   <p className="text-sm text-slate-600 mt-3 leading-relaxed">
                     Agenda una sesión privada con nuestra dirección comercial o jurídica para evaluar la venta, administración en renta o mantenimiento integral de tus propiedades.
