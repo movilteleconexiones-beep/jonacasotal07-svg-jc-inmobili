@@ -1,0 +1,5 @@
+-- LATAM country profiles and compliance packs.
+-- Applied to Supabase production as migration 0008_latam_country_profiles_and_compliance.
+-- Includes country_profiles, compliance_packs, organization_compliance,
+-- locale support in organization_settings, LATAM profile seeds,
+-- Colombia initial verified compliance pack, and onboarding by country.
