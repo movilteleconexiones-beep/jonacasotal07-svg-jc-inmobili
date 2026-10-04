@@ -291,40 +291,40 @@ export const PROPERTIES: Property[] = [
 
 export const ZONE_VALUATION_BENCHMARKS: Record<
   Property['neighborhood'],
-  { avgPricePerM2COP: number; annualAppreciationPct: number; avgDaysToLease: number; avgYieldPct: number }
+  { avgPricePerM2MXN: number; annualAppreciationPct: number; avgDaysToLease: number; avgYieldPct: number }
 > = {
   'El Poblado': {
-    avgPricePerM2COP: 46500,
+    avgPricePerM2MXN: 46500,
     annualAppreciationPct: 11.4,
     avgDaysToLease: 26,
     avgYieldPct: 6.2
   },
   Chicó: {
-    avgPricePerM2COP: 71800,
+    avgPricePerM2MXN: 71800,
     annualAppreciationPct: 12.1,
     avgDaysToLease: 19,
     avgYieldPct: 6.8
   },
   'Envigado': {
-    avgPricePerM2COP: 44200,
+    avgPricePerM2MXN: 44200,
     annualAppreciationPct: 10.6,
     avgDaysToLease: 24,
     avgYieldPct: 6.4
   },
   Laureles: {
-    avgPricePerM2COP: 47900,
+    avgPricePerM2MXN: 47900,
     annualAppreciationPct: 10.2,
     avgDaysToLease: 16,
     avgYieldPct: 7.4
   },
   Usaquén: {
-    avgPricePerM2COP: 36400,
+    avgPricePerM2MXN: 36400,
     annualAppreciationPct: 11.8,
     avgDaysToLease: 21,
     avgYieldPct: 6.9
   },
-  Ciudad del Río: {
-    avgPricePerM2COP: 31200,
+  'Ciudad del Río': {
+    avgPricePerM2MXN: 31200,
     annualAppreciationPct: 9.8,
     avgDaysToLease: 18,
     avgYieldPct: 8.5
