@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Property } from '../data/properties';
 import { ResilientImage } from './ResilientImage';
 import { X, Check, Calendar, PhoneCall, Bookmark } from 'lucide-react';
+import { useTenantBranding } from '../core/use-tenant-branding';
 
 interface PropertyDetailModalProps {
   property: Property | null;
@@ -19,6 +20,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   onToggleSave,
   onScheduleVisit
 }) => {
+  const { branding } = useTenantBranding();
   const [activePhotoIndex, setActivePhotoIndex] = useState<0 | 1>(0);
   const [visitorName, setVisitorName] = useState('');
   const [visitorPhone, setVisitorPhone] = useState('');
@@ -29,10 +31,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
   if (!property) return null;
 
-  const formatCOP = (val: number) =>
-    new Intl.NumberFormat('es-CO', {
+  const formatMoney = (val: number) =>
+    new Intl.NumberFormat(branding.locale || 'es-CO', {
       style: 'currency',
-      currency: 'COP',
+      currency: branding.currency || 'COP',
       maximumFractionDigits: 0
     }).format(val);
 
@@ -45,8 +47,9 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
       setFormError('Por favor ingresa tu nombre completo.');
       return;
     }
-    if (visitorPhone.replace(/\D/g, '').length < 10) {
-      setFormError('Ingresa un teléfono válido de 10 dígitos (ej. 33 2310 1060).');
+    const phoneDigits = visitorPhone.replace(/\D/g, '');
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      setFormError('Ingresa un teléfono válido con código de país cuando corresponda.');
       return;
     }
     setFormError('');
@@ -219,13 +222,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 </p>
                 <p className="text-3xl font-semibold text-slate-900 font-mono-tabular">
                   {property.operation === 'Renta'
-                    ? `${formatCOP(property.monthlyRentEstimationMXN)} / mes`
-                    : formatCOP(property.priceMXN)}
+                    ? `${formatMoney(property.monthlyRentEstimationMXN)} / mes`
+                    : formatMoney(property.priceMXN)}
                 </p>
                 <p className="text-xs text-stone-500 mt-1 font-mono-tabular">
                   {property.operation === 'Renta'
-                    ? `Valor patrimonial de referencia: ${formatCOP(property.priceMXN)}`
-                    : `Renta potencial estimada: ${formatCOP(property.monthlyRentEstimationMXN)} / mes · ${formatCOP(pricePerM2)} / m²`}
+                    ? `Valor patrimonial de referencia: ${formatMoney(property.priceMXN)}`
+                    : `Renta potencial estimada: ${formatMoney(property.monthlyRentEstimationMXN)} / mes · ${formatMoney(pricePerM2)} / m²`}
                 </p>
               </div>
 
@@ -233,7 +236,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <p className="font-semibold text-slate-900">Estatus Jurídico y Técnico</p>
                 <p className="text-slate-600">{property.legalStatus}</p>
                 <p className="text-stone-500 font-mono-tabular">
-                  Cuota de cuota de administración: {formatCOP(property.maintenanceFeeMXN)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
+                  Cuota de cuota de administración: {formatMoney(property.maintenanceFeeMXN)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
                 </p>
               </div>
 
