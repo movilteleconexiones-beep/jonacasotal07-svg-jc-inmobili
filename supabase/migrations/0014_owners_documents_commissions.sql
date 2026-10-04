@@ -1,0 +1,4 @@
+-- Owners, documents, commissions and private storage.
+-- Applied in production as 0014_owners_documents_commissions.
+-- Adds property_owners, property_ownerships, documents, commissions,
+-- new permissions, RLS policies, and private storage bucket organization-documents.
