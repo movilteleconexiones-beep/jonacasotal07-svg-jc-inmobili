@@ -16,6 +16,7 @@ import { ResilientImage } from './components/ResilientImage';
 import { PatrimonialSimulator } from './components/PatrimonialSimulator';
 import { PropertyDetailModal } from './components/PropertyDetailModal';
 import { SubmitPropertyModal } from './components/SubmitPropertyModal';
+import { AuthAccessButton } from './components/AuthAccessButton';
 import {
   Search,
   ArrowRight,
@@ -229,6 +230,7 @@ export default function App() {
             >
               Consignar Propiedad
             </button>
+            <AuthAccessButton />
           </div>
         </div>
       </header>
