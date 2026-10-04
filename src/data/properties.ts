@@ -1,3 +1,4 @@
+// Synced source: property catalogue used by the public portal.
 export interface Property {
   id: string;
   code: string;
