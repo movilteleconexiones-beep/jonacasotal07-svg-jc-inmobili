@@ -23,7 +23,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const [visitorName, setVisitorName] = useState('');
   const [visitorPhone, setVisitorPhone] = useState('');
   const [visitDate, setVisitDate] = useState('2026-10-08');
-  const [visitModality, setVisitModality] = useState<'Recorrido en Propiedad' | 'Cita en Osa Mayor 4065' | 'Videollamada Ejecutiva'>('Recorrido en Propiedad');
+  const [visitModality, setVisitModality] = useState<'Recorrido en Propiedad' | 'Cita en oficina principal' | 'Videollamada Ejecutiva'>('Recorrido en Propiedad');
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -233,7 +233,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <p className="font-semibold text-slate-900">Estatus Jurídico y Técnico</p>
                 <p className="text-slate-600">{property.legalStatus}</p>
                 <p className="text-stone-500 font-mono-tabular">
-                  Cuota de mantenimiento condominal: {formatCOP(property.maintenanceFeeMXN)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
+                  Cuota de cuota de administración: {formatCOP(property.maintenanceFeeMXN)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
                 </p>
               </div>
 
@@ -273,7 +273,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                       {(
                         [
                           'Recorrido en Propiedad',
-                          'Cita en Osa Mayor 4065',
+                          'Cita en oficina principal',
                           'Videollamada Ejecutiva'
                         ] as const
                       ).map((mod) => (
@@ -353,7 +353,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             </div>
 
             <div className="pt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-600">
-              <span>Atención directa Colombia:</span>
+              <span>Atención directa:</span>
               <a
                 href="tel:+523323101060"
                 className="font-mono-tabular font-semibold text-slate-900 hover:text-[#0F2942] flex items-center gap-1.5"
