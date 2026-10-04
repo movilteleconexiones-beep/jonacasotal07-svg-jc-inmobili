@@ -19,6 +19,7 @@ import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
 import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
 import { PrivateDashboard } from './modules/dashboard/PrivateDashboard.tsx';
+import { useTenantBranding } from './core/use-tenant-branding';
 import {
   Search,
   ArrowRight,
@@ -34,6 +35,7 @@ import {
 
 export default function App() {
   const { user, activeMembership } = useAuth();
+  const { branding } = useTenantBranding();
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(false);
   // Catalog state
   const [properties, setProperties] = useState<Property[]>(PROPERTIES);
@@ -69,10 +71,10 @@ export default function App() {
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactError, setContactError] = useState('');
 
-  const formatMXN = (val: number) =>
-    new Intl.NumberFormat('es-MX', {
+  const formatMoney = (val: number) =>
+    new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'MXN',
+      currency: branding.currency || 'COP',
       maximumFractionDigits: 0
     }).format(val);
 
@@ -182,7 +184,7 @@ export default function App() {
             href="#inicio"
             className="text-2xl font-display font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
           >
-            JC Inmobili
+            {branding.companyName}
           </a>
 
           {/* Zone 2: 5 clean text navigation links */}
@@ -268,7 +270,7 @@ export default function App() {
             <div className="max-w-3xl space-y-6">
               {/* Unboxed regional & heritage metadata with typographic separators */}
               <p className="text-xs md:text-sm font-medium text-stone-300 tracking-wide">
-                Zapopan y Guadalajara, Jalisco · +18 Años de Trayectoria Patrimonial · Sede Osa Mayor 4065
+                Colombia · Gestión inmobiliaria especializada · Plataforma profesional
               </p>
 
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold tracking-tight leading-[1.08] text-white balance-text">
@@ -276,7 +278,7 @@ export default function App() {
               </h1>
 
               <p className="text-base md:text-lg text-stone-200 max-w-2xl leading-relaxed font-normal">
-                Protegemos tu patrimonio en los corredores de mayor plusvalía de Zapopan mediante procesos jurídicos verificados, administración garantizada de rentas, conservación residencial y formación ejecutiva en JC Inmobilearning.
+                Gestionamos tu patrimonio inmobiliario en Colombia mediante procesos comerciales, administrativos y documentales centralizados en una sola plataforma.
               </p>
 
               {/* Quantitative proof bar in clean unboxed layout */}
@@ -461,16 +463,16 @@ export default function App() {
                         <td className="py-3 px-4 text-slate-600">{cp.neighborhood}</td>
                         <td className="py-3 px-4 text-slate-700">{cp.operation}</td>
                         <td className="py-3 px-4 font-mono-tabular font-semibold text-slate-900">
-                          {formatMXN(cp.priceMXN)}
+                          {formatMoney(cp.priceMXN)}
                         </td>
                         <td className="py-3 px-4 font-mono-tabular text-slate-700">
-                          {formatMXN(cp.monthlyRentEstimationMXN)}
+                          {formatMoney(cp.monthlyRentEstimationMXN)}
                         </td>
                         <td className="py-3 px-4 font-mono-tabular text-slate-700">
                           {cp.landAreaM2} m² / {cp.constructionAreaM2} m²
                         </td>
                         <td className="py-3 px-4 font-mono-tabular text-slate-700">
-                          {formatMXN(Math.round(cp.priceMXN / cp.constructionAreaM2))}
+                          {formatMoney(Math.round(cp.priceMXN / cp.constructionAreaM2))}
                         </td>
                         <td className="py-3 pl-4 font-mono-tabular font-semibold text-[#14532D]">
                           +{cp.annualAppreciationPct}% · CAP {cp.rentalYieldPct}%
@@ -564,13 +566,13 @@ export default function App() {
                         <div className="pt-1">
                           <p className="text-xl font-semibold text-slate-900 font-mono-tabular">
                             {property.operation === 'Renta'
-                              ? `${formatMXN(property.monthlyRentEstimationMXN)} / mes`
-                              : formatMXN(property.priceMXN)}
+                              ? `${formatMoney(property.monthlyRentEstimationMXN)} / mes`
+                              : formatMoney(property.priceMXN)}
                           </p>
                           <p className="text-xs text-stone-500 font-mono-tabular mt-0.5">
                             {property.operation === 'Renta'
-                              ? `Póliza JC incluida · Mant. ${formatMXN(property.maintenanceFeeMXN)}`
-                              : `Renta estimada: ${formatMXN(property.monthlyRentEstimationMXN)}/mes · CAP ${property.rentalYieldPct}%`}
+                              ? `Póliza JC incluida · Mant. ${formatMoney(property.maintenanceFeeMXN)}`
+                              : `Renta estimada: ${formatMoney(property.monthlyRentEstimationMXN)}/mes · CAP ${property.rentalYieldPct}%`}
                           </p>
                         </div>
 
@@ -836,7 +838,7 @@ export default function App() {
                           {mod.number} · {mod.durationHours} horas · {mod.modality}
                         </span>
                         <span className="font-semibold">
-                          {isEnrolled ? 'Inscrito' : formatMXN(mod.priceMXN)}
+                          {isEnrolled ? 'Inscrito' : formatMoney(mod.priceMXN)}
                         </span>
                       </div>
                       <h3 className="text-base font-semibold leading-snug">{mod.title}</h3>
@@ -865,7 +867,7 @@ export default function App() {
                     <span className="font-mono-tabular">Inicio: {selectedAcademyModule.nextCohortDate}</span>
                   </div>
                   <span className="text-xl font-semibold text-slate-900 font-mono-tabular">
-                    {formatMXN(selectedAcademyModule.priceMXN)} MXN
+                    {formatMoney(selectedAcademyModule.priceMXN)} COP
                   </span>
                 </div>
 
@@ -1164,7 +1166,7 @@ export default function App() {
       <footer className="bg-[#F6F6F4] border-t border-stone-200/90 py-12 text-xs text-stone-600">
         <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="space-y-1">
-            <p className="text-lg font-display font-bold text-slate-900">JC Inmobili</p>
+            <p className="text-lg font-display font-bold text-slate-900">{branding.companyName}</p>
             <p>
               Calle Osa Mayor 4065, Zapopan, Jalisco, CP 45070 · Tel. (33) 2310 1060 · mkt.jcinmobili@gmail.com
             </p>
@@ -1183,7 +1185,7 @@ export default function App() {
             <a href="#inmobilearning" className="hover:text-slate-900">
               JC Inmobilearning
             </a>
-            <span>© {new Date().getFullYear()} JC Inmobili. Todos los derechos reservados.</span>
+            <span>© {new Date().getFullYear()} {branding.companyName}. Todos los derechos reservados.</span>
           </div>
         </div>
       </footer>
@@ -1243,8 +1245,8 @@ export default function App() {
                       <p className="text-sm font-semibold text-slate-900">{sp.title}</p>
                       <p className="text-sm font-mono-tabular font-semibold text-slate-800">
                         {sp.operation === 'Renta'
-                          ? `${formatMXN(sp.monthlyRentEstimationMXN)} / mes`
-                          : formatMXN(sp.priceMXN)}
+                          ? `${formatMoney(sp.monthlyRentEstimationMXN)} / mes`
+                          : formatMoney(sp.priceMXN)}
                       </p>
                       <div className="pt-2 flex items-center gap-2">
                         <button
