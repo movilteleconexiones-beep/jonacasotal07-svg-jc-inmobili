@@ -72,7 +72,7 @@ export default function App() {
   const [contactError, setContactError] = useState('');
 
   const formatMoney = (val: number) =>
-    new Intl.NumberFormat('es-CO', {
+    new Intl.NumberFormat(branding.locale || 'es-CO', {
       style: 'currency',
       currency: branding.currency || 'COP',
       maximumFractionDigits: 0
