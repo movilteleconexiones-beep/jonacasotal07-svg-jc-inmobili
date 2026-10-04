@@ -1,3 +1,4 @@
+// AI Studio resync: source preserved.
 import React, { useState } from 'react';
 import { Building2 } from 'lucide-react';
 
