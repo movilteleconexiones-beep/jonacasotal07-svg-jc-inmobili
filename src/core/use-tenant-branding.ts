@@ -78,6 +78,13 @@ export function useTenantBranding() {
 
   useEffect(() => {
     void refresh();
+
+    const onBrandingUpdated = () => void refresh();
+    window.addEventListener('tenant-branding-updated', onBrandingUpdated);
+
+    return () => {
+      window.removeEventListener('tenant-branding-updated', onBrandingUpdated);
+    };
   }, [refresh]);
 
   return { branding, loading, refresh };
