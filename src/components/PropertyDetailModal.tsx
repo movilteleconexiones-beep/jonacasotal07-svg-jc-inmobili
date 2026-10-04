@@ -29,10 +29,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
   if (!property) return null;
 
-  const formatMXN = (val: number) =>
-    new Intl.NumberFormat('es-MX', {
+  const formatCOP = (val: number) =>
+    new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'MXN',
+      currency: 'COP',
       maximumFractionDigits: 0
     }).format(val);
 
@@ -219,13 +219,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 </p>
                 <p className="text-3xl font-semibold text-slate-900 font-mono-tabular">
                   {property.operation === 'Renta'
-                    ? `${formatMXN(property.monthlyRentEstimationMXN)} / mes`
-                    : formatMXN(property.priceMXN)}
+                    ? `${formatCOP(property.monthlyRentEstimationMXN)} / mes`
+                    : formatCOP(property.priceMXN)}
                 </p>
                 <p className="text-xs text-stone-500 mt-1 font-mono-tabular">
                   {property.operation === 'Renta'
-                    ? `Valor patrimonial de referencia: ${formatMXN(property.priceMXN)}`
-                    : `Renta potencial estimada: ${formatMXN(property.monthlyRentEstimationMXN)} / mes · ${formatMXN(pricePerM2)} / m²`}
+                    ? `Valor patrimonial de referencia: ${formatCOP(property.priceMXN)}`
+                    : `Renta potencial estimada: ${formatCOP(property.monthlyRentEstimationMXN)} / mes · ${formatCOP(pricePerM2)} / m²`}
                 </p>
               </div>
 
@@ -233,7 +233,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <p className="font-semibold text-slate-900">Estatus Jurídico y Técnico</p>
                 <p className="text-slate-600">{property.legalStatus}</p>
                 <p className="text-stone-500 font-mono-tabular">
-                  Cuota de mantenimiento condominal: {formatMXN(property.maintenanceFeeMXN)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
+                  Cuota de mantenimiento condominal: {formatCOP(property.maintenanceFeeMXN)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
                 </p>
               </div>
 
@@ -353,7 +353,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             </div>
 
             <div className="pt-4 border-t border-stone-200 flex items-center justify-between text-xs text-stone-600">
-              <span>Atención directa Zapopan:</span>
+              <span>Atención directa Colombia:</span>
               <a
                 href="tel:+523323101060"
                 className="font-mono-tabular font-semibold text-slate-900 hover:text-[#0F2942] flex items-center gap-1.5"
