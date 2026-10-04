@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Settings,
+  ScrollText,
   UsersRound,
   X,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import { AppointmentsModule } from '../appointments/AppointmentsModule';
 import { DealsModule } from '../deals/DealsModule';
 import { SettingsModule } from '../settings/SettingsModule';
 import { UsersRolesModule } from '../users/UsersRolesModule';
+import { LicenseModule } from '../license/LicenseModule';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type DashboardView =
@@ -34,7 +36,8 @@ type DashboardView =
   | 'DEALS'
   | 'USERS'
   | 'IMPORT'
-  | 'SETTINGS';
+  | 'SETTINGS'
+  | 'LICENSE';
 
 interface DashboardStats {
   properties: number;
@@ -140,6 +143,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           visible: can(PERMISSIONS.CLIENTS_CREATE) || can(PERMISSIONS.PROPERTIES_CREATE),
         },
         { id: 'SETTINGS' as const, label: 'Configuración', icon: Settings, visible: can(PERMISSIONS.SETTINGS_VIEW) },
+        { id: 'LICENSE' as const, label: 'Licencia', icon: ScrollText, visible: can(PERMISSIONS.SETTINGS_VIEW) },
       ].filter((item) => item.visible),
     [can],
   );
@@ -241,8 +245,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'IMPORT' && <DataImportCenter />}
           {view === 'USERS' && <UsersRolesModule />}
           {view === 'SETTINGS' && <SettingsModule />}
+          {view === 'LICENSE' && <LicenseModule />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
