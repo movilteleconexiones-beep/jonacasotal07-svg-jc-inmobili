@@ -1,3 +1,4 @@
+// AI Studio resync: source preserved.
 import React, { useState } from 'react';
 import { Property, ZONE_VALUATION_BENCHMARKS, HERO_IMAGE } from '../data/properties';
 import { X, CheckCircle2 } from 'lucide-react';
