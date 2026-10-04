@@ -22,6 +22,7 @@ import { LeadsModule } from '../leads/LeadsModule';
 import { AppointmentsModule } from '../appointments/AppointmentsModule';
 import { DealsModule } from '../deals/DealsModule';
 import { SettingsModule } from '../settings/SettingsModule';
+import { UsersRolesModule } from '../users/UsersRolesModule';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type DashboardView =
@@ -238,9 +239,10 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'APPOINTMENTS' && <AppointmentsModule />}
           {view === 'DEALS' && <DealsModule />}
           {view === 'IMPORT' && <DataImportCenter />}
+          {view === 'USERS' && <UsersRolesModule />}
           {view === 'SETTINGS' && <SettingsModule />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'IMPORT' && view !== 'SETTINGS' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
