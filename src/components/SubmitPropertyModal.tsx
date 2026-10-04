@@ -18,7 +18,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [neighborhood, setNeighborhood] = useState<Property['neighborhood']>('Puerta de Hierro');
   const [operation, setOperation] = useState<Property['operation']>('Venta');
   const [category, setCategory] = useState<Property['category']>('Residencial');
-  const [priceMXN, setPriceMXN] = useState('14500000');
+  const [priceMXN, setPriceMXN] = useState('450000000');
   const [landAreaM2, setLandAreaM2] = useState('300');
   const [constructionAreaM2, setConstructionAreaM2] = useState('360');
   const [bedrooms, setBedrooms] = useState('3');
@@ -42,7 +42,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       return;
     }
 
-    const numericPrice = Math.max(500000, Number(priceMXN) || 8500000);
+    const numericPrice = Math.max(1000000, Number(priceMXN) || 450000000);
     const numericLand = Math.max(60, Number(landAreaM2) || 200);
     const numericConst = Math.max(60, Number(constructionAreaM2) || 220);
     const benchmark = ZONE_VALUATION_BENCHMARKS[neighborhood];
@@ -53,7 +53,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       code: generatedCode,
       title: title.trim(),
       neighborhood,
-      municipality: neighborhood === 'Providencia' ? 'Guadalajara, Jal.' : 'Zapopan, Jal.',
+      municipality: neighborhood === 'Providencia' ? 'Colombia' : 'Colombia',
       operation,
       category,
       priceMXN: operation === 'Renta' ? numericPrice * 180 : numericPrice,
@@ -84,7 +84,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
         'Elegible para Póliza de Mantenimiento Preventivo JC Inmobili',
         'Diagnóstico de impermeabilización, pintura y domótica incluido'
       ],
-      coordinatesLabel: `${neighborhood} · Zona Metropolitana de Guadalajara`,
+      coordinatesLabel: `${neighborhood} · Colombia`,
       yearBuilt: 2024
     };
 
@@ -110,7 +110,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       <div className="bg-white border border-stone-200 rounded-xl max-w-2xl w-full overflow-hidden shadow-2xl my-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-[#F9F9F7]">
           <div>
-            <p className="text-xs text-stone-500">Captación y Administración Patrimonial · Zapopan y GDL</p>
+            <p className="text-xs text-stone-500">Captación y Administración Patrimonial · Colombia</p>
             <h2 id="submit-property-title" className="text-xl font-semibold text-slate-900">
               Consignar Propiedad con JC Inmobili
             </h2>
@@ -219,7 +219,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
               <div>
                 <label htmlFor="prop-price" className="block text-xs font-medium text-slate-700 mb-1">
-                  {operation === 'Renta' ? 'Renta mensual pretendida (MXN)' : 'Valor estimado de venta (MXN)'}
+                  {operation === 'Renta' ? 'Renta mensual pretendida (COP)' : 'Valor estimado de venta (COP)'}
                 </label>
                 <input
                   id="prop-price"
