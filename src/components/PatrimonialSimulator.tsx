@@ -31,10 +31,10 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
   const [constM2, setConstM2] = useState<number>(420);
   const [conservationState, setConservationState] = useState<'nuevo' | 'excelente' | 'remodelar'>('excelente');
 
-  const formatMXN = (amount: number) =>
-    new Intl.NumberFormat('es-MX', {
+  const formatCOP = (amount: number) =>
+    new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'MXN',
+      currency: 'COP',
       maximumFractionDigits: 0
     }).format(amount);
 
@@ -66,7 +66,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
         ? (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths))) /
           (Math.pow(1 + monthlyRate, totalMonths) - 1)
         : 0;
-    const closingCostsJalisco = propertyValue * 0.048; // Notaría, ISABI Zapopan, Registro Público, Avalúo
+    const closingCostsColombia = propertyValue * 0.048; // Notaría, ISABI Zapopan, Registro Público, Avalúo
     const zoneAppreciation = ZONE_VALUATION_BENCHMARKS[selectedZone].annualAppreciationPct / 100;
     const valueIn5Years = propertyValue * Math.pow(1 + zoneAppreciation, 5);
     const capitalGain5Years = valueIn5Years - propertyValue;
@@ -75,7 +75,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
       downPayment,
       loanAmount,
       monthlyPayment,
-      closingCostsJalisco,
+      closingCostsColombia,
       zoneAppreciationPct: ZONE_VALUATION_BENCHMARKS[selectedZone].annualAppreciationPct,
       valueIn5Years,
       capitalGain5Years
@@ -108,7 +108,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
           <div>
             <p className="text-xs font-medium text-stone-500 tracking-wide mb-2">
-              Herramienta Financiera y Patrimonial · Zona Metropolitana de Guadalajara
+              Herramienta Financiera y Patrimonial · Colombia
             </p>
             <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
               Simulador de Administración, Crédito y Valor Comercial
@@ -184,7 +184,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                       Renta mensual estimada del inmueble
                     </label>
                     <span className="text-base font-semibold text-[#0F2942] font-mono-tabular">
-                      {formatMXN(monthlyRent)} / mes
+                      {formatCOP(monthlyRent)} / mes
                     </span>
                   </div>
                   <input
@@ -198,9 +198,9 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     className="w-full accent-[#0F2942] cursor-pointer h-2 bg-stone-200 rounded-lg"
                   />
                   <div className="flex justify-between text-xs text-stone-500 font-mono-tabular">
-                    <span>$12,000 MXN</span>
-                    <span>$100,000 MXN</span>
-                    <span>$220,000 MXN</span>
+                    <span>$1.200.000 COP</span>
+                    <span>$10.000.000 COP</span>
+                    <span>$22.000.000 COP</span>
                   </div>
                 </div>
 
@@ -303,10 +303,10 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                   <div>
                     <p className="text-xs text-stone-500 mb-1">Ingreso Neto Anual Estimado</p>
                     <p className="text-3xl font-semibold text-slate-900 font-mono-tabular tracking-tight">
-                      {formatMXN(adminResults.netAnnualOwner)}
+                      {formatCOP(adminResults.netAnnualOwner)}
                     </p>
                     <p className="text-xs text-slate-600 mt-1 font-mono-tabular">
-                      Depósito mensual libre: {formatMXN(adminResults.netMonthlyOwner)} / mes
+                      Depósito mensual libre: {formatCOP(adminResults.netMonthlyOwner)} / mes
                     </p>
                   </div>
 
@@ -314,7 +314,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     <div className="flex justify-between">
                       <dt className="text-slate-600">Renta bruta mensual</dt>
                       <dd className="font-mono-tabular font-medium text-slate-900">
-                        {formatMXN(monthlyRent)}
+                        {formatCOP(monthlyRent)}
                       </dd>
                     </div>
                     <div className="flex justify-between">
@@ -322,19 +322,19 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                         Honorario administración ({adminResults.feeRatePct}%)
                       </dt>
                       <dd className="font-mono-tabular text-slate-700">
-                        - {formatMXN(adminResults.monthlyFee)}
+                        - {formatCOP(adminResults.monthlyFee)}
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-slate-600">Reserva mantenimiento preventivo</dt>
                       <dd className="font-mono-tabular text-slate-700">
-                        - {formatMXN(adminResults.preventiveReserve)}
+                        - {formatCOP(adminResults.preventiveReserve)}
                       </dd>
                     </div>
                     <div className="flex justify-between pt-2 border-t border-stone-200/80 text-xs text-[#14532D]">
                       <dt>Riesgo evitado por morosidad / vacancia</dt>
                       <dd className="font-mono-tabular font-semibold">
-                        {formatMXN(adminResults.unshieldedRiskCost)} / año
+                        {formatCOP(adminResults.unshieldedRiskCost)} / año
                       </dd>
                     </div>
                   </dl>
@@ -345,9 +345,9 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     type="button"
                     onClick={() =>
                       onRequestDiagnostic(
-                        `Solicitud de Póliza de Administración (${adminPlan.toUpperCase()}): Renta estimada ${formatMXN(
+                        `Solicitud de Póliza de Administración (${adminPlan.toUpperCase()}): Renta estimada ${formatCOP(
                           monthlyRent
-                        )}/mes · Neto anual proyectado ${formatMXN(adminResults.netAnnualOwner)}.`
+                        )}/mes · Neto anual proyectado ${formatCOP(adminResults.netAnnualOwner)}.`
                       )
                     }
                     className="w-full py-3 px-4 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
@@ -368,7 +368,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     Corrida Hipotecaria y Proyección de Plusvalía a 5 Años
                   </h3>
                   <p className="text-sm text-slate-600">
-                    Calcula tu mensualidad bancaria, gastos de escrituración en Zapopan/Guadalajara y crecimiento patrimonial esperado.
+                    Calcula tu mensualidad bancaria, gastos de escrituración en Colombia y crecimiento patrimonial esperado.
                   </p>
                 </div>
 
@@ -378,7 +378,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                       Valor del inmueble a adquirir
                     </label>
                     <span className="text-base font-semibold text-[#0F2942] font-mono-tabular">
-                      {formatMXN(propertyValue)}
+                      {formatCOP(propertyValue)}
                     </span>
                   </div>
                   <input
@@ -400,7 +400,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                         Enganche inicial
                       </label>
                       <span className="font-mono-tabular font-semibold text-slate-900">
-                        {downPaymentPct}% ({formatMXN(mortgageResults.downPayment)})
+                        {downPaymentPct}% ({formatCOP(mortgageResults.downPayment)})
                       </span>
                     </div>
                     <input
@@ -473,10 +473,10 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                   <div>
                     <p className="text-xs text-stone-500 mb-1">Valor Proyectado a 5 Años</p>
                     <p className="text-3xl font-semibold text-slate-900 font-mono-tabular tracking-tight">
-                      {formatMXN(mortgageResults.valueIn5Years)}
+                      {formatCOP(mortgageResults.valueIn5Years)}
                     </p>
                     <p className="text-xs text-[#14532D] font-medium mt-1 font-mono-tabular">
-                      Ganancia de capital estimada: +{formatMXN(mortgageResults.capitalGain5Years)}
+                      Ganancia de capital estimada: +{formatCOP(mortgageResults.capitalGain5Years)}
                     </p>
                   </div>
 
@@ -484,19 +484,19 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     <div className="flex justify-between">
                       <dt className="text-slate-600">Monto de financiamiento ({100 - downPaymentPct}%)</dt>
                       <dd className="font-mono-tabular font-medium text-slate-900">
-                        {formatMXN(mortgageResults.loanAmount)}
+                        {formatCOP(mortgageResults.loanAmount)}
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-slate-600">Mensualidad hipotecaria estimada</dt>
                       <dd className="font-mono-tabular font-semibold text-[#0F2942]">
-                        {formatMXN(mortgageResults.monthlyPayment)} / mes
+                        {formatCOP(mortgageResults.monthlyPayment)} / mes
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-slate-600">Gastos notariales e ISABI (aprox. 4.8%)</dt>
                       <dd className="font-mono-tabular text-slate-700">
-                        {formatMXN(mortgageResults.closingCostsJalisco)}
+                        {formatCOP(mortgageResults.closingCostsColombia)}
                       </dd>
                     </div>
                   </dl>
@@ -507,7 +507,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     type="button"
                     onClick={() =>
                       onRequestDiagnostic(
-                        `Precalificación Hipotecaria y Patrimonial en ${selectedZone}: Inmueble de ${formatMXN(
+                        `Precalificación Hipotecaria y Patrimonial en ${selectedZone}: Inmueble de ${formatCOP(
                           propertyValue
                         )} con enganche de ${downPaymentPct}% a ${termYears} años.`
                       )
@@ -527,7 +527,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
               <div className="lg:col-span-7 p-6 md:p-8 space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                    Estimador de Valor Comercial por Metro Cuadrado en Zapopan y GDL
+                    Estimador de Valor Comercial por Metro Cuadrado en Colombia
                   </h3>
                   <p className="text-sm text-slate-600">
                     Obtén una referencia inmediata de precio de venta y renta mensual basada en cierres reales de JC Inmobili.
@@ -635,10 +635,10 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                   <div>
                     <p className="text-xs text-stone-500 mb-1">Valor Comercial Estimado</p>
                     <p className="text-3xl font-semibold text-slate-900 font-mono-tabular tracking-tight">
-                      {formatMXN(valuationResults.estimatedCommercialValue)}
+                      {formatCOP(valuationResults.estimatedCommercialValue)}
                     </p>
                     <p className="text-xs text-stone-500 mt-1 font-mono-tabular">
-                      Rango de mercado: {formatMXN(valuationResults.lowRange)} – {formatMXN(valuationResults.highRange)}
+                      Rango de mercado: {formatCOP(valuationResults.lowRange)} – {formatCOP(valuationResults.highRange)}
                     </p>
                   </div>
 
@@ -646,13 +646,13 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     <div className="flex justify-between">
                       <dt className="text-slate-600">Precio promedio por m² en {valZone}</dt>
                       <dd className="font-mono-tabular font-medium text-slate-900">
-                        {formatMXN(valuationResults.benchmark.avgPricePerM2MXN)} / m²
+                        {formatCOP(valuationResults.benchmark.avgPricePerM2MXN)} / m²
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-slate-600">Renta mensual estimada</dt>
                       <dd className="font-mono-tabular font-semibold text-[#14532D]">
-                        {formatMXN(valuationResults.estimatedMonthlyRent)} / mes
+                        {formatCOP(valuationResults.estimatedMonthlyRent)} / mes
                       </dd>
                     </div>
                     <div className="flex justify-between">
@@ -669,7 +669,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     type="button"
                     onClick={() =>
                       onRequestDiagnostic(
-                        `Solicitar Avalúo Comercial Presencial en ${valZone}: ${landM2} m² terreno / ${constM2} m² construcción. Valor preliminar: ${formatMXN(
+                        `Solicitar Avalúo Comercial Presencial en ${valZone}: ${landM2} m² terreno / ${constM2} m² construcción. Valor preliminar: ${formatCOP(
                           valuationResults.estimatedCommercialValue
                         )}.`
                       )
