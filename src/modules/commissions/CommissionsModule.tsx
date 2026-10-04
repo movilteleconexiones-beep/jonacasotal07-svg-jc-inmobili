@@ -19,6 +19,7 @@ interface MemberOption {
 
 interface CommissionRow {
   id: string;
+  beneficiary_user_id: string | null;
   commission_type: string;
   percentage: number | null;
   amount: number | null;
@@ -31,7 +32,6 @@ interface CommissionRow {
     properties: { code: string; title: string } | null;
     contacts: { first_name: string; last_name: string | null } | null;
   } | null;
-  profiles: { full_name: string | null } | null;
 }
 
 export function CommissionsModule() {
@@ -44,6 +44,7 @@ export function CommissionsModule() {
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
 
   async function load() {
     if (!organizationId) return;
@@ -51,7 +52,7 @@ export function CommissionsModule() {
     const [commissionsResult, dealsResult, membersResult] = await Promise.all([
       supabase
         .from('commissions')
-        .select('id,commission_type,percentage,amount,currency,status,due_date,paid_at,notes,deals(properties(code,title),contacts(first_name,last_name)),profiles:beneficiary_user_id(full_name)')
+        .select('id,beneficiary_user_id,commission_type,percentage,amount,currency,status,due_date,paid_at,notes,deals(properties(code,title),contacts(first_name,last_name))')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false }),
       supabase
@@ -70,7 +71,26 @@ export function CommissionsModule() {
     else setRows((commissionsResult.data ?? []) as unknown as CommissionRow[]);
 
     if (!dealsResult.error) setDeals((dealsResult.data ?? []) as unknown as DealOption[]);
-    if (!membersResult.error) setMembers((membersResult.data ?? []) as unknown as MemberOption[]);
+    if (!membersResult.error) {
+      const memberRows = (membersResult.data ?? []) as unknown as MemberOption[];
+      setMembers(memberRows);
+
+      const userIds = memberRows.map((member) => member.user_id);
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id,full_name')
+          .in('id', userIds);
+
+        const names: Record<string, string> = {};
+        for (const profile of profiles ?? []) {
+          names[profile.id] = profile.full_name || profile.id;
+        }
+        setProfileNames(names);
+      } else {
+        setProfileNames({});
+      }
+    }
   }
 
   useEffect(() => {
@@ -181,7 +201,7 @@ export function CommissionsModule() {
               <option value="">Sin usuario específico</option>
               {members.map((member) => (
                 <option key={member.user_id} value={member.user_id}>
-                  {member.profiles?.full_name || member.user_id}
+                  {profileNames[member.user_id] || member.profiles?.full_name || member.user_id}
                 </option>
               ))}
             </select>
@@ -240,7 +260,9 @@ export function CommissionsModule() {
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className="border-t border-stone-100">
-                <td className="px-4 py-3 font-semibold">{row.profiles?.full_name || '—'}</td>
+                <td className="px-4 py-3 font-semibold">
+                  {row.beneficiary_user_id ? (profileNames[row.beneficiary_user_id] || row.beneficiary_user_id) : '—'}
+                </td>
                 <td className="px-4 py-3">
                   {row.deals?.properties?.code || '—'}
                   {row.deals?.contacts?.first_name ? ' · ' + row.deals.contacts.first_name : ''}
