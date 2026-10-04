@@ -143,6 +143,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    await supabase.rpc('claim_my_invitations');
     const nextMemberships = await loadMemberships(userId);
     setMemberships(nextMemberships);
     setActiveOrganizationId((current) => {
