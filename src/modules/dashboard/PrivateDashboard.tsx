@@ -4,12 +4,15 @@ import {
   CalendarDays,
   ContactRound,
   FileSpreadsheet,
+  FileText,
   Handshake,
   Home,
   LayoutDashboard,
   LogOut,
   Settings,
   ScrollText,
+  BadgeDollarSign,
+  UserRoundCog,
   UsersRound,
   X,
 } from 'lucide-react';
@@ -25,6 +28,9 @@ import { DealsModule } from '../deals/DealsModule';
 import { SettingsModule } from '../settings/SettingsModule';
 import { UsersRolesModule } from '../users/UsersRolesModule';
 import { LicenseModule } from '../license/LicenseModule';
+import { OwnersModule } from '../owners/OwnersModule';
+import { DocumentsModule } from '../documents/DocumentsModule';
+import { CommissionsModule } from '../commissions/CommissionsModule';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type DashboardView =
@@ -37,7 +43,10 @@ type DashboardView =
   | 'USERS'
   | 'IMPORT'
   | 'SETTINGS'
-  | 'LICENSE';
+  | 'LICENSE'
+  | 'OWNERS'
+  | 'DOCUMENTS'
+  | 'COMMISSIONS';
 
 interface DashboardStats {
   properties: number;
@@ -135,6 +144,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         { id: 'LEADS' as const, label: 'Leads / CRM', icon: UsersRound, visible: can(PERMISSIONS.LEADS_VIEW) },
         { id: 'APPOINTMENTS' as const, label: 'Agenda', icon: CalendarDays, visible: can(PERMISSIONS.APPOINTMENTS_VIEW) },
         { id: 'DEALS' as const, label: 'Negocios', icon: Handshake, visible: can(PERMISSIONS.DEALS_VIEW) },
+        { id: 'OWNERS' as const, label: 'Propietarios', icon: UserRoundCog, visible: can(PERMISSIONS.OWNERS_VIEW) },
+        { id: 'DOCUMENTS' as const, label: 'Documentos', icon: FileText, visible: can(PERMISSIONS.DOCUMENTS_VIEW) },
+        { id: 'COMMISSIONS' as const, label: 'Comisiones', icon: BadgeDollarSign, visible: can(PERMISSIONS.COMMISSIONS_VIEW) },
         { id: 'USERS' as const, label: 'Usuarios', icon: UsersRound, visible: can(PERMISSIONS.USERS_VIEW) },
         {
           id: 'IMPORT' as const,
@@ -246,8 +258,11 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'USERS' && <UsersRolesModule />}
           {view === 'SETTINGS' && <SettingsModule />}
           {view === 'LICENSE' && <LicenseModule />}
+          {view === 'OWNERS' && <OwnersModule />}
+          {view === 'DOCUMENTS' && <DocumentsModule />}
+          {view === 'COMMISSIONS' && <CommissionsModule />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
