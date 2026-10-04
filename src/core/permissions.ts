@@ -23,8 +23,15 @@ export const PERMISSIONS = {
 
   DOCUMENTS_VIEW: 'documents.view',
   DOCUMENTS_UPLOAD: 'documents.upload',
+  DOCUMENTS_DELETE: 'documents.delete',
+
+  OWNERS_VIEW: 'owners.view',
+  OWNERS_CREATE: 'owners.create',
+  OWNERS_EDIT: 'owners.edit',
 
   COMMISSIONS_VIEW: 'commissions.view',
+  COMMISSIONS_CREATE: 'commissions.create',
+  COMMISSIONS_EDIT: 'commissions.edit',
   REPORTS_VIEW: 'reports.view',
 
   USERS_VIEW: 'users.view',
