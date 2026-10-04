@@ -186,7 +186,7 @@ export default function App() {
             href="#inicio"
             className="text-2xl font-display font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
           >
-            {branding.companyName}
+            {branding.softwareName}
           </a>
 
           {/* Zone 2: 5 clean text navigation links */}
@@ -1168,7 +1168,7 @@ export default function App() {
       <footer className="bg-[#F6F6F4] border-t border-stone-200/90 py-12 text-xs text-stone-600">
         <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="space-y-1">
-            <p className="text-lg font-display font-bold text-slate-900">{branding.companyName}</p>
+            <p className="text-lg font-display font-bold text-slate-900">{branding.softwareName}</p>
             <p>
               Datos de contacto configurables por cada inmobiliaria
             </p>
@@ -1187,7 +1187,7 @@ export default function App() {
             <a href="#inmobilearning" className="hover:text-slate-900">
               Academia Inmobiliaria
             </a>
-            <span>© {new Date().getFullYear()} {branding.companyName}. Todos los derechos reservados.</span>
+            <span>© {new Date().getFullYear()} {branding.softwareName}. Todos los derechos reservados.</span>
           </div>
         </div>
       </footer>
