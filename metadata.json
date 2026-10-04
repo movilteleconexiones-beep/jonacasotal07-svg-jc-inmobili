@@ -1,0 +1,6 @@
+{
+  "name": "JC Inmobili — Bienes Raíces y Administración en Zapopan",
+  "description": "Plataforma inmobiliaria con más de 18 años de experiencia en venta, renta, administración integral de propiedades y formación en JC Inmobilearning en Zapopan y Guadalajara.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
