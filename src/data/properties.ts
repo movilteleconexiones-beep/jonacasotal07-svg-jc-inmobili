@@ -284,7 +284,7 @@ export const PROPERTIES: Property[] = [
       'Mantenimiento integral preventivo trimestral (clima, pintura e impermeabilización)',
       'Monitoreo de alarma conectado a central 24/7'
     ],
-    coordinatesLabel: 'Corredor Osa Mayor · Ciudad del Río, Medellín',
+    coordinatesLabel: 'Ciudad del Río · Medellín',
     yearBuilt: 2022
   }
 ];
@@ -441,6 +441,6 @@ export const ACADEMY_MODULES: AcademyModule[] = [
       'Calificación de prospectos con crédito hipotecario bancario, leasing habitacional y contado',
       'Seguimiento de avalúo bancario, carta de instrucción y cierre en Notaría Pública'
     ],
-    instructor: 'Dirección Comercial JC Inmobilearning · Sede Osa Mayor 4065'
+    instructor: 'Dirección Comercial JC Inmobilearning · Sede Colombia'
   }
 ];
