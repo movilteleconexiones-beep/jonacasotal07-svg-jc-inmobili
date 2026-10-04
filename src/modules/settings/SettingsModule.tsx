@@ -75,6 +75,7 @@ export function SettingsModule() {
     } else {
       setMessage('Identidad y configuración guardadas correctamente.');
       await refresh();
+      window.dispatchEvent(new Event('tenant-branding-updated'));
     }
     setSaving(false);
   }
