@@ -14,7 +14,6 @@ interface DealOption {
 
 interface MemberOption {
   user_id: string;
-  profiles: { full_name: string | null } | null;
 }
 
 interface CommissionRow {
@@ -62,7 +61,7 @@ export function CommissionsModule() {
         .order('created_at', { ascending: false }),
       supabase
         .from('organization_members')
-        .select('user_id,profiles(full_name)')
+        .select('user_id')
         .eq('organization_id', organizationId)
         .eq('status', 'ACTIVE'),
     ]);
@@ -201,7 +200,7 @@ export function CommissionsModule() {
               <option value="">Sin usuario específico</option>
               {members.map((member) => (
                 <option key={member.user_id} value={member.user_id}>
-                  {profileNames[member.user_id] || member.profiles?.full_name || member.user_id}
+                  {profileNames[member.user_id] || member.user_id}
                 </option>
               ))}
             </select>
