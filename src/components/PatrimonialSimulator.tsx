@@ -23,10 +23,10 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
   const [propertyValue, setPropertyValue] = useState<number>(12500000);
   const [downPaymentPct, setDownPaymentPct] = useState<number>(30);
   const [termYears, setTermYears] = useState<10 | 15 | 20>(15);
-  const [selectedZone, setSelectedZone] = useState<Property['neighborhood']>('Puerta de Hierro');
+  const [selectedZone, setSelectedZone] = useState<Property['neighborhood']>('El Poblado');
 
   // Tab 3: Valuación Rápida por m² state
-  const [valZone, setValZone] = useState<Property['neighborhood']>('Valle Real');
+  const [valZone, setValZone] = useState<Property['neighborhood']>('Envigado');
   const [landM2, setLandM2] = useState<number>(380);
   const [constM2, setConstM2] = useState<number>(420);
   const [conservationState, setConservationState] = useState<'nuevo' | 'excelente' | 'remodelar'>('excelente');
@@ -58,7 +58,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
   const mortgageResults = useMemo(() => {
     const downPayment = propertyValue * (downPaymentPct / 100);
     const loanAmount = propertyValue - downPayment;
-    const annualRate = 0.1015; // 10.15% average prime bank rate in Mexico
+    const annualRate = 0.12; // Tasa ilustrativa editable para simulación financiera
     const monthlyRate = annualRate / 12;
     const totalMonths = termYears * 12;
     const monthlyPayment =
@@ -66,7 +66,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
         ? (loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths))) /
           (Math.pow(1 + monthlyRate, totalMonths) - 1)
         : 0;
-    const closingCostsColombia = propertyValue * 0.048; // Notaría, ISABI Zapopan, Registro Público, Avalúo
+    const closingCostsColombia = propertyValue * 0.048; // Estimación ilustrativa de gastos notariales, registrales y avalúo
     const zoneAppreciation = ZONE_VALUATION_BENCHMARKS[selectedZone].annualAppreciationPct / 100;
     const valueIn5Years = propertyValue * Math.pow(1 + zoneAppreciation, 5);
     const capitalGain5Years = valueIn5Years - propertyValue;
@@ -368,7 +368,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     Corrida Hipotecaria y Proyección de Plusvalía a 5 Años
                   </h3>
                   <p className="text-sm text-slate-600">
-                    Calcula tu mensualidad bancaria, gastos de escrituración en Colombia y crecimiento patrimonial esperado.
+                    Calcula tu mensualidad bancaria, gastos notariales y registrales estimados y crecimiento patrimonial esperado.
                   </p>
                 </div>
 
