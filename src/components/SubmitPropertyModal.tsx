@@ -15,7 +15,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   onAddProperty
 }) => {
   const [title, setTitle] = useState('');
-  const [neighborhood, setNeighborhood] = useState<Property['neighborhood']>('Puerta de Hierro');
+  const [neighborhood, setNeighborhood] = useState<Property['neighborhood']>('El Poblado');
   const [operation, setOperation] = useState<Property['operation']>('Venta');
   const [category, setCategory] = useState<Property['category']>('Residencial');
   const [priceMXN, setPriceMXN] = useState('450000000');
@@ -53,7 +53,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       code: generatedCode,
       title: title.trim(),
       neighborhood,
-      municipality: neighborhood === 'Providencia' ? 'Colombia' : 'Colombia',
+      municipality: neighborhood === 'Chicó' || neighborhood === 'Usaquén' ? 'Bogotá, D.C.' : 'Medellín, Antioquia',
       operation,
       category,
       priceMXN: operation === 'Renta' ? numericPrice * 180 : numericPrice,
@@ -61,7 +61,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
         operation === 'Renta'
           ? numericPrice
           : Math.round((numericPrice * (benchmark.avgYieldPct / 100)) / 12),
-      maintenanceFeeMXN: 3200,
+      maintenanceFeeMXN: 500000,
       landAreaM2: numericLand,
       constructionAreaM2: numericConst,
       bedrooms: Number(bedrooms) || 3,
@@ -78,7 +78,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       highlights: [
         `Ubicación estratégica en ${neighborhood}`,
         'Dictaminación legal y valuación comercial por JC Inmobili',
-        'Promoción multicanal en portales especializados de ZMG'
+        'Promoción multicanal en portales especializados en Colombia'
       ],
       domoticsAndMaintenance: [
         'Elegible para Póliza de Mantenimiento Preventivo JC Inmobili',
@@ -136,7 +136,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 Propiedad Incorporada al Catálogo Activo
               </h3>
               <p className="text-sm text-slate-600 max-w-md mx-auto">
-                Tu propiedad en <strong>{neighborhood}</strong> ya aparece publicada en el catálogo interactivo y ha sido asignada a un asesor en Calle Osa Mayor 4065 para validación documental.
+                Tu propiedad en <strong>{neighborhood}</strong> ya aparece publicada en el catálogo interactivo y ha sido asignada a un asesor en la oficina principal para validación documental.
               </p>
             </div>
             <div className="pt-2">
@@ -160,7 +160,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                   id="prop-title"
                   type="text"
                   required
-                  placeholder="Ej. Residencia Contemporánea en Coto Privado Valle Real"
+                  placeholder="Ej. Apartamento contemporáneo en El Poblado"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-[#0F2942]"
