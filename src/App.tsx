@@ -17,6 +17,8 @@ import { PatrimonialSimulator } from './components/PatrimonialSimulator';
 import { PropertyDetailModal } from './components/PropertyDetailModal';
 import { SubmitPropertyModal } from './components/SubmitPropertyModal';
 import { AuthAccessButton } from './components/AuthAccessButton';
+import { useAuth } from './core/auth-context';
+import { PrivateDashboard } from './modules/dashboard/PrivateDashboard';
 import {
   Search,
   ArrowRight,
@@ -31,6 +33,8 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  const { user, activeMembership } = useAuth();
+  const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(false);
   // Catalog state
   const [properties, setProperties] = useState<Property[]>(PROPERTIES);
   const [operationFilter, setOperationFilter] = useState<'Todas' | Property['operation']>('Todas');
@@ -164,6 +168,10 @@ export default function App() {
     setContactSubmitted(true);
   };
 
+  if (isPrivateDashboardOpen && user && activeMembership) {
+    return <PrivateDashboard onClose={() => setIsPrivateDashboardOpen(false)} />;
+  }
+
   return (
     <div id="inicio" className="min-h-screen flex flex-col bg-[#F6F6F4] text-slate-900">
       {/* 2. TOP BAR CONTRACT: Strictly 1 row, 3 zones (Brand Wordmark — 5 Nav Links — Primary Actions) */}
@@ -230,6 +238,15 @@ export default function App() {
             >
               Consignar Propiedad
             </button>
+            {user && activeMembership && (
+              <button
+                type="button"
+                onClick={() => setIsPrivateDashboardOpen(true)}
+                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
+              >
+                Panel
+              </button>
+            )}
             <AuthAccessButton />
           </div>
         </div>
