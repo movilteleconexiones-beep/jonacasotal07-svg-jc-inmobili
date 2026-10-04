@@ -3,6 +3,7 @@ import { Building2, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { useTenantBranding } from '../../core/use-tenant-branding';
 
 interface PropertyRow {
   id: string;
@@ -20,6 +21,7 @@ interface PropertyRow {
 
 export function PropertiesModule() {
   const { user, activeMembership, can } = useAuth();
+  const { branding } = useTenantBranding();
   const [rows, setRows] = useState<PropertyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -158,7 +160,7 @@ export function PropertiesModule() {
                 <td className="px-4 py-3">{operationLabel(row.operation_type)}</td>
                 <td className="px-4 py-3">{[row.neighborhood, row.city].filter(Boolean).join(', ') || '—'}</td>
                 <td className="px-4 py-3 font-semibold">
-                  {row.price == null ? '—' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: row.currency, maximumFractionDigits: 0 }).format(row.price)}
+                  {row.price == null ? '—' : new Intl.NumberFormat(branding.locale || 'es-CO', { style: 'currency', currency: row.currency || branding.currency || 'COP', maximumFractionDigits: 0 }).format(row.price)}
                 </td>
                 <td className="px-4 py-3">{row.status}</td>
               </tr>
