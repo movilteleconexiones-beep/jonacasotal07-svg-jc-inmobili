@@ -39,6 +39,25 @@ interface MemberRow {
   }>;
 }
 
+interface ContactOption {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+}
+
+interface OwnerOption {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+}
+
+interface PortalLinkRow {
+  id: string;
+  user_id: string;
+  contact_id: string | null;
+  owner_id: string | null;
+}
+
 interface InvitationRow {
   id: string;
   email: string;
@@ -60,6 +79,9 @@ export function UsersRolesModule() {
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [permissions, setPermissions] = useState<PermissionRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
+  const [contacts, setContacts] = useState<ContactOption[]>([]);
+  const [owners, setOwners] = useState<OwnerOption[]>([]);
+  const [portalLinks, setPortalLinks] = useState<PortalLinkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [profilesById, setProfilesById] = useState<Record<string, { full_name: string | null; phone: string | null; avatar_url: string | null }>>({});
@@ -71,7 +93,7 @@ export function UsersRolesModule() {
     setLoading(true);
     setMessage('');
 
-    const [membersResult, rolesResult, permissionsResult, invitationsResult] = await Promise.all([
+    const [membersResult, rolesResult, permissionsResult, invitationsResult, contactsResult, ownersResult, portalLinksResult] = await Promise.all([
       supabase
         .from('organization_members')
         .select('id,user_id,status,joined_at,member_roles(role_id,roles(id,name,key))')
@@ -93,6 +115,20 @@ export function UsersRolesModule() {
         .select('id,email,full_name,status,expires_at,created_at,invitation_roles(role_id,roles(id,name,key))')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('contacts')
+        .select('id,first_name,last_name')
+        .eq('organization_id', organizationId)
+        .order('first_name'),
+      supabase
+        .from('property_owners')
+        .select('id,first_name,last_name')
+        .eq('organization_id', organizationId)
+        .order('first_name'),
+      supabase
+        .from('portal_access_links')
+        .select('id,user_id,contact_id,owner_id')
+        .eq('organization_id', organizationId),
     ]);
 
     if (membersResult.error) setMessage(membersResult.error.message);
@@ -126,6 +162,9 @@ export function UsersRolesModule() {
     setRoles((rolesResult.data ?? []) as unknown as RoleRow[]);
     setPermissions((permissionsResult.data ?? []) as PermissionRow[]);
     setInvitations((invitationsResult.data ?? []) as unknown as InvitationRow[]);
+    setContacts((contactsResult.data ?? []) as ContactOption[]);
+    setOwners((ownersResult.data ?? []) as OwnerOption[]);
+    setPortalLinks((portalLinksResult.data ?? []) as PortalLinkRow[]);
     setLoading(false);
   }
 
@@ -266,6 +305,49 @@ export function UsersRolesModule() {
 
     if (error) setMessage(error.message);
     else await load();
+  }
+
+  async function setPortalRelation(
+    member: MemberRow,
+    relation: 'CONTACT' | 'OWNER',
+    targetId: string,
+  ) {
+    if (!organizationId || !user || !can(PERMISSIONS.USERS_EDIT)) return;
+
+    const existing = portalLinks.find((link) =>
+      link.user_id === member.user_id &&
+      (relation === 'CONTACT' ? Boolean(link.contact_id) : Boolean(link.owner_id)),
+    );
+
+    if (existing) {
+      const { error } = await supabase
+        .from('portal_access_links')
+        .delete()
+        .eq('id', existing.id);
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+    }
+
+    if (targetId) {
+      const { error } = await supabase.from('portal_access_links').insert({
+        organization_id: organizationId,
+        user_id: member.user_id,
+        contact_id: relation === 'CONTACT' ? targetId : null,
+        owner_id: relation === 'OWNER' ? targetId : null,
+        created_by: user.id,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+    }
+
+    setMessage('Acceso de portal actualizado.');
+    await load();
   }
 
   async function createRole(event: FormEvent<HTMLFormElement>) {
@@ -471,32 +553,78 @@ export function UsersRolesModule() {
                     </select>
                   </label>
 
-                  <div>
-                    <div className="mb-2 text-xs font-semibold text-slate-500">Roles asignados</div>
-                    <div className="flex flex-wrap gap-2">
-                      {roles.map((role) => {
-                        const checked = assignedRoleIds.has(role.id);
-                        return (
-                          <label
-                            key={role.id}
-                            className={
-                              'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ' +
-                              (checked ? 'border-slate-900 bg-slate-900 text-white' : 'border-stone-300 bg-white text-slate-700')
-                            }
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={!can(PERMISSIONS.ROLES_ASSIGN)}
-                              onChange={(event) => void toggleMemberRole(member, role.id, event.target.checked)}
-                              className="sr-only"
-                            />
-                            {checked && <Check className="h-3 w-3" />}
-                            {role.name}
-                          </label>
-                        );
-                      })}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="mb-2 text-xs font-semibold text-slate-500">Roles asignados</div>
+                      <div className="flex flex-wrap gap-2">
+                        {roles.map((role) => {
+                          const checked = assignedRoleIds.has(role.id);
+                          return (
+                            <label
+                              key={role.id}
+                              className={
+                                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ' +
+                                (checked ? 'border-slate-900 bg-slate-900 text-white' : 'border-stone-300 bg-white text-slate-700')
+                              }
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={!can(PERMISSIONS.ROLES_ASSIGN)}
+                                onChange={(event) => void toggleMemberRole(member, role.id, event.target.checked)}
+                                className="sr-only"
+                              />
+                              {checked && <Check className="h-3 w-3" />}
+                              {role.name}
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
+
+                    {can(PERMISSIONS.USERS_EDIT) && (
+                      <div className="grid gap-3 border-t border-stone-100 pt-3 md:grid-cols-2">
+                        <label>
+                          <span className="mb-1 block text-xs font-semibold text-slate-500">
+                            Portal como cliente
+                          </span>
+                          <select
+                            value={
+                              portalLinks.find((link) => link.user_id === member.user_id && link.contact_id)?.contact_id ?? ''
+                            }
+                            onChange={(event) => void setPortalRelation(member, 'CONTACT', event.target.value)}
+                            className="w-full rounded-lg border border-stone-300 px-2 py-2 text-sm"
+                          >
+                            <option value="">Sin vínculo de cliente</option>
+                            {contacts.map((contact) => (
+                              <option key={contact.id} value={contact.id}>
+                                {[contact.first_name, contact.last_name].filter(Boolean).join(' ')}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label>
+                          <span className="mb-1 block text-xs font-semibold text-slate-500">
+                            Portal como propietario
+                          </span>
+                          <select
+                            value={
+                              portalLinks.find((link) => link.user_id === member.user_id && link.owner_id)?.owner_id ?? ''
+                            }
+                            onChange={(event) => void setPortalRelation(member, 'OWNER', event.target.value)}
+                            className="w-full rounded-lg border border-stone-300 px-2 py-2 text-sm"
+                          >
+                            <option value="">Sin vínculo de propietario</option>
+                            {owners.map((owner) => (
+                              <option key={owner.id} value={owner.id}>
+                                {[owner.first_name, owner.last_name].filter(Boolean).join(' ')}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 </div>
               </article>
