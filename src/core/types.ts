@@ -81,6 +81,7 @@ export interface MemberPermission {
 export interface OrganizationBranding {
   organizationId: string;
   companyName: string;
+  softwareName?: string;
   logoUrl?: string;
   faviconUrl?: string;
   primaryColor?: string;
