@@ -11,7 +11,7 @@ import {
   HERO_IMAGE,
   Property,
   AcademyModule
-} from './data/properties';
+} from './data/properties.ts';
 import { ResilientImage } from './components/ResilientImage';
 import { PatrimonialSimulator } from './components/PatrimonialSimulator';
 import { PropertyDetailModal } from './components/PropertyDetailModal';
