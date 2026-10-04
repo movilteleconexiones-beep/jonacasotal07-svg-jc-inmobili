@@ -12,6 +12,8 @@ import {
   Settings,
   ScrollText,
   BadgeDollarSign,
+  BarChart3,
+  UserCircle2,
   UserRoundCog,
   UsersRound,
   X,
@@ -31,6 +33,8 @@ import { LicenseModule } from '../license/LicenseModule';
 import { OwnersModule } from '../owners/OwnersModule';
 import { DocumentsModule } from '../documents/DocumentsModule';
 import { CommissionsModule } from '../commissions/CommissionsModule';
+import { ReportsModule } from '../reports/ReportsModule';
+import { PortalHub } from '../portal/PortalHub';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type DashboardView =
@@ -46,7 +50,9 @@ type DashboardView =
   | 'LICENSE'
   | 'OWNERS'
   | 'DOCUMENTS'
-  | 'COMMISSIONS';
+  | 'COMMISSIONS'
+  | 'REPORTS'
+  | 'PORTAL';
 
 interface DashboardStats {
   properties: number;
@@ -147,6 +153,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         { id: 'OWNERS' as const, label: 'Propietarios', icon: UserRoundCog, visible: can(PERMISSIONS.OWNERS_VIEW) },
         { id: 'DOCUMENTS' as const, label: 'Documentos', icon: FileText, visible: can(PERMISSIONS.DOCUMENTS_VIEW) },
         { id: 'COMMISSIONS' as const, label: 'Comisiones', icon: BadgeDollarSign, visible: can(PERMISSIONS.COMMISSIONS_VIEW) },
+        { id: 'REPORTS' as const, label: 'Reportes', icon: BarChart3, visible: can(PERMISSIONS.REPORTS_VIEW) },
+        { id: 'PORTAL' as const, label: 'Mi Portal', icon: UserCircle2, visible: true },
         { id: 'USERS' as const, label: 'Usuarios', icon: UsersRound, visible: can(PERMISSIONS.USERS_VIEW) },
         {
           id: 'IMPORT' as const,
@@ -261,8 +269,10 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'OWNERS' && <OwnersModule />}
           {view === 'DOCUMENTS' && <DocumentsModule />}
           {view === 'COMMISSIONS' && <CommissionsModule />}
+          {view === 'REPORTS' && <ReportsModule />}
+          {view === 'PORTAL' && <PortalHub />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
