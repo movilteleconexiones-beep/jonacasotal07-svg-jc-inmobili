@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Building2, LogIn, LogOut, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../core/auth-context';
+import { DEFAULT_COUNTRY_CODE, LATAM_COUNTRIES } from '../core/countries';
 
 type AuthMode = 'SIGN_IN' | 'SIGN_UP' | 'CREATE_ORG';
 
@@ -33,6 +34,7 @@ export function AuthAccessButton() {
   const [password, setPassword] = useState('');
   const [organizationName, setOrganizationName] = useState('');
   const [organizationSlug, setOrganizationSlug] = useState('');
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -93,7 +95,7 @@ export function AuthAccessButton() {
 
     setBusy(true);
     try {
-      const result = await createOrganization(organizationName.trim(), slug);
+      const result = await createOrganization(organizationName.trim(), slug, countryCode);
       if (result.error) {
         setMessage(result.error);
         return;
@@ -159,6 +161,8 @@ export function AuthAccessButton() {
               if (!organizationSlug) setOrganizationSlug(slugify(value));
             }}
             setOrganizationSlug={setOrganizationSlug}
+            countryCode={countryCode}
+            setCountryCode={setCountryCode}
             message={message}
             busy={busy}
             onClose={() => setOpen(false)}
@@ -316,6 +320,8 @@ interface OrganizationModalProps {
   organizationSlug: string;
   setOrganizationName: (value: string) => void;
   setOrganizationSlug: (value: string) => void;
+  countryCode: string;
+  setCountryCode: (value: string) => void;
   message: string;
   busy: boolean;
   onClose: () => void;
@@ -327,6 +333,8 @@ function OrganizationModal({
   organizationSlug,
   setOrganizationName,
   setOrganizationSlug,
+  countryCode,
+  setCountryCode,
   message,
   busy,
   onClose,
