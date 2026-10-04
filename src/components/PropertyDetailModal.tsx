@@ -1,3 +1,4 @@
+// AI Studio resync: source preserved.
 import React, { useState } from 'react';
 import { Property } from '../data/properties';
 import { ResilientImage } from './ResilientImage';
