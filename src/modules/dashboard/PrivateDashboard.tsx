@@ -14,6 +14,7 @@ import {
   BadgeDollarSign,
   BarChart3,
   UserCircle2,
+  ShieldCheck,
   UserRoundCog,
   UsersRound,
   X,
@@ -35,6 +36,7 @@ import { DocumentsModule } from '../documents/DocumentsModule';
 import { CommissionsModule } from '../commissions/CommissionsModule';
 import { ReportsModule } from '../reports/ReportsModule';
 import { PortalHub } from '../portal/PortalHub';
+import { SuperAdminModule } from '../platform/SuperAdminModule';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type DashboardView =
@@ -52,7 +54,8 @@ type DashboardView =
   | 'DOCUMENTS'
   | 'COMMISSIONS'
   | 'REPORTS'
-  | 'PORTAL';
+  | 'PORTAL'
+  | 'SUPER_ADMIN';
 
 interface DashboardStats {
   properties: number;
@@ -88,8 +91,20 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const [view, setView] = useState<DashboardView>('DASHBOARD');
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   const organizationId = activeMembership?.organization.id;
+
+  useEffect(() => {
+    if (!user) {
+      setIsPlatformAdmin(false);
+      return;
+    }
+
+    supabase.rpc('is_platform_admin').then(({ data }) => {
+      setIsPlatformAdmin(Boolean(data));
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     if (!organizationId) {
@@ -155,6 +170,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         { id: 'COMMISSIONS' as const, label: 'Comisiones', icon: BadgeDollarSign, visible: can(PERMISSIONS.COMMISSIONS_VIEW) },
         { id: 'REPORTS' as const, label: 'Reportes', icon: BarChart3, visible: can(PERMISSIONS.REPORTS_VIEW) },
         { id: 'PORTAL' as const, label: 'Mi Portal', icon: UserCircle2, visible: true },
+        { id: 'SUPER_ADMIN' as const, label: 'Super Admin', icon: ShieldCheck, visible: isPlatformAdmin },
         { id: 'USERS' as const, label: 'Usuarios', icon: UsersRound, visible: can(PERMISSIONS.USERS_VIEW) },
         {
           id: 'IMPORT' as const,
@@ -165,7 +181,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         { id: 'SETTINGS' as const, label: 'Configuración', icon: Settings, visible: can(PERMISSIONS.SETTINGS_VIEW) },
         { id: 'LICENSE' as const, label: 'Licencia', icon: ScrollText, visible: can(PERMISSIONS.SETTINGS_VIEW) },
       ].filter((item) => item.visible),
-    [can],
+    [can, isPlatformAdmin],
   );
 
   if (!user || !activeMembership) {
@@ -271,8 +287,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'COMMISSIONS' && <CommissionsModule />}
           {view === 'REPORTS' && <ReportsModule />}
           {view === 'PORTAL' && <PortalHub />}
+          {view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
