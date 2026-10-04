@@ -57,7 +57,7 @@ export default function App() {
     Array<{ code: string; title: string; name: string; date: string; modality: string }>
   >([]);
 
-  // JC Inmobilearning state
+  // Academia Inmobiliaria state
   const [selectedAcademyModule, setSelectedAcademyModule] = useState<AcademyModule>(ACADEMY_MODULES[0]);
   const [enrolledModules, setEnrolledModules] = useState<string[]>([]);
   const [academyStudentName, setAcademyStudentName] = useState('');
@@ -216,7 +216,7 @@ export default function App() {
               href="#inmobilearning"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
             >
-              JC Inmobilearning
+              Academia Inmobiliaria
             </a>
             <a
               href="#contacto"
@@ -659,7 +659,7 @@ export default function App() {
                       Cobranza garantizada, investigación jurídica de inquilinos y cero desgaste operativo para el propietario.
                     </h3>
                     <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
-                      Nos hacemos cargo de la relación completa con el arrendatario: investigación en buró legal y crediticio, contratos blindados ante extinción de dominio ratificados mediante mecanismos de conciliación aplicables en {countryProfile.name}, cobro puntual, pago de predial, cuotas de administración y supervisión física semestral.
+                      Nos hacemos cargo de la relación completa con el arrendatario: validación jurídica, identidad y capacidad de pago, contratos y soportes documentales con mecanismos de solución de controversias aplicables en {countryProfile.name}, cobro puntual, pago de predial, cuotas de administración y supervisión física semestral.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-stone-200/80 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600">
@@ -806,7 +806,7 @@ export default function App() {
                   División Académica Exclusiva · Capacitación inmobiliaria en {countryProfile.name}
                 </p>
                 <h2 className="text-3xl md:text-4xl font-display font-semibold tracking-tight text-white balance-text">
-                  JC Inmobilearning: Formación Jurídica, Comercial y Patrimonial
+                  Academia Inmobiliaria: Formación Jurídica, Comercial y Patrimonial
                 </h2>
               </div>
               <p className="text-sm text-stone-300 max-w-md">
@@ -1125,8 +1125,8 @@ export default function App() {
                           <option value="Cotización de Mantenimiento, Persianas o Domótica">
                             Cotización de Mantenimiento, Persianas o Domótica
                           </option>
-                          <option value="Inscripción en Academia JC Inmobilearning">
-                            Inscripción en Academia JC Inmobilearning
+                          <option value="Inscripción en Academia Inmobiliaria">
+                            Inscripción en Academia Inmobiliaria
                           </option>
                         </select>
                       </div>
@@ -1185,7 +1185,7 @@ export default function App() {
               Simulador
             </a>
             <a href="#inmobilearning" className="hover:text-slate-900">
-              JC Inmobilearning
+              Academia Inmobiliaria
             </a>
             <span>© {new Date().getFullYear()} {branding.companyName}. Todos los derechos reservados.</span>
           </div>
