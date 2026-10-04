@@ -18,6 +18,9 @@ import { supabase } from '../../lib/supabase';
 import { DataImportCenter } from '../imports/DataImportCenter';
 import { PropertiesModule } from '../properties/PropertiesModule';
 import { ContactsModule } from '../contacts/ContactsModule';
+import { LeadsModule } from '../leads/LeadsModule';
+import { AppointmentsModule } from '../appointments/AppointmentsModule';
+import { DealsModule } from '../deals/DealsModule';
 
 type DashboardView =
   | 'DASHBOARD'
@@ -228,9 +231,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
           {view === 'PROPERTIES' && <PropertiesModule />}
           {view === 'CONTACTS' && <ContactsModule />}
+          {view === 'LEADS' && <LeadsModule />}
+          {view === 'APPOINTMENTS' && <AppointmentsModule />}
+          {view === 'DEALS' && <DealsModule />}
           {view === 'IMPORT' && <DataImportCenter />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'IMPORT' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'IMPORT' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
