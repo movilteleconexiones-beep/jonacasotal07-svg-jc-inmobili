@@ -3,6 +3,7 @@ import { CalendarDays, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { useTenantBranding } from '../../core/use-tenant-branding';
 
 interface AppointmentRow {
   id: string;
@@ -21,6 +22,7 @@ interface PropertyOption { id: string; code: string; title: string }
 
 export function AppointmentsModule() {
   const { user, activeMembership, can } = useAuth();
+  const { branding } = useTenantBranding();
   const organizationId = activeMembership?.organization.id;
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [contacts, setContacts] = useState<ContactOption[]>([]);
@@ -151,7 +153,7 @@ export function AppointmentsModule() {
           <article key={row.id} className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 md:grid-cols-[180px_1fr_180px] md:items-center">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{row.appointment_type}</div>
-              <div className="mt-1 font-bold">{new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(row.starts_at))}</div>
+              <div className="mt-1 font-bold">{new Intl.DateTimeFormat(branding.locale || 'es-CO', { dateStyle: 'medium', timeStyle: 'short', timeZone: branding.timezone || 'America/Bogota' }).format(new Date(row.starts_at))}</div>
             </div>
             <div>
               <div className="font-semibold">{[row.contacts?.first_name, row.contacts?.last_name].filter(Boolean).join(' ') || 'Sin cliente'}</div>
