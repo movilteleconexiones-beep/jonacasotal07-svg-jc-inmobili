@@ -16,6 +16,8 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 import { DataImportCenter } from '../imports/DataImportCenter';
+import { PropertiesModule } from '../properties/PropertiesModule';
+import { ContactsModule } from '../contacts/ContactsModule';
 
 type DashboardView =
   | 'DASHBOARD'
@@ -224,9 +226,11 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             />
           )}
 
+          {view === 'PROPERTIES' && <PropertiesModule />}
+          {view === 'CONTACTS' && <ContactsModule />}
           {view === 'IMPORT' && <DataImportCenter />}
 
-          {view !== 'DASHBOARD' && view !== 'IMPORT' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'IMPORT' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
