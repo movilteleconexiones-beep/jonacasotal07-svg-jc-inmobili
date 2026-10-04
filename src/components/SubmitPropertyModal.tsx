@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Property, ZONE_VALUATION_BENCHMARKS, HERO_IMAGE } from '../data/properties';
 import { X, CheckCircle2 } from 'lucide-react';
+import { useTenantBranding } from '../core/use-tenant-branding';
 
 interface SubmitPropertyModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   onClose,
   onAddProperty
 }) => {
+  const { branding } = useTenantBranding();
   const [title, setTitle] = useState('');
   const [neighborhood, setNeighborhood] = useState<Property['neighborhood']>('El Poblado');
   const [operation, setOperation] = useState<Property['operation']>('Venta');
@@ -37,8 +39,9 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       setError('Ingresa un título descriptivo para el inmueble.');
       return;
     }
-    if (ownerName.trim().length < 3 || ownerPhone.replace(/\D/g, '').length < 10) {
-      setError('Por favor proporciona tu nombre y un teléfono válido de 10 dígitos.');
+    const phoneDigits = ownerPhone.replace(/\D/g, '');
+    if (ownerName.trim().length < 3 || phoneDigits.length < 7 || phoneDigits.length > 15) {
+      setError('Por favor proporciona tu nombre y un teléfono válido, con código de país cuando corresponda.');
       return;
     }
 
@@ -110,9 +113,9 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       <div className="bg-white border border-stone-200 rounded-xl max-w-2xl w-full overflow-hidden shadow-2xl my-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-[#F9F9F7]">
           <div>
-            <p className="text-xs text-stone-500">Captación y Administración Patrimonial · Colombia</p>
+            <p className="text-xs text-stone-500">Captación y administración patrimonial · {branding.country}</p>
             <h2 id="submit-property-title" className="text-xl font-semibold text-slate-900">
-              Consignar Propiedad con JC Inmobili
+              Consignar propiedad con {branding.companyName}
             </h2>
           </div>
           <button
@@ -219,7 +222,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
               <div>
                 <label htmlFor="prop-price" className="block text-xs font-medium text-slate-700 mb-1">
-                  {operation === 'Renta' ? 'Renta mensual pretendida (COP)' : 'Valor estimado de venta (COP)'}
+                  {operation === 'Renta' ? 'Renta mensual pretendida ({branding.currency})' : 'Valor estimado de venta ({branding.currency})'}
                 </label>
                 <input
                   id="prop-price"
