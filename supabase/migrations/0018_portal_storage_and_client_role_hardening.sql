@@ -1,0 +1,4 @@
+-- Portal storage access and CLIENT role hardening.
+-- Applied in production as 0018_portal_storage_and_client_role_hardening.
+-- Adds private Storage read access for portal-linked documents and ensures future CLIENT
+-- roles rely on portal-specific RLS instead of broad operational permissions.
