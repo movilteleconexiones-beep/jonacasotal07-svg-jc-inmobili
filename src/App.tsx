@@ -260,7 +260,7 @@ export default function App() {
           <div className="absolute inset-0">
             <ResilientImage
               src={HERO_IMAGE}
-              alt="Residencia de arquitectura contemporánea en Puerta de Hierro, Zapopan"
+              alt="Residencia de arquitectura contemporánea en Colombia"
               className="w-full h-full object-cover opacity-65"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-slate-950/30" />
@@ -285,7 +285,7 @@ export default function App() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-4 pb-2 border-y border-white/15">
                 <div>
                   <p className="text-2xl md:text-3xl font-semibold text-white font-mono-tabular">18+</p>
-                  <p className="text-xs text-stone-300 mt-0.5">Años operando en ZMG</p>
+                  <p className="text-xs text-stone-300 mt-0.5">Trayectoria inmobiliaria</p>
                 </div>
                 <div>
                   <p className="text-2xl md:text-3xl font-semibold text-white font-mono-tabular">99.4%</p>
@@ -341,16 +341,16 @@ export default function App() {
                   <select
                     value={zoneFilter}
                     onChange={(e) => setZoneFilter(e.target.value as 'Todas' | Property['neighborhood'])}
-                    aria-label="Filtrar por zona en Zapopan y Guadalajara"
+                    aria-label="Filtrar por zona en Colombia"
                     className="w-full px-3 py-2.5 bg-[#F6F6F4] border border-stone-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-[#0F2942]"
                   >
                     <option value="Todas">Todas las zonas</option>
-                    <option value="Puerta de Hierro">Puerta de Hierro</option>
-                    <option value="Andares">Zona Andares</option>
-                    <option value="Valle Real">Valle Real</option>
-                    <option value="Providencia">Providencia</option>
-                    <option value="Solares">Solares</option>
-                    <option value="Arboledas">Arboledas / Osa Mayor</option>
+                    <option value="El Poblado">El Poblado</option>
+                    <option value="Chicó">Chicó</option>
+                    <option value="Envigado">Envigado</option>
+                    <option value="Laureles">Laureles</option>
+                    <option value="Usaquén">Usaquén</option>
+                    <option value="Ciudad del Río">Ciudad del Río</option>
                   </select>
                 </div>
 
@@ -374,7 +374,7 @@ export default function App() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
             <div>
               <p className="text-xs font-medium text-stone-500 tracking-wide mb-2">
-                Inventario Dictaminado · Zapopan y Guadalajara
+                Inventario inmobiliario · Colombia
               </p>
               <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
                 Propiedades en Venta, Renta y Administración
@@ -492,7 +492,7 @@ export default function App() {
                 No se encontraron propiedades con los filtros seleccionados.
               </p>
               <p className="text-xs text-stone-500 max-w-md mx-auto">
-                Restablece los criterios de búsqueda o solicita a nuestro comité comercial una búsqueda personalizada en nuestro inventario privado en Zapopan.
+                Restablece los criterios de búsqueda o solicita a nuestro comité comercial una búsqueda personalizada en nuestro inventario privado en Colombia.
               </p>
               <button
                 type="button"
@@ -642,7 +642,7 @@ export default function App() {
                   Arquitectura de Servicios · Soluciones Inmobiliarias Integrales
                 </p>
                 <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
-                  Gestión Patrimonial de Principio a Fin en Zapopan
+                  Gestión inmobiliaria de principio a fin en Colombia
                 </h2>
               </div>
 
@@ -657,11 +657,11 @@ export default function App() {
                       Cobranza garantizada, investigación jurídica de inquilinos y cero desgaste operativo para el propietario.
                     </h3>
                     <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
-                      Nos hacemos cargo de la relación completa con el arrendatario: investigación en buró legal y crediticio, contratos blindados ante extinción de dominio ratificados mediante justicia alternativa en Jalisco, cobro puntual, pago de predial, cuotas condominales y supervisión física semestral.
+                      Nos hacemos cargo de la relación completa con el arrendatario: investigación en buró legal y crediticio, contratos blindados ante extinción de dominio ratificados mediante mecanismos de conciliación aplicables en Colombia, cobro puntual, pago de predial, cuotas de administración y supervisión física semestral.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-stone-200/80 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600">
-                    <span>Cobertura: Residencial, Corporativo y Locales Comerciales en ZMG</span>
+                    <span>Cobertura: residencial, corporativa y comercial</span>
                     <a
                       href="#calculadora"
                       className="font-semibold text-[#0F2942] hover:underline flex items-center gap-1"
@@ -700,7 +700,7 @@ export default function App() {
                       Certeza documental antes de comprometer tu patrimonio.
                     </h3>
                     <p className="text-sm text-slate-600 leading-relaxed">
-                      Auditoría de libertad de gravamen, régimen en condominio, cálculo de exención o deducción de ISR por enajenación de bienes y coordinación directa con notarías públicas de Guadalajara y Zapopan.
+                      Auditoría de libertad de gravamen, régimen en condominio, cálculo de exención o deducción de ISR por enajenación de bienes y coordinación directa con notarías y oficinas de registro según la operación.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-stone-200/80 text-xs text-stone-500 font-mono-tabular">
@@ -740,7 +740,7 @@ export default function App() {
             <div>
               <div className="max-w-2xl mb-10">
                 <p className="text-xs font-medium text-stone-500 tracking-wide mb-2">
-                  Evidencia Auditada · Resultados Reales en Zapopan y Guadalajara
+                  Evidencia de gestión · Resultados inmobiliarios
                 </p>
                 <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight balance-text">
                   Casos de Éxito y Testimonios Patrimoniales
@@ -801,14 +801,14 @@ export default function App() {
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
               <div className="max-w-2xl">
                 <p className="text-xs font-medium text-stone-300 tracking-wide mb-2">
-                  División Académica Exclusiva · Capacitación Inmobiliaria en Jalisco
+                  División Académica Exclusiva · Capacitación inmobiliaria en Colombia
                 </p>
                 <h2 className="text-3xl md:text-4xl font-display font-semibold tracking-tight text-white balance-text">
                   JC Inmobilearning: Formación Jurídica, Comercial y Patrimonial
                 </h2>
               </div>
               <p className="text-sm text-stone-300 max-w-md">
-                Más de 18 años de experiencia práctica en el mercado inmobiliario de Zapopan condensados en módulos ejecutivos para asesores, propietarios e inversionistas.
+                Más de 18 años de experiencia práctica en el mercado inmobiliario colombiano condensados en módulos ejecutivos para asesores, propietarios e inversionistas.
               </p>
             </div>
 
@@ -926,7 +926,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-xs text-stone-500">
-                      Sede presencial: Calle Osa Mayor 4065, Zapopan.
+                      Modalidad presencial y virtual en Colombia.
                     </span>
                     <button
                       type="submit"
@@ -955,7 +955,7 @@ export default function App() {
                     Atención Patrimonial Personalizada
                   </p>
                   <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
-                    Oficina Central en Zapopan, Jalisco
+                    Oficina y atención en Colombia
                   </h2>
                   <p className="text-sm text-slate-600 mt-3 leading-relaxed">
                     Agenda una sesión privada con nuestra dirección comercial o jurídica para evaluar la venta, administración en renta o mantenimiento integral de tus propiedades.
@@ -968,7 +968,7 @@ export default function App() {
                     <div>
                       <p className="font-semibold text-slate-900">Dirección Corporativa</p>
                       <p className="text-xs text-slate-600 mt-0.5">
-                        Calle Osa Mayor 4065, Col. Arboledas, CP 45070, Zapopan, Jalisco, México
+                        Datos de sede configurables por cada inmobiliaria
                       </p>
                     </div>
                   </div>
@@ -1137,7 +1137,7 @@ export default function App() {
                       <textarea
                         id="c-notes"
                         rows={3}
-                        placeholder="Indica colonia en Zapopan/Guadalajara, tipo de inmueble o dudas específicas..."
+                        placeholder="Indica ciudad, barrio, tipo de inmueble o dudas específicas..."
                         value={contactNotes}
                         onChange={(e) => setContactNotes(e.target.value)}
                         className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#0F2942]"
@@ -1168,7 +1168,7 @@ export default function App() {
           <div className="space-y-1">
             <p className="text-lg font-display font-bold text-slate-900">{branding.companyName}</p>
             <p>
-              Calle Osa Mayor 4065, Zapopan, Jalisco, CP 45070 · Tel. (33) 2310 1060 · mkt.jcinmobili@gmail.com
+              Datos de contacto configurables por cada inmobiliaria
             </p>
           </div>
 
