@@ -222,7 +222,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
               <div>
                 <label htmlFor="prop-price" className="block text-xs font-medium text-slate-700 mb-1">
-                  {operation === 'Renta' ? 'Renta mensual pretendida ({branding.currency})' : 'Valor estimado de venta ({branding.currency})'}
+                  {operation === 'Renta' ? `Renta mensual pretendida (${branding.currency})` : `Valor estimado de venta (${branding.currency})`}
                 </label>
                 <input
                   id="prop-price"
