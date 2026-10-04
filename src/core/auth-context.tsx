@@ -32,7 +32,7 @@ interface AuthContextValue {
     fullName: string,
   ) => Promise<{ error?: string; needsEmailConfirmation?: boolean }>;
   signOut: () => Promise<void>;
-  createOrganization: (name: string, slug: string) => Promise<{ error?: string; organizationId?: string }>;
+  createOrganization: (name: string, slug: string, countryCode?: string) => Promise<{ error?: string; organizationId?: string }>;
   refreshMemberships: () => Promise<void>;
   selectOrganization: (organizationId: string) => void;
   can: (permission: string) => boolean;
@@ -204,12 +204,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [loadForUser, session?.user.id]);
 
   const createOrganization = useCallback(
-    async (name: string, slug: string) => {
+    async (name: string, slug: string, countryCode = 'CO') => {
       if (!session?.user) return { error: 'Debes iniciar sesión primero.' };
 
       const { data, error } = await supabase.rpc('create_organization_with_owner', {
         org_name: name.trim(),
         org_slug: slug.trim().toLowerCase(),
+        org_country_code: countryCode.toUpperCase(),
       });
 
       if (error) return { error: error.message };
