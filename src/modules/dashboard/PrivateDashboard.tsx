@@ -21,6 +21,8 @@ import { ContactsModule } from '../contacts/ContactsModule';
 import { LeadsModule } from '../leads/LeadsModule';
 import { AppointmentsModule } from '../appointments/AppointmentsModule';
 import { DealsModule } from '../deals/DealsModule';
+import { SettingsModule } from '../settings/SettingsModule';
+import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type DashboardView =
   | 'DASHBOARD'
@@ -63,6 +65,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     signOut,
   } = useAuth();
 
+  const { branding } = useTenantBranding();
   const [view, setView] = useState<DashboardView>('DASHBOARD');
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -150,9 +153,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Software inmobiliario
+              {branding.softwareName}
             </div>
-            <div className="truncate text-lg font-bold">{activeMembership.organization.name}</div>
+            <div className="truncate text-lg font-bold">{branding.companyName}</div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -235,8 +238,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'APPOINTMENTS' && <AppointmentsModule />}
           {view === 'DEALS' && <DealsModule />}
           {view === 'IMPORT' && <DataImportCenter />}
+          {view === 'SETTINGS' && <SettingsModule />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'IMPORT' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'IMPORT' && view !== 'SETTINGS' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
