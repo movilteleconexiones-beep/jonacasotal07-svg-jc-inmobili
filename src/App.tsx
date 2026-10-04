@@ -12,13 +12,13 @@ import {
   Property,
   AcademyModule
 } from './data/properties.ts';
-import { ResilientImage } from './components/ResilientImage';
-import { PatrimonialSimulator } from './components/PatrimonialSimulator';
-import { PropertyDetailModal } from './components/PropertyDetailModal';
-import { SubmitPropertyModal } from './components/SubmitPropertyModal';
-import { AuthAccessButton } from './components/AuthAccessButton';
-import { useAuth } from './core/auth-context';
-import { PrivateDashboard } from './modules/dashboard/PrivateDashboard';
+import { ResilientImage } from './components/ResilientImage.tsx';
+import { PatrimonialSimulator } from './components/PatrimonialSimulator.tsx';
+import { PropertyDetailModal } from './components/PropertyDetailModal.tsx';
+import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
+import { AuthAccessButton } from './components/AuthAccessButton.tsx';
+import { useAuth } from './core/auth-context.tsx';
+import { PrivateDashboard } from './modules/dashboard/PrivateDashboard.tsx';
 import {
   Search,
   ArrowRight,
