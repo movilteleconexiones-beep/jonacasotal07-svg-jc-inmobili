@@ -26,7 +26,14 @@ interface AuthContextValue {
   memberships: AuthMembership[];
   activeMembership: AuthMembership | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+  ) => Promise<{ error?: string; needsEmailConfirmation?: boolean }>;
   signOut: () => Promise<void>;
+  createOrganization: (name: string, slug: string) => Promise<{ error?: string; organizationId?: string }>;
+  refreshMemberships: () => Promise<void>;
   selectOrganization: (organizationId: string) => void;
   can: (permission: string) => boolean;
 }
@@ -34,8 +41,6 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function loadMemberships(userId: string): Promise<AuthMembership[]> {
-  if (!supabase) return [];
-
   const { data: memberships, error } = await supabase
     .from('organization_members')
     .select('id, organization_id, user_id, status, joined_at, organizations(*)')
@@ -52,12 +57,21 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
       .select('roles(id, organization_id, key, name, description, is_system_role, active)')
       .eq('organization_member_id', row.id);
 
-    const roles = (memberRoles ?? [])
+    const roles: Role[] = (memberRoles ?? [])
       .map((entry: any) => entry.roles)
-      .filter(Boolean) as Role[];
+      .filter(Boolean)
+      .map((role: any) => ({
+        id: role.id,
+        organizationId: role.organization_id ?? undefined,
+        key: role.key ?? undefined,
+        name: role.name,
+        description: role.description ?? undefined,
+        isSystemRole: Boolean(role.is_system_role),
+        active: Boolean(role.active),
+      }));
 
     const roleIds = roles.map((role) => role.id);
-    let permissions = new Set<string>();
+    const permissions = new Set<string>();
 
     if (roleIds.length > 0) {
       const { data: rolePermissions } = await supabase
@@ -83,6 +97,8 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
       if ((item as any).effect === 'ALLOW') permissions.add(key);
     }
 
+    const org = row.organizations as any;
+
     result.push({
       member: {
         id: row.id,
@@ -92,19 +108,19 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
         joinedAt: row.joined_at ?? undefined,
       },
       organization: {
-        id: row.organizations.id,
-        name: row.organizations.name,
-        slug: row.organizations.slug,
-        legalName: row.organizations.legal_name ?? undefined,
-        taxId: row.organizations.tax_id ?? undefined,
-        email: row.organizations.email ?? undefined,
-        phone: row.organizations.phone ?? undefined,
-        whatsapp: row.organizations.whatsapp ?? undefined,
-        logoUrl: row.organizations.logo_url ?? undefined,
-        status: row.organizations.status,
-        planId: row.organizations.plan_id ?? undefined,
-        createdAt: row.organizations.created_at,
-        updatedAt: row.organizations.updated_at,
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        legalName: org.legal_name ?? undefined,
+        taxId: org.tax_id ?? undefined,
+        email: org.email ?? undefined,
+        phone: org.phone ?? undefined,
+        whatsapp: org.whatsapp ?? undefined,
+        logoUrl: org.logo_url ?? undefined,
+        status: org.status,
+        planId: org.plan_id ?? undefined,
+        createdAt: org.created_at,
+        updatedAt: org.updated_at,
       },
       roles,
       permissions: [...permissions],
@@ -120,7 +136,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [memberships, setMemberships] = useState<AuthMembership[]>([]);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
 
-  const refreshMemberships = useCallback(async (userId: string | null) => {
+  const loadForUser = useCallback(async (userId: string | null) => {
     if (!userId) {
       setMemberships([]);
       setActiveOrganizationId(null);
@@ -136,24 +152,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-
     let mounted = true;
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return;
       setSession(data.session);
-      await refreshMemberships(data.session?.user.id ?? null);
+      await loadForUser(data.session?.user.id ?? null);
       if (mounted) setLoading(false);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (!mounted) return;
       setSession(nextSession);
-      await refreshMemberships(nextSession?.user.id ?? null);
+      await loadForUser(nextSession?.user.id ?? null);
       if (mounted) setLoading(false);
     });
 
@@ -161,18 +172,53 @@ export function AuthProvider({ children }: PropsWithChildren) {
       mounted = false;
       subscription.subscription.unsubscribe();
     };
-  }, [refreshMemberships]);
+  }, [loadForUser]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    if (!supabase) return { error: 'La autenticación aún no está configurada.' };
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return error ? { error: error.message } : {};
   }, []);
 
-  const signOut = useCallback(async () => {
-    if (supabase) await supabase.auth.signOut();
+  const signUp = useCallback(async (email: string, password: string, fullName: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName.trim() },
+      },
+    });
+
+    if (error) return { error: error.message };
+
+    return {
+      needsEmailConfirmation: !data.session,
+    };
   }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  const refreshMemberships = useCallback(async () => {
+    await loadForUser(session?.user.id ?? null);
+  }, [loadForUser, session?.user.id]);
+
+  const createOrganization = useCallback(
+    async (name: string, slug: string) => {
+      if (!session?.user) return { error: 'Debes iniciar sesión primero.' };
+
+      const { data, error } = await supabase.rpc('create_organization_with_owner', {
+        org_name: name.trim(),
+        org_slug: slug.trim().toLowerCase(),
+      });
+
+      if (error) return { error: error.message };
+
+      await loadForUser(session.user.id);
+      return { organizationId: data as string };
+    },
+    [loadForUser, session?.user],
+  );
 
   const activeMembership = useMemo(
     () => memberships.find((item) => item.organization.id === activeOrganizationId) ?? null,
@@ -193,11 +239,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
       memberships,
       activeMembership,
       signIn,
+      signUp,
       signOut,
+      createOrganization,
+      refreshMemberships,
       selectOrganization: setActiveOrganizationId,
       can,
     }),
-    [loading, session, memberships, activeMembership, signIn, signOut, can],
+    [
+      loading,
+      session,
+      memberships,
+      activeMembership,
+      signIn,
+      signUp,
+      signOut,
+      createOrganization,
+      refreshMemberships,
+      can,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
