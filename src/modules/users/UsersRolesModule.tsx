@@ -33,11 +33,6 @@ interface MemberRow {
   user_id: string;
   status: string;
   joined_at: string | null;
-  profiles: {
-    full_name: string | null;
-    phone: string | null;
-    avatar_url: string | null;
-  } | null;
   member_roles: Array<{
     role_id: string;
     roles: { id: string; name: string; key: string | null } | null;
@@ -67,6 +62,7 @@ export function UsersRolesModule() {
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [profilesById, setProfilesById] = useState<Record<string, { full_name: string | null; phone: string | null; avatar_url: string | null }>>({});
   const [showInvite, setShowInvite] = useState(false);
   const [showRoleCreator, setShowRoleCreator] = useState(false);
 
@@ -78,7 +74,7 @@ export function UsersRolesModule() {
     const [membersResult, rolesResult, permissionsResult, invitationsResult] = await Promise.all([
       supabase
         .from('organization_members')
-        .select('id,user_id,status,joined_at,profiles(full_name,phone,avatar_url),member_roles(role_id,roles(id,name,key))')
+        .select('id,user_id,status,joined_at,member_roles(role_id,roles(id,name,key))')
         .eq('organization_id', organizationId)
         .order('created_at'),
       supabase
@@ -104,7 +100,29 @@ export function UsersRolesModule() {
     if (permissionsResult.error) setMessage((current) => current || permissionsResult.error!.message);
     if (invitationsResult.error) setMessage((current) => current || invitationsResult.error!.message);
 
-    setMembers((membersResult.data ?? []) as unknown as MemberRow[]);
+    const memberRows = (membersResult.data ?? []) as unknown as MemberRow[];
+    setMembers(memberRows);
+
+    const userIds = memberRows.map((member) => member.user_id);
+    if (userIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id,full_name,phone,avatar_url')
+        .in('id', userIds);
+
+      const nextProfiles: Record<string, { full_name: string | null; phone: string | null; avatar_url: string | null }> = {};
+      for (const profile of profileRows ?? []) {
+        nextProfiles[profile.id] = {
+          full_name: profile.full_name,
+          phone: profile.phone,
+          avatar_url: profile.avatar_url,
+        };
+      }
+      setProfilesById(nextProfiles);
+    } else {
+      setProfilesById({});
+    }
+
     setRoles((rolesResult.data ?? []) as unknown as RoleRow[]);
     setPermissions((permissionsResult.data ?? []) as PermissionRow[]);
     setInvitations((invitationsResult.data ?? []) as unknown as InvitationRow[]);
@@ -427,7 +445,8 @@ export function UsersRolesModule() {
         <div className="divide-y divide-stone-100">
           {members.map((member) => {
             const assignedRoleIds = new Set(member.member_roles.map((item) => item.role_id));
-            const displayName = member.profiles?.full_name || 'Usuario';
+            const profile = profilesById[member.user_id];
+            const displayName = profile?.full_name || 'Usuario';
 
             return (
               <article key={member.id} className="p-5">
@@ -435,7 +454,7 @@ export function UsersRolesModule() {
                   <div>
                     <div className="font-semibold">{displayName}</div>
                     <div className="mt-1 font-mono text-[11px] text-slate-400">{member.user_id}</div>
-                    {member.profiles?.phone && <div className="mt-1 text-xs text-slate-500">{member.profiles.phone}</div>}
+                    {profile?.phone && <div className="mt-1 text-xs text-slate-500">{profile.phone}</div>}
                   </div>
 
                   <label>
