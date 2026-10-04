@@ -1,8 +1,17 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Palette, Save } from 'lucide-react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { FileCheck2, Palette, Save } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
-import { supabase } from '../../lib/supabase';
+import { getCountryOption, LATAM_COUNTRIES } from '../../core/countries';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { supabase } from '../../lib/supabase';
+
+interface ComplianceInfo {
+  status: string;
+  title?: string;
+  version?: string;
+  authority?: string;
+  summary?: string;
+}
 
 export function SettingsModule() {
   const { activeMembership, can } = useAuth();
@@ -20,6 +29,9 @@ export function SettingsModule() {
   const [timezone, setTimezone] = useState('America/Bogota');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [compliance, setCompliance] = useState<ComplianceInfo>({ status: 'PENDING' });
+
+  const selectedCountry = useMemo(() => getCountryOption(country), [country]);
 
   useEffect(() => {
     setCompanyName(branding.companyName);
@@ -33,12 +45,50 @@ export function SettingsModule() {
     setTimezone(branding.timezone);
   }, [branding]);
 
+  useEffect(() => {
+    if (!organizationId) return;
+
+    supabase
+      .from('organization_compliance')
+      .select('status, compliance_packs(title,version,authority,summary)')
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+      .then(({ data }) => {
+        const pack = (data as any)?.compliance_packs;
+        setCompliance({
+          status: (data as any)?.status ?? 'PENDING',
+          title: pack?.title ?? undefined,
+          version: pack?.version ?? undefined,
+          authority: pack?.authority ?? undefined,
+          summary: pack?.summary ?? undefined,
+        });
+      });
+  }, [organizationId, country]);
+
+  function handleCountryChange(nextCountry: string) {
+    const profile = getCountryOption(nextCountry);
+    setCountry(profile.code);
+    setCurrency(profile.currency);
+    setTimezone(profile.timezone);
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!organizationId || !can('settings.edit')) return;
 
     setSaving(true);
     setMessage('');
+
+    const countryResult = await supabase.rpc('set_organization_country', {
+      target_org: organizationId,
+      target_country_code: country,
+    });
+
+    if (countryResult.error) {
+      setMessage(countryResult.error.message);
+      setSaving(false);
+      return;
+    }
 
     const [orgResult, brandingResult, settingsResult] = await Promise.all([
       supabase
@@ -64,7 +114,8 @@ export function SettingsModule() {
           default_currency: currency,
           country,
           timezone,
-          language: 'es',
+          locale: selectedCountry.locale,
+          language: selectedCountry.language,
           updated_at: new Date().toISOString(),
         }),
     ]);
@@ -73,10 +124,26 @@ export function SettingsModule() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage('Identidad y configuración guardadas correctamente.');
+      setMessage('Identidad, país y configuración regional guardados correctamente.');
       await refresh();
       window.dispatchEvent(new Event('tenant-branding-updated'));
+
+      const { data } = await supabase
+        .from('organization_compliance')
+        .select('status, compliance_packs(title,version,authority,summary)')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const pack = (data as any)?.compliance_packs;
+      setCompliance({
+        status: (data as any)?.status ?? 'PENDING',
+        title: pack?.title ?? undefined,
+        version: pack?.version ?? undefined,
+        authority: pack?.authority ?? undefined,
+        summary: pack?.summary ?? undefined,
+      });
     }
+
     setSaving(false);
   }
 
@@ -85,7 +152,7 @@ export function SettingsModule() {
       <div>
         <h1 className="text-2xl font-bold">Identidad y configuración</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Personaliza el software para tu inmobiliaria sin modificar el código.
+          Personaliza el software para tu inmobiliaria y adapta automáticamente la operación al país.
         </p>
       </div>
 
@@ -96,7 +163,9 @@ export function SettingsModule() {
           </div>
           <div>
             <div className="font-bold">Marca del cliente</div>
-            <div className="text-sm text-slate-500">Aplica tanto para SaaS mensual como para licencia dedicada.</div>
+            <div className="text-sm text-slate-500">
+              Aplica tanto para SaaS mensual como para licencia dedicada.
+            </div>
           </div>
         </div>
 
@@ -108,26 +177,77 @@ export function SettingsModule() {
         <Field label="WhatsApp" value={whatsapp} onChange={setWhatsapp} />
 
         <label>
-          <span className="mb-1 block text-sm font-medium">Moneda principal</span>
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
-            <option value="COP">COP - Peso colombiano</option>
-            <option value="USD">USD - Dólar estadounidense</option>
+          <span className="mb-1 block text-sm font-medium">País de operación</span>
+          <select
+            value={country}
+            onChange={(e) => handleCountryChange(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-3 py-2.5"
+          >
+            {LATAM_COUNTRIES.map((item) => (
+              <option key={item.code} value={item.code}>
+                {item.name}
+              </option>
+            ))}
           </select>
         </label>
 
         <label>
-          <span className="mb-1 block text-sm font-medium">País</span>
-          <select value={country} onChange={(e) => setCountry(e.target.value)} className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
-            <option value="CO">Colombia</option>
+          <span className="mb-1 block text-sm font-medium">Moneda principal</span>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="w-full rounded-xl border border-stone-300 px-3 py-2.5"
+          >
+            <option value={selectedCountry.currency}>
+              {selectedCountry.currency} - predeterminada para {selectedCountry.name}
+            </option>
+            {selectedCountry.currency !== 'USD' && <option value="USD">USD - Dólar estadounidense</option>}
           </select>
+          <span className="mt-1 block text-xs text-slate-500">
+            Se ajusta al cambiar de país, pero puedes usar USD cuando tu operación lo requiera.
+          </span>
         </label>
 
-        <label className="md:col-span-2">
-          <span className="mb-1 block text-sm font-medium">Zona horaria</span>
-          <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
-            <option value="America/Bogota">America/Bogota</option>
-          </select>
+        <label>
+          <span className="mb-1 block text-sm font-medium">Formato regional</span>
+          <input
+            value={selectedCountry.locale}
+            readOnly
+            className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-slate-600"
+          />
         </label>
+
+        <label>
+          <span className="mb-1 block text-sm font-medium">Zona horaria</span>
+          <input
+            value={timezone}
+            readOnly
+            className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-slate-600"
+          />
+        </label>
+
+        <div className="md:col-span-2 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white">
+              <FileCheck2 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-semibold">Perfil normativo</div>
+              <div className="mt-1 text-sm text-slate-600">
+                Estado: <strong>{compliance.status}</strong>
+                {compliance.version ? ' · versión ' + compliance.version : ''}
+              </div>
+              {compliance.title && <div className="mt-2 text-sm font-medium">{compliance.title}</div>}
+              {compliance.authority && <div className="mt-1 text-xs text-slate-500">{compliance.authority}</div>}
+              {compliance.summary && <p className="mt-2 text-xs leading-relaxed text-slate-600">{compliance.summary}</p>}
+              {compliance.status === 'REVIEW_REQUIRED' && (
+                <p className="mt-2 text-xs font-medium text-amber-700">
+                  La configuración regional está activa, pero este país todavía requiere validación jurídica antes de considerar el paquete normativo completo.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {message && (
           <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm">
