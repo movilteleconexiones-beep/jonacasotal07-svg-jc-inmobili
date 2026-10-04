@@ -96,6 +96,7 @@ export interface OrganizationSettings {
   organizationId: string;
   defaultCurrency: string;
   country: string;
+  locale: string;
   timezone: string;
   language: string;
   enableRentals: boolean;
