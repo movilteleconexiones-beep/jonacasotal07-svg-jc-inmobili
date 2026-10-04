@@ -1,3 +1,4 @@
+// AI Studio resync: source preserved.
 import React, { useState, useMemo } from 'react';
 import { ZONE_VALUATION_BENCHMARKS, Property } from '../data/properties';
 import { ArrowRight, Calculator, ShieldCheck, TrendingUp } from 'lucide-react';
