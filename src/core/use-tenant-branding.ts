@@ -15,6 +15,7 @@ export interface TenantBrandingState {
   email?: string;
   currency: string;
   country: string;
+  locale: string;
   timezone: string;
 }
 
@@ -23,6 +24,7 @@ const DEFAULTS: TenantBrandingState = {
   softwareName: 'JC Inmobili Software',
   currency: 'COP',
   country: 'CO',
+  locale: 'es-CO',
   timezone: 'America/Bogota',
 };
 
@@ -48,7 +50,7 @@ export function useTenantBranding() {
         .maybeSingle(),
       supabase
         .from('organization_settings')
-        .select('default_currency, country, timezone')
+        .select('default_currency, country, locale, timezone')
         .eq('organization_id', organizationId)
         .maybeSingle(),
     ]);
@@ -71,6 +73,7 @@ export function useTenantBranding() {
       email: brandingResult.data?.email ?? undefined,
       currency: settingsResult.data?.default_currency || 'COP',
       country: settingsResult.data?.country || 'CO',
+      locale: settingsResult.data?.locale || 'es-CO',
       timezone: settingsResult.data?.timezone || 'America/Bogota',
     });
     setLoading(false);
