@@ -14,6 +14,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
   onRequestDiagnostic
 }) => {
   const { branding } = useTenantBranding();
+  const operatorName = branding.companyName || 'la inmobiliaria';
   const [activeTab, setActiveTab] = useState<SimulatorTab>('administracion');
 
   // Tab 1: Administración de Renta state
