@@ -22,7 +22,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 }) => {
   const { branding } = useTenantBranding();
   const operatorName = branding.companyName || 'la inmobiliaria';
-  const { branding } = useTenantBranding();
   const [activePhotoIndex, setActivePhotoIndex] = useState<0 | 1>(0);
   const [visitorName, setVisitorName] = useState('');
   const [visitorPhone, setVisitorPhone] = useState('');
