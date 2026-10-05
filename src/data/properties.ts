@@ -357,7 +357,7 @@ export const CASE_STUDIES: CaseStudy[] = [
   },
   {
     id: 'case-2',
-    propertyCode: 'Operación de Compraventa JC-1049',
+    propertyCode: 'Operación de Compraventa JCO-1049',
     neighborhood: 'El Poblado, Medellín',
     serviceApplied: '01. Promoción Estratégica y Cierre Notarial',
     metricHeadline: 'Venta Cerrada en 34 Días al 98.7% del Valor de Lista ($3.120 millones COP)',
@@ -374,7 +374,7 @@ export const CASE_STUDIES: CaseStudy[] = [
   },
   {
     id: 'case-3',
-    propertyCode: 'Rehabilitación y Equipamiento JC-4088',
+    propertyCode: 'Rehabilitación y Equipamiento JCO-4088',
     neighborhood: 'Barrio Laureles, Bogotá',
     serviceApplied: '04. Mantenimiento Residencial, Persianas y Domótica',
     metricHeadline: '+18.5% Incremento en Valor de Renta Mensual tras Adecuación en 15 Días',
