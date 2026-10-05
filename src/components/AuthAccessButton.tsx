@@ -45,6 +45,24 @@ export function AuthAccessButton() {
 
   const resetMessage = () => setMessage('');
 
+  const normalizeAuthError = (error: string) => {
+    const value = error.toLowerCase();
+
+    if (value.includes('invalid login credentials')) {
+      return 'Correo o contraseña incorrectos. Si aún no tienes cuenta, selecciona Registrarse.';
+    }
+
+    if (value.includes('user already registered')) {
+      return 'Este correo ya está registrado. Intenta iniciar sesión.';
+    }
+
+    if (value.includes('password should be at least')) {
+      return 'La contraseña debe tener al menos 8 caracteres.';
+    }
+
+    return error;
+  };
+
   const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
     resetMessage();
@@ -55,7 +73,7 @@ export function AuthAccessButton() {
         const result = await signUp(email.trim(), password, fullName.trim());
 
         if (result.error) {
-          setMessage(result.error);
+          setMessage(normalizeAuthError(result.error));
           return;
         }
 
@@ -72,7 +90,7 @@ export function AuthAccessButton() {
 
       const result = await signIn(email.trim(), password);
       if (result.error) {
-        setMessage(result.error);
+        setMessage(normalizeAuthError(result.error));
         return;
       }
 
@@ -189,8 +207,8 @@ export function AuthAccessButton() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[2px]">
+          <div className="my-auto w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
@@ -221,7 +239,7 @@ export function AuthAccessButton() {
               </div>
             ) : (
               <>
-                <div className="mb-4 grid grid-cols-2 rounded-xl bg-stone-100 p-1">
+                <div className="mb-5 grid grid-cols-2 rounded-xl border border-stone-200 bg-stone-100 p-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -246,7 +264,7 @@ export function AuthAccessButton() {
                       (mode === 'SIGN_UP' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600')
                     }
                   >
-                    Crear cuenta
+                    Registrarse
                   </button>
                 </div>
 
@@ -303,8 +321,40 @@ export function AuthAccessButton() {
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
                     {mode === 'SIGN_UP' ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-                    {busy ? 'Procesando…' : mode === 'SIGN_UP' ? 'Crear cuenta' : 'Iniciar sesión'}
+                    {busy ? 'Procesando…' : mode === 'SIGN_UP' ? 'Registrarme' : 'Iniciar sesión'}
                   </button>
+
+                  <div className="pt-1 text-center text-sm text-slate-600">
+                    {mode === 'SIGN_IN' ? (
+                      <>
+                        ¿No tienes una cuenta?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode('SIGN_UP');
+                            setMessage('');
+                          }}
+                          className="font-semibold text-slate-950 underline underline-offset-4"
+                        >
+                          Regístrate
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        ¿Ya tienes una cuenta?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode('SIGN_IN');
+                            setMessage('');
+                          }}
+                          className="font-semibold text-slate-950 underline underline-offset-4"
+                        >
+                          Inicia sesión
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </form>
               </>
             )}
@@ -341,8 +391,8 @@ function OrganizationModal({
   onSubmit,
 }: OrganizationModalProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[2px]">
+      <div className="my-auto w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
