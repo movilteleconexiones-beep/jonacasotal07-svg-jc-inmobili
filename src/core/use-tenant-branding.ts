@@ -20,7 +20,7 @@ export interface TenantBrandingState {
 }
 
 const DEFAULTS: TenantBrandingState = {
-  companyName: 'JC Inmobili',
+  companyName: 'Sistema Inmobiliario JCO',
   softwareName: 'Sistema Inmobiliario JCO',
   currency: 'COP',
   country: 'CO',
