@@ -773,7 +773,7 @@ export default function App() {
                           <strong className="text-slate-900">Situación inicial:</strong> {cs.beforeState}
                         </p>
                         <p>
-                          <strong className="text-slate-900">Intervención JC:</strong> {cs.intervention}
+                          <strong className="text-slate-900">Intervención JCO:</strong> {cs.intervention}
                         </p>
                         <p>
                           <strong className="text-[#14532D]">Resultado:</strong> {cs.outcome}
