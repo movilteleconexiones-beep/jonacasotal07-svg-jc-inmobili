@@ -30,6 +30,8 @@ export function SettingsModule() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [compliance, setCompliance] = useState<ComplianceInfo>({ status: 'PENDING' });
+  const [licenseType, setLicenseType] = useState('SAAS');
+  const [whiteLabelAllowed, setWhiteLabelAllowed] = useState(false);
 
   const selectedCountry = useMemo(() => getCountryOption(country), [country]);
 
@@ -47,6 +49,16 @@ export function SettingsModule() {
 
   useEffect(() => {
     if (!organizationId) return;
+
+    void supabase
+      .from('organization_licenses')
+      .select('license_type,white_label_allowed')
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setLicenseType((data as any)?.license_type ?? 'SAAS');
+        setWhiteLabelAllowed(Boolean((data as any)?.white_label_allowed));
+      });
 
     supabase
       .from('organization_compliance')
@@ -170,7 +182,20 @@ export function SettingsModule() {
         </div>
 
         <Field label="Nombre de la inmobiliaria" value={companyName} onChange={setCompanyName} required />
-        <Field label="Nombre del software" value={softwareName} onChange={setSoftwareName} required />
+        <div>
+          <Field
+            label="Nombre del software"
+            value={softwareName}
+            onChange={setSoftwareName}
+            required
+            disabled={!whiteLabelAllowed}
+          />
+          <span className="mt-1 block text-xs text-slate-500">
+            {whiteLabelAllowed
+              ? 'Tu licencia permite marca blanca y personalización del nombre visible del software.'
+              : `La modalidad ${licenseType} conserva la marca del software INMOJCO/JCO. La marca de tu inmobiliaria sí es personalizable.`}
+          </span>
+        </div>
         <Field label="Sitio web" value={website} onChange={setWebsite} />
         <Field label="Correo comercial" value={email} onChange={setEmail} type="email" />
         <Field label="Teléfono" value={phone} onChange={setPhone} />
@@ -276,12 +301,14 @@ function Field({
   onChange,
   type = 'text',
   required = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <label>
@@ -290,8 +317,9 @@ function Field({
         type={type}
         value={value}
         required={required}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-stone-300 px-3 py-2.5"
+        className="w-full rounded-xl border border-stone-300 px-3 py-2.5 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-500"
       />
     </label>
   );
