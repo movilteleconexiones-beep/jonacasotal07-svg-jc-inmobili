@@ -21,6 +21,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   onScheduleVisit
 }) => {
   const { branding } = useTenantBranding();
+  const operatorName = branding.companyName || 'la inmobiliaria';
+  const { branding } = useTenantBranding();
   const [activePhotoIndex, setActivePhotoIndex] = useState<0 | 1>(0);
   const [visitorName, setVisitorName] = useState('');
   const [visitorPhone, setVisitorPhone] = useState('');
@@ -197,7 +199,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
               <div>
                 <h3 className="text-xs font-semibold text-slate-900 tracking-wide mb-2.5">
-                  Equipamiento, Domótica y Conservación JCO
+                  Equipamiento, domótica y conservación
                 </h3>
                 <ul className="space-y-2 text-xs text-slate-600">
                   {property.domoticsAndMaintenance.map((item, idx) => (
@@ -217,7 +219,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               <div className="pb-4 border-b border-stone-200">
                 <p className="text-xs text-stone-500 mb-1">
                   {property.operation === 'Renta'
-                    ? 'Renta Mensual con Póliza Sistema Inmobiliario JCO'
+                    ? `Renta mensual con protección gestionada por ${operatorName}`
                     : 'Valor de Operación / Lista'}
                 </p>
                 <p className="text-3xl font-semibold text-slate-900 font-mono-tabular">
@@ -250,7 +252,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   <p className="text-xs text-slate-600 leading-relaxed">
                     Hemos registrado tu solicitud a nombre de <strong>{visitorName}</strong> para el día{' '}
                     <span className="font-mono-tabular font-medium">{visitDate}</span> bajo modalidad{' '}
-                    <strong>{visitModality}</strong>. Un consultor patrimonial de Sistema Inmobiliario JCO te confirmará al{' '}
+                    <strong>{visitModality}</strong>. Un consultor patrimonial de {operatorName} te confirmará al{' '}
                     <span className="font-mono-tabular">{visitorPhone}</span>.
                   </p>
                   <button
