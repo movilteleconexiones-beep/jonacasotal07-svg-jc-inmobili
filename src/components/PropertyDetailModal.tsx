@@ -39,7 +39,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
     }).format(val);
 
   const photos = [property.image, property.secondaryImage];
-  const pricePerM2 = Math.round(property.priceMXN / property.constructionAreaM2);
+  const pricePerM2 = Math.round(property.priceCOP / property.constructionAreaM2);
 
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,13 +222,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 </p>
                 <p className="text-3xl font-semibold text-slate-900 font-mono-tabular">
                   {property.operation === 'Renta'
-                    ? `${formatMoney(property.monthlyRentEstimationMXN)} / mes`
-                    : formatMoney(property.priceMXN)}
+                    ? `${formatMoney(property.monthlyRentEstimationCOP)} / mes`
+                    : formatMoney(property.priceCOP)}
                 </p>
                 <p className="text-xs text-stone-500 mt-1 font-mono-tabular">
                   {property.operation === 'Renta'
-                    ? `Valor patrimonial de referencia: ${formatMoney(property.priceMXN)}`
-                    : `Renta potencial estimada: ${formatMoney(property.monthlyRentEstimationMXN)} / mes · ${formatMoney(pricePerM2)} / m²`}
+                    ? `Valor patrimonial de referencia: ${formatMoney(property.priceCOP)}`
+                    : `Renta potencial estimada: ${formatMoney(property.monthlyRentEstimationCOP)} / mes · ${formatMoney(pricePerM2)} / m²`}
                 </p>
               </div>
 
@@ -236,7 +236,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <p className="font-semibold text-slate-900">Estatus Jurídico y Técnico</p>
                 <p className="text-slate-600">{property.legalStatus}</p>
                 <p className="text-stone-500 font-mono-tabular">
-                  Cuota de cuota de administración: {formatMoney(property.maintenanceFeeMXN)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
+                  Cuota de cuota de administración: {formatMoney(property.maintenanceFeeCOP)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
                 </p>
               </div>
 

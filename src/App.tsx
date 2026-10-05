@@ -73,12 +73,17 @@ export default function App() {
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactError, setContactError] = useState('');
 
-  const formatMoney = (val: number) =>
-    new Intl.NumberFormat(branding.locale || 'es-CO', {
+  const formatMoney = (val: number) => {
+    const safeValue = Number.isFinite(val) ? val : 0;
+    const currency = branding.currency || 'COP';
+    const formatted = new Intl.NumberFormat(branding.locale || 'es-CO', {
       style: 'currency',
-      currency: branding.currency || 'COP',
+      currency,
       maximumFractionDigits: 0
-    }).format(val);
+    }).format(safeValue);
+
+    return currency === 'COP' ? `${formatted} COP` : formatted;
+  };
 
   const filteredProperties = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -96,10 +101,10 @@ export default function App() {
     });
 
     if (sortBy === 'price-desc') {
-      return [...list].sort((a, b) => b.priceMXN - a.priceMXN);
+      return [...list].sort((a, b) => b.priceCOP - a.priceCOP);
     }
     if (sortBy === 'price-asc') {
-      return [...list].sort((a, b) => a.priceMXN - b.priceMXN);
+      return [...list].sort((a, b) => a.priceCOP - b.priceCOP);
     }
     if (sortBy === 'yield-desc') {
       return [...list].sort((a, b) => b.rentalYieldPct - a.rentalYieldPct);
@@ -465,16 +470,16 @@ export default function App() {
                         <td className="py-3 px-4 text-slate-600">{cp.neighborhood}</td>
                         <td className="py-3 px-4 text-slate-700">{cp.operation}</td>
                         <td className="py-3 px-4 font-mono-tabular font-semibold text-slate-900">
-                          {formatMoney(cp.priceMXN)}
+                          {formatMoney(cp.priceCOP)}
                         </td>
                         <td className="py-3 px-4 font-mono-tabular text-slate-700">
-                          {formatMoney(cp.monthlyRentEstimationMXN)}
+                          {formatMoney(cp.monthlyRentEstimationCOP)}
                         </td>
                         <td className="py-3 px-4 font-mono-tabular text-slate-700">
                           {cp.landAreaM2} m² / {cp.constructionAreaM2} m²
                         </td>
                         <td className="py-3 px-4 font-mono-tabular text-slate-700">
-                          {formatMoney(Math.round(cp.priceMXN / cp.constructionAreaM2))}
+                          {formatMoney(Math.round(cp.priceCOP / cp.constructionAreaM2))}
                         </td>
                         <td className="py-3 pl-4 font-mono-tabular font-semibold text-[#14532D]">
                           +{cp.annualAppreciationPct}% · CAP {cp.rentalYieldPct}%
@@ -568,13 +573,13 @@ export default function App() {
                         <div className="pt-1">
                           <p className="text-xl font-semibold text-slate-900 font-mono-tabular">
                             {property.operation === 'Renta'
-                              ? `${formatMoney(property.monthlyRentEstimationMXN)} / mes`
-                              : formatMoney(property.priceMXN)}
+                              ? `${formatMoney(property.monthlyRentEstimationCOP)} / mes`
+                              : formatMoney(property.priceCOP)}
                           </p>
                           <p className="text-xs text-stone-500 font-mono-tabular mt-0.5">
                             {property.operation === 'Renta'
-                              ? `Póliza JC incluida · Mant. ${formatMoney(property.maintenanceFeeMXN)}`
-                              : `Renta estimada: ${formatMoney(property.monthlyRentEstimationMXN)}/mes · CAP ${property.rentalYieldPct}%`}
+                              ? `Póliza JC incluida · Mant. ${formatMoney(property.maintenanceFeeCOP)}`
+                              : `Renta estimada: ${formatMoney(property.monthlyRentEstimationCOP)}/mes · CAP ${property.rentalYieldPct}%`}
                           </p>
                         </div>
 
@@ -840,7 +845,7 @@ export default function App() {
                           {mod.number} · {mod.durationHours} horas · {mod.modality}
                         </span>
                         <span className="font-semibold">
-                          {isEnrolled ? 'Inscrito' : formatMoney(mod.priceMXN)}
+                          {isEnrolled ? 'Inscrito' : formatMoney(mod.priceCOP)}
                         </span>
                       </div>
                       <h3 className="text-base font-semibold leading-snug">{mod.title}</h3>
@@ -869,7 +874,7 @@ export default function App() {
                     <span className="font-mono-tabular">Inicio: {selectedAcademyModule.nextCohortDate}</span>
                   </div>
                   <span className="text-xl font-semibold text-slate-900 font-mono-tabular">
-                    {formatMoney(selectedAcademyModule.priceMXN)} COP
+                    {formatMoney(selectedAcademyModule.priceCOP)}
                   </span>
                 </div>
 
@@ -1247,8 +1252,8 @@ export default function App() {
                       <p className="text-sm font-semibold text-slate-900">{sp.title}</p>
                       <p className="text-sm font-mono-tabular font-semibold text-slate-800">
                         {sp.operation === 'Renta'
-                          ? `${formatMoney(sp.monthlyRentEstimationMXN)} / mes`
-                          : formatMoney(sp.priceMXN)}
+                          ? `${formatMoney(sp.monthlyRentEstimationCOP)} / mes`
+                          : formatMoney(sp.priceCOP)}
                       </p>
                       <div className="pt-2 flex items-center gap-2">
                         <button
