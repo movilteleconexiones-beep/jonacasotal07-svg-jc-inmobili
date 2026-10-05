@@ -987,10 +987,10 @@ export default function App() {
                     <div>
                       <p className="font-semibold text-slate-900">Teléfono Directo y Recepción</p>
                       <a
-                        href="tel:+523323101060"
+                        href={`tel:${(branding.phone || '+573001234567').replace(/\s+/g, '')}`}
                         className="text-xs font-mono-tabular text-[#0F2942] hover:underline mt-0.5 inline-block"
                       >
-                        (33) 2310 1060
+                        {branding.phone || '+57 300 123 4567'}
                       </a>
                     </div>
                   </div>
@@ -1000,10 +1000,10 @@ export default function App() {
                     <div>
                       <p className="font-semibold text-slate-900">Correo Corporativo · {organizationBrand}</p>
                       <a
-                        href={`mailto:${branding.email || '{branding.email || 'mkt.jcinmobili@gmail.com'}'}`}
+                        href={`mailto:${branding.email || 'mkt.jcinmobili@gmail.com'}`}
                         className="text-xs font-mono-tabular text-[#0F2942] hover:underline mt-0.5 inline-block"
                       >
-                        mkt.jcinmobili@gmail.com
+                        {branding.email || 'mkt.jcinmobili@gmail.com'}
                       </a>
                     </div>
                   </div>
@@ -1175,7 +1175,7 @@ export default function App() {
       <footer className="bg-[#F6F6F4] border-t border-stone-200/90 py-12 text-xs text-stone-600">
         <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="space-y-1">
-            <p className="text-lg font-display font-bold text-slate-900">{branding.softwareName}</p>
+            <p className="text-lg font-display font-bold text-slate-900">{softwareBrand}</p>
             <p>
               Datos de contacto configurables por cada inmobiliaria
             </p>
@@ -1201,7 +1201,7 @@ export default function App() {
             <a href="#inmobilearning" className="hover:text-slate-900">
               Academia Inmobiliaria
             </a>
-            <span>© {new Date().getFullYear()} {branding.softwareName}. Todos los derechos reservados.</span>
+            <span>© {new Date().getFullYear()} {softwareBrand}. Todos los derechos reservados.</span>
           </div>
         </div>
       </footer>
