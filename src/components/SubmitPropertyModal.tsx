@@ -165,7 +165,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       <div className="bg-white border border-stone-200 rounded-xl max-w-2xl w-full overflow-hidden shadow-2xl my-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 bg-[#F9F9F7]">
           <div>
-            <p className="text-xs text-stone-500">Captación y administración patrimonial · {branding.country}</p>
+            <p className="text-xs text-stone-500">Captación y administración patrimonial · {configuredCountry.name}</p>
             <h2 id="submit-property-title" className="text-xl font-semibold text-slate-900">
               Consignar propiedad con {branding.companyName}
             </h2>
@@ -441,13 +441,13 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               </div>
               <div>
                 <label htmlFor="owner-phone" className="block text-xs font-medium text-slate-700 mb-1">
-                  Teléfono de contacto (10 dígitos)
+                  Teléfono de contacto
                 </label>
                 <input
                   id="owner-phone"
                   type="tel"
                   required
-                  placeholder="33 2310 1060"
+                  placeholder="+57 300 123 4567"
                   value={ownerPhone}
                   onChange={(e) => setOwnerPhone(e.target.value)}
                   className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 font-mono-tabular"
