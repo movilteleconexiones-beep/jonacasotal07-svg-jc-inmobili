@@ -92,6 +92,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loadingStats, setLoadingStats] = useState(false);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [termsRequired, setTermsRequired] = useState(false);
+  const [licenseCheckLoading, setLicenseCheckLoading] = useState(true);
 
   const organizationId = activeMembership?.organization.id;
 
@@ -105,6 +107,60 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       setIsPlatformAdmin(Boolean(data));
     });
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!organizationId || !user) {
+      setTermsRequired(false);
+      setLicenseCheckLoading(false);
+      return;
+    }
+
+    const isOwner = activeMembership?.roles.some((role) => role.key === 'ORGANIZATION_OWNER') ?? false;
+    if (!isOwner) {
+      setTermsRequired(false);
+      setLicenseCheckLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLicenseCheckLoading(true);
+
+    void (async () => {
+      const { data: license } = await supabase
+        .from('organization_licenses')
+        .select('id,terms_version_id')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      if (!license?.id || !license?.terms_version_id) {
+        if (!cancelled) {
+          setTermsRequired(true);
+          setLicenseCheckLoading(false);
+          setView('LICENSE');
+        }
+        return;
+      }
+
+      const { data: acceptance } = await supabase
+        .from('license_acceptances')
+        .select('id')
+        .eq('organization_license_id', license.id)
+        .eq('terms_version_id', license.terms_version_id)
+        .eq('accepted_by', user.id)
+        .maybeSingle();
+
+      if (!cancelled) {
+        const required = !acceptance;
+        setTermsRequired(required);
+        setLicenseCheckLoading(false);
+        if (required) setView('LICENSE');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, user?.id, activeMembership?.roles]);
 
   useEffect(() => {
     if (!organizationId) {
@@ -159,7 +215,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const menuItems = useMemo(
     () =>
       [
-        { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: true },
+        { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: !termsRequired },
         { id: 'PROPERTIES' as const, label: 'Propiedades', icon: Building2, visible: can(PERMISSIONS.PROPERTIES_VIEW) },
         { id: 'CONTACTS' as const, label: 'Clientes', icon: ContactRound, visible: can(PERMISSIONS.CLIENTS_VIEW) },
         { id: 'LEADS' as const, label: 'Leads / CRM', icon: UsersRound, visible: can(PERMISSIONS.LEADS_VIEW) },
@@ -180,8 +236,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         },
         { id: 'SETTINGS' as const, label: 'Configuración', icon: Settings, visible: can(PERMISSIONS.SETTINGS_VIEW) },
         { id: 'LICENSE' as const, label: 'Licencia', icon: ScrollText, visible: can(PERMISSIONS.SETTINGS_VIEW) },
-      ].filter((item) => item.visible),
-    [can, isPlatformAdmin],
+      ].filter((item) => item.visible && (!termsRequired || item.id === 'LICENSE')),
+    [can, isPlatformAdmin, termsRequired],
   );
 
   if (!user || !activeMembership) {
@@ -262,7 +318,16 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         </aside>
 
         <main className="min-w-0">
-          {view === 'DASHBOARD' && (
+          {termsRequired && !licenseCheckLoading && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              <div className="font-bold">Aceptación de licencia requerida</div>
+              <p className="mt-1">
+                Como propietario de la organización debes aceptar los términos vigentes antes de utilizar los módulos operativos.
+              </p>
+            </div>
+          )}
+
+          {view === 'DASHBOARD' && !termsRequired && (
             <DashboardHome
               stats={stats}
               loading={loadingStats}
@@ -281,7 +346,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'IMPORT' && <DataImportCenter />}
           {view === 'USERS' && <UsersRolesModule />}
           {view === 'SETTINGS' && <SettingsModule />}
-          {view === 'LICENSE' && <LicenseModule />}
+          {view === 'LICENSE' && (
+            <LicenseModule
+              onAccepted={() => {
+                setTermsRequired(false);
+                setView('DASHBOARD');
+              }}
+            />
+          )}
           {view === 'OWNERS' && <OwnersModule />}
           {view === 'DOCUMENTS' && <DocumentsModule />}
           {view === 'COMMISSIONS' && <CommissionsModule />}
