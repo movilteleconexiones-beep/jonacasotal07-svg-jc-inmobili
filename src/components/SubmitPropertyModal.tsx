@@ -1,9 +1,11 @@
 // AI Studio resync: source preserved.
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Property, ZONE_VALUATION_BENCHMARKS, HERO_IMAGE } from '../data/properties';
 import propSolaresHouse from '../assets/images/prop_solares_house_1791081961290.jpg';
 import { X, CheckCircle2 } from 'lucide-react';
 import { useTenantBranding } from '../core/use-tenant-branding';
+import { getCountryOption } from '../core/countries';
+import { administrativeLabels, loadAdministrativeCatalog, type AdministrativeCatalog } from '../core/location-catalog';
 
 interface SubmitPropertyModalProps {
   isOpen: boolean;
@@ -18,7 +20,12 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 }) => {
   const { branding } = useTenantBranding();
   const [title, setTitle] = useState('');
-  const [neighborhood, setNeighborhood] = useState<Property['neighborhood']>('El Poblado');
+  const configuredCountry = getCountryOption(branding.country || 'CO');
+  const [locationCatalog, setLocationCatalog] = useState<AdministrativeCatalog | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [region, setRegion] = useState('');
+  const [locality, setLocality] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
   const [operation, setOperation] = useState<Property['operation']>('Venta');
   const [category, setCategory] = useState<Property['category']>('Residencial');
   const [priceCOP, setPriceCOP] = useState('450000000');
@@ -31,6 +38,35 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+
+  const locationLabels = administrativeLabels(configuredCountry.code);
+  const selectedRegion = useMemo(
+    () => locationCatalog?.regions.find((item) => item.name === region) ?? null,
+    [locationCatalog, region],
+  );
+
+  useEffect(() => {
+    let active = true;
+    setLocationLoading(true);
+    setLocationCatalog(null);
+    setRegion('');
+    setLocality('');
+
+    void loadAdministrativeCatalog(configuredCountry.code).then((catalog) => {
+      if (!active) return;
+      setLocationCatalog(catalog);
+      const firstRegion = catalog?.regions[0];
+      if (firstRegion) {
+        setRegion(firstRegion.name);
+        setLocality(firstRegion.localities[0]?.name ?? '');
+      }
+      setLocationLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [configuredCountry.code]);
 
   if (!isOpen) return null;
 
@@ -49,15 +85,30 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     const numericPrice = Math.max(1000000, Number(priceCOP) || 450000000);
     const numericLand = Math.max(60, Number(landAreaM2) || 200);
     const numericConst = Math.max(60, Number(constructionAreaM2) || 220);
-    const benchmark = ZONE_VALUATION_BENCHMARKS[neighborhood];
+    if (!region.trim() || !locality.trim()) {
+      setError(`Selecciona ${locationLabels.region.toLowerCase()} y ${locationLabels.locality.toLowerCase()}.`);
+      return;
+    }
+
+    const benchmark =
+      ZONE_VALUATION_BENCHMARKS[neighborhood.trim()] ??
+      ZONE_VALUATION_BENCHMARKS[locality.trim()] ?? {
+        avgPricePerM2MXN: 0,
+        annualAppreciationPct: 8,
+        avgDaysToLease: 30,
+        avgYieldPct: 6,
+      };
     const generatedCode = `JCO-${Math.floor(7000 + Math.random() * 2000)}`;
 
     const newProperty: Property = {
       id: `prop-custom-${Date.now()}`,
       code: generatedCode,
       title: title.trim(),
-      neighborhood,
-      municipality: neighborhood === 'Chicó' || neighborhood === 'Usaquén' ? 'Bogotá, D.C.' : 'Medellín, Antioquia',
+      neighborhood: neighborhood.trim() || locality.trim(),
+      municipality: `${locality.trim()}, ${region.trim()}`,
+      countryCode: configuredCountry.code,
+      region: region.trim(),
+      city: locality.trim(),
       operation,
       category,
       priceCOP: operation === 'Renta' ? numericPrice * 180 : numericPrice,
@@ -78,17 +129,17 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       legalStatus: 'Expediente en validación jurídica por Comité Sistema Inmobiliario JCO',
       architecturalSummary:
         summary.trim() ||
-        `Propiedad consignada en ${neighborhood} bajo gestión patrimonial de Sistema Inmobiliario JCO. Cuenta con revisión documental en curso y disponibilidad para citas.`,
+        `Propiedad consignada en ${locality}, ${region}, ${configuredCountry.name} bajo gestión patrimonial de Sistema Inmobiliario JCO. Cuenta con revisión documental en curso y disponibilidad para citas.`,
       highlights: [
-        `Ubicación estratégica en ${neighborhood}`,
+        `Ubicación estratégica en ${locality}, ${region}`,
         'Dictaminación legal y valuación comercial por Sistema Inmobiliario JCO',
-        'Promoción multicanal en portales especializados en Colombia'
+        `Promoción multicanal en portales especializados en ${configuredCountry.name}`
       ],
       domoticsAndMaintenance: [
         'Elegible para Póliza de Mantenimiento Preventivo Sistema Inmobiliario JCO',
         'Diagnóstico de impermeabilización, pintura y domótica incluido'
       ],
-      coordinatesLabel: `${neighborhood} · Colombia`,
+      coordinatesLabel: `${neighborhood.trim() ? neighborhood.trim() + ' · ' : ''}${locality}, ${region} · ${configuredCountry.name}`,
       yearBuilt: 2024
     };
 
@@ -140,7 +191,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 Propiedad Incorporada al Catálogo Activo
               </h3>
               <p className="text-sm text-slate-600 max-w-md mx-auto">
-                Tu propiedad en <strong>{neighborhood}</strong> ya aparece publicada en el catálogo interactivo y ha sido asignada a un asesor en la oficina principal para validación documental.
+                Tu propiedad en <strong>{locality}, {region}</strong> ya aparece publicada en el catálogo interactivo y ha sido asignada a un asesor para validación documental.
               </p>
             </div>
             <div className="pt-2">
@@ -172,21 +223,92 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               </div>
 
               <div>
-                <label htmlFor="prop-zone" className="block text-xs font-medium text-slate-700 mb-1">
-                  Zona / Corredor
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  País
                 </label>
-                <select
+                <div className="w-full px-3.5 py-2 bg-stone-50 border border-stone-300 rounded-lg text-sm text-slate-800">
+                  {configuredCountry.name}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="prop-region" className="block text-xs font-medium text-slate-700 mb-1">
+                  {locationLabels.region}
+                </label>
+                {locationCatalog ? (
+                  <select
+                    id="prop-region"
+                    value={region}
+                    onChange={(e) => {
+                      const nextRegion = e.target.value;
+                      setRegion(nextRegion);
+                      const next = locationCatalog.regions.find((item) => item.name === nextRegion);
+                      setLocality(next?.localities[0]?.name ?? '');
+                    }}
+                    disabled={locationLoading}
+                    className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                  >
+                    {locationCatalog.regions.map((item) => (
+                      <option key={item.id} value={item.name}>{item.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id="prop-region"
+                    type="text"
+                    required
+                    placeholder={locationLabels.region}
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900"
+                  />
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="prop-locality" className="block text-xs font-medium text-slate-700 mb-1">
+                  {locationLabels.locality}
+                </label>
+                {locationCatalog && selectedRegion ? (
+                  <select
+                    id="prop-locality"
+                    value={locality}
+                    onChange={(e) => setLocality(e.target.value)}
+                    disabled={locationLoading}
+                    className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                  >
+                    {selectedRegion.localities.map((item) => (
+                      <option key={item.id} value={item.name}>{item.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id="prop-locality"
+                    type="text"
+                    required
+                    placeholder={locationLabels.locality}
+                    value={locality}
+                    onChange={(e) => setLocality(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900"
+                  />
+                )}
+                {locationLoading && (
+                  <p className="mt-1 text-[11px] text-stone-500">Cargando división administrativa…</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="prop-zone" className="block text-xs font-medium text-slate-700 mb-1">
+                  Barrio / zona / sector
+                </label>
+                <input
                   id="prop-zone"
+                  type="text"
+                  placeholder="Ej. El Poblado, Laureles, Chapinero..."
                   value={neighborhood}
-                  onChange={(e) => setNeighborhood(e.target.value as Property['neighborhood'])}
+                  onChange={(e) => setNeighborhood(e.target.value)}
                   className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-[#0F2942]"
-                >
-                  {(Object.keys(ZONE_VALUATION_BENCHMARKS) as Property['neighborhood'][]).map((z) => (
-                    <option key={z} value={z}>
-                      {z}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div>
