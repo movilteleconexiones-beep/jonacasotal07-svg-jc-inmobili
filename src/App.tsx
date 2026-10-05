@@ -720,7 +720,7 @@ export default function App() {
                       Cuadrillas propias para incrementar el valor de renta y venta de tu propiedad.
                     </h3>
                     <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
-                      A diferencia de una agencia tradicional, JC Inmobili cuenta con división técnica de impermeabilización garantizada, pintura arquitectónica, climatización (aire acondicionado Inverter), cortinas y persianas a medida, sistemas de alarma y automatización inteligente (domótica).
+                      A diferencia de una agencia tradicional, Sistema Inmobiliario JCO cuenta con división técnica de impermeabilización garantizada, pintura arquitectónica, climatización (aire acondicionado Inverter), cortinas y persianas a medida, sistemas de alarma y automatización inteligente (domótica).
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-stone-200/80 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600">
@@ -991,7 +991,7 @@ export default function App() {
                   <div className="flex items-start gap-3">
                     <Mail className="w-4 h-4 text-[#0F2942] mt-1 shrink-0" />
                     <div>
-                      <p className="font-semibold text-slate-900">Correo Electrónico Comercial</p>
+                      <p className="font-semibold text-slate-900">Correo Corporativo · Sistema Inmobiliario JCO</p>
                       <a
                         href="mailto:mkt.jcinmobili@gmail.com"
                         className="text-xs font-mono-tabular text-[#0F2942] hover:underline mt-0.5 inline-block"
@@ -1154,7 +1154,7 @@ export default function App() {
                       type="submit"
                       className="w-full py-3 px-5 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                     >
-                      Agendar Consulta con JC Inmobili
+                      Agendar Consulta con Sistema Inmobiliario JCO
                     </button>
                   </form>
                 )}
