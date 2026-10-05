@@ -22,7 +22,8 @@
     "dotenv": "^17.2.3",
     "motion": "^12.23.24",
     "@supabase/supabase-js": "^2.0.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "react-router-dom": "^7.9.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
