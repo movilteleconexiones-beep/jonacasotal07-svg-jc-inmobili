@@ -4,6 +4,7 @@ import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 
 interface LicenseInfo {
+  id?: string;
   license_type: string;
   status: string;
   operational_control_full: boolean;
@@ -12,9 +13,11 @@ interface LicenseInfo {
   sublicensing_allowed: boolean;
   redistribution_allowed: boolean;
   white_label_allowed: boolean;
+  terms_version_id?: string | null;
 }
 
 interface TermsInfo {
+  id?: string;
   version: string;
   title: string;
   summary: string | null;
@@ -22,11 +25,16 @@ interface TermsInfo {
   effective_date: string;
 }
 
-export function LicenseModule() {
-  const { activeMembership } = useAuth();
+export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) {
+  const { activeMembership, user } = useAuth();
   const organizationId = activeMembership?.organization.id;
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [terms, setTerms] = useState<TermsInfo | null>(null);
+  const [licenseId, setLicenseId] = useState<string | null>(null);
+  const [termsId, setTermsId] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (!organizationId) return;
@@ -34,21 +42,63 @@ export function LicenseModule() {
     void Promise.all([
       supabase
         .from('organization_licenses')
-        .select('license_type,status,operational_control_full,copyright_transferred,resale_allowed,sublicensing_allowed,redistribution_allowed,white_label_allowed')
+        .select('id,license_type,status,operational_control_full,copyright_transferred,resale_allowed,sublicensing_allowed,redistribution_allowed,white_label_allowed,terms_version_id')
         .eq('organization_id', organizationId)
         .maybeSingle(),
       supabase
         .from('license_terms_versions')
-        .select('version,title,summary,terms_markdown,effective_date')
+        .select('id,version,title,summary,terms_markdown,effective_date')
         .eq('active', true)
         .order('effective_date', { ascending: false })
         .limit(1)
         .maybeSingle(),
-    ]).then(([licenseResult, termsResult]) => {
-      setLicense((licenseResult.data ?? null) as LicenseInfo | null);
-      setTerms((termsResult.data ?? null) as TermsInfo | null);
+    ]).then(async ([licenseResult, termsResult]) => {
+      const licenseData = licenseResult.data as any;
+      const termsData = termsResult.data as any;
+      setLicense((licenseData ?? null) as LicenseInfo | null);
+      setTerms((termsData ?? null) as TermsInfo | null);
+      setLicenseId(licenseData?.id ?? null);
+      setTermsId(termsData?.id ?? null);
+
+      if (licenseData?.id && termsData?.id && user?.id) {
+        const { data } = await supabase
+          .from('license_acceptances')
+          .select('id')
+          .eq('organization_license_id', licenseData.id)
+          .eq('terms_version_id', termsData.id)
+          .eq('accepted_by', user.id)
+          .maybeSingle();
+        setAccepted(Boolean(data));
+      } else {
+        setAccepted(false);
+      }
     });
-  }, [organizationId]);
+  }, [organizationId, user?.id]);
+
+  async function acceptTerms() {
+    if (!licenseId || !termsId || !user?.id || accepting) return;
+    setAccepting(true);
+    setMessage('');
+
+    const { error } = await supabase.from('license_acceptances').insert({
+      organization_license_id: licenseId,
+      terms_version_id: termsId,
+      accepted_by: user.id,
+      accepted_at: new Date().toISOString(),
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    });
+
+    if (error && !error.message.toLowerCase().includes('duplicate')) {
+      setMessage(error.message);
+      setAccepting(false);
+      return;
+    }
+
+    setAccepted(true);
+    setMessage('Términos aceptados y registrados correctamente.');
+    setAccepting(false);
+    onAccepted?.();
+  }
 
   return (
     <section className="space-y-5">
@@ -99,6 +149,17 @@ export function LicenseModule() {
         </div>
       </div>
 
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
+        <div className="font-bold">Responsabilidad de la organización usuaria</div>
+        <p className="mt-2 leading-relaxed">
+          INMOJCO proporciona tecnología de gestión. La inmobiliaria usuaria y sus proveedores son responsables
+          de la legalidad de su operación, contratos, pólizas y seguros, avalúos, manejo de dinero, obligaciones
+          tributarias, protección de datos y demás servicios profesionales o empresariales que ofrezcan o gestionen.
+          El uso del software no constituye asesoría jurídica, financiera, tributaria, aseguradora, notarial ni
+          inmobiliaria por parte de INMOJCO.
+        </p>
+      </div>
+
       {terms && (
         <div className="rounded-2xl border border-stone-200 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -109,6 +170,30 @@ export function LicenseModule() {
             <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold">
               Versión {terms.version}
             </span>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-semibold">{accepted ? 'Términos aceptados' : 'Aceptación requerida'}</div>
+                <div className="mt-1 text-xs text-slate-600">
+                  {accepted
+                    ? 'La aceptación de esta versión quedó registrada para tu usuario.'
+                    : 'El propietario de la organización debe aceptar la versión vigente para habilitar la operación.'}
+                </div>
+              </div>
+              {!accepted && (
+                <button
+                  type="button"
+                  onClick={() => void acceptTerms()}
+                  disabled={accepting || !licenseId || !termsId}
+                  className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {accepting ? 'Registrando…' : 'Acepto los términos'}
+                </button>
+              )}
+            </div>
+            {message && <div className="mt-3 text-xs font-medium">{message}</div>}
           </div>
 
           <details className="mt-5">

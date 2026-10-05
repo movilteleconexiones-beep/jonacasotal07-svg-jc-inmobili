@@ -126,18 +126,18 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       rentalYieldPct: benchmark.avgYieldPct,
       image: HERO_IMAGE,
       secondaryImage: propSolaresHouse,
-      legalStatus: 'Expediente en validación jurídica por Comité Sistema Inmobiliario JCO',
+      legalStatus: `Expediente en revisión documental por ${branding.companyName} y/o proveedor profesional autorizado`,
       architecturalSummary:
         summary.trim() ||
-        `Propiedad consignada en ${locality}, ${region}, ${configuredCountry.name} bajo gestión patrimonial de Sistema Inmobiliario JCO. Cuenta con revisión documental en curso y disponibilidad para citas.`,
+        `Propiedad consignada en ${locality}, ${region}, ${configuredCountry.name} bajo gestión de ${branding.companyName}. Cuenta con revisión documental en curso y disponibilidad para citas.`,
       highlights: [
         `Ubicación estratégica en ${locality}, ${region}`,
-        'Dictaminación legal y valuación comercial por Sistema Inmobiliario JCO',
+        `Revisión documental y valoración comercial gestionadas por ${branding.companyName} y/o proveedor autorizado`,
         `Promoción multicanal en portales especializados en ${configuredCountry.name}`
       ],
       domoticsAndMaintenance: [
-        'Elegible para Póliza de Mantenimiento Preventivo Sistema Inmobiliario JCO',
-        'Diagnóstico de impermeabilización, pintura y domótica incluido'
+        `Servicios de mantenimiento sujetos a contratación y condiciones de ${branding.companyName} o su proveedor`,
+        'Diagnóstico técnico sujeto a disponibilidad, alcance contratado y proveedor responsable'
       ],
       coordinatesLabel: `${neighborhood.trim() ? neighborhood.trim() + ' · ' : ''}${locality}, ${region} · ${configuredCountry.name}`,
       yearBuilt: 2024
@@ -454,6 +454,12 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 />
               </div>
             </div>
+
+            <p className="text-[11px] leading-relaxed text-stone-500">
+              La inmobiliaria usuaria es responsable de la información publicada, validaciones, contratos,
+              seguros, pólizas, avalúos y servicios profesionales asociados al inmueble. INMOJCO actúa como
+              proveedor de la plataforma tecnológica.
+            </p>
 
             {error && <p className="text-xs text-red-700 font-medium">{error}</p>}
 

@@ -139,7 +139,7 @@ export const PROPERTIES: Property[] = [
       'Cerradura biométrica inteligente y control de acceso para visitas',
       'Cortinas enrollables motorizadas Blackout y malla solar en estancia',
       'Aire acondicionado central Inverter con termostatos inteligentes',
-      'Mantenimiento preventivo de cancelería acústica certificado por Sistema Inmobiliario JCO'
+      'Mantenimiento preventivo de cancelería acústica sujeto al proveedor técnico contratado'
     ],
     coordinatesLabel: 'Av. Patria y Blvd. El Poblado · Medellín',
     yearBuilt: 2024
@@ -168,7 +168,7 @@ export const PROPERTIES: Property[] = [
     architecturalSummary:
       'Residencia contemporánea mexicana con fachada de piedra cantera natural, losas en voladizo y patio central arbolado que integra luz natural todo el día.',
     highlights: [
-      'Administración integral Sistema Inmobiliario JCO incluida en el esquema de arrendamiento',
+      'Administración integral gestionada por la inmobiliaria según el esquema contratado',
       'Estudio en planta baja con baño completo adaptable a quinta habitación',
       'Jardín interior con olivos centenarios y riego automatizado',
       'Club privado con canchas de tenis, piscina semiolímpica y gimnasio'
@@ -212,7 +212,7 @@ export const PROPERTIES: Property[] = [
       'Lobby con conserjería 24 horas y roof garden con sala de juntas'
     ],
     domoticsAndMaintenance: [
-      'Persianas translúcidas y blackout instaladas por división de equipamiento JCO',
+      'Persianas translúcidas y blackout instaladas por proveedor de equipamiento',
       'Climatización minisplit Inverter en sala y ambas habitaciones',
       'Chapa digital con código temporal para visitas y mantenimiento',
       'Revisión anual de instalaciones hidráulicas y gas certificada'
@@ -283,7 +283,7 @@ export const PROPERTIES: Property[] = [
       'Inmueble productivo de 3 niveles con local comercial en planta baja y oficinas/suites corporativas en niveles superiores sobre corredor consolidado en Ciudad del Río y La Calma.',
     highlights: [
       'Ideal para inversionistas patrimoniales que buscan flujo mensual inmediato',
-      'Gestionado al 100% bajo Póliza de Administración Integral Sistema Inmobiliario JCO',
+      'Gestionado bajo esquema de administración integral y coberturas según condiciones del operador',
       'Estacionamiento frontal para 8 vehículos en batería sobre avenida principal',
       'Conectividad inmediata a Av. López Mateos Sur, Mariano Otero y Patria'
     ],
@@ -354,7 +354,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     beforeState:
       'Tres propiedades residenciales presentaban rotación frecuente de inquilinos, retrasos de pago de hasta 45 días y deterioro por falta de mantenimiento preventivo en azoteas y equipos de aire acondicionado.',
     intervention:
-      'Sistema Inmobiliario JCO implementó dictaminación jurídica de prospectos, contratos ratificados con mecanismos de conciliación en Colombia, cobranza sistematizada y plan anual de impermeabilización, pintura y domótica.',
+      'La inmobiliaria implementó revisión documental de prospectos, gestión contractual con sus asesores autorizados, cobranza sistematizada y un plan anual de mantenimiento.',
     outcome:
       'Ocupación continua del 100% durante los últimos 14 meses, depósito puntual antes del día 5 de cada mes y reducción del 38% en costos correctivos de mantenimiento.'
   },
@@ -388,7 +388,7 @@ export const CASE_STUDIES: CaseStudy[] = [
     beforeState:
       'El departamento permaneció desocupado 3 meses debido a acabados desgastados, falta de aire acondicionado y ausencia de cortinas motorizadas solicitadas por ejecutivos.',
     intervention:
-      'El equipo técnico de Sistema Inmobiliario JCO realizó pintura arquitectónica, instalación de minisplits Inverter, persianas enrollables motorizadas, chapa inteligente y alarma.',
+      'La inmobiliaria coordinó con sus proveedores la pintura arquitectónica, climatización, persianas motorizadas, cerradura inteligente y sistema de alarma.',
     outcome:
       'Arrendado en la primera semana posterior a la entrega con una renta mensual de $4.850.000 COP (frente a los $4.100.000 COP proyectados originalmente).'
   }
@@ -412,7 +412,7 @@ export const ACADEMY_MODULES: AcademyModule[] = [
       'Convenios de transacción y mediación ante el Instituto de Justicia Alternativa',
       'Protocolo de entrega-recepción con inventario fotográfico y pagarés'
     ],
-    instructor: 'Dirección Jurídica Sistema Inmobiliario JCO · +18 años de práctica en Colombia'
+    instructor: 'Dirección académica · contenidos sujetos a revisión jurídica local'
   },
   {
     id: 'acad-2',
@@ -431,7 +431,7 @@ export const ACADEMY_MODULES: AcademyModule[] = [
       'Estrategia fiscal en compraventa: exención de ISR por casa habitación y deducciones autorizadas',
       'Simulación financiera a 5 y 10 años para toma de decisiones patrimoniales'
     ],
-    instructor: 'Comité de Valuación y Finanzas Sistema Inmobiliario JCO'
+    instructor: 'Comité académico de valoración y finanzas'
   },
   {
     id: 'acad-3',
@@ -443,13 +443,13 @@ export const ACADEMY_MODULES: AcademyModule[] = [
     nextCohortDate: '16 de Noviembre, 2026',
     priceCOP: 4800,
     summary:
-      'El sistema operativo comercial de Sistema Inmobiliario JCO: desde la integración del expediente técnico-legal de la propiedad hasta la pauta segmentada en portales y la firma en notaría.',
+      'Metodología comercial de la plataforma: desde la integración del expediente de la propiedad hasta la pauta segmentada y el acompañamiento del cierre por los profesionales responsables.',
     topics: [
       'Checklist documental para captación segura (libertad de gravamen, alineamiento, planos)',
       'Presentación de plan de comercialización en Lamudi, Casas y Terrenos, EasyBroker y red privada',
       'Calificación de prospectos con crédito hipotecario bancario, leasing habitacional y contado',
       'Seguimiento de avalúo bancario, carta de instrucción y cierre en Notaría Pública'
     ],
-    instructor: 'Dirección Comercial JCO Inmobilearning · Sede Colombia'
+    instructor: 'Dirección Comercial · Academia Inmobiliaria'
   }
 ];
