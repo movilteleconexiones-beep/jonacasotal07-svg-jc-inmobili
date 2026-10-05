@@ -181,11 +181,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
+    const emailRedirectTo =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/`
+        : undefined;
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName.trim() },
+        emailRedirectTo,
       },
     });
 
