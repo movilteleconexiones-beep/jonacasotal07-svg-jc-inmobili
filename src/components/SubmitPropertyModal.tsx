@@ -20,7 +20,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [neighborhood, setNeighborhood] = useState<Property['neighborhood']>('El Poblado');
   const [operation, setOperation] = useState<Property['operation']>('Venta');
   const [category, setCategory] = useState<Property['category']>('Residencial');
-  const [priceMXN, setPriceMXN] = useState('450000000');
+  const [priceCOP, setPriceCOP] = useState('450000000');
   const [landAreaM2, setLandAreaM2] = useState('300');
   const [constructionAreaM2, setConstructionAreaM2] = useState('360');
   const [bedrooms, setBedrooms] = useState('3');
@@ -45,7 +45,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       return;
     }
 
-    const numericPrice = Math.max(1000000, Number(priceMXN) || 450000000);
+    const numericPrice = Math.max(1000000, Number(priceCOP) || 450000000);
     const numericLand = Math.max(60, Number(landAreaM2) || 200);
     const numericConst = Math.max(60, Number(constructionAreaM2) || 220);
     const benchmark = ZONE_VALUATION_BENCHMARKS[neighborhood];
@@ -59,12 +59,12 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       municipality: neighborhood === 'Chicó' || neighborhood === 'Usaquén' ? 'Bogotá, D.C.' : 'Medellín, Antioquia',
       operation,
       category,
-      priceMXN: operation === 'Renta' ? numericPrice * 180 : numericPrice,
-      monthlyRentEstimationMXN:
+      priceCOP: operation === 'Renta' ? numericPrice * 180 : numericPrice,
+      monthlyRentEstimationCOP:
         operation === 'Renta'
           ? numericPrice
           : Math.round((numericPrice * (benchmark.avgYieldPct / 100)) / 12),
-      maintenanceFeeMXN: 500000,
+      maintenanceFeeCOP: 500000,
       landAreaM2: numericLand,
       constructionAreaM2: numericConst,
       bedrooms: Number(bedrooms) || 3,
@@ -228,8 +228,8 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                   id="prop-price"
                   type="number"
                   required
-                  value={priceMXN}
-                  onChange={(e) => setPriceMXN(e.target.value)}
+                  value={priceCOP}
+                  onChange={(e) => setPriceCOP(e.target.value)}
                   className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900 font-mono-tabular focus:outline-none focus:border-[#0F2942]"
                 />
               </div>
