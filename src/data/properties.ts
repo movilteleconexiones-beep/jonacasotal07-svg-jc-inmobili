@@ -1,3 +1,9 @@
+import heroZapopanResidence from '../assets/images/hero_zapopan_residence_1791081912330.jpg';
+import propAndaresPenthouse from '../assets/images/prop_andares_penthouse_1791081925896.jpg';
+import propProvidenciaLoft from '../assets/images/prop_providencia_loft_1791081951676.jpg';
+import propSolaresHouse from '../assets/images/prop_solares_house_1791081961290.jpg';
+import propValleRealVilla from '../assets/images/prop_valle_real_villa_1791081939659.jpg';
+
 // Synced source: property catalogue used by the public portal.
 export interface Property {
   id: string;
@@ -56,12 +62,12 @@ export interface CaseStudy {
   outcome: string;
 }
 
-export const HERO_IMAGE = '/src/assets/images/hero_zapopan_residence_1791081912330.jpg';
+export const HERO_IMAGE = heroZapopanResidence;
 
 export const PROPERTIES: Property[] = [
   {
     id: 'prop-1',
-    code: 'JC-1084',
+    code: 'JCO-1084',
     title: 'Residencia Contemporánea en El Poblado',
     neighborhood: 'El Poblado',
     municipality: 'Medellín, Antioquia',
@@ -77,8 +83,8 @@ export const PROPERTIES: Property[] = [
     parkingSpaces: 6,
     annualAppreciationPct: 11.4,
     rentalYieldPct: 6.2,
-    image: '/src/assets/images/hero_zapopan_residence_1791081912330.jpg',
-    secondaryImage: '/src/assets/images/prop_valle_real_villa_1791081939659.jpg',
+    image: heroZapopanResidence,
+    secondaryImage: propValleRealVilla,
     legalStatus: 'Escritura pública libre de gravamen · Dictamen jurídico verificado',
     architecturalSummary:
       'Residencia de autor con muros de concreto aparente enduelado, celosías de madera de parota certificada y piscina infinita climatizada con orientación sur-norte.',
@@ -99,7 +105,7 @@ export const PROPERTIES: Property[] = [
   },
   {
     id: 'prop-2',
-    code: 'JC-2041',
+    code: 'JCO-2041',
     title: 'Penthouse Corporativo en Chicó',
     neighborhood: 'Chicó',
     municipality: 'Medellín, Antioquia',
@@ -115,8 +121,8 @@ export const PROPERTIES: Property[] = [
     parkingSpaces: 4,
     annualAppreciationPct: 12.1,
     rentalYieldPct: 6.8,
-    image: '/src/assets/images/prop_andares_penthouse_1791081925896.jpg',
-    secondaryImage: '/src/assets/images/prop_providencia_loft_1791081951676.jpg',
+    image: propAndaresPenthouse,
+    secondaryImage: propProvidenciaLoft,
     legalStatus: 'Régimen en condominio al corriente · Póliza patrimonial lista',
     architecturalSummary:
       'Penthouse de doble altura con terraza panorámica hacia el corredor financiero de Chicó, pisos de mármol travertino cepillado y elevador directo a vestíbulo privado.',
@@ -137,7 +143,7 @@ export const PROPERTIES: Property[] = [
   },
   {
     id: 'prop-3',
-    code: 'JC-3019',
+    code: 'JCO-3019',
     title: 'Casa Campestre Contemporánea en Envigado',
     neighborhood: 'Envigado',
     municipality: 'Medellín, Antioquia',
@@ -153,8 +159,8 @@ export const PROPERTIES: Property[] = [
     parkingSpaces: 4,
     annualAppreciationPct: 10.6,
     rentalYieldPct: 6.4,
-    image: '/src/assets/images/prop_valle_real_villa_1791081939659.jpg',
-    secondaryImage: '/src/assets/images/hero_zapopan_residence_1791081912330.jpg',
+    image: propValleRealVilla,
+    secondaryImage: heroZapopanResidence,
     legalStatus: 'Contrato con investigación jurídica y convenio de mediación',
     architecturalSummary:
       'Residencia contemporánea mexicana con fachada de piedra cantera natural, losas en voladizo y patio central arbolado que integra luz natural todo el día.',
@@ -175,7 +181,7 @@ export const PROPERTIES: Property[] = [
   },
   {
     id: 'prop-4',
-    code: 'JC-4012',
+    code: 'JCO-4012',
     title: 'Apartamento Boutique en Laureles',
     neighborhood: 'Laureles',
     municipality: 'Bogotá, D.C.',
@@ -191,8 +197,8 @@ export const PROPERTIES: Property[] = [
     parkingSpaces: 2,
     annualAppreciationPct: 10.2,
     rentalYieldPct: 7.4,
-    image: '/src/assets/images/prop_providencia_loft_1791081951676.jpg',
-    secondaryImage: '/src/assets/images/prop_andares_penthouse_1791081925896.jpg',
+    image: propProvidenciaLoft,
+    secondaryImage: propAndaresPenthouse,
     legalStatus: 'Arrendamiento protegido · Investigación socioeconómica en 48 h',
     architecturalSummary:
       'Unidad exterior en nivel 6 dentro de torre boutique de sólo 18 departamentos en Laureles Norte, con carpintería de roble natural e isla de travertino.',
@@ -203,7 +209,7 @@ export const PROPERTIES: Property[] = [
       'Lobby con conserjería 24 horas y roof garden con sala de juntas'
     ],
     domoticsAndMaintenance: [
-      'Persianas translúcidas y blackout instaladas por división de equipamiento JC',
+      'Persianas translúcidas y blackout instaladas por división de equipamiento JCO',
       'Climatización minisplit Inverter en sala y ambas habitaciones',
       'Chapa digital con código temporal para visitas y mantenimiento',
       'Revisión anual de instalaciones hidráulicas y gas certificada'
@@ -213,7 +219,7 @@ export const PROPERTIES: Property[] = [
   },
   {
     id: 'prop-5',
-    code: 'JC-5028',
+    code: 'JCO-5028',
     title: 'Residencia Urbana en Usaquén',
     neighborhood: 'Usaquén',
     municipality: 'Medellín, Antioquia',
@@ -229,8 +235,8 @@ export const PROPERTIES: Property[] = [
     parkingSpaces: 3,
     annualAppreciationPct: 11.8,
     rentalYieldPct: 6.9,
-    image: '/src/assets/images/prop_solares_house_1791081961290.jpg',
-    secondaryImage: '/src/assets/images/prop_valle_real_villa_1791081939659.jpg',
+    image: propSolaresHouse,
+    secondaryImage: propValleRealVilla,
     legalStatus: 'Apta para crédito hipotecario, leasing habitacional o recursos propios',
     architecturalSummary:
       'Volúmenes arquitectónicos puros con celosías térmicas, roof garden con pergolado y acceso inmediato al lago y parque lineal de Usaquén Residencial.',
@@ -251,7 +257,7 @@ export const PROPERTIES: Property[] = [
   },
   {
     id: 'prop-6',
-    code: 'JC-6090',
+    code: 'JCO-6090',
     title: 'Edificio Mixto Ciudad del Río',
     neighborhood: 'Ciudad del Río',
     municipality: 'Medellín, Antioquia',
@@ -267,8 +273,8 @@ export const PROPERTIES: Property[] = [
     parkingSpaces: 8,
     annualAppreciationPct: 9.8,
     rentalYieldPct: 8.5,
-    image: '/src/assets/images/prop_andares_penthouse_1791081925896.jpg',
-    secondaryImage: '/src/assets/images/prop_solares_house_1791081961290.jpg',
+    image: propAndaresPenthouse,
+    secondaryImage: propSolaresHouse,
     legalStatus: 'Uso de suelo mixto CS2 verificado · Licencias municipales vigentes',
     architecturalSummary:
       'Inmueble productivo de 3 niveles con local comercial en planta baja y oficinas/suites corporativas en niveles superiores sobre corredor consolidado en Ciudad del Río y La Calma.',
@@ -441,6 +447,6 @@ export const ACADEMY_MODULES: AcademyModule[] = [
       'Calificación de prospectos con crédito hipotecario bancario, leasing habitacional y contado',
       'Seguimiento de avalúo bancario, carta de instrucción y cierre en Notaría Pública'
     ],
-    instructor: 'Dirección Comercial JC Inmobilearning · Sede Colombia'
+    instructor: 'Dirección Comercial JCO Inmobilearning · Sede Colombia'
   }
 ];
