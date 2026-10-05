@@ -319,7 +319,7 @@ export default function App() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar por colonia, clave (JC-1084) o acabado..."
+                    placeholder="Buscar por colonia, clave (JCO-1084) o acabado..."
                     aria-label="Buscar propiedades"
                     className="w-full pl-10 pr-3 py-2.5 bg-[#F6F6F4] border border-stone-200 rounded-lg text-xs text-slate-900 placeholder:text-stone-500 focus:outline-none focus:border-[#0F2942]"
                   />
@@ -416,7 +416,7 @@ export default function App() {
                   aria-label="Ordenar propiedades"
                   className="text-xs font-medium text-slate-700 bg-transparent focus:outline-none"
                 >
-                  <option value="featured">Orden: Destacadas JC</option>
+                  <option value="featured">Orden: Destacadas JCO</option>
                   <option value="price-desc">Precio: Mayor a Menor</option>
                   <option value="price-asc">Precio: Menor a Mayor</option>
                   <option value="yield-desc">Mayor Rentabilidad (CAP Rate)</option>
@@ -578,7 +578,7 @@ export default function App() {
                           </p>
                           <p className="text-xs text-stone-500 font-mono-tabular mt-0.5">
                             {property.operation === 'Renta'
-                              ? `Póliza JC incluida · Mant. ${formatMoney(property.maintenanceFeeCOP)}`
+                              ? `Póliza JCO incluida · Mant. ${formatMoney(property.maintenanceFeeCOP)}`
                               : `Renta estimada: ${formatMoney(property.monthlyRentEstimationCOP)}/mes · CAP ${property.rentalYieldPct}%`}
                           </p>
                         </div>
@@ -802,7 +802,7 @@ export default function App() {
         {/* SECTION 3: INTERACTIVE PATRIMONIAL & RENTAL ADMINISTRATION SIMULATOR */}
         <PatrimonialSimulator onRequestDiagnostic={handleRequestDiagnosticFromSimulator} />
 
-        {/* SECTION 4: JC INMOBILEARNING (EXCLUSIVE REAL ESTATE ACADEMY) */}
+        {/* SECTION 4: JCO INMOBILEARNING (EXCLUSIVE REAL ESTATE ACADEMY) */}
         <section id="inmobilearning" className="py-20 border-t border-stone-200/90 bg-[#0F2942] text-white">
           <div className="max-w-[1200px] mx-auto px-6">
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">

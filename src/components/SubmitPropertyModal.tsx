@@ -1,6 +1,7 @@
 // AI Studio resync: source preserved.
 import React, { useState } from 'react';
 import { Property, ZONE_VALUATION_BENCHMARKS, HERO_IMAGE } from '../data/properties';
+import propSolaresHouse from '../assets/images/prop_solares_house_1791081961290.jpg';
 import { X, CheckCircle2 } from 'lucide-react';
 import { useTenantBranding } from '../core/use-tenant-branding';
 
@@ -49,7 +50,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     const numericLand = Math.max(60, Number(landAreaM2) || 200);
     const numericConst = Math.max(60, Number(constructionAreaM2) || 220);
     const benchmark = ZONE_VALUATION_BENCHMARKS[neighborhood];
-    const generatedCode = `JC-${Math.floor(7000 + Math.random() * 2000)}`;
+    const generatedCode = `JCO-${Math.floor(7000 + Math.random() * 2000)}`;
 
     const newProperty: Property = {
       id: `prop-custom-${Date.now()}`,
@@ -73,7 +74,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       annualAppreciationPct: benchmark.annualAppreciationPct,
       rentalYieldPct: benchmark.avgYieldPct,
       image: HERO_IMAGE,
-      secondaryImage: '/src/assets/images/prop_solares_house_1791081961290.jpg',
+      secondaryImage: propSolaresHouse,
       legalStatus: 'Expediente en validación jurídica por Comité Sistema Inmobiliario JCO',
       architecturalSummary:
         summary.trim() ||

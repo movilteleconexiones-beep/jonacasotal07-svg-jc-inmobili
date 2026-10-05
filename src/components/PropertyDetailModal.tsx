@@ -197,7 +197,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
               <div>
                 <h3 className="text-xs font-semibold text-slate-900 tracking-wide mb-2.5">
-                  Equipamiento, Domótica y Conservación JC
+                  Equipamiento, Domótica y Conservación JCO
                 </h3>
                 <ul className="space-y-2 text-xs text-slate-600">
                   {property.domoticsAndMaintenance.map((item, idx) => (
