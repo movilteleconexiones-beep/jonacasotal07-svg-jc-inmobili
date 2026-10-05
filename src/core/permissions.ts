@@ -34,6 +34,17 @@ export const PERMISSIONS = {
   COMMISSIONS_EDIT: 'commissions.edit',
   REPORTS_VIEW: 'reports.view',
 
+  LEASES_VIEW: 'leases.view',
+  LEASES_CREATE: 'leases.create',
+  LEASES_EDIT: 'leases.edit',
+  RENT_PAYMENTS_VIEW: 'rent_payments.view',
+  RENT_PAYMENTS_CREATE: 'rent_payments.create',
+  OWNER_STATEMENTS_VIEW: 'owner_statements.view',
+  OWNER_STATEMENTS_CREATE: 'owner_statements.create',
+  MAINTENANCE_VIEW: 'maintenance.view',
+  MAINTENANCE_CREATE: 'maintenance.create',
+  MAINTENANCE_EDIT: 'maintenance.edit',
+
   USERS_VIEW: 'users.view',
   USERS_CREATE: 'users.create',
   USERS_EDIT: 'users.edit',
