@@ -28,6 +28,7 @@ interface TermsInfo {
 export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) {
   const { activeMembership, user } = useAuth();
   const organizationId = activeMembership?.organization.id;
+  const isOrganizationOwner = activeMembership?.roles.some((role) => role.key === 'ORGANIZATION_OWNER') ?? false;
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [terms, setTerms] = useState<TermsInfo | null>(null);
   const [licenseId, setLicenseId] = useState<string | null>(null);
@@ -60,7 +61,7 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
       setLicenseId(licenseData?.id ?? null);
       setTermsId(termsData?.id ?? null);
 
-      if (licenseData?.id && termsData?.id && user?.id) {
+      if (isOrganizationOwner && licenseData?.id && termsData?.id && user?.id) {
         const { data } = await supabase
           .from('license_acceptances')
           .select('id')
@@ -73,10 +74,10 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
         setAccepted(false);
       }
     });
-  }, [organizationId, user?.id]);
+  }, [organizationId, user?.id, isOrganizationOwner]);
 
   async function acceptTerms() {
-    if (!licenseId || !termsId || !user?.id || accepting) return;
+    if (!isOrganizationOwner || !licenseId || !termsId || !user?.id || accepting) return;
     setAccepting(true);
     setMessage('');
 
@@ -175,14 +176,16 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
           <div className="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="font-semibold">{accepted ? 'Términos aceptados' : 'Aceptación requerida'}</div>
+                <div className="font-semibold">{isOrganizationOwner ? (accepted ? 'Términos aceptados' : 'Aceptación requerida') : 'Términos vigentes'}</div>
                 <div className="mt-1 text-xs text-slate-600">
-                  {accepted
-                    ? 'La aceptación de esta versión quedó registrada para tu usuario.'
-                    : 'El propietario de la organización debe aceptar la versión vigente para habilitar la operación.'}
+                  {!isOrganizationOwner
+                    ? 'Puedes consultar estos términos. Solo el propietario de la organización puede aceptarlos.'
+                    : accepted
+                      ? 'La aceptación de esta versión quedó registrada para tu usuario.'
+                      : 'Debes aceptar la versión vigente como propietario de la organización para habilitar la operación.'}
                 </div>
               </div>
-              {!accepted && (
+              {isOrganizationOwner && !accepted && (
                 <button
                   type="button"
                   onClick={() => void acceptTerms()}
