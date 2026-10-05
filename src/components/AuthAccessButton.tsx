@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Building2, LogIn, LogOut, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../core/auth-context';
 import { DEFAULT_COUNTRY_CODE, LATAM_COUNTRIES } from '../core/countries';
@@ -206,8 +207,8 @@ export function AuthAccessButton() {
         Acceso
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[2px]">
+      {open && createPortal(
+        <div className="fixed inset-0 z-[9999] grid place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[2px]">
           <div className="my-auto w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -359,7 +360,8 @@ export function AuthAccessButton() {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
@@ -390,8 +392,8 @@ function OrganizationModal({
   onClose,
   onSubmit,
 }: OrganizationModalProps) {
-  return (
-    <div className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[2px]">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] grid place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[2px]">
       <div className="my-auto w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
@@ -447,6 +449,7 @@ function OrganizationModal({
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
