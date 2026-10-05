@@ -217,7 +217,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               <div className="pb-4 border-b border-stone-200">
                 <p className="text-xs text-stone-500 mb-1">
                   {property.operation === 'Renta'
-                    ? 'Renta Mensual con Póliza JC Inmobili'
+                    ? 'Renta Mensual con Póliza Sistema Inmobiliario JCO'
                     : 'Valor de Operación / Lista'}
                 </p>
                 <p className="text-3xl font-semibold text-slate-900 font-mono-tabular">
@@ -250,7 +250,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   <p className="text-xs text-slate-600 leading-relaxed">
                     Hemos registrado tu solicitud a nombre de <strong>{visitorName}</strong> para el día{' '}
                     <span className="font-mono-tabular font-medium">{visitDate}</span> bajo modalidad{' '}
-                    <strong>{visitModality}</strong>. Un consultor patrimonial de JC Inmobili te confirmará al{' '}
+                    <strong>{visitModality}</strong>. Un consultor patrimonial de Sistema Inmobiliario JCO te confirmará al{' '}
                     <span className="font-mono-tabular">{visitorPhone}</span>.
                   </p>
                   <button
