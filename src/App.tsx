@@ -38,6 +38,8 @@ export default function App() {
   const { user, activeMembership } = useAuth();
   const { branding } = useTenantBranding();
   const countryProfile = getCountryOption(branding.country);
+  const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
+  const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(false);
   // Catalog state
   const [properties, setProperties] = useState<Property[]>(PROPERTIES);
@@ -191,7 +193,7 @@ export default function App() {
             href="#inicio"
             className="text-2xl font-display font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
           >
-            {branding.softwareName}
+            {softwareBrand}
           </a>
 
           {/* Zone 2: 5 clean text navigation links */}
@@ -416,7 +418,7 @@ export default function App() {
                   aria-label="Ordenar propiedades"
                   className="text-xs font-medium text-slate-700 bg-transparent focus:outline-none"
                 >
-                  <option value="featured">Orden: Destacadas JCO</option>
+                  <option value="featured">Orden: Destacadas</option>
                   <option value="price-desc">Precio: Mayor a Menor</option>
                   <option value="price-asc">Precio: Menor a Mayor</option>
                   <option value="yield-desc">Mayor Rentabilidad (CAP Rate)</option>
@@ -578,7 +580,7 @@ export default function App() {
                           </p>
                           <p className="text-xs text-stone-500 font-mono-tabular mt-0.5">
                             {property.operation === 'Renta'
-                              ? `Póliza JCO incluida · Mant. ${formatMoney(property.maintenanceFeeCOP)}`
+                              ? `Protección contractual según condiciones · Mant. ${formatMoney(property.maintenanceFeeCOP)}`
                               : `Renta estimada: ${formatMoney(property.monthlyRentEstimationCOP)}/mes · CAP ${property.rentalYieldPct}%`}
                           </p>
                         </div>
@@ -725,7 +727,7 @@ export default function App() {
                       Cuadrillas propias para incrementar el valor de renta y venta de tu propiedad.
                     </h3>
                     <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
-                      A diferencia de una agencia tradicional, Sistema Inmobiliario JCO cuenta con división técnica de impermeabilización garantizada, pintura arquitectónica, climatización (aire acondicionado Inverter), cortinas y persianas a medida, sistemas de alarma y automatización inteligente (domótica).
+                      A diferencia de una agencia tradicional, {organizationBrand} puede centralizar la gestión de mantenimiento, pintura, climatización, persianas, seguridad y domótica mediante personal propio o proveedores contratados por la inmobiliaria.
                     </p>
                   </div>
                   <div className="pt-6 mt-6 border-t border-stone-200/80 flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600">
@@ -778,7 +780,7 @@ export default function App() {
                           <strong className="text-slate-900">Situación inicial:</strong> {cs.beforeState}
                         </p>
                         <p>
-                          <strong className="text-slate-900">Intervención JCO:</strong> {cs.intervention}
+                          <strong className="text-slate-900">Intervención {organizationBrand}:</strong> {cs.intervention}
                         </p>
                         <p>
                           <strong className="text-[#14532D]">Resultado:</strong> {cs.outcome}
@@ -996,9 +998,9 @@ export default function App() {
                   <div className="flex items-start gap-3">
                     <Mail className="w-4 h-4 text-[#0F2942] mt-1 shrink-0" />
                     <div>
-                      <p className="font-semibold text-slate-900">Correo Corporativo · Sistema Inmobiliario JCO</p>
+                      <p className="font-semibold text-slate-900">Correo Corporativo · {organizationBrand}</p>
                       <a
-                        href="mailto:mkt.jcinmobili@gmail.com"
+                        href={`mailto:${branding.email || '{branding.email || 'mkt.jcinmobili@gmail.com'}'}`}
                         className="text-xs font-mono-tabular text-[#0F2942] hover:underline mt-0.5 inline-block"
                       >
                         mkt.jcinmobili@gmail.com
@@ -1159,7 +1161,7 @@ export default function App() {
                       type="submit"
                       className="w-full py-3 px-5 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                     >
-                      Agendar Consulta con Sistema Inmobiliario JCO
+                      Agendar Consulta con {organizationBrand}
                     </button>
                   </form>
                 )}
@@ -1177,6 +1179,13 @@ export default function App() {
             <p>
               Datos de contacto configurables por cada inmobiliaria
             </p>
+          </div>
+
+          <div className="max-w-3xl text-xs leading-relaxed text-slate-500">
+            INMOJCO provee tecnología de gestión. La operación inmobiliaria, contratos, pólizas, seguros,
+            avalúos, manejo de recursos y servicios profesionales son responsabilidad de la inmobiliaria usuaria
+            y/o del proveedor que ésta contrate. El uso de la plataforma no constituye asesoría jurídica,
+            financiera, tributaria, aseguradora, notarial ni inmobiliaria por parte de INMOJCO.
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
