@@ -176,7 +176,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     Cálculo de Flujo Neto para Propietarios en Arrendamiento
                   </h3>
                   <p className="text-sm text-slate-600">
-                    Estima tu ingreso anual libre de fricciones operativas bajo la administración jurídica y técnica de JC Inmobili.
+                    Estima tu ingreso anual libre de fricciones operativas bajo la administración jurídica y técnica de Sistema Inmobiliario JCO.
                   </p>
                 </div>
 
@@ -208,7 +208,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
 
                 <div className="pt-4 border-t border-stone-200/80">
                   <label className="block text-sm font-medium text-slate-800 mb-3">
-                    Esquema de Póliza y Administración JC Inmobili
+                    Esquema de Póliza y Administración Sistema Inmobiliario JCO
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button
@@ -532,7 +532,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     Estimador de Valor Comercial por Metro Cuadrado en Colombia
                   </h3>
                   <p className="text-sm text-slate-600">
-                    Obtén una referencia inmediata de precio de venta y renta mensual basada en cierres reales de JC Inmobili.
+                    Obtén una referencia inmediata de precio de venta y renta mensual basada en cierres reales de Sistema Inmobiliario JCO.
                   </p>
                 </div>
 
