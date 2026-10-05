@@ -74,17 +74,17 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       rentalYieldPct: benchmark.avgYieldPct,
       image: HERO_IMAGE,
       secondaryImage: '/src/assets/images/prop_solares_house_1791081961290.jpg',
-      legalStatus: 'Expediente en validación jurídica por Comité JC Inmobili',
+      legalStatus: 'Expediente en validación jurídica por Comité Sistema Inmobiliario JCO',
       architecturalSummary:
         summary.trim() ||
-        `Propiedad consignada en ${neighborhood} bajo gestión patrimonial de JC Inmobili. Cuenta con revisión documental en curso y disponibilidad para citas.`,
+        `Propiedad consignada en ${neighborhood} bajo gestión patrimonial de Sistema Inmobiliario JCO. Cuenta con revisión documental en curso y disponibilidad para citas.`,
       highlights: [
         `Ubicación estratégica en ${neighborhood}`,
-        'Dictaminación legal y valuación comercial por JC Inmobili',
+        'Dictaminación legal y valuación comercial por Sistema Inmobiliario JCO',
         'Promoción multicanal en portales especializados en Colombia'
       ],
       domoticsAndMaintenance: [
-        'Elegible para Póliza de Mantenimiento Preventivo JC Inmobili',
+        'Elegible para Póliza de Mantenimiento Preventivo Sistema Inmobiliario JCO',
         'Diagnóstico de impermeabilización, pintura y domótica incluido'
       ],
       coordinatesLabel: `${neighborhood} · Colombia`,
