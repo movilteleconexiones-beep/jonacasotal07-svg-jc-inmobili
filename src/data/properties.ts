@@ -9,8 +9,11 @@ export interface Property {
   id: string;
   code: string;
   title: string;
-  neighborhood: 'El Poblado' | 'Chicó' | 'Envigado' | 'Laureles' | 'Usaquén' | 'Ciudad del Río';
-  municipality: 'Medellín, Antioquia' | 'Bogotá, D.C.';
+  neighborhood: string;
+  municipality: string;
+  countryCode?: string;
+  region?: string;
+  city?: string;
   operation: 'Venta' | 'Renta' | 'Administración';
   category: 'Residencial' | 'Departamento' | 'Comercial y Terreno';
   priceCOP: number;
@@ -296,7 +299,7 @@ export const PROPERTIES: Property[] = [
 ];
 
 export const ZONE_VALUATION_BENCHMARKS: Record<
-  Property['neighborhood'],
+  string,
   { avgPricePerM2MXN: number; annualAppreciationPct: number; avgDaysToLease: number; avgYieldPct: number }
 > = {
   'El Poblado': {
