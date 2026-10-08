@@ -35,7 +35,15 @@ import {
   X
 } from 'lucide-react';
 
-export default function App() {
+
+  export function App() {
+  const isSuperAdminRoute = window.location.pathname === '/super-admin' || window.location.hash === '#super-admin';
+
+  if (isSuperAdminRoute) {
+    return <SuperAdminModule />;
+  }
+
+ 
   const { user, activeMembership } = useAuth();
   const { branding } = useTenantBranding();
   const countryProfile = getCountryOption(branding.country);
