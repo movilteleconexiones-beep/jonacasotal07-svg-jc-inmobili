@@ -59,7 +59,10 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
 
     const roles: Role[] = (memberRoles ?? [])
       .map((entry: any) => entry.roles)
-      .filter(Boolean)
+      .filter((role: any) =>
+        Boolean(role) && Boolean(role.active) &&
+        (!role.organization_id || role.organization_id === row.organization_id),
+      )
       .map((role: any) => ({
         id: role.id,
         organizationId: role.organization_id ?? undefined,
