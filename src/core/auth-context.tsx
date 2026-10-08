@@ -98,6 +98,8 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
     }
 
     const org = row.organizations as any;
+    // A membership without a readable organization must not crash authentication.
+    if (!org || !org.id) continue;
 
     result.push({
       member: {
