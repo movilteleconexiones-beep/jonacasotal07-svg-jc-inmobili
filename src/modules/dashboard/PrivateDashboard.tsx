@@ -85,28 +85,18 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     selectOrganization,
     can,
     signOut,
+    isPlatformAdmin,
   } = useAuth();
 
   const { branding } = useTenantBranding();
   const [view, setView] = useState<DashboardView>('DASHBOARD');
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
   const [termsRequired, setTermsRequired] = useState(false);
   const [licenseCheckLoading, setLicenseCheckLoading] = useState(true);
 
   const organizationId = activeMembership?.organization.id;
-
-  useEffect(() => {
-    if (!user) {
-      setIsPlatformAdmin(false);
-      return;
-    }
-
-    supabase.rpc('is_platform_admin').then(({ data }) => {
-      setIsPlatformAdmin(Boolean(data));
-    });
-  }, [user?.id]);
 
   useEffect(() => {
     if (!organizationId || !user) {
@@ -226,7 +216,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         { id: 'COMMISSIONS' as const, label: 'Comisiones', icon: BadgeDollarSign, visible: can(PERMISSIONS.COMMISSIONS_VIEW) },
         { id: 'REPORTS' as const, label: 'Reportes', icon: BarChart3, visible: can(PERMISSIONS.REPORTS_VIEW) },
         { id: 'PORTAL' as const, label: 'Mi Portal', icon: UserCircle2, visible: true },
-       { id: 'SUPER_ADMIN' as const, label: 'Super Admin', icon: ShieldCheck, visible: true },
+       { id: 'SUPER_ADMIN' as const, label: 'Super Admin', icon: ShieldCheck, visible: isPlatformAdmin },
         { id: 'USERS' as const, label: 'Usuarios', icon: UsersRound, visible: can(PERMISSIONS.USERS_VIEW) },
         {
           id: 'IMPORT' as const,
@@ -316,7 +306,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             })}
           </nav>
 
-          <div className="mt-4 pt-4 border-t border-stone-200">
+          {isPlatformAdmin && <div className="mt-4 pt-4 border-t border-stone-200">
             <button
               type="button"
               onClick={() => {
@@ -328,7 +318,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
               <span>Súper Admin</span>
             </button>
-          </div>
+          </div>}
         </aside>
 
         <main className="min-w-0">
