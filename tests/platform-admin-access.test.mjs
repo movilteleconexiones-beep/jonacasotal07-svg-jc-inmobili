@@ -28,3 +28,12 @@ test('unaccepted invitations are not loaded as active memberships', () => {
   assert.match(auth, /\.eq\('status',\s*'ACTIVE'\)/);
   assert.match(auth, /claim_my_invitations/);
 });
+
+test('failed membership queries must not be displayed as an empty account', () => {
+  const auth = read('../src/core/auth-context.tsx');
+  const access = read('../src/components/AuthAccessButton.tsx');
+  assert.match(auth, /if \(error\) throw new Error/);
+  assert.match(auth, /setAccessError\('No se pudieron consultar las inmobiliarias/);
+  assert.match(access, /\{accessError && \(/);
+  assert.match(access, /!accessError && \(/);
+});
