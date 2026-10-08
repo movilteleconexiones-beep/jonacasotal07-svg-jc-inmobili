@@ -22,6 +22,7 @@ export function AuthAccessButton() {
     user,
     memberships,
     activeMembership,
+    isPlatformAdmin,
     signIn,
     signUp,
     signOut,
@@ -148,15 +149,19 @@ export function AuthAccessButton() {
       <div className="flex items-center gap-2">
         <div className="hidden lg:block text-right leading-tight">
           <div className="text-xs font-semibold text-slate-900">
-            {activeMembership?.organization.name ?? 'Cuenta sin inmobiliaria'}
+            {isPlatformAdmin ? 'Administración central JCO' : activeMembership?.organization.name ?? 'Cuenta sin inmobiliaria'}
           </div>
           <div className="text-[11px] text-slate-500">{user.email}</div>
         </div>
 
-        {needsOrganization && (
+        {needsOrganization && !isPlatformAdmin && (
           <span className="max-w-xs text-xs text-amber-800" role="status">
             Sin inmobiliaria asignada. Solicita una invitación al administrador de JCO.
           </span>
+        )}
+
+        {isPlatformAdmin && (
+          <span className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white"><ShieldCheck className="h-4 w-4" /> Superadministrador</span>
         )}
 
         <button
