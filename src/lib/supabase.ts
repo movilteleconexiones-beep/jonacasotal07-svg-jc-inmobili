@@ -7,8 +7,8 @@ const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_lN15pcBT6oZL9ubrex7UTw_
 // never silently send data to the default production Supabase project.
 const configuredUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
 const configuredKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)?.trim();
-// Both overrides must be provided together, or neither. A partial override
-// must fail closed instead of silently connecting to the default project.
+// Both overrides must be provided together, or neither. With neither supplied,
+// the paired JCO defaults remain usable; a partial override must fail closed.
 export const isSupabaseConfigured = Boolean(configuredUrl) === Boolean(configuredKey);
 const supabaseUrl = isSupabaseConfigured
   ? (configuredUrl || DEFAULT_SUPABASE_URL)
