@@ -84,8 +84,8 @@ export function AuthAccessButton() {
           return;
         }
 
-        setMode('CREATE_ORG');
-        setMessage('Cuenta creada. Ahora crea tu primera inmobiliaria.');
+        setMode('SIGN_IN');
+        setMessage('Cuenta creada. El acceso a una inmobiliaria requiere invitación o autorización de la plataforma.');
         return;
       }
 
@@ -154,18 +154,9 @@ export function AuthAccessButton() {
         </div>
 
         {needsOrganization && (
-          <button
-            type="button"
-            onClick={() => {
-              setMode('CREATE_ORG');
-              setOpen(true);
-              setMessage('');
-            }}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            <Building2 className="h-4 w-4" />
-            Crear inmobiliaria
-          </button>
+          <span className="max-w-xs text-xs text-amber-800" role="status">
+            Sin inmobiliaria asignada. Solicita una invitación al administrador de JCO.
+          </span>
         )}
 
         <button
@@ -177,26 +168,7 @@ export function AuthAccessButton() {
           Salir
         </button>
 
-        {open && mode === 'CREATE_ORG' && (
-          <OrganizationModal
-            organizationName={organizationName}
-            organizationSlug={suggestedSlug}
-            setOrganizationName={(value) => {
-              // Keep the suggested identifier in sync until the user customizes it.
-              if (!organizationSlug || organizationSlug === slugify(organizationName)) {
-                setOrganizationSlug(slugify(value));
-              }
-              setOrganizationName(value);
-            }}
-            setOrganizationSlug={setOrganizationSlug}
-            countryCode={countryCode}
-            setCountryCode={setCountryCode}
-            message={message}
-            busy={busy}
-            onClose={() => setOpen(false)}
-            onSubmit={submitOrganization}
-          />
-        )}
+
       </div>
     );
   }
@@ -229,7 +201,7 @@ export function AuthAccessButton() {
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
                   {mode === 'SIGN_UP'
-                    ? 'Crea la cuenta propietaria de tu inmobiliaria.'
+                    ? 'Registra tu usuario. Una inmobiliaria debe ser autorizada por la administración de JCO.'
                     : 'Administradores, asesores y clientes ingresan desde la misma plataforma.'}
                 </p>
               </div>
