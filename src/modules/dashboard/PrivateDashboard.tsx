@@ -294,64 +294,41 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
       <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-2">
-  <nav className="space-y-1" aria-label="Módulos del sistema">
-    {menuItems.map((item) => {
-      const Icon = item.icon;
-      const active = view === item.id;
-      return (
-        <button
-          key={item.id}
-          onClick={() => setView(item.id)}
-          className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-            active
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-stone-100 hover:text-slate-900'
-          }`}
-        >
-          <Icon className="w-5 h-5" />
-          <span>{item.label}</span>
-        </button>
-      );
-    })}
-  </nav>
-
-  <div className="mt-4 pt-4 border-t border-stone-200">
-    <button
-      type="button"
-      onClick={() => {
-        window.location.hash = 'super-admin';
-        window.location.reload();
-      }}
-      className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
-    >
-      <ShieldCheck className="w-5 h-5 text-amber-600" />
-      <span>Súper Admin</span>
-    </button>
-  </div>
-</aside>
-              <span>Súper Admin</span>
-            </button>
-          </div>
-        </aside>
+          <nav className="space-y-1" aria-label="Módulos del sistema">
+            {menuItems.map((item) => {
               const Icon = item.icon;
               const active = view === item.id;
-
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setView(item.id)}
-                  className={
-                    'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ' +
-                    (active ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-stone-100')
-                  }
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    active
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:bg-stone-100 hover:text-slate-900'
+                  }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
+                  <Icon className="w-5 h-5 shrink-0" />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
+
+          <div className="mt-4 pt-4 border-t border-stone-200">
+            <button
+              type="button"
+              onClick={() => {
+                window.location.hash = 'super-admin';
+                window.location.reload();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
+            >
+              <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>Súper Admin</span>
+            </button>
+          </div>
         </aside>
 
         <main className="min-w-0">
