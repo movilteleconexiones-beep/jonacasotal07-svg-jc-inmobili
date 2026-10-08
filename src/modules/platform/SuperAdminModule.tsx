@@ -20,6 +20,17 @@ export function SuperAdminModule() {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [billingFilter, setBillingFilter] = useState('ALL');
+
+  const statuses = [...new Set(organizations.map((org) => org.organization_status).filter(Boolean))].sort();
+  const billingModes = [...new Set(organizations.map((org) => org.billing_mode).filter((mode): mode is string => Boolean(mode)))].sort();
+  const filteredOrganizations = organizations.filter((org) => {
+    const query = search.trim().toLocaleLowerCase('es');
+    const matchesSearch = !query || [org.organization_name, org.organization_slug, org.plan_name ?? ''].some((value) => value.toLocaleLowerCase('es').includes(query));
+    return matchesSearch && (statusFilter === 'ALL' || org.organization_status === statusFilter) && (billingFilter === 'ALL' || org.billing_mode === billingFilter);
+  });
 
   const refresh = useCallback(async () => {
     if (!user || !isPlatformAdmin) return;
@@ -75,12 +86,30 @@ export function SuperAdminModule() {
           <p className="text-3xl font-bold">{organizations.length}</p>
           <p className="mt-2 text-xs text-slate-500">La activación, suspensión y contratación estarán disponibles después de validar sus controles en el servidor.</p>
         </section>
+        <section className="mt-5 grid gap-3 md:grid-cols-3" aria-label="Filtros de inmobiliarias">
+          <label className="text-sm font-medium">Buscar inmobiliaria
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, identificador o plan" className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3" />
+          </label>
+          <label className="text-sm font-medium">Estado
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3">
+              <option value="ALL">Todos los estados</option>
+              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-medium">Modalidad de contrato
+            <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3">
+              <option value="ALL">Todos los contratos</option>
+              {billingModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+            </select>
+          </label>
+        </section>
+        <p className="mt-3 text-sm text-slate-600" aria-live="polite">Mostrando {filteredOrganizations.length} de {organizations.length} inmobiliarias</p>
         {error && <p role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
         <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="w-full min-w-[950px] text-left text-sm">
             <thead className="bg-slate-100"><tr><th className="p-4">Inmobiliaria</th><th className="p-4">Identificador</th><th className="p-4">Estado</th><th className="p-4">Plan</th><th className="p-4">Contrato</th><th className="p-4">Miembros</th><th className="p-4">Inmuebles</th><th className="p-4">Registro</th></tr></thead>
             <tbody>
-              {organizations.map((org) => (
+              {filteredOrganizations.map((org) => (
                 <tr key={org.organization_id} className="border-t border-slate-100">
                   <td className="p-4 font-semibold">{org.organization_name}</td>
                   <td className="p-4">{org.organization_slug}</td>
@@ -92,8 +121,8 @@ export function SuperAdminModule() {
                   <td className="p-4">{org.created_at ? new Date(org.created_at).toLocaleDateString('es-CO') : '—'}</td>
                 </tr>
               ))}
-              {!loading && organizations.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No hay inmobiliarias disponibles para esta cuenta.</td></tr>}
-              {loading && <tr><td colSpan={4} className="p-6 text-center">Cargando inmobiliarias…</td></tr>}
+              {!loading && filteredOrganizations.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No hay inmobiliarias que coincidan con los filtros o que estén disponibles para esta cuenta.</td></tr>}
+              {loading && <tr><td colSpan={8} className="p-6 text-center">Cargando inmobiliarias…</td></tr>}
             </tbody>
           </table>
         </div>
