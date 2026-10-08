@@ -7,12 +7,15 @@ const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_U-fFWqorKw1GTp9hgMZDyQ_
 // never silently send data to the default production Supabase project.
 const configuredUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
 const configuredKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)?.trim();
-const supabaseUrl = configuredUrl || DEFAULT_SUPABASE_URL;
-const supabasePublishableKey = configuredKey || DEFAULT_SUPABASE_PUBLISHABLE_KEY;
-
 // Both overrides must be provided together, or neither. A partial override
-// could otherwise mix credentials from two separate Supabase projects.
+// must fail closed instead of silently connecting to the default project.
 export const isSupabaseConfigured = Boolean(configuredUrl) === Boolean(configuredKey);
+const supabaseUrl = isSupabaseConfigured
+  ? (configuredUrl || DEFAULT_SUPABASE_URL)
+  : 'https://unconfigured.invalid';
+const supabasePublishableKey = isSupabaseConfigured
+  ? (configuredKey || DEFAULT_SUPABASE_PUBLISHABLE_KEY)
+  : 'missing-paired-supabase-configuration';
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
