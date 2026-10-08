@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
-export default function SuperAdminModule() {
+export function SuperAdminModule() {
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -214,3 +214,5 @@ export default function SuperAdminModule() {
     </div>
   );
 }
+
+export default SuperAdminModule;
