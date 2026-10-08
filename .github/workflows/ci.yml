@@ -37,6 +37,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Supabase configuration regression tests
+        run: node --test tests/supabase-config.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
