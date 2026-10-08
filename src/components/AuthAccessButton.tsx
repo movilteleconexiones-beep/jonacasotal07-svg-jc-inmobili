@@ -13,6 +13,7 @@ export function AuthAccessButton() {
     memberships,
     activeMembership,
     isPlatformAdmin,
+    accessError,
     signIn,
     signUp,
     signOut,
@@ -109,12 +110,16 @@ export function AuthAccessButton() {
           <div className="text-[11px] text-slate-500">{user.email}</div>
         </div>
 
-        {needsOrganization && !isPlatformAdmin && (
+        {accessError && (
+          <span className="max-w-xs text-xs text-red-700" role="alert">{accessError}</span>
+        )}
+
+        {needsOrganization && !isPlatformAdmin && !accessError && (
           <div className="flex max-w-xs flex-wrap items-center gap-2" role="status">
             <span className="text-xs text-amber-800">No hay una membresía activa. Si ya recibiste una invitación, actualiza el acceso.</span>
             <button type="button" disabled={refreshingAccess} onClick={async () => {
               setRefreshingAccess(true);
-              try { await refreshMemberships(); } finally { setRefreshingAccess(false); }
+              try { await refreshMemberships(); } catch (error) { console.warn('Unable to refresh tenant access', error); } finally { setRefreshingAccess(false); }
             }} className="rounded-lg border border-amber-300 px-2 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-50 disabled:opacity-50">
               {refreshingAccess ? 'Actualizando…' : 'Actualizar acceso'}
             </button>
