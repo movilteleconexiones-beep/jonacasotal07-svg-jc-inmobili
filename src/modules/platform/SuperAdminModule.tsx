@@ -3,11 +3,16 @@ import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 
 interface OrganizationSummary {
-  id: string;
-  name: string;
-  slug: string;
-  status: string;
+  organization_id: string;
+  organization_name: string;
+  organization_slug: string;
+  organization_status: string;
   created_at: string;
+  member_count: number;
+  property_count: number;
+  subscription_status: string | null;
+  billing_mode: string | null;
+  plan_name: string | null;
 }
 
 export function SuperAdminModule() {
@@ -20,10 +25,7 @@ export function SuperAdminModule() {
     if (!user || !isPlatformAdmin) return;
     setLoading(true);
     setError('');
-    const { data, error: queryError } = await supabase
-      .from('organizations')
-      .select('id,name,slug,status,created_at')
-      .order('created_at', { ascending: false });
+    const { data, error: queryError } = await supabase.rpc('platform_list_organizations');
     if (queryError) {
       setOrganizations([]);
       setError('No se pudo consultar las inmobiliarias. Verifica los permisos de lectura del administrador.');
@@ -75,18 +77,22 @@ export function SuperAdminModule() {
         </section>
         {error && <p role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
         <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[620px] text-left text-sm">
-            <thead className="bg-slate-100"><tr><th className="p-4">Inmobiliaria</th><th className="p-4">Identificador</th><th className="p-4">Estado</th><th className="p-4">Registro</th></tr></thead>
+          <table className="w-full min-w-[950px] text-left text-sm">
+            <thead className="bg-slate-100"><tr><th className="p-4">Inmobiliaria</th><th className="p-4">Identificador</th><th className="p-4">Estado</th><th className="p-4">Plan</th><th className="p-4">Contrato</th><th className="p-4">Miembros</th><th className="p-4">Inmuebles</th><th className="p-4">Registro</th></tr></thead>
             <tbody>
               {organizations.map((org) => (
-                <tr key={org.id} className="border-t border-slate-100">
-                  <td className="p-4 font-semibold">{org.name}</td>
-                  <td className="p-4">{org.slug}</td>
-                  <td className="p-4">{org.status}</td>
+                <tr key={org.organization_id} className="border-t border-slate-100">
+                  <td className="p-4 font-semibold">{org.organization_name}</td>
+                  <td className="p-4">{org.organization_slug}</td>
+                  <td className="p-4">{org.organization_status}</td>
+                  <td className="p-4">{org.plan_name ?? 'Sin plan'}</td>
+                  <td className="p-4">{org.billing_mode ?? 'Sin contrato'} · {org.subscription_status ?? 'Sin estado'}</td>
+                  <td className="p-4">{org.member_count}</td>
+                  <td className="p-4">{org.property_count}</td>
                   <td className="p-4">{org.created_at ? new Date(org.created_at).toLocaleDateString('es-CO') : '—'}</td>
                 </tr>
               ))}
-              {!loading && organizations.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-slate-500">No hay inmobiliarias disponibles para esta cuenta.</td></tr>}
+              {!loading && organizations.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No hay inmobiliarias disponibles para esta cuenta.</td></tr>}
               {loading && <tr><td colSpan={4} className="p-6 text-center">Cargando inmobiliarias…</td></tr>}
             </tbody>
           </table>
