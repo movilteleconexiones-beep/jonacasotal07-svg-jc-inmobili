@@ -226,7 +226,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         { id: 'COMMISSIONS' as const, label: 'Comisiones', icon: BadgeDollarSign, visible: can(PERMISSIONS.COMMISSIONS_VIEW) },
         { id: 'REPORTS' as const, label: 'Reportes', icon: BarChart3, visible: can(PERMISSIONS.REPORTS_VIEW) },
         { id: 'PORTAL' as const, label: 'Mi Portal', icon: UserCircle2, visible: true },
-        { id: 'SUPER_ADMIN' as const, label: 'Super Admin', icon: ShieldCheck, visible: isPlatformAdmin },
+       { id: 'SUPER_ADMIN' as const, label: 'Super Admin', icon: ShieldCheck, visible: true },
         { id: 'USERS' as const, label: 'Usuarios', icon: UsersRound, visible: can(PERMISSIONS.USERS_VIEW) },
         {
           id: 'IMPORT' as const,
