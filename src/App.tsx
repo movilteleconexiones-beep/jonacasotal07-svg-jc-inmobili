@@ -36,8 +36,25 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  return <SuperAdminModule />;
-}
+  const [isSuperAdminRoute, setIsSuperAdminRoute] = useState(
+    () => window.location.pathname === '/super-admin' || window.location.hash === '#super-admin'
+  );
+
+  React.useEffect(() => {
+    const checkRoute = () => {
+      setIsSuperAdminRoute(
+        window.location.pathname === '/super-admin' || window.location.hash === '#super-admin'
+      );
+    };
+
+    window.addEventListener('popstate', checkRoute);
+    window.addEventListener('hashchange', checkRoute);
+    return () => {
+      window.removeEventListener('popstate', checkRoute);
+      window.removeEventListener('hashchange', checkRoute);
+    };
+  }, []);
+
   if (isSuperAdminRoute) {
     return <SuperAdminModule />;
   }
