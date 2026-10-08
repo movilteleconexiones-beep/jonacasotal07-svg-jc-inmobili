@@ -35,7 +35,7 @@ import {
   X
 } from 'lucide-react';
 
-export function App() {
+export default function App() {
   const [isSuperAdminRoute, setIsSuperAdminRoute] = useState(
     () => window.location.pathname === '/super-admin' || window.location.hash === '#super-admin'
   );
@@ -1358,3 +1358,5 @@ export function App() {
     </div>
   );
 }
+
+export { App };
