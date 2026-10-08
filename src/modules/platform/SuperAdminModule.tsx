@@ -21,9 +21,11 @@ export function SuperAdminModule() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ACTIVE');
   const [billingFilter, setBillingFilter] = useState('ALL');
 
+  const activeCount = organizations.filter((org) => org.organization_status === 'ACTIVE').length;
+  const inactiveCount = organizations.length - activeCount;
   const statuses = [...new Set(organizations.map((org) => org.organization_status).filter(Boolean))].sort();
   const billingModes = [...new Set(organizations.map((org) => org.billing_mode).filter((mode): mode is string => Boolean(mode)))].sort();
   const filteredOrganizations = organizations.filter((org) => {
@@ -82,8 +84,9 @@ export function SuperAdminModule() {
           </div>
         </header>
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-600">Inmobiliarias visibles</p>
-          <p className="text-3xl font-bold">{organizations.length}</p>
+          <p className="text-sm text-slate-600">Inmobiliarias activas</p>
+          <p className="text-3xl font-bold">{activeCount}</p>
+          <p className="mt-1 text-xs text-slate-500">{inactiveCount} inactivas u otros estados · {organizations.length} registradas en total</p>
           <p className="mt-2 text-xs text-slate-500">La activación, suspensión y contratación estarán disponibles después de validar sus controles en el servidor.</p>
         </section>
         <section className="mt-5 grid gap-3 md:grid-cols-3" aria-label="Filtros de inmobiliarias">
@@ -92,7 +95,7 @@ export function SuperAdminModule() {
           </label>
           <label className="text-sm font-medium">Estado
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3">
-              <option value="ALL">Todos los estados</option>
+              <option value="ALL">Todos los estados (incluye retiradas)</option>
               {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
           </label>
@@ -113,7 +116,7 @@ export function SuperAdminModule() {
                 <tr key={org.organization_id} className="border-t border-slate-100">
                   <td className="p-4 font-semibold">{org.organization_name}</td>
                   <td className="p-4">{org.organization_slug}</td>
-                  <td className="p-4">{org.organization_status}</td>
+                  <td className="p-4"><span className={org.organization_status === 'ACTIVE' ? 'font-semibold text-emerald-700' : 'font-semibold text-slate-500'}>{org.organization_status === 'ACTIVE' ? 'Activa' : org.organization_status === 'INACTIVE' ? 'Inactiva' : org.organization_status}</span></td>
                   <td className="p-4">{org.plan_name ?? 'Sin plan'}</td>
                   <td className="p-4">{org.billing_mode ?? 'Sin contrato'} · {org.subscription_status ?? 'Sin estado'}</td>
                   <td className="p-4">{org.member_count}</td>
@@ -121,7 +124,7 @@ export function SuperAdminModule() {
                   <td className="p-4">{org.created_at ? new Date(org.created_at).toLocaleDateString('es-CO') : '—'}</td>
                 </tr>
               ))}
-              {!loading && filteredOrganizations.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No hay inmobiliarias que coincidan con los filtros o que estén disponibles para esta cuenta.</td></tr>}
+              {!loading && filteredOrganizations.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No hay inmobiliarias que coincidan con los filtros. Selecciona «Todos los estados» para consultar también las retiradas.</td></tr>}
               {loading && <tr><td colSpan={8} className="p-6 text-center">Cargando inmobiliarias…</td></tr>}
             </tbody>
           </table>
