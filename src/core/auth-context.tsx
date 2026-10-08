@@ -25,6 +25,8 @@ interface AuthContextValue {
   user: SupabaseUser | null;
   memberships: AuthMembership[];
   activeMembership: AuthMembership | null;
+  isPlatformAdmin: boolean;
+  accessError: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (
     email: string,
@@ -47,7 +49,8 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
     .eq('user_id', userId)
     .eq('status', 'ACTIVE');
 
-  if (error || !memberships) return [];
+  if (error) throw new Error(`No se pudieron consultar las membresías: ${error.message}`);
+  if (!memberships) return [];
 
   const result: AuthMembership[] = [];
 
@@ -59,7 +62,10 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
 
     const roles: Role[] = (memberRoles ?? [])
       .map((entry: any) => entry.roles)
-      .filter(Boolean)
+      .filter((role: any) =>
+        Boolean(role) && Boolean(role.active) &&
+        (!role.organization_id || role.organization_id === row.organization_id),
+      )
       .map((role: any) => ({
         id: role.id,
         organizationId: role.organization_id ?? undefined,
@@ -98,6 +104,9 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
     }
 
     const org = row.organizations as any;
+    // A membership without a readable organization, or one linked to a
+    // different organization, must never grant tenant-scoped UI permissions.
+    if (!org || !org.id || org.id !== row.organization_id) continue;
 
     result.push({
       member: {
@@ -133,18 +142,33 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
 export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [session, setSession] = useState<Session | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<AuthMembership[]>([]);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
 
   const loadForUser = useCallback(async (userId: string | null) => {
     if (!userId) {
+      setAccessError(null);
       setMemberships([]);
+      setIsPlatformAdmin(false);
       setActiveOrganizationId(null);
       return;
     }
 
-    await supabase.rpc('claim_my_invitations');
+    // Invitation claiming is best-effort: a temporary RPC failure must not
+    // prevent an existing user from loading their organizations.
+    try {
+      const { error: invitationError } = await supabase.rpc('claim_my_invitations');
+      if (invitationError) console.warn('Unable to claim invitations', invitationError.message);
+    } catch (invitationError) {
+      console.warn('Unable to claim invitations', invitationError);
+    }
+    const { data: admin, error: adminError } = await supabase.from('platform_admins').select('user_id,admin_level,active').eq('user_id', userId).eq('active',true).in('admin_level',['SUPER_ADMIN','PLATFORM_OWNER']).maybeSingle();
+    setIsPlatformAdmin(!adminError && admin?.user_id === userId);
+    if (adminError) console.warn('Unable to verify platform administrator', adminError.message);
     const nextMemberships = await loadMemberships(userId);
+    setAccessError(adminError ? 'No se pudo verificar el acceso administrativo. Intenta actualizar el acceso.' : null);
     setMemberships(nextMemberships);
     setActiveOrganizationId((current) => {
       if (current && nextMemberships.some((m) => m.organization.id === current)) return current;
@@ -153,20 +177,45 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    // A partial staging configuration must not attempt any authentication requests.
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
-      setSession(data.session);
-      await loadForUser(data.session?.user.id ?? null);
+      setSession(error ? null : data.session);
+      try {
+        await loadForUser(error ? null : data.session?.user.id ?? null);
+      } catch (loadError) {
+        console.error('Unable to load organization memberships', loadError);
+        if (mounted) setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }).catch((error) => {
+      console.error('Unable to initialize authentication', error);
       if (mounted) setLoading(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    // Supabase warns against awaiting other Supabase calls inside this callback.
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
       setSession(nextSession);
-      await loadForUser(nextSession?.user.id ?? null);
-      if (mounted) setLoading(false);
+      setTimeout(() => {
+        if (!mounted) return;
+        void loadForUser(nextSession?.user.id ?? null)
+          .catch((error) => {
+            console.error('Unable to refresh memberships', error);
+            if (mounted) setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+          })
+          .finally(() => {
+            if (mounted) setLoading(false);
+          });
+      }, 0);
     });
 
     return () => {
@@ -246,6 +295,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user: session?.user ?? null,
       memberships,
       activeMembership,
+      isPlatformAdmin,
+      accessError,
       signIn,
       signUp,
       signOut,
@@ -259,6 +310,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       session,
       memberships,
       activeMembership,
+      isPlatformAdmin,
+      accessError,
       signIn,
       signUp,
       signOut,

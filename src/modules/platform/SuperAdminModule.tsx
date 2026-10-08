@@ -1,217 +1,133 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 
+interface OrganizationSummary {
+  organization_id: string;
+  organization_name: string;
+  organization_slug: string;
+  organization_status: string;
+  created_at: string;
+  member_count: number;
+  property_count: number;
+  subscription_status: string | null;
+  billing_mode: string | null;
+  plan_name: string | null;
+}
+
 export function SuperAdminModule() {
-  const [organizations, setOrganizations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    license_type: 'monthly',
-    country_id: 'CO',
-    currency_code: 'COP',
-    tax_id_type: 'NIT',
-    tax_id_number: '',
-    expires_at: ''
+  const { user, loading: authLoading, isPlatformAdmin } = useAuth();
+  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [billingFilter, setBillingFilter] = useState('ALL');
+
+  const statuses = [...new Set(organizations.map((org) => org.organization_status).filter(Boolean))].sort();
+  const billingModes = [...new Set(organizations.map((org) => org.billing_mode).filter((mode): mode is string => Boolean(mode)))].sort();
+  const filteredOrganizations = organizations.filter((org) => {
+    const query = search.trim().toLocaleLowerCase('es');
+    const matchesSearch = !query || [org.organization_name, org.organization_slug, org.plan_name ?? ''].some((value) => value.toLocaleLowerCase('es').includes(query));
+    return matchesSearch && (statusFilter === 'ALL' || org.organization_status === statusFilter) && (billingFilter === 'ALL' || org.billing_mode === billingFilter);
   });
 
-  useEffect(() => {
-    fetchOrganizations();
-  }, []);
-
-  async function fetchOrganizations() {
+  const refresh = useCallback(async () => {
+    if (!user || !isPlatformAdmin) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('organizations')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error) setOrganizations(data || []);
-    setLoading(false);
-  }
-
-  async function handleCreateOrganization(e: React.FormEvent) {
-    e.preventDefault();
-    
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert([{
-        name: formData.name,
-        slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
-        license_type: formData.license_type,
-        country_id: formData.country_id,
-        currency_code: formData.currency_code,
-        tax_id_type: formData.tax_id_type,
-        tax_id_number: formData.tax_id_number,
-        expires_at: formData.license_type === 'lifetime' ? null : formData.expires_at || null,
-        status: 'active'
-      }])
-      .select()
-      .single();
-
-    if (orgError) {
-      alert('Error al crear inmobiliaria: ' + orgError.message);
-      return;
+    setError('');
+    const { data, error: queryError } = await supabase.rpc('platform_list_organizations');
+    if (queryError) {
+      setOrganizations([]);
+      setError('No se pudo consultar las inmobiliarias. Verifica los permisos de lectura del administrador.');
+    } else {
+      setOrganizations((data ?? []) as OrganizationSummary[]);
     }
+    setLoading(false);
+  }, [user, isPlatformAdmin]);
 
-    alert(`Inmobiliaria "${org.name}" creada con éxito.`);
-    setShowModal(false);
-    setFormData({
-      name: '', slug: '', license_type: 'monthly',
-      country_id: 'CO', currency_code: 'COP',
-      tax_id_type: 'NIT', tax_id_number: '', expires_at: ''
-    });
-    fetchOrganizations();
+  useEffect(() => {
+    if (user && isPlatformAdmin) void refresh();
+    else setOrganizations([]);
+  }, [user, isPlatformAdmin, refresh]);
+
+  if (authLoading) {
+    return <main className="min-h-screen bg-slate-50 p-8">Verificando acceso administrativo…</main>;
   }
 
-  async function toggleStatus(id: string, currentStatus: string) {
-    const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
-    const { error } = await supabase
-      .from('organizations')
-      .update({ status: newStatus })
-      .eq('id', id);
-
-    if (!error) fetchOrganizations();
+  if (!user || !isPlatformAdmin) {
+    return (
+      <main className="min-h-screen bg-slate-50 p-8">
+        <div className="mx-auto max-w-xl rounded-2xl border bg-white p-8">
+          <h1 className="text-2xl font-bold">Administración central JCO</h1>
+          <p className="mt-3 text-slate-600">Acceso restringido a superadministradores autenticados y activos.</p>
+          <a href="/" className="mt-5 inline-block font-semibold text-blue-700 underline">Volver al inicio para iniciar sesión</a>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <div style={{ padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ margin: 0 }}>Panel Súper Administrador</h1>
-          <p style={{ color: '#666', margin: '4px 0 0' }}>Gestión de licencias e inmobiliarias en Latinoamérica</p>
-        </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          style={{ background: '#10B981', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-          + Nueva Inmobiliaria
-        </button>
-      </div>
-
-      {loading ? (
-        <p>Cargando empresas...</p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #E5E7EB' }}>
-          <thead>
-            <tr style={{ background: '#F9FAFB', textAlign: 'left', borderBottom: '1px solid #E5E7EB' }}>
-              <th style={{ padding: '12px' }}>Inmobiliaria</th>
-              <th style={{ padding: '12px' }}>País / Identificación</th>
-              <th style={{ padding: '12px' }}>Tipo Licencia</th>
-              <th style={{ padding: '12px' }}>Vencimiento</th>
-              <th style={{ padding: '12px' }}>Estado</th>
-              <th style={{ padding: '12px' }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {organizations.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center' }}>No hay inmobiliarias registradas aún.</td></tr>
-            ) : (
-              organizations.map(org => (
-                <tr key={org.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{org.name}</td>
-                  <td style={{ padding: '12px' }}>{org.country_id} - {org.tax_id_type}: {org.tax_id_number || 'N/A'}</td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{ 
-                      background: org.license_type === 'lifetime' ? '#EEF2FF' : '#FEF3C7',
-                      color: org.license_type === 'lifetime' ? '#4F46E5' : '#D97706',
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold'
-                    }}>
-                      {org.license_type === 'lifetime' ? 'VITALICIA' : 'MENSUAL'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    {org.license_type === 'lifetime' ? 'Sin Expiración' : (org.expires_at ? new Date(org.expires_at).toLocaleDateString() : 'Por definir')}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{ color: org.status === 'active' ? '#10B981' : '#EF4444', fontWeight: 'bold' }}>
-                      {org.status === 'active' ? '● Activa' : '● Suspendida'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    <button 
-                      onClick={() => toggleStatus(org.id, org.status)}
-                      style={{ 
-                        background: org.status === 'active' ? '#EF4444' : '#10B981', 
-                        color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' 
-                      }}>
-                      {org.status === 'active' ? 'Suspender' : 'Activar'}
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      )}
-
-      {/* MODAL CREAR INMOBILIARIA */}
-      {showModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '480px', maxWidth: '90%' }}>
-            <h2>Registrar Nueva Inmobiliaria</h2>
-            <form onSubmit={handleCreateOrganization}>
-              <div style={{ marginBottom: '12px' }}>
-                <label>Nombre de la Inmobiliaria</label>
-                <input required type="text" style={{ width: '100%', padding: '8px', marginTop: '4px' }} 
-                  value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              </div>
-              
-              <div style={{ marginBottom: '12px' }}>
-                <label>Tipo de Licencia</label>
-                <select style={{ width: '100%', padding: '8px', marginTop: '4px' }}
-                  value={formData.license_type} onChange={e => setFormData({...formData, license_type: e.target.value})}>
-                  <option value="monthly">Suscripción Mensual</option>
-                  <option value="lifetime">Licencia Vitalicia</option>
-                </select>
-              </div>
-
-              {formData.license_type === 'monthly' && (
-                <div style={{ marginBottom: '12px' }}>
-                  <label>Fecha de Vencimiento de Pago</label>
-                  <input type="date" style={{ width: '100%', padding: '8px', marginTop: '4px' }}
-                    value={formData.expires_at} onChange={e => setFormData({...formData, expires_at: e.target.value})} />
-                </div>
-              )}
-
-              <div style={{ marginBottom: '12px' }}>
-                <label>País</label>
-                <select style={{ width: '100%', padding: '8px', marginTop: '4px' }}
-                  value={formData.country_id} onChange={e => setFormData({...formData, country_id: e.target.value, currency_code: e.target.value === 'CO' ? 'COP' : 'USD'})}>
-                  <option value="CO">Colombia (COP)</option>
-                  <option value="MX">México (MXN)</option>
-                  <option value="PE">Perú (PEN)</option>
-                  <option value="EC">Ecuador (USD)</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <div style={{ flex: 1 }}>
-                  <label>Doc. Fiscal</label>
-                  <select style={{ width: '100%', padding: '8px', marginTop: '4px' }}
-                    value={formData.tax_id_type} onChange={e => setFormData({...formData, tax_id_type: e.target.value})}>
-                    <option value="NIT">NIT</option>
-                    <option value="RFC">RFC</option>
-                    <option value="RUC">RUC</option>
-                    <option value="RUT">RUT</option>
-                  </select>
-                </div>
-                <div style={{ flex: 2 }}>
-                  <label>Número Identificación</label>
-                  <input type="text" style={{ width: '100%', padding: '8px', marginTop: '4px' }}
-                    value={formData.tax_id_number} onChange={e => setFormData({...formData, tax_id_number: e.target.value})} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '8px 16px', borderRadius: '6px' }}>Cancelar</button>
-                <button type="submit" style={{ background: '#10B981', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px' }}>Guardar Inmobiliaria</button>
-              </div>
-            </form>
+    <main className="min-h-screen bg-slate-50 p-5 text-slate-900 md:p-10">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Sistema Inmobiliario JCO</p>
+            <h1 className="text-3xl font-bold">Panel de Superadministrador</h1>
+            <p className="mt-2 text-sm text-slate-600">Inmobiliarias registradas · Consulta de solo lectura</p>
           </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => void refresh()} disabled={loading} className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold disabled:opacity-50">Actualizar</button>
+            <a href="/" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Volver al inicio</a>
+          </div>
+        </header>
+        <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-sm text-slate-600">Inmobiliarias visibles</p>
+          <p className="text-3xl font-bold">{organizations.length}</p>
+          <p className="mt-2 text-xs text-slate-500">La activación, suspensión y contratación estarán disponibles después de validar sus controles en el servidor.</p>
+        </section>
+        <section className="mt-5 grid gap-3 md:grid-cols-3" aria-label="Filtros de inmobiliarias">
+          <label className="text-sm font-medium">Buscar inmobiliaria
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, identificador o plan" className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3" />
+          </label>
+          <label className="text-sm font-medium">Estado
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3">
+              <option value="ALL">Todos los estados</option>
+              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-medium">Modalidad de contrato
+            <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3">
+              <option value="ALL">Todos los contratos</option>
+              {billingModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+            </select>
+          </label>
+        </section>
+        <p className="mt-3 text-sm text-slate-600" aria-live="polite">Mostrando {filteredOrganizations.length} de {organizations.length} inmobiliarias</p>
+        {error && <p role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
+        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full min-w-[950px] text-left text-sm">
+            <thead className="bg-slate-100"><tr><th className="p-4">Inmobiliaria</th><th className="p-4">Identificador</th><th className="p-4">Estado</th><th className="p-4">Plan</th><th className="p-4">Contrato</th><th className="p-4">Miembros</th><th className="p-4">Inmuebles</th><th className="p-4">Registro</th></tr></thead>
+            <tbody>
+              {filteredOrganizations.map((org) => (
+                <tr key={org.organization_id} className="border-t border-slate-100">
+                  <td className="p-4 font-semibold">{org.organization_name}</td>
+                  <td className="p-4">{org.organization_slug}</td>
+                  <td className="p-4">{org.organization_status}</td>
+                  <td className="p-4">{org.plan_name ?? 'Sin plan'}</td>
+                  <td className="p-4">{org.billing_mode ?? 'Sin contrato'} · {org.subscription_status ?? 'Sin estado'}</td>
+                  <td className="p-4">{org.member_count}</td>
+                  <td className="p-4">{org.property_count}</td>
+                  <td className="p-4">{org.created_at ? new Date(org.created_at).toLocaleDateString('es-CO') : '—'}</td>
+                </tr>
+              ))}
+              {!loading && filteredOrganizations.length === 0 && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No hay inmobiliarias que coincidan con los filtros o que estén disponibles para esta cuenta.</td></tr>}
+              {loading && <tr><td colSpan={8} className="p-6 text-center">Cargando inmobiliarias…</td></tr>}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+      </div>
+    </main>
   );
 }
 
