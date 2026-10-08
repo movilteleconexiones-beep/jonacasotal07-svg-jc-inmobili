@@ -12,6 +12,9 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 
+const isTenantRole = (role: { key: string | null; name: string }) =>
+  role.key !== 'ORGANIZATION_OWNER' && role.key !== 'SUPER_ADMIN' && role.key !== 'PLATFORM_OWNER' && !/super.?admin|platform.?admin/i.test(role.name);
+
 interface RoleRow {
   id: string;
   name: string;
@@ -159,7 +162,7 @@ export function UsersRolesModule() {
       setProfilesById({});
     }
 
-    setRoles((rolesResult.data ?? []) as unknown as RoleRow[]);
+    setRoles(((rolesResult.data ?? []) as unknown as RoleRow[]).filter(isTenantRole));
     setPermissions((permissionsResult.data ?? []) as PermissionRow[]);
     setInvitations((invitationsResult.data ?? []) as unknown as InvitationRow[]);
     setContacts((contactsResult.data ?? []) as ContactOption[]);
@@ -174,7 +177,7 @@ export function UsersRolesModule() {
 
   async function inviteUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.USERS_CREATE)) return;
 
     const form = new FormData(event.currentTarget);
     const email = String(form.get('email') ?? '').trim().toLowerCase();
@@ -262,7 +265,7 @@ export function UsersRolesModule() {
   }
 
   async function toggleMemberRole(member: MemberRow, roleId: string, enabled: boolean) {
-    if (!can(PERMISSIONS.ROLES_ASSIGN)) return;
+    if (!can(PERMISSIONS.ROLES_ASSIGN) || !roles.some((role) => role.id === roleId && isTenantRole(role))) return;
 
     if (enabled) {
       const { error } = await supabase
@@ -352,7 +355,7 @@ export function UsersRolesModule() {
 
   async function createRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId) return;
+    if (!organizationId || !can(PERMISSIONS.ROLES_CREATE)) return;
 
     const form = new FormData(event.currentTarget);
     const name = String(form.get('name') ?? '').trim();
