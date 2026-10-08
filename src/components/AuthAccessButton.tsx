@@ -176,8 +176,11 @@ export function AuthAccessButton() {
             organizationName={organizationName}
             organizationSlug={suggestedSlug}
             setOrganizationName={(value) => {
+              // Keep the suggested identifier in sync until the user customizes it.
+              if (!organizationSlug || organizationSlug === slugify(organizationName)) {
+                setOrganizationSlug(slugify(value));
+              }
               setOrganizationName(value);
-              if (!organizationSlug) setOrganizationSlug(slugify(value));
             }}
             setOrganizationSlug={setOrganizationSlug}
             countryCode={countryCode}
