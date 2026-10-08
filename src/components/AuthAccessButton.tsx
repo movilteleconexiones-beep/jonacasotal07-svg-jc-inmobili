@@ -255,65 +255,6 @@ export function AuthAccessButton() {
                     Iniciar sesión
                   </button>
                   <button
-  type="button"
-  Iniciar sesión
-      </button>
-    </div>
-
-    <button
-      type="button"
-      onClick={() => {
-        setOpen(false);
-        window.location.href = '/super-admin';
-      }}
-      className="w-full mt-3 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-sm"
-    >
-      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-      <span>Módulo Súper Admin</span>
-    </button>
-
-    <div className="mt-4">
-      <button
-        type="button"
-        onClick={() => {
-          setMode('SIGN_UP');
-          setMessage('');
-        }}
-        /* ... resto de tu botón de registro ... */
-  onClick={() => {
-    setOpen(false);
-    window.location.href = '/super-admin';
-  }}
-  className="w-full mt-3 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-sm"
->
-  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-  <span>Módulo Súper Admin</span>
-  Iniciar sesión
-      </button>
-    </div>
-
-    <button
-      type="button"
-      onClick={() => {
-        setOpen(false);
-        window.location.href = '/super-admin';
-      }}
-      className="w-full mt-3 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-sm"
-    >
-      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-      <span>Módulo Súper Admin</span>
-    </button>
-
-    <div className="mt-4">
-      <button
-        type="button"
-        onClick={() => {
-          setMode('SIGN_UP');
-          setMessage('');
-        }}
-        /* ... resto de tu botón de registro ... */
-</button>
-                  <button
                     type="button"
                     onClick={() => {
                       setMode('SIGN_UP');
