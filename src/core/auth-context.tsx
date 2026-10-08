@@ -157,18 +157,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
-      setSession(data.session);
-      await loadForUser(data.session?.user.id ?? null);
+      setSession(error ? null : data.session);
+      try {
+        await loadForUser(error ? null : data.session?.user.id ?? null);
+      } catch (loadError) {
+        console.error('Unable to load organization memberships', loadError);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }).catch((error) => {
+      console.error('Unable to initialize authentication', error);
       if (mounted) setLoading(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    // Supabase warns against awaiting other Supabase calls inside this callback.
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
       setSession(nextSession);
-      await loadForUser(nextSession?.user.id ?? null);
-      if (mounted) setLoading(false);
+      setTimeout(() => {
+        if (!mounted) return;
+        void loadForUser(nextSession?.user.id ?? null)
+          .catch((error) => console.error('Unable to refresh memberships', error))
+          .finally(() => {
+            if (mounted) setLoading(false);
+          });
+      }, 0);
     });
 
     return () => {
