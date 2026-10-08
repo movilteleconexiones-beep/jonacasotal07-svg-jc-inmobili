@@ -55,12 +55,8 @@ export default function App() {
     };
   }, []);
 
-  if (isSuperAdminRoute) {
-    return <SuperAdminModule />;
-  }
 
- 
-  const { user, activeMembership } = useAuth();
+  const { user, activeMembership, isPlatformAdmin } = useAuth();
   const { branding } = useTenantBranding();
   const countryProfile = getCountryOption(branding.country);
   const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
@@ -204,6 +200,10 @@ export default function App() {
     setContactSubmitted(true);
   };
 
+  if (isSuperAdminRoute) {
+    return <SuperAdminModule />;
+  }
+
   if (isPrivateDashboardOpen && user && activeMembership) {
     return <PrivateDashboard onClose={() => setIsPrivateDashboardOpen(false)} />;
   }
@@ -282,6 +282,9 @@ export default function App() {
               >
                 Panel
               </button>
+            )}
+            {user && isPlatformAdmin && (
+              <a href="/super-admin" className="rounded-lg border border-slate-900 px-3 py-2 text-xs font-semibold text-slate-900">Administración central</a>
             )}
             <AuthAccessButton />
           </div>
