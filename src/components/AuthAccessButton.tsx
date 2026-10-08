@@ -97,6 +97,9 @@ export function AuthAccessButton() {
 
       setPassword('');
       setOpen(false);
+    } catch (error) {
+      console.error('Authentication request failed', error);
+      setMessage('No fue posible completar el acceso. Verifica tu conexión e inténtalo nuevamente.');
     } finally {
       setBusy(false);
     }
@@ -122,6 +125,9 @@ export function AuthAccessButton() {
 
       setMessage('Inmobiliaria creada correctamente.');
       setTimeout(() => setOpen(false), 700);
+    } catch (error) {
+      console.error('Organization registration failed', error);
+      setMessage('No fue posible completar el registro de la inmobiliaria. Inténtalo nuevamente.');
     } finally {
       setBusy(false);
     }
