@@ -12,6 +12,20 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jco_security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jco_security_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,3 +39,7 @@ jobs:
         run: npm run lint
       - name: Production build
         run: npm run build
+      - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jco_security_test -f security/tests/member_roles_rls_test.sql
