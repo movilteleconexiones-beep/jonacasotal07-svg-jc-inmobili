@@ -148,19 +148,26 @@ export function AuthAccessButton() {
         </div>
 
         {needsOrganization && (
-          <button
-            type="button"
-            onClick={() => {
-              setMode('CREATE_ORG');
-              setOpen(true);
-              setMessage('');
-            }}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            <Building2 className="h-4 w-4" />
-            Crear inmobiliaria
-          </button>
-        )}
+  <button
+    type="button"
+    onClick={() => {
+      // Si la variable de superadmin está disponible en tu estado/contexto
+      // Reemplaza 'isSuperAdmin' por la variable que maneja tu estado de admin
+      if (typeof isSuperAdmin !== 'undefined' && isSuperAdmin) {
+        setMode('CREATE_ORG');
+        setOpen(true);
+        setMessage('');
+      } else {
+        // Redirige al checkout/planes si es usuario común sin pago
+        window.location.href = '/checkout';
+      }
+    }}
+    className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+  >
+    <Building2 className="h-4 w-4" />
+    Crear inmobiliaria
+  </button>
+)}
 
         <button
           type="button"
