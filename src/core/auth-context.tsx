@@ -148,7 +148,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    await supabase.rpc('claim_my_invitations');
+    // Invitation claiming is best-effort: a temporary RPC failure must not
+    // prevent an existing user from loading their organizations.
+    try {
+      const { error: invitationError } = await supabase.rpc('claim_my_invitations');
+      if (invitationError) console.warn('Unable to claim invitations', invitationError.message);
+    } catch (invitationError) {
+      console.warn('Unable to claim invitations', invitationError);
+    }
     const nextMemberships = await loadMemberships(userId);
     setMemberships(nextMemberships);
     setActiveOrganizationId((current) => {
