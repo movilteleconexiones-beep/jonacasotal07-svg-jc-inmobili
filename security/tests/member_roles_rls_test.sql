@@ -79,7 +79,7 @@ end $$;
 -- Without roles.assign in the member's organization, the existing assignment
 -- must not be writable or removable, even if its ID is known.
 set app.allowed_org = '00000000-0000-0000-0000-000000000002';
-do $
+do $$
 declare affected integer;
 begin
  delete from public.member_roles
@@ -88,8 +88,8 @@ begin
  if affected <> 0 then
    raise exception 'SECURITY TEST FAILED: unauthorized DELETE removed assignment';
  end if;
-end $;
-do $
+end $$;
+do $$
 declare affected integer;
 begin
  update public.member_roles
@@ -99,12 +99,12 @@ begin
  if affected <> 0 then
    raise exception 'SECURITY TEST FAILED: unauthorized UPDATE changed assignment';
  end if;
-end $;
+end $$;
 reset role;
-do $
+do $$
 begin
  if (select count(*) from public.member_roles) <> 1 then
   raise exception 'SECURITY TEST FAILED: assignments changed despite RLS';
  end if;
-end $;
+end $$;
 select 'JCO RLS isolation smoke tests passed' as result;
