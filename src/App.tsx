@@ -21,6 +21,7 @@ import { useAuth } from './core/auth-context.tsx';
 import { PrivateDashboard } from './modules/dashboard/PrivateDashboard.tsx';
 import { useTenantBranding } from './core/use-tenant-branding';
 import { getCountryOption } from './core/countries';
+import SuperAdminModule from './modules/platform/SuperAdminModule';
 import {
   Search,
   ArrowRight,
