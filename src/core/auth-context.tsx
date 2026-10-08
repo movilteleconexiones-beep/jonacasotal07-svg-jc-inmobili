@@ -25,6 +25,7 @@ interface AuthContextValue {
   user: SupabaseUser | null;
   memberships: AuthMembership[];
   activeMembership: AuthMembership | null;
+  isPlatformAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (
     email: string,
@@ -139,12 +140,14 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
 export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [session, setSession] = useState<Session | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [memberships, setMemberships] = useState<AuthMembership[]>([]);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
 
   const loadForUser = useCallback(async (userId: string | null) => {
     if (!userId) {
       setMemberships([]);
+      setIsPlatformAdmin(false);
       setActiveOrganizationId(null);
       return;
     }
@@ -157,6 +160,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } catch (invitationError) {
       console.warn('Unable to claim invitations', invitationError);
     }
+    const { data: admin, error: adminError } = await supabase.from('platform_admins').select('user_id,admin_level,active').eq('user_id', userId).eq('active',true).in('admin_level',['SUPER_ADMIN','PLATFORM_OWNER']).maybeSingle();
+    setIsPlatformAdmin(!adminError && admin?.user_id === userId);
     const nextMemberships = await loadMemberships(userId);
     setMemberships(nextMemberships);
     setActiveOrganizationId((current) => {
@@ -280,6 +285,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user: session?.user ?? null,
       memberships,
       activeMembership,
+      isPlatformAdmin,
       signIn,
       signUp,
       signOut,
@@ -293,6 +299,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       session,
       memberships,
       activeMembership,
+      isPlatformAdmin,
       signIn,
       signUp,
       signOut,
