@@ -76,5 +76,35 @@ begin
    raise exception 'SECURITY TEST FAILED: unexpected visible assignments';
  end if;
 end $$;
+-- Without roles.assign in the member's organization, the existing assignment
+-- must not be writable or removable, even if its ID is known.
+set app.allowed_org = '00000000-0000-0000-0000-000000000002';
+do $
+declare affected integer;
+begin
+ delete from public.member_roles
+ where organization_member_id='00000000-0000-0000-0000-000000000011';
+ get diagnostics affected = row_count;
+ if affected <> 0 then
+   raise exception 'SECURITY TEST FAILED: unauthorized DELETE removed assignment';
+ end if;
+end $;
+do $
+declare affected integer;
+begin
+ update public.member_roles
+ set role_id='00000000-0000-0000-0000-000000000222'
+ where organization_member_id='00000000-0000-0000-0000-000000000011';
+ get diagnostics affected = row_count;
+ if affected <> 0 then
+   raise exception 'SECURITY TEST FAILED: unauthorized UPDATE changed assignment';
+ end if;
+end $;
 reset role;
+do $
+begin
+ if (select count(*) from public.member_roles) <> 1 then
+  raise exception 'SECURITY TEST FAILED: assignments changed despite RLS';
+ end if;
+end $;
 select 'JCO RLS isolation smoke tests passed' as result;
