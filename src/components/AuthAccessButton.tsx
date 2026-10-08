@@ -1,19 +1,9 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Building2, LogIn, LogOut, ShieldCheck, UserPlus, X } from 'lucide-react';
+import { LogIn, LogOut, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../core/auth-context';
-import { DEFAULT_COUNTRY_CODE, LATAM_COUNTRIES } from '../core/countries';
 
-type AuthMode = 'SIGN_IN' | 'SIGN_UP' | 'CREATE_ORG';
-
-const slugify = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+type AuthMode = 'SIGN_IN' | 'SIGN_UP';
 
 export function AuthAccessButton() {
   const {
@@ -26,7 +16,6 @@ export function AuthAccessButton() {
     signIn,
     signUp,
     signOut,
-    createOrganization,
   } = useAuth();
 
   const [open, setOpen] = useState(false);
@@ -34,16 +23,8 @@ export function AuthAccessButton() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [organizationName, setOrganizationName] = useState('');
-  const [organizationSlug, setOrganizationSlug] = useState('');
-  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const suggestedSlug = useMemo(
-    () => organizationSlug || slugify(organizationName),
-    [organizationName, organizationSlug],
-  );
 
   const resetMessage = () => setMessage('');
 
@@ -101,34 +82,6 @@ export function AuthAccessButton() {
     } catch (error) {
       console.error('Authentication request failed', error);
       setMessage('No fue posible completar el acceso. Verifica tu conexión e inténtalo nuevamente.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitOrganization = async (event: FormEvent) => {
-    event.preventDefault();
-    resetMessage();
-
-    const slug = slugify(suggestedSlug);
-    if (organizationName.trim().length < 2 || !slug) {
-      setMessage('Ingresa un nombre válido para la inmobiliaria.');
-      return;
-    }
-
-    setBusy(true);
-    try {
-      const result = await createOrganization(organizationName.trim(), slug, countryCode);
-      if (result.error) {
-        setMessage(result.error);
-        return;
-      }
-
-      setMessage('Inmobiliaria creada correctamente.');
-      setTimeout(() => setOpen(false), 700);
-    } catch (error) {
-      console.error('Organization registration failed', error);
-      setMessage('No fue posible completar el registro de la inmobiliaria. Inténtalo nuevamente.');
     } finally {
       setBusy(false);
     }
@@ -353,103 +306,3 @@ export function AuthAccessButton() {
   );
 }
 
-interface OrganizationModalProps {
-  organizationName: string;
-  organizationSlug: string;
-  setOrganizationName: (value: string) => void;
-  setOrganizationSlug: (value: string) => void;
-  countryCode: string;
-  setCountryCode: (value: string) => void;
-  message: string;
-  busy: boolean;
-  onClose: () => void;
-  onSubmit: (event: FormEvent) => void;
-}
-
-function OrganizationModal({
-  organizationName,
-  organizationSlug,
-  setOrganizationName,
-  setOrganizationSlug,
-  countryCode,
-  setCountryCode,
-  message,
-  busy,
-  onClose,
-  onSubmit,
-}: OrganizationModalProps) {
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] grid place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[2px]">
-      <div className="my-auto w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <h2 className="text-xl font-bold text-slate-950">Crear inmobiliaria</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Se crearán automáticamente los roles Propietario, Administrador, Coordinador, Asesor y Cliente.
-            </p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form onSubmit={onSubmit} className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">Nombre de la inmobiliaria</span>
-            <input
-              type="text"
-              value={organizationName}
-              onChange={(event) => setOrganizationName(event.target.value)}
-              required
-              minLength={2}
-              className="w-full rounded-xl border border-stone-300 px-3 py-2.5 outline-none focus:border-slate-500"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">Identificador</span>
-            <input
-              type="text"
-              value={organizationSlug}
-              onChange={(event) => setOrganizationSlug(slugify(event.target.value))}
-              required
-              className="w-full rounded-xl border border-stone-300 px-3 py-2.5 font-mono text-sm outline-none focus:border-slate-500"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">País de la inmobiliaria</span>
-            <select
-              value={countryCode}
-              onChange={(event) => setCountryCode(event.target.value)}
-              required
-              className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 outline-none focus:border-slate-500"
-            >
-              {LATAM_COUNTRIES.map((country) => (
-                <option key={country.code} value={country.code}>{country.name}</option>
-              ))}
-            </select>
-          </label>
-
-          {message && (
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm text-slate-700">
-              {message}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-          >
-            {busy ? 'Creando inmobiliaria…' : 'Crear inmobiliaria'}
-          </button>
-        </form>
-      </div>
-    </div>,
-    document.body
-  );
-}
