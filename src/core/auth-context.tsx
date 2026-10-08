@@ -101,8 +101,9 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
     }
 
     const org = row.organizations as any;
-    // A membership without a readable organization must not crash authentication.
-    if (!org || !org.id) continue;
+    // A membership without a readable organization, or one linked to a
+    // different organization, must never grant tenant-scoped UI permissions.
+    if (!org || !org.id || org.id !== row.organization_id) continue;
 
     result.push({
       member: {
