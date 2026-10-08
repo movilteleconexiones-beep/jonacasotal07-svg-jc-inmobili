@@ -434,6 +434,20 @@ function OrganizationModal({
             />
           </label>
 
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-slate-700">País de la inmobiliaria</span>
+            <select
+              value={countryCode}
+              onChange={(event) => setCountryCode(event.target.value)}
+              required
+              className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 outline-none focus:border-slate-500"
+            >
+              {LATAM_COUNTRIES.map((country) => (
+                <option key={country.code} value={country.code}>{country.name}</option>
+              ))}
+            </select>
+          </label>
+
           {message && (
             <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm text-slate-700">
               {message}
