@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const DEFAULT_SUPABASE_URL = 'https://cuitgyqrjibgwuniapmk.supabase.co';
-const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_U-fFWqorKw1GTp9hgMZDyQ_x4Iqj6cr';
+const DEFAULT_SUPABASE_URL = 'https://nqzopzhmhqdssgpljypu.supabase.co';
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_lN15pcBT6oZL9ubrex7UTw_loqDUZ4o';
 
 // Explicit environment configuration takes priority so isolated test deployments
 // never silently send data to the default production Supabase project.
