@@ -141,6 +141,18 @@ end;
 $retention$;
 
 
+-- PostgreSQL roles are cluster-wide; earlier CI suites may have created them.
+do $roles$
+begin
+ if not exists(select 1 from pg_roles where rolname='authenticated') then
+   create role authenticated nologin;
+ end if;
+ if not exists(select 1 from pg_roles where rolname='anon') then
+   create role anon nologin;
+ end if;
+end;
+$roles$;
+
 -- No direct API role privileges on audit evidence.
 do $acl$
 begin
