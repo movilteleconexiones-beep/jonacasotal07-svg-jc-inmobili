@@ -57,6 +57,8 @@ jobs:
         run: node --import tsx --test tests/wompi-sandbox-order-quote.test.mjs
       - name: Wompi server-only order draft tests
         run: node --import tsx --test tests/wompi-order-draft.test.mjs
+      - name: Wompi authorization preflight regression tests
+        run: node --import tsx --test tests/wompi-authorized-order-draft.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
