@@ -68,3 +68,12 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0027_process_verified_payment_events.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0028_verified_payment_subscription_activation.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f security/tests/payment_staging_assertions.sql
+
+      - name: Approved COP pricing SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_pricing_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f security/tests/pricing_catalog_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f supabase/migrations/0029_approved_jco_cop_pricing_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f security/tests/pricing_catalog_assertions.sql
