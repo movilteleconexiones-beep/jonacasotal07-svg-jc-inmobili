@@ -61,6 +61,8 @@ jobs:
         run: node --import tsx --test tests/wompi-authorized-order-draft.test.mjs
       - name: Trusted Wompi order authorization resolver tests
         run: node --import tsx --test tests/wompi-order-authorization-resolver.test.mjs
+      - name: Billing permission contract tests
+        run: node --import tsx --test tests/wompi-billing-permission.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
