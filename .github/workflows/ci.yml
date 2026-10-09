@@ -69,6 +69,14 @@ jobs:
         run: node --test tests/wompi-billing-revocation-contract.test.mjs
       - name: Platform subscription RPC static security gates
         run: node --test tests/platform-subscription-rpc-static.test.mjs
+      - name: Platform subscription SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_subscription_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f supabase/migrations/20261009_platform_subscription_guardrails_review.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_assertions.sql
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
