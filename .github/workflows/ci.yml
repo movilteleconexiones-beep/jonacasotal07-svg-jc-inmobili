@@ -210,6 +210,13 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_probe_test"
           bash security/tests/onboarding_execute_probe.sh
 
+      - name: Onboarding transaction rollback fixture (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_atomicity_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_atomicity_test -f security/tests/onboarding_transaction_atomicity.sql
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
