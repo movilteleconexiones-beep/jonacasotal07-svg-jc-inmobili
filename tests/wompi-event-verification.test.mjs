@@ -37,3 +37,13 @@ test('rejects malformed signature property paths', () => {
   event.signature.properties = ['transaction.__proto__.polluted'];
   assert.equal(verifyWompiEvent(event, secret, 'test'), false);
 });
+
+
+test('verified event extraction rejects malformed transaction fields', () => {
+  const event = makeEvent();
+  assert.equal(getVerifiedWompiTransaction({ ...event, data: { transaction: { ...event.data.transaction, id: '' } } }), null);
+  assert.equal(getVerifiedWompiTransaction({ ...event, data: { transaction: { ...event.data.transaction, reference: 'bad ref!' } } }), null);
+  assert.equal(getVerifiedWompiTransaction({ ...event, data: { transaction: { ...event.data.transaction, amount_in_cents: 0 } } }), null);
+  assert.equal(getVerifiedWompiTransaction({ ...event, data: { transaction: { ...event.data.transaction, currency: 'USD' } } }), null);
+  assert.equal(getVerifiedWompiTransaction({ ...event, data: { transaction: { ...event.data.transaction, id: 'x'.repeat(257) } } }), null);
+});
