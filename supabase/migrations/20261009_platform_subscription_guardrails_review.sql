@@ -53,6 +53,10 @@ begin
     raise exception 'Unknown or inactive plan' using errcode = '22023';
   end if;
 
+  if target_billing_mode in ('DEDICATED', 'CUSTOM') and target_plan_code <> 'ENTERPRISE' then
+    raise exception 'Dedicated and custom contracts require an enterprise plan' using errcode = '22023';
+  end if;
+
   if (target_plan_code = 'LIFETIME') <> (target_billing_mode = 'LIFETIME') then
     raise exception 'Lifetime plan requires lifetime billing mode' using errcode = '22023';
   end if;
@@ -74,10 +78,15 @@ begin
         using errcode = '22023';
     end if;
 
-    update public.subscriptions
-    set status = target_status, updated_at = now()
-    where organization_id = target_org;
-    return;
+    -- Status transitions may grant or revoke access: require a separate audited workflow.
+    raise exception 'Changing subscription status requires a separate audited workflow'
+      using errcode = '22023';
+  end if;
+
+  -- Never create a paid/active entitlement through this manual RPC before payment verification.
+  if target_status in ('ACTIVE', 'LIFETIME') then
+    raise exception 'Activating entitlements requires verified payment or an audited grant workflow'
+      using errcode = '22023';
   end if;
 
   period_end := case
