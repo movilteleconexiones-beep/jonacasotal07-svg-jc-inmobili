@@ -171,3 +171,69 @@ begin
  end if;
 end;
 $acl$;
+
+-- Exercise actual API roles, not only ACL inspection. Schema access is explicit
+-- so failures must come from table privileges or the RPC authorization guard.
+grant usage on schema public to anon, authenticated;
+set role anon;
+do $api$
+declare
+  statement text;
+  denied boolean;
+begin
+  foreach statement in array array[
+    'select 1 from public.platform_subscription_audit limit 1',
+    'insert into public.platform_subscription_audit default values',
+    'update public.platform_subscription_audit set action = action where false',
+    'delete from public.platform_subscription_audit where false'
+  ] loop
+    denied := false;
+    begin
+      execute statement;
+    exception when insufficient_privilege then
+      denied := true;
+    end;
+    if not denied then raise exception 'Anonymous audit access accepted: %', statement; end if;
+  end loop;
+end;
+$api$;
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',false);
+do $api$
+declare
+  statement text;
+  denied boolean;
+begin
+  foreach statement in array array[
+    'select 1 from public.platform_subscription_audit limit 1',
+    'insert into public.platform_subscription_audit default values',
+    'update public.platform_subscription_audit set action = action where false',
+    'delete from public.platform_subscription_audit where false',
+    'select public.platform_set_subscription(''77777777-7777-4777-8777-777777777777'',''BASIC'',''SAAS_MONTHLY'',''SUSPENDED'')'
+  ] loop
+    denied := false;
+    begin
+      execute statement;
+    exception when insufficient_privilege then
+      denied := true;
+    end;
+    if not denied then raise exception 'Unauthorized authenticated operation accepted: %', statement; end if;
+  end loop;
+end;
+$api$;
+-- An authorized caller can still retry through the SECURITY DEFINER RPC.
+select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+select public.platform_set_subscription('11111111-1111-4111-8111-111111111111','BASIC','SAAS_MONTHLY','SUSPENDED');
+reset role;
+do $unchanged$
+begin
+  if (select count(*) from public.subscriptions) <> 1
+     or (select count(*) from public.platform_subscription_audit) <> 1
+     or (select updated_at from public.subscriptions) <> '2020-01-01'::timestamptz then
+    raise exception 'API role checks changed subscription or audit evidence';
+  end if;
+end;
+$unchanged$;
+select 'PASS: actual API role denial and authorized RPC retry' as result;
