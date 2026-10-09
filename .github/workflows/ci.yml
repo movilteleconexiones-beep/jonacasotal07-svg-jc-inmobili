@@ -43,6 +43,8 @@ jobs:
         run: node --test tests/platform-admin-access.test.mjs
       - name: Wompi signature verification regression tests
         run: node --import tsx --test tests/wompi-event-verification.test.mjs
+      - name: Wompi webhook handler regression tests
+        run: node --import tsx --test tests/wompi-webhook-handler.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
