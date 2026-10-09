@@ -178,6 +178,14 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_deactivation_test"
           bash security/tests/role_deactivation_concurrency.sh
 
+      - name: Cross-tenant role boundary predicate (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_boundary_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_boundary_test"
+          bash security/tests/role_tenant_boundary.sh
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
