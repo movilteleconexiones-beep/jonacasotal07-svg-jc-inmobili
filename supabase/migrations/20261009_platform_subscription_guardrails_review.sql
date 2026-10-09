@@ -84,23 +84,20 @@ begin
   end if;
 
   -- Never create a paid/active entitlement through this manual RPC before payment verification.
-  if target_status in ('ACTIVE', 'LIFETIME') then
-    raise exception 'Activating entitlements requires verified payment or an audited grant workflow'
+  if target_status not in ('SUSPENDED', 'CANCELLED') then
+    raise exception 'Creating an entitlement requires a separate audited grant workflow'
       using errcode = '22023';
   end if;
 
-  period_end := case
-    when target_billing_mode = 'SAAS_MONTHLY' then now() + interval '1 month'
-    when target_billing_mode = 'SAAS_ANNUAL' then now() + interval '1 year'
-    else null
-  end;
+  -- A non-entitled draft has no active billing period.
+  period_end := null;
 
   insert into public.subscriptions (
     organization_id, plan_id, status, billing_mode,
     current_period_start, current_period_end, updated_at
   ) values (
     target_org, target_plan_id, target_status, target_billing_mode,
-    now(), period_end, now()
+    null, period_end, now()
   );
   -- Do not modify organizations.status: administrative and commercial status are separate.
 end;
