@@ -246,12 +246,12 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <div className="p-5 bg-white border border-[#14532D]/30 rounded-lg space-y-3">
                   <div className="flex items-center gap-2 text-[#14532D] font-semibold text-sm">
                     <Check className="w-4 h-4" />
-                    <span>Recorrido Agendado · Folio #{property.code}</span>
+                    <span>Solicitud de recorrido preparada · Inmueble #{property.code}</span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Hemos registrado tu solicitud a nombre de <strong>{visitorName}</strong> para el día{' '}
+                    Preparaste una solicitud a nombre de <strong>{visitorName}</strong> para el día{' '}
                     <span className="font-mono-tabular font-medium">{visitDate}</span> bajo modalidad{' '}
-                    <strong>{visitModality}</strong>. Un consultor patrimonial de {operatorName} te confirmará al{' '}
+                    <strong>{visitModality}</strong>. La solicitud solo se conserva durante esta sesión y no ha sido enviada a {operatorName}. Contacta a la inmobiliaria para confirmar al{' '}
                     <span className="font-mono-tabular">{visitorPhone}</span>.
                   </p>
                   <button
@@ -350,7 +350,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     type="submit"
                     className="w-full py-2.5 px-4 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                   >
-                    Confirmar Solicitud de Recorrido
+                    Preparar Solicitud de Recorrido
                   </button>
                 </form>
               )}
