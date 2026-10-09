@@ -114,3 +114,13 @@ begin
 end;
 $atomic$;
 drop trigger audit_failure_test on public.platform_subscription_audit;
+
+-- Production parity: started_at is a record timestamp, not entitlement activation.
+do $dates$
+begin
+ if exists (select 1 from public.subscriptions
+            where started_at is null or current_period_start is not null or current_period_end is not null) then
+   raise exception 'Draft must have a record timestamp but no billable period';
+ end if;
+end;
+$dates$;
