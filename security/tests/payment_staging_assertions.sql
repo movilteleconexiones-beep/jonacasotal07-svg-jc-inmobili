@@ -41,5 +41,18 @@ BEGIN
  IF r <> 'mismatch' THEN RAISE EXCEPTION 'Wrong amount accepted: %',r; END IF;
  IF (SELECT count(*) FROM public.subscriptions) <> 1
  THEN RAISE EXCEPTION 'Mismatched payment activated tenant'; END IF;
+ -- A paid event must not reactivate a suspended organization.
+ UPDATE public.organizations SET status='SUSPENDED'
+ WHERE id='33333333-3333-4333-8333-333333333333';
+ r:=public.process_verified_payment_event('ORDER_TEST_0002','tx2',100000,'COP',
+   'APPROVED','sandbox','event3',repeat('c',64));
+ IF r <> 'organization_inactive' THEN
+   RAISE EXCEPTION 'Suspended organization was not blocked: %',r;
+ END IF;
+ IF (SELECT status FROM public.organizations
+    WHERE id='33333333-3333-4333-8333-333333333333') <> 'SUSPENDED'
+ THEN RAISE EXCEPTION 'Suspended organization reactivated'; END IF;
+ IF (SELECT count(*) FROM public.payment_events) <> 1
+ THEN RAISE EXCEPTION 'Suspended organization payment event recorded'; END IF;
  RAISE NOTICE 'Payment PostgreSQL integration checks passed';
 END $$;
