@@ -139,3 +139,23 @@ begin
  end if;
 end;
 $retention$;
+
+
+-- No direct API role privileges on audit evidence.
+do $acl$
+begin
+ if has_table_privilege('authenticated','public.platform_subscription_audit','SELECT')
+ or has_table_privilege('authenticated','public.platform_subscription_audit','INSERT')
+ or has_table_privilege('authenticated','public.platform_subscription_audit','UPDATE')
+ or has_table_privilege('authenticated','public.platform_subscription_audit','DELETE')
+ or has_table_privilege('anon','public.platform_subscription_audit','SELECT')
+ or has_table_privilege('anon','public.platform_subscription_audit','INSERT')
+ or has_table_privilege('anon','public.platform_subscription_audit','UPDATE')
+ or has_table_privilege('anon','public.platform_subscription_audit','DELETE') then
+  raise exception 'Audit table exposed to an API role';
+ end if;
+ if not (select relrowsecurity from pg_class where oid='public.platform_subscription_audit'::regclass) then
+  raise exception 'Audit RLS disabled';
+ end if;
+end;
+$acl$;
