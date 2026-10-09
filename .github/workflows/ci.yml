@@ -78,6 +78,20 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f supabase/migrations/20261009_platform_subscription_guardrails_review.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_two_transactions.sql
+      - name: Concurrent subscription assignments (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_subscription_race_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -f security/tests/platform_subscription_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -f supabase/migrations/20261009_platform_subscription_guardrails_review.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -c "SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false); SELECT public.platform_set_subscription('11111111-1111-4111-8111-111111111111','BASIC','SAAS_MONTHLY','SUSPENDED');" &
+          first_pid=$!
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -c "SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false); SELECT public.platform_set_subscription('11111111-1111-4111-8111-111111111111','BASIC','SAAS_MONTHLY','SUSPENDED');" &
+          second_pid=$!
+          wait "$first_pid"
+          wait "$second_pid"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -c "DO \$\$ BEGIN IF (SELECT count(*) FROM public.subscriptions WHERE organization_id='11111111-1111-4111-8111-111111111111') <> 1 THEN RAISE EXCEPTION 'Concurrent assignments created duplicates'; END IF; END \$\$;"
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
