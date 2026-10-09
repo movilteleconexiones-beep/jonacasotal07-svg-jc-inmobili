@@ -41,6 +41,8 @@ jobs:
         run: node --test tests/supabase-config.test.mjs
       - name: Platform admin access regression tests
         run: node --test tests/platform-admin-access.test.mjs
+      - name: Wompi signature verification regression tests
+        run: node --import tsx --test tests/wompi-event-verification.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
