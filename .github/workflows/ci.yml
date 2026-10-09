@@ -89,3 +89,13 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f security/tests/pricing_catalog_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f supabase/migrations/0029_approved_jco_cop_pricing_draft.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f security/tests/pricing_catalog_assertions.sql
+
+      - name: Billing permission SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_permission_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f security/tests/billing_permission_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f supabase/migrations/0030_billing_manage_permission_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f supabase/migrations/0030_billing_manage_permission_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f security/tests/billing_permission_assertions.sql
