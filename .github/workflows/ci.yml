@@ -49,6 +49,8 @@ jobs:
         run: node --import tsx --test tests/supabase-payment-store.test.mjs
       - name: Payment migration static safety checks
         run: node --test tests/payment-migration-gates.test.mjs
+      - name: Wompi HTTP endpoint tests
+        run: node --import tsx --test tests/wompi-express-router.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
