@@ -192,8 +192,9 @@ export default function App() {
       setContactError('Por favor ingresa un correo electrónico válido.');
       return;
     }
-    if (contactPhone.replace(/\D/g, '').length < 10) {
-      setContactError('Ingresa un número telefónico de 10 dígitos.');
+    const phoneDigitCount = contactPhone.replace(/\D/g, '').length;
+    if (phoneDigitCount < 7 || phoneDigitCount > 15) {
+      setContactError('Ingresa un teléfono válido de 7 a 15 dígitos, con indicativo si corresponde.');
       return;
     }
     setContactError('');
