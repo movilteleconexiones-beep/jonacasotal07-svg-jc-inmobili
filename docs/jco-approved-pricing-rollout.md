@@ -6,7 +6,7 @@ Migración propuesta: `supabase/migrations/0029_approved_jco_cop_pricing_draft.s
 
 ## Bloqueos antes de habilitar checkout
 
-1. Confirmar si cada precio publicado **incluye IVA** o si se añade al cobro, y revisar facturación tributaria aplicable. No asumir ninguno.
+1. **Decisión comercial aprobada:** los precios publicados son importes finales al cliente, con IVA incluido cuando corresponda; nunca sumar IVA por encima de estos valores. Determinar con asesoría tributaria la tarifa y tratamiento aplicables, y discriminar los impuestos correctamente en la factura. No asumir que todas las operaciones están gravadas al mismo tipo.
 2. Revisar las capacidades y límites de cada plan contra funcionalidades realmente disponibles.
 3. Verificar migraciones 0026–0028 en staging, ejecutar 0029 allí y probar Wompi Sandbox con monto exacto en centavos (por ejemplo 10490000 para Básico mensual).
 4. Validar las transiciones de renovación y la asociación correcta de cada plan anual. Vitalicio siempre requiere aceptación legal y activación manual.
