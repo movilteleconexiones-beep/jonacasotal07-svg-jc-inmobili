@@ -262,3 +262,56 @@ end;
 $cascade$;
 rollback;
 select 'PASS: unaudited cascade and audited deletion restriction' as result;
+
+-- Cover rejected creation paths on an organization with no subscription.
+-- Existing-row transition checks cannot prove that first-time grants are denied.
+begin;
+insert into public.organizations(id,status)
+values ('99999999-9999-4999-8999-999999999999','ACTIVE');
+select set_config('request.jwt.claim.sub','',false);
+select pg_temp.must_reject('missing authenticated identity',
+  'select public.platform_set_subscription(''99999999-9999-4999-8999-999999999999'',''BASIC'',''SAAS_MONTHLY'',''SUSPENDED'')','42501');
+select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+do $matrix$
+declare
+  sample record;
+begin
+  for sample in
+    select * from (values
+      ('null organization', null::uuid, 'BASIC', 'SAAS_MONTHLY', 'SUSPENDED'),
+      ('null plan', '99999999-9999-4999-8999-999999999999'::uuid, null, 'SAAS_MONTHLY', 'SUSPENDED'),
+      ('null billing mode', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', null, 'SUSPENDED'),
+      ('null status', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', 'SAAS_MONTHLY', null),
+      ('unknown organization', '00000000-0000-4000-8000-000000000000'::uuid, 'BASIC', 'SAAS_MONTHLY', 'SUSPENDED'),
+      ('unknown plan', '99999999-9999-4999-8999-999999999999'::uuid, 'UNKNOWN', 'SAAS_MONTHLY', 'SUSPENDED'),
+      ('unknown billing mode', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', 'UNKNOWN', 'SUSPENDED'),
+      ('unknown status', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', 'SAAS_MONTHLY', 'UNKNOWN'),
+      ('first-time trial', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', 'SAAS_MONTHLY', 'TRIAL'),
+      ('first-time active', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', 'SAAS_MONTHLY', 'ACTIVE'),
+      ('first-time past-due', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', 'SAAS_MONTHLY', 'PAST_DUE'),
+      ('first-time lifetime', '99999999-9999-4999-8999-999999999999'::uuid, 'LIFETIME', 'LIFETIME', 'LIFETIME'),
+      ('lifetime plan monthly mode', '99999999-9999-4999-8999-999999999999'::uuid, 'LIFETIME', 'SAAS_MONTHLY', 'SUSPENDED'),
+      ('lifetime mode active status', '99999999-9999-4999-8999-999999999999'::uuid, 'LIFETIME', 'LIFETIME', 'ACTIVE'),
+      ('dedicated basic plan', '99999999-9999-4999-8999-999999999999'::uuid, 'BASIC', 'DEDICATED', 'SUSPENDED')
+    ) as cases(label, org_id, plan_code, billing_mode, subscription_status)
+  loop
+    perform pg_temp.must_reject(sample.label,
+      format('select public.platform_set_subscription(%L::uuid,%L,%L,%L)',
+        sample.org_id, sample.plan_code, sample.billing_mode, sample.subscription_status),
+      '22023');
+  end loop;
+  if exists (select 1 from public.subscriptions
+             where organization_id='99999999-9999-4999-8999-999999999999')
+     or exists (select 1 from public.platform_subscription_audit
+                where organization_id='99999999-9999-4999-8999-999999999999') then
+    raise exception 'Rejected creation left subscription or audit data';
+  end if;
+  if (select count(*) from public.subscriptions) <> 1
+     or (select count(*) from public.platform_subscription_audit) <> 1
+     or (select updated_at from public.subscriptions) <> '2020-01-01'::timestamptz then
+    raise exception 'Rejected creation changed existing evidence';
+  end if;
+end;
+$matrix$;
+rollback;
+select 'PASS: missing identity, invalid input and first-time entitlement denial matrix' as result;
