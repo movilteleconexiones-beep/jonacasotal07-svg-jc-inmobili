@@ -35,6 +35,38 @@ DO $$ BEGIN
  EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'SECURITY:%' THEN RAISE; END IF; END;
 END $$;
 UPDATE public.member_permissions SET effect='ALLOW';
+-- Missing explicit billing permission must reject, even if membership is active.
+DELETE FROM public.member_permissions;
+DO $ BEGIN
+ BEGIN
+  PERFORM public.create_authorized_sandbox_payment_order('22222222-2222-4222-8222-222222222222','BASIC','JCO_'||repeat('1',32));
+  RAISE EXCEPTION 'SECURITY: missing billing permission accepted';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'SECURITY:%' THEN RAISE; END IF; END;
+END $;
+INSERT INTO public.member_permissions VALUES ('55555555-5555-4555-8555-555555555555','66666666-6666-4666-8666-666666666666','ALLOW');
+-- The server must reject non-COP, zero-price, and inactive plans.
+UPDATE public.plans SET currency='USD';
+DO $ BEGIN
+ BEGIN
+  PERFORM public.create_authorized_sandbox_payment_order('22222222-2222-4222-8222-222222222222','BASIC','JCO_'||repeat('2',32));
+  RAISE EXCEPTION 'SECURITY: USD plan accepted';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'SECURITY:%' THEN RAISE; END IF; END;
+END $;
+UPDATE public.plans SET currency='COP',price=0;
+DO $ BEGIN
+ BEGIN
+  PERFORM public.create_authorized_sandbox_payment_order('22222222-2222-4222-8222-222222222222','BASIC','JCO_'||repeat('3',32));
+  RAISE EXCEPTION 'SECURITY: zero-price plan accepted';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'SECURITY:%' THEN RAISE; END IF; END;
+END $;
+UPDATE public.plans SET price=104900,active=false;
+DO $ BEGIN
+ BEGIN
+  PERFORM public.create_authorized_sandbox_payment_order('22222222-2222-4222-8222-222222222222','BASIC','JCO_'||repeat('4',32));
+  RAISE EXCEPTION 'SECURITY: inactive plan accepted';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'SECURITY:%' THEN RAISE; END IF; END;
+END $;
+UPDATE public.plans SET active=true;
 UPDATE public.organization_members SET status='INACTIVE';
 DO $$ BEGIN
  BEGIN
