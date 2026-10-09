@@ -138,6 +138,14 @@ jobs:
           fi
           echo "Confirmed expected role-revocation bypass in draft 0033; deployment remains blocked"
 
+      - name: Candidate role revocation lock test (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_candidate_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_candidate_test"
+          bash security/tests/billing_role_revocation_candidate.sh
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
