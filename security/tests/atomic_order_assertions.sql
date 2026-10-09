@@ -18,9 +18,9 @@ DO $$ BEGIN
  EXCEPTION WHEN OTHERS THEN IF SQLERRM LIKE 'SECURITY:%' THEN RAISE; END IF; END;
  IF (SELECT count(*) FROM public.payment_orders) <> 0 THEN RAISE EXCEPTION 'rejected order persisted'; END IF;
 END $$;
-DO $$ DECLARE id uuid; BEGIN
- id:=public.create_authorized_sandbox_payment_order('22222222-2222-4222-8222-222222222222','BASIC','JCO_'||repeat('c',32));
- IF NOT EXISTS(SELECT 1 FROM public.payment_orders WHERE id=id AND amount_in_cents=10490000 AND environment='sandbox' AND status='PENDING' AND currency='COP')
+DO $ DECLARE v_order_id uuid; BEGIN
+ v_order_id:=public.create_authorized_sandbox_payment_order('22222222-2222-4222-8222-222222222222','BASIC','JCO_'||repeat('c',32));
+ IF NOT EXISTS(SELECT 1 FROM public.payment_orders WHERE payment_orders.id=v_order_id AND amount_in_cents=10490000 AND environment='sandbox' AND status='PENDING' AND currency='COP')
  THEN RAISE EXCEPTION 'trusted plan amount or sandbox status invalid'; END IF;
  BEGIN
   PERFORM public.create_authorized_sandbox_payment_order('22222222-2222-4222-8222-222222222222','BASIC','JCO_'||repeat('c',32));
