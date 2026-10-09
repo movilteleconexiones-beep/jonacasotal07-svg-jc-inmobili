@@ -12,7 +12,7 @@ WHERE c.contype = 'f'
   AND c.conrelid IN ('public.roles'::regclass,
                      'public.member_roles'::regclass,
                      'public.role_permissions'::regclass)
-ORDER BY source_table::text, constraint_name;
+ORDER BY c.conrelid::regclass::text, c.conname;
 
 SELECT t.event_object_table AS table_name,
        t.trigger_name,
