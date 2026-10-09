@@ -1,6 +1,12 @@
 \set ON_ERROR_STOP on
 -- Disposable PostgreSQL test fixtures; never connect this script to production.
-create role authenticated nologin;
+do $role_setup$
+begin
+ if not exists (select 1 from pg_roles where rolname='authenticated') then
+  create role authenticated nologin;
+ end if;
+end;
+$role_setup$;
 create table public.organization_members (
  id uuid primary key,
  organization_id uuid not null
