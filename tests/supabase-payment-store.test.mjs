@@ -34,3 +34,11 @@ test('unexpected database response fails closed', async () => {
   });
   await assert.rejects(() => store.processVerifiedEvent(payment), /Unexpected/);
 });
+
+
+test('expired orders return manual-reconciliation status without success', async () => {
+  const store = createSupabasePaymentStore({
+    async rpc() { return { data: 'expired_order', error: null }; },
+  });
+  assert.equal(await store.processVerifiedEvent(payment), 'expired_order');
+});
