@@ -64,3 +64,22 @@ begin
   end if;
 end;
 $check$;
+
+
+-- Audit is atomic with the draft and idempotent retries do not duplicate events.
+do $audit$
+begin
+ if (select count(*) from public.platform_subscription_audit) <> 1 then
+   raise exception 'Expected exactly one audit event for a created draft';
+ end if;
+ if not exists (
+   select 1 from public.platform_subscription_audit a
+   join public.subscriptions s on s.id = a.subscription_id
+   where a.organization_id = s.organization_id
+     and a.actor_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+     and a.action = 'CREATE_NON_ENTITLED_DRAFT'
+     and a.subscription_status = 'SUSPENDED'
+ ) then raise exception 'Audit event missing actor or contract linkage';
+ end if;
+end;
+$audit$;
