@@ -47,3 +47,10 @@ test('order comparison rejects cross-environment and amount mismatch', () => {
   assert.equal(isMatchingPendingOrder(order, { ...input, amountInCents: 1 }), false);
   assert.equal(isMatchingPendingOrder(order, { ...input, environment: 'production' }), false);
 });
+
+
+test('expired order remains a controlled conflict and never reports success', async () => {
+  const store = { async processVerifiedEvent() { return 'expired_order'; } };
+  assert.deepEqual(await handleWompiWebhook(signed(), secret, 'sandbox', store),
+    { statusCode: 409, result: 'expired_order' });
+});
