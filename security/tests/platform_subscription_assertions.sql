@@ -124,3 +124,18 @@ begin
  end if;
 end;
 $dates$;
+
+
+-- Audit retention: FK restrictions block accidental deletion of audited records.
+select pg_temp.must_reject('delete audited subscription',
+  'delete from public.subscriptions where organization_id = ''11111111-1111-4111-8111-111111111111''','23503');
+select pg_temp.must_reject('delete audited organization',
+  'delete from public.organizations where id = ''11111111-1111-4111-8111-111111111111''','23503');
+do $retention$
+begin
+ if (select count(*) from public.subscriptions) <> 1
+    or (select count(*) from public.platform_subscription_audit) <> 1 then
+   raise exception 'Retention guard altered audited records';
+ end if;
+end;
+$retention$;
