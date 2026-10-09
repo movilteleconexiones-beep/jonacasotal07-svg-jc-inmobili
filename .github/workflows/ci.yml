@@ -170,6 +170,14 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_inactive_role_test"
           bash security/tests/inactive_role_permission.sh
 
+      - name: Role deactivation transaction lock (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_deactivation_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_deactivation_test"
+          bash security/tests/role_deactivation_concurrency.sh
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
