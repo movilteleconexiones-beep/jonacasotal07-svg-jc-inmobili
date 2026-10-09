@@ -99,3 +99,12 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f supabase/migrations/0030_billing_manage_permission_draft.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f supabase/migrations/0030_billing_manage_permission_draft.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f security/tests/billing_permission_assertions.sql
+
+      - name: Tenant billing authorization RPC tests (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_auth_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f supabase/migrations/0031_tenant_billing_authorization_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_assertions.sql
