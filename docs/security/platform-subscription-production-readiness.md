@@ -35,3 +35,28 @@ GitHub Actions uses isolated PostgreSQL 17 and verifies draft insertion, denial 
 - The isolated PostgreSQL fixture now creates `anon` and `authenticated` before the migration and grants default CRUD privileges on future public tables to both roles.
 - The migration must explicitly revoke these grants on `platform_subscription_audit`; assertions verify the final API-role ACL. This prevents a misleading pass when roles are created only after the table.
 - The test is a deliberate simulation, not an assertion about the production project's exact default privileges.
+
+## Verified evidence at commit ca3380a9ac4bf57ed321e9b72cb3075be678a002
+
+| Gate | Result | Evidence and limits |
+| --- | --- | --- |
+| Default audit privileges | Passed in isolated PostgreSQL | API roles exist before migration; default CRUD grants are revoked. |
+| Actual API role access | Passed, run #233 | SELECT/INSERT/UPDATE/DELETE denied under SET ROLE anon and authenticated; unauthorized authenticated RPC denied; authorized retry preserves records. |
+| Production FK/check parity | Passed, run #235 | Fixture matches inspected subscription status/mode checks, organization ON DELETE CASCADE and plan ON DELETE SET NULL. It is not a complete production schema clone. |
+| Audit deletion protection | Passed, run #235 | Unaudited organization deletion cascades; audited organization and subscription deletion are rejected with SQLSTATE 23503. |
+| Fresh-organization rejection matrix | Passed, run #236 | Missing identity plus 15 invalid-input/entitlement cases; rejected requests leave no draft/audit and preserve prior evidence. |
+| Full application CI | Passed, run #236 | TypeScript, build, payment regressions, isolated subscription integration and concurrency. |
+| Literal SQL caller inventory | No matches, read-only 2026-10-09 | Non-system function bodies, excluding the RPC itself, and non-system view definitions contain no literal platform_set_subscription reference. Procedures, external clients, dynamic SQL and other dependency types were not covered. |
+| Supabase deployment and rollback | Pending | No isolated Supabase branch exists; prior creation failed because branching requires Pro or above. |
+| Production release | Blocked | No merge, migration or real payment activation performed by this verification. |
+
+CI evidence:
+- https://github.com/movilteleconexiones-beep/jonacasotal07-svg-jc-inmobili/actions/runs/37971084633
+- https://github.com/movilteleconexiones-beep/jonacasotal07-svg-jc-inmobili/actions/runs/37971545912
+- https://github.com/movilteleconexiones-beep/jonacasotal07-svg-jc-inmobili/actions/runs/37972098051
+
+## Next release gate
+
+Provision an isolated Supabase environment with a compatible sanitized schema, then verify migration, real role privileges, existing subscription preservation, triggers, deletion protection, and rollback. The authorization for branch compute at US$0.01344/hour does not authorize a plan upgrade or deployment to production.
+
+Keep PR #61 in draft until the release blockers above are resolved. Additional fixture coverage cannot substitute for this environment gate.
