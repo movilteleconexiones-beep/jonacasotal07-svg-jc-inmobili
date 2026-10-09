@@ -26,8 +26,8 @@ trap - EXIT
 psql "$DB_URL" -v ON_ERROR_STOP=1 -c "BEGIN; SET LOCAL lock_timeout='500ms'; SELECT public.lock_tenant_billing_authorization('22222222-2222-4222-8222-222222222222'); COMMIT;" >/dev/null
 echo "PASS: concurrent billing lock waits, then releases on commit"
 
-# Simulate a revocation that holds the tenant lock until COMMIT.
-psql "$DB_URL" -v ON_ERROR_STOP=1 -c "BEGIN; SELECT public.lock_tenant_billing_authorization('22222222-2222-4222-8222-222222222222'); UPDATE public.member_permissions SET effect='DENY'; SELECT pg_sleep(3); COMMIT;" >/dev/null &
+# Revocation must acquire the lock automatically through its database trigger; no explicit lock call.
+psql "$DB_URL" -v ON_ERROR_STOP=1 -c "BEGIN; UPDATE public.member_permissions SET effect='DENY'; SELECT pg_sleep(3); COMMIT;" >/dev/null &
 revoker=$!
 trap 'kill "$revoker" 2>/dev/null || true' EXIT
 sleep 1
