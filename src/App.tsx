@@ -178,7 +178,7 @@ export default function App() {
       setEnrolledModules((prev) => [...prev, selectedAcademyModule.id]);
     }
     setAcademyNotice(
-      `Lugar reservado para ${academyStudentName.trim()} en ${selectedAcademyModule.number} (${selectedAcademyModule.nextCohortDate}). Enviamos ficha de inscripción a ${academyStudentEmail.trim()}.`
+      `Solicitud registrada temporalmente para ${academyStudentName.trim()} en ${selectedAcademyModule.number} (${selectedAcademyModule.nextCohortDate}). No se ha enviado un correo ni confirmado un cupo; contacta a la administración para completar la inscripción.`
     );
   };
 
