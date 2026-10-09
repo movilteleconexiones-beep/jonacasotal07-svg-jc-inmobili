@@ -38,7 +38,13 @@ export function startWompiServer() {
   app.use(createWompiWebhookRouter({
     eventsSecret,
     environment,
-    store: createSupabasePaymentStore(client),
+    store: createSupabasePaymentStore({
+      async rpc(name, args) {
+        const { data, error } = await client.rpc(name, args);
+        return { data: typeof data === 'string' ? data : null,
+          error: error ? { message: error.message } : null };
+      },
+    }),
   }));
   const server = app.listen(port, '0.0.0.0');
   return server;
