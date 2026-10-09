@@ -77,6 +77,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f supabase/migrations/20261009_platform_subscription_guardrails_review.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_two_transactions.sql
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
