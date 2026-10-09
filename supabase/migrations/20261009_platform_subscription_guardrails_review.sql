@@ -1,5 +1,5 @@
 -- INMOJCO: hardened platform subscription assignment.
--- REVIEW ONLY. Apply in an isolated Supabase branch after security tests.
+-- REVIEW ONLY. Validate in isolated PostgreSQL CI; do not apply to production before independent security review.
 -- Preserves the RPC signature for existing clients.
 -- Append-only record for manual, non-entitled contract drafts.
 -- No billing activation or payment verification is implied by this record.
@@ -16,6 +16,17 @@ create table if not exists public.platform_subscription_audit (
 );
 alter table public.platform_subscription_audit enable row level security;
 revoke all on public.platform_subscription_audit from public;
+-- Supabase API roles may receive grants from schema default privileges.
+do $revoke_api_roles$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on public.platform_subscription_audit from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on public.platform_subscription_audit from authenticated';
+  end if;
+end;
+$revoke_api_roles$;
 -- No client-facing policies: access requires a separately reviewed admin read API.
 
 create or replace function public.platform_set_subscription(
