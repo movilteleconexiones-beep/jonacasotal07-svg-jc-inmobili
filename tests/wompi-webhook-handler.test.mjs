@@ -54,3 +54,33 @@ test('expired order remains a controlled conflict and never reports success', as
   assert.deepEqual(await handleWompiWebhook(signed(), secret, 'sandbox', store),
     { statusCode: 409, result: 'expired_order' });
 });
+
+
+test('identical verified webhook retries return duplicate without new approval', async () => {
+  let calls = 0;
+  const store = { async processVerifiedEvent() { calls++; return calls === 1 ? 'processed' : 'duplicate'; } };
+  const event = signed();
+  assert.deepEqual(await handleWompiWebhook(event, secret, 'sandbox', store),
+    { statusCode: 200, result: 'processed' });
+  assert.deepEqual(await handleWompiWebhook(event, secret, 'sandbox', store),
+    { statusCode: 200, result: 'duplicate' });
+  assert.equal(calls, 2);
+});
+
+test('valid event from production cannot be replayed into sandbox', async () => {
+  let calls = 0;
+  const store = { async processVerifiedEvent() { calls++; return 'processed'; } };
+  const event = signed();
+  event.environment = 'prod';
+  assert.deepEqual(await handleWompiWebhook(event, secret, 'sandbox', store),
+    { statusCode: 401, result: 'invalid_signature' });
+  assert.equal(calls, 0);
+});
+
+test('same event with forged checksum header is rejected before storage', async () => {
+  let calls = 0;
+  const store = { async processVerifiedEvent() { calls++; return 'processed'; } };
+  assert.deepEqual(await handleWompiWebhook(signed(), secret, 'sandbox', store, '0'.repeat(64)),
+    { statusCode: 401, result: 'invalid_signature' });
+  assert.equal(calls, 0);
+});
