@@ -83,3 +83,34 @@ begin
  end if;
 end;
 $audit$;
+
+
+-- Atomicity: a failed audit insert must roll back the subscription insert.
+insert into public.organizations(id,status)
+values ('77777777-7777-4777-8777-777777777777','ACTIVE');
+create function pg_temp.reject_audit_insert() returns trigger
+language plpgsql as $atomic$
+begin
+ if new.organization_id = '77777777-7777-4777-8777-777777777777'::uuid then
+   raise exception 'Simulated audit storage failure' using errcode = 'P0001';
+ end if;
+ return new;
+end;
+$atomic$;
+create trigger audit_failure_test before insert on public.platform_subscription_audit
+for each row execute function pg_temp.reject_audit_insert();
+select pg_temp.must_reject('audit insert failure rolls back contract',
+ 'select public.platform_set_subscription(''77777777-7777-4777-8777-777777777777'',''BASIC'',''SAAS_MONTHLY'',''SUSPENDED'')','P0001');
+do $atomic$
+begin
+ if exists (select 1 from public.subscriptions
+            where organization_id = '77777777-7777-4777-8777-777777777777') then
+   raise exception 'Orphaned subscription after failed audit';
+ end if;
+ if exists (select 1 from public.platform_subscription_audit
+            where organization_id = '77777777-7777-4777-8777-777777777777') then
+   raise exception 'Unexpected audit record after failed transaction';
+ end if;
+end;
+$atomic$;
+drop trigger audit_failure_test on public.platform_subscription_audit;
