@@ -76,7 +76,7 @@ CREATE OR REPLACE FUNCTION public.create_authorized_sandbox_payment_order(
  p_organization_id uuid, p_plan_code text, p_reference text
 ) RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
-AS $
+AS $$
 DECLARE
  v_plan public.plans%ROWTYPE;
  v_order_id uuid;
@@ -89,7 +89,7 @@ BEGIN
  IF (now() AT TIME ZONE 'America/Bogota')::date >= DATE '2027-01-01' THEN
    RAISE EXCEPTION 'Tax configuration required';
  END IF;
- IF p_reference !~ '^JCO_[a-f0-9]{32} THEN
+ IF p_reference !~ '^JCO_[a-f0-9]{32}$' THEN
    RAISE EXCEPTION 'Invalid order reference';
  END IF;
  -- Same tenant-scoped transaction lock used by revocation triggers.
@@ -124,7 +124,7 @@ BEGIN
  ) RETURNING id INTO v_order_id;
  RETURN v_order_id;
 END;
-$;
+$$;
 REVOKE ALL ON FUNCTION public.create_authorized_sandbox_payment_order(uuid,text,text)
  FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.create_authorized_sandbox_payment_order(uuid,text,text)
