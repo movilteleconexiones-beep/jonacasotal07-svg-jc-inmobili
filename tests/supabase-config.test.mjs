@@ -4,11 +4,16 @@ import { test } from 'node:test';
 
 const source = readFileSync(new URL('../src/lib/supabase.ts', import.meta.url), 'utf8');
 
-test('Supabase test overrides require a paired URL and publishable key', () => {
-  assert.match(source, /Boolean\(configuredUrl\) === Boolean\(configuredKey\)/);
+test('Supabase requires both explicitly configured public variables', () => {
+  assert.match(source, /Boolean\(configuredUrl && configuredKey\)/);
 });
 
-test('partial overrides fail closed instead of connecting to production', () => {
-  assert.match(source, /isSupabaseConfigured\s*\?\s*\(configuredUrl \|\| DEFAULT_SUPABASE_URL\)\s*:\s*'https:\/\/unconfigured\.invalid'/);
-  assert.match(source, /isSupabaseConfigured\s*\?\s*\(configuredKey \|\| DEFAULT_SUPABASE_PUBLISHABLE_KEY\)\s*:\s*'missing-paired-supabase-configuration'/);
+test('missing or partial configuration fails closed', () => {
+  assert.match(source, /isSupabaseConfigured \? configuredUrl! : 'https:\/\/unconfigured\.invalid'/);
+  assert.match(source, /isSupabaseConfigured \? configuredKey! : 'missing-supabase-configuration'/);
+});
+
+test('the browser client never silently targets official production', () => {
+  assert.doesNotMatch(source, /DEFAULT_SUPABASE_URL|DEFAULT_SUPABASE_PUBLISHABLE_KEY/);
+  assert.doesNotMatch(source, /nqzopzhmhqdssgpljypu/);
 });
