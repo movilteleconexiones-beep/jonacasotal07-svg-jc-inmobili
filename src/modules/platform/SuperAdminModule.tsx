@@ -15,6 +15,14 @@ interface OrganizationSummary {
   plan_name: string | null;
 }
 
+const CONTRACT_MODES: Record<string, string> = {
+  SAAS_MONTHLY: 'Mensual',
+  SAAS_ANNUAL: 'Anual',
+  LIFETIME: 'Licencia vitalicia',
+  DEDICATED: 'Dedicado',
+  CUSTOM: 'Personalizado',
+};
+
 export function SuperAdminModule() {
   const { user, loading: authLoading, isPlatformAdmin } = useAuth();
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
@@ -27,11 +35,11 @@ export function SuperAdminModule() {
   const activeCount = organizations.filter((org) => org.organization_status === 'ACTIVE').length;
   const inactiveCount = organizations.length - activeCount;
   const statuses = [...new Set(organizations.map((org) => org.organization_status).filter(Boolean))].sort();
-  const billingModes = [...new Set(organizations.map((org) => org.billing_mode).filter((mode): mode is string => Boolean(mode)))].sort();
+  const billingModes = [...new Set([...Object.keys(CONTRACT_MODES), ...organizations.map((org) => org.billing_mode).filter((mode): mode is string => Boolean(mode))])];
   const filteredOrganizations = organizations.filter((org) => {
     const query = search.trim().toLocaleLowerCase('es');
     const matchesSearch = !query || [org.organization_name, org.organization_slug, org.plan_name ?? ''].some((value) => value.toLocaleLowerCase('es').includes(query));
-    return matchesSearch && (statusFilter === 'ALL' || org.organization_status === statusFilter) && (billingFilter === 'ALL' || org.billing_mode === billingFilter);
+    return matchesSearch && (statusFilter === 'ALL' || org.organization_status === statusFilter) && (billingFilter === 'ALL' || (billingFilter === 'NONE' ? !org.billing_mode : org.billing_mode === billingFilter));
   });
 
   const refresh = useCallback(async () => {
@@ -102,7 +110,8 @@ export function SuperAdminModule() {
           <label className="text-sm font-medium">Modalidad de contrato
             <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3">
               <option value="ALL">Todos los contratos</option>
-              {billingModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+              <option value="NONE">Sin contrato</option>
+              {billingModes.map((mode) => <option key={mode} value={mode}>{CONTRACT_MODES[mode] ?? mode}</option>)}
             </select>
           </label>
         </section>
@@ -118,7 +127,7 @@ export function SuperAdminModule() {
                   <td className="p-4">{org.organization_slug}</td>
                   <td className="p-4"><span className={org.organization_status === 'ACTIVE' ? 'font-semibold text-emerald-700' : 'font-semibold text-slate-500'}>{org.organization_status === 'ACTIVE' ? 'Activa' : org.organization_status === 'INACTIVE' ? 'Inactiva' : org.organization_status}</span></td>
                   <td className="p-4">{org.plan_name ?? 'Sin plan'}</td>
-                  <td className="p-4">{org.billing_mode ?? 'Sin contrato'} · {org.subscription_status ?? 'Sin estado'}</td>
+                  <td className="p-4">{org.billing_mode ? (CONTRACT_MODES[org.billing_mode] ?? org.billing_mode) : 'Sin contrato'} · {org.subscription_status ?? 'Sin estado'}</td>
                   <td className="p-4">{org.member_count}</td>
                   <td className="p-4">{org.property_count}</td>
                   <td className="p-4">{org.created_at ? new Date(org.created_at).toLocaleDateString('es-CO') : '—'}</td>
