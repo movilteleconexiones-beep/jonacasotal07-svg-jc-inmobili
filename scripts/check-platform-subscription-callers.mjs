@@ -14,6 +14,7 @@ function visit(directory) {
       continue;
     }
     if (!entry.isFile() || !extensions.test(entry.name)) continue;
+    if (entry.name === 'check-platform-subscription-callers.mjs') continue;
     const path = join(directory, entry.name);
     const content = readFileSync(path, 'utf8');
     if (legacyRpc.test(content)) {
