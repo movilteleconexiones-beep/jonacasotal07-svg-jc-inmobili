@@ -29,4 +29,9 @@ GitHub Actions uses isolated PostgreSQL 17 and verifies draft insertion, denial 
 - The current panel is read-only and invokes supabase.rpc('platform_list_organizations'), not platform_set_subscription.
 - It displays organization_status, plan_name, billing_mode, and subscription_status but provides no activation, suspension, or contract-editing controls.
 - This verifies **only this component**. It does not establish that other modules, server handlers, or future clients never call the legacy RPC.
-- GitHub code search did not return a complete cross-branch caller inventory; a repository-wide local grep or source index is still a release gate.
+- A source-tree JavaScript/TypeScript caller inventory is now enforced by `scripts/check-platform-subscription-callers.mjs` in CI; run #223 passed with no direct application-source references. External clients, dynamically constructed names and SQL dependencies remain outside its scope.
+
+## Supabase grant parity test
+- The isolated PostgreSQL fixture now creates `anon` and `authenticated` before the migration and grants default CRUD privileges on future public tables to both roles.
+- The migration must explicitly revoke these grants on `platform_subscription_audit`; assertions verify the final API-role ACL. This prevents a misleading pass when roles are created only after the table.
+- The test is a deliberate simulation, not an assertion about the production project's exact default privileges.
