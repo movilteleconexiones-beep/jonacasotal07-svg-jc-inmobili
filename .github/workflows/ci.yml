@@ -67,6 +67,8 @@ jobs:
         run: node --test tests/wompi-atomic-order-sql.test.mjs
       - name: Billing revocation concurrency release-gate checks
         run: node --test tests/wompi-billing-revocation-contract.test.mjs
+      - name: Legacy platform subscription caller inventory
+        run: node scripts/check-platform-subscription-callers.mjs
       - name: Platform subscription RPC static security gates
         run: node --test tests/platform-subscription-rpc-static.test.mjs
       - name: Platform subscription SQL integration (isolated PostgreSQL)
