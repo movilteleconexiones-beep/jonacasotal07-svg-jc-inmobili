@@ -93,7 +93,9 @@ export function PropertiesModule() {
     const { error } = await supabase.from('properties').insert(payload);
 
     if (error) {
-      setMessage(error.message);
+      setMessage(error.code === '23505'
+        ? 'El código de esta propiedad ya está registrado en la inmobiliaria. Utiliza otro código.'
+        : error.message);
       return;
     }
 
