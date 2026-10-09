@@ -27,22 +27,23 @@ END $$;
 RESET ROLE;
 SQL
 # The authenticated database role without a JWT user must still be rejected.
+uid_log=$(mktemp)
+anon_log=$(mktemp)
+trap 'rm -f "$uid_log" "$anon_log"' EXIT
 set +e
-psql "$DB_URL" -v ON_ERROR_STOP=1 >/tmp/jco_onboarding_missing_uid_$.log 2>&1 <<'SQL'
+psql "$DB_URL" -v ON_ERROR_STOP=1 >"$uid_log" 2>&1 <<'SQL'
 SET ROLE authenticated;
 SELECT public.onboarding_execute_probe('Demo','demo','CO');
 SQL
 uid_status=$?
 set -e
-uid_log=/tmp/jco_onboarding_missing_uid_$.log
-trap 'rm -f "$uid_log"' EXIT
 if [[ "$uid_status" -eq 0 ]] || ! grep -q 'Authentication required' "$uid_log"; then
  cat "$uid_log" >&2
  echo 'FAIL: missing JWT user was not rejected' >&2
  exit 1
 fi
 set +e
-psql "$DB_URL" -v ON_ERROR_STOP=1 >/tmp/jco_onboarding_anon_$.log 2>&1 <<'SQL'
+psql "$DB_URL" -v ON_ERROR_STOP=1 >"$anon_log" 2>&1 <<'SQL'
 SET ROLE anon;
 SELECT public.onboarding_execute_probe('Demo','demo','CO');
 SQL
