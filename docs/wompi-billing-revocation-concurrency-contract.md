@@ -10,7 +10,7 @@ The transaction must then recheck auth.uid(), organization ACTIVE, active member
 
 ## Required independent validation
 
-1. Session A starts order creation, holds the lock; session B revokes billing.manage and blocks; after A commits, B revokes. The order's authorization must have been valid at its serialization point.
+1. Session A starts order creation, holds the lock; Session B revokes billing.manage and blocks; after A commits, B revokes. The order's authorization must have been valid at its serialization point.
 2. Session A revokes and holds the lock; session B attempts order creation and blocks; after A commits, B must fail without inserting an order.
 3. Repeat for DENY insertion, role permission removal, membership deactivation, organization suspension and role sharing across tenants.
 4. Verify concurrent duplicate reference insertion, lock ordering/deadlock handling, RLS, service-role restrictions, timeout/rate limits, audit logs, and rollbacks.
