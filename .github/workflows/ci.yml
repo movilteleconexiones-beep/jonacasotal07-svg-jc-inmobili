@@ -217,6 +217,13 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_atomicity_test"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_atomicity_test -f security/tests/onboarding_transaction_atomicity.sql
 
+      - name: Auth user membership cascade (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_auth_cascade_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_auth_cascade_test -f security/tests/fixtures/onboarding_auth_cascade.sql
+
       - name: Captured onboarding RPC smoke test (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
