@@ -86,7 +86,10 @@ export function LeadsModule() {
 
   async function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.LEADS_EDIT)) {
+      setMessage('No tienes permiso para crear oportunidades comerciales.');
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
     const budgetMin = String(form.get('budget_min') ?? '').trim();
@@ -119,7 +122,11 @@ export function LeadsModule() {
   }
 
   async function updateStatus(id: string, status: string) {
-    const { error } = await supabase.from('leads').update({ status }).eq('id', id);
+    if (!organizationId || !can(PERMISSIONS.LEADS_EDIT)) {
+      setMessage('No tienes permiso para actualizar oportunidades comerciales.');
+      return;
+    }
+    const { error } = await supabase.from('leads').update({ status }).eq('id', id).eq('organization_id', organizationId);
     if (error) setMessage(error.message);
     else await load();
   }
@@ -135,7 +142,7 @@ export function LeadsModule() {
           <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
             <RefreshCw className="h-4 w-4" /> Actualizar
           </button>
-          {(can(PERMISSIONS.LEADS_EDIT) || can(PERMISSIONS.CLIENTS_CREATE)) && (
+          {can(PERMISSIONS.LEADS_EDIT) && (
             <button type="button" onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
               <Plus className="h-4 w-4" /> Nuevo lead
             </button>
