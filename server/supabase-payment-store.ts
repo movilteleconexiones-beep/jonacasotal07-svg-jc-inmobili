@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { PaymentStore } from './wompi-webhook-handler.js';
 
-type PaymentResult = 'processed' | 'duplicate' | 'not_found' | 'mismatch' | 'conflict' | 'organization_inactive' | 'manual_review';
+type PaymentResult = 'processed' | 'duplicate' | 'not_found' | 'mismatch' | 'conflict' | 'organization_inactive' | 'manual_review' | 'expired_order';
 type RpcResponse = { data: string | null; error: { message: string } | null };
 export interface PaymentRpcClient {
   rpc(name: string, args: Record<string, unknown>): Promise<RpcResponse>;
@@ -34,7 +34,7 @@ export function createSupabasePaymentStore(client: PaymentRpcClient): PaymentSto
       if (error) throw new Error('Payment processing failed');
       if (data === 'processed' || data === 'duplicate' || data === 'not_found'
         || data === 'mismatch' || data === 'conflict'
-        || data === 'organization_inactive' || data === 'manual_review') return data;
+        || data === 'organization_inactive' || data === 'manual_review' || data === 'expired_order') return data;
       throw new Error('Unexpected payment processing result');
     },
   };
