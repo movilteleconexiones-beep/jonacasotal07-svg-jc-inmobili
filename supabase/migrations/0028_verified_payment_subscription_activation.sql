@@ -12,6 +12,7 @@ DECLARE
  v_order public.payment_orders%ROWTYPE;
  v_plan public.plans%ROWTYPE;
  v_existing public.subscriptions%ROWTYPE;
+ v_organization_status text;
  v_start timestamptz;
  v_end timestamptz;
 BEGIN
@@ -45,10 +46,16 @@ BEGIN
      OR v_order.billing_mode='LIFETIME'
    THEN RETURN 'mismatch'; END IF;
    -- Serialize subscription renewals for the tenant even across different orders.
-   PERFORM 1 FROM public.organizations WHERE id=v_order.organization_id FOR UPDATE;
+   SELECT status INTO v_organization_status FROM public.organizations
+     WHERE id=v_order.organization_id FOR UPDATE;
    IF NOT FOUND THEN RETURN 'not_found'; END IF;
+   -- A payment cannot reverse an administrative suspension.
+   IF v_organization_status <> 'ACTIVE' THEN RETURN 'organization_inactive'; END IF;
    SELECT * INTO v_existing FROM public.subscriptions
      WHERE organization_id=v_order.organization_id FOR UPDATE;
+   -- Lifetime and dedicated contracts must never be replaced by SaaS renewals.
+   IF FOUND AND (v_existing.billing_mode IN ('LIFETIME','DEDICATED','CUSTOM')
+      OR v_existing.status='LIFETIME') THEN RETURN 'manual_review'; END IF;
    v_start := greatest(now(),coalesce(v_existing.current_period_end,now()));
    v_end := CASE WHEN v_order.billing_mode='SAAS_MONTHLY'
      THEN v_start+interval '1 month' ELSE v_start+interval '1 year' END;
@@ -71,7 +78,7 @@ BEGIN
      plan_id=excluded.plan_id,status='ACTIVE',billing_mode=excluded.billing_mode,
      current_period_start=excluded.current_period_start,
      current_period_end=excluded.current_period_end,updated_at=now();
-   UPDATE public.organizations SET plan_id=v_order.plan_id,status='ACTIVE',updated_at=now()
+   UPDATE public.organizations SET plan_id=v_order.plan_id,updated_at=now()
      WHERE id=v_order.organization_id;
  END IF;
  RETURN 'processed';
