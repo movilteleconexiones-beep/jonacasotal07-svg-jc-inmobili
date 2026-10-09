@@ -63,6 +63,7 @@ export function getVerifiedWompiTransaction(payload: WompiEvent) {
   if (!isRecord(tx) || typeof tx.id !== 'string' || tx.id.trim().length === 0
     || tx.id.length > 256 || typeof tx.reference !== 'string'
     || !/^[A-Za-z0-9_-]{8,100}$/.test(tx.reference)
+    || typeof tx.amount_in_cents !== 'number'
     || !Number.isSafeInteger(tx.amount_in_cents) || tx.amount_in_cents <= 0
     || tx.currency !== 'COP' || typeof tx.status !== 'string') return null;
   if (!['PENDING', 'APPROVED', 'DECLINED', 'VOIDED', 'ERROR'].includes(tx.status)) return null;
