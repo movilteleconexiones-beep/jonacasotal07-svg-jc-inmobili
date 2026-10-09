@@ -154,6 +154,14 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_shared_role_lock_test"
           bash security/tests/billing_shared_role_lock.sh
 
+      - name: Role deletion cascade with foreign keys (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_cascade_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_cascade_test"
+          bash security/tests/billing_role_cascade_fixture.sh
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
