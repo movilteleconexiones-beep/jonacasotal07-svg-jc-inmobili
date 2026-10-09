@@ -49,10 +49,18 @@ export function PropertiesModule() {
 
   async function createProperty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.PROPERTIES_CREATE)) {
+      setMessage('No tienes permiso para crear propiedades.');
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
     const priceValue = String(form.get('price') ?? '').trim();
+    const parsedPrice = priceValue ? Number(priceValue) : null;
+    if (parsedPrice !== null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) {
+      setMessage('El precio debe ser un número válido mayor o igual a cero.');
+      return;
+    }
 
     const payload = {
       organization_id: organizationId,
@@ -62,7 +70,7 @@ export function PropertiesModule() {
       operation_type: String(form.get('operation_type') ?? 'SALE'),
       property_type: String(form.get('property_type') ?? '').trim(),
       status: 'AVAILABLE',
-      price: priceValue ? Number(priceValue) : null,
+      price: parsedPrice,
       currency: String(form.get('currency') ?? 'COP'),
       city: String(form.get('city') ?? '').trim() || null,
       neighborhood: String(form.get('neighborhood') ?? '').trim() || null,

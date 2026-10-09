@@ -126,14 +126,14 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       rentalYieldPct: benchmark.avgYieldPct,
       image: HERO_IMAGE,
       secondaryImage: propSolaresHouse,
-      legalStatus: `Expediente en revisión documental por ${branding.companyName} y/o proveedor profesional autorizado`,
+      legalStatus: `Información suministrada por el usuario; revisión documental no iniciada`,
       architecturalSummary:
         summary.trim() ||
-        `Propiedad consignada en ${locality}, ${region}, ${configuredCountry.name} bajo gestión de ${branding.companyName}. Cuenta con revisión documental en curso y disponibilidad para citas.`,
+        `Ficha preliminar creada localmente para una propiedad en ${locality}, ${region}, ${configuredCountry.name}. No se ha solicitado revisión documental ni confirmado disponibilidad para citas.`,
       highlights: [
         `Ubicación estratégica en ${locality}, ${region}`,
-        `Revisión documental y valoración comercial gestionadas por ${branding.companyName} y/o proveedor autorizado`,
-        `Promoción multicanal en portales especializados en ${configuredCountry.name}`
+        `Revisión documental y valoración comercial pendientes de contratación y verificación`,
+        `Publicación externa pendiente de aprobación y configuración`
       ],
       domoticsAndMaintenance: [
         `Servicios de mantenimiento sujetos a contratación y condiciones de ${branding.companyName} o su proveedor`,
@@ -185,13 +185,13 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
             <CheckCircle2 className="w-10 h-10 text-[#14532D] mx-auto" />
             <div className="space-y-2">
               <p className="text-xs font-mono-tabular text-stone-500">
-                EXPEDIENTE REGISTRADO · CLAVE {createdCode}
+                FICHA TEMPORAL · CLAVE {createdCode}
               </p>
               <h3 className="text-2xl font-semibold text-slate-900">
-                Propiedad Incorporada al Catálogo Activo
+                Propiedad visible en este navegador
               </h3>
               <p className="text-sm text-slate-600 max-w-md mx-auto">
-                Tu propiedad en <strong>{locality}, {region}</strong> ya aparece publicada en el catálogo interactivo y ha sido asignada a un asesor para validación documental.
+                La ficha de <strong>{locality}, {region}</strong> aparece en el catálogo de esta sesión. No se ha guardado en la base de datos, publicado externamente ni asignado a un asesor. Se perderá al recargar la página.
               </p>
             </div>
             <div className="pt-2">
@@ -475,7 +475,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 type="submit"
                 className="px-5 py-2.5 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
               >
-                Registrar y Publicar Inmueble
+                Agregar ficha temporal al catálogo
               </button>
             </div>
           </form>

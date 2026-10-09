@@ -113,6 +113,126 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f supabase/migrations/0031_tenant_billing_authorization_draft.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_assertions.sql
 
+      - name: Billing advisory-lock two-session integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_billing_lock_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_lock_test"
+          bash security/tests/billing_lock_concurrency.sh
+
+      - name: Role revocation negative security test (expected failure on 0033)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_negative_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_negative_test"
+          set +e
+          bash security/tests/billing_role_revocation_negative.sh > /tmp/jco_role_negative.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/jco_role_negative.log
+          if [ "$status" -ne 1 ] || ! grep -q "FAIL SECURITY: role grant revocation bypassed" /tmp/jco_role_negative.log; then
+            echo "Expected security regression not reproduced (or fixture failed)" >&2
+            exit 1
+          fi
+          echo "Confirmed expected role-revocation bypass in draft 0033; deployment remains blocked"
+
+      - name: Candidate role revocation lock test (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_candidate_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_candidate_test"
+          bash security/tests/billing_role_revocation_candidate.sh
+
+      - name: Shared role multi-tenant lock test (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_shared_role_lock_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_shared_role_lock_test"
+          bash security/tests/billing_shared_role_lock.sh
+
+      - name: Role deletion cascade with foreign keys (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_cascade_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_cascade_test"
+          bash security/tests/billing_role_cascade_fixture.sh
+
+      - name: Inactive role permission regression (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_inactive_role_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_inactive_role_test"
+          bash security/tests/inactive_role_permission.sh
+
+      - name: Role deactivation transaction lock (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_deactivation_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_deactivation_test"
+          bash security/tests/role_deactivation_concurrency.sh
+
+      - name: Cross-tenant role boundary predicate (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_boundary_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_boundary_test"
+          bash security/tests/role_tenant_boundary.sh
+
+      - name: Cross-tenant role assignment RLS negative reproduction (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_rls_negative_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_rls_negative_test"
+          bash security/tests/role_cross_tenant_rls_negative.sh
+
+      - name: Cross-tenant role assignment RLS fix (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_rls_positive_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_rls_positive_test"
+          bash security/tests/role_cross_tenant_rls_positive.sh
+
+      - name: Onboarding EXECUTE permissions probe (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_onboarding_probe_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_probe_test"
+          bash security/tests/onboarding_execute_probe.sh
+
+      - name: Onboarding transaction rollback fixture (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_atomicity_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_atomicity_test -f security/tests/onboarding_transaction_atomicity.sql
+
+      - name: Auth user membership cascade (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_auth_cascade_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_auth_cascade_test -f security/tests/fixtures/onboarding_auth_cascade.sql
+
+      - name: Captured onboarding RPC smoke test (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_rpc_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_rpc_test -f security/tests/fixtures/onboarding_real_rpc_schema.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_rpc_test -f security/tests/fixtures/production_create_organization_with_owner.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_rpc_test -f security/tests/fixtures/onboarding_rpc_smoke.sql
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
