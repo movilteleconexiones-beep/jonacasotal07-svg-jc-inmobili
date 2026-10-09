@@ -55,7 +55,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
     }
     const today = new Date();
     const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(visitDate) || visitDate < localToday || new Date(`${visitDate}T12:00:00`).toString() === 'Invalid Date') {
+    const parsedVisitDate = new Date(`${visitDate}T12:00:00`);
+    const parsedDateMatches = Number.isFinite(parsedVisitDate.getTime()) &&
+      `${parsedVisitDate.getFullYear()}-${String(parsedVisitDate.getMonth() + 1).padStart(2, '0')}-${String(parsedVisitDate.getDate()).padStart(2, '0')}` === visitDate;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(visitDate) || !parsedDateMatches || visitDate < localToday) {
       setFormError('Selecciona una fecha válida que no sea anterior a hoy.');
       return;
     }
