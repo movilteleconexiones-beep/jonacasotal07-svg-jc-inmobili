@@ -1079,9 +1079,9 @@ export default function App() {
                       <span className="font-mono-tabular">{contactPhone}</span> y al correo{' '}
                       <span className="font-mono-tabular">{contactEmail}</span>. Comunícate mediante los datos de contacto publicados para solicitar atención.
                     </p>
-                    {branding.email && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(branding.email) && (
+                    {branding.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email) && (
                       <a
-                        href={`mailto:${branding.email}?subject=${encodeURIComponent(`Consulta web: ${contactService}`)}&body=${encodeURIComponent(`Nombre: ${contactName.trim()}\\nCorreo: ${contactEmail.trim()}\\nTeléfono: ${contactPhone.trim()}\\nServicio: ${contactService}\\nMensaje: ${contactNotes.trim()}`)}`}
+                        href={`mailto:${branding.email}?subject=${encodeURIComponent(`Consulta web: ${contactService}`)}&body=${encodeURIComponent(`Nombre: ${contactName.trim()}\nCorreo: ${contactEmail.trim()}\nTeléfono: ${contactPhone.trim()}\nServicio: ${contactService}\nMensaje: ${contactNotes.trim()}`)}`}
                         className="inline-flex items-center justify-center px-4 py-2 bg-[#0F2942] text-white text-xs font-medium rounded-lg"
                       >
                         Abrir mi correo para enviar la consulta
