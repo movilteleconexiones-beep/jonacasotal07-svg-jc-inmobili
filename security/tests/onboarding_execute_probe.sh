@@ -41,7 +41,6 @@ if [[ "$uid_status" -eq 0 ]] || ! grep -q 'Authentication required' "$uid_log"; 
  echo 'FAIL: missing JWT user was not rejected' >&2
  exit 1
 fi
-rm -f "$uid_log"
 set +e
 psql "$DB_URL" -v ON_ERROR_STOP=1 >/tmp/jco_onboarding_anon_$.log 2>&1 <<'SQL'
 SET ROLE anon;
@@ -49,10 +48,8 @@ SELECT public.onboarding_execute_probe('Demo','demo','CO');
 SQL
 status=$?
 set -e
-log=/tmp/jco_onboarding_anon_$$.log
-trap 'rm -f "$log"' EXIT
-if [[ "$status" -eq 0 ]] || ! grep -q 'permission denied for function onboarding_execute_probe' "$log"; then
- cat "$log" >&2
+if [[ "$status" -eq 0 ]] || ! grep -q 'permission denied for function onboarding_execute_probe' "$anon_log"; then
+ cat "$anon_log" >&2
  echo 'FAIL: anonymous function execution was not denied' >&2
  exit 1
 fi
