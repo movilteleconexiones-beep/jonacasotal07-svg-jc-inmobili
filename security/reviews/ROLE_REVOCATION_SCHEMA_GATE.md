@@ -26,3 +26,17 @@ Status: NOT APPROVED FOR PRODUCTION.
 - A concurrent two-session shared-role test was attempted but its repository write was blocked; it is **not** part of CI and must not be reported as passed.
 
 **Release decision:** continue in draft PR #57 only. No production migration, merge, or real payments until the remaining gates are independently validated.
+
+## Production FK verification (read-only, phase 76)
+
+Read-only catalog query against the official Supabase project confirmed these `ON DELETE CASCADE` relationships:
+
+| Source | Referenced table | Delete behavior |
+| --- | --- | --- |
+| `member_roles.organization_member_id` | `organization_members` | CASCADE |
+| `member_roles.role_id` | `roles` | CASCADE |
+| `role_permissions.permission_id` | `permissions` | CASCADE |
+| `role_permissions.role_id` | `roles` | CASCADE |
+| `roles.organization_id` | `organizations` | CASCADE |
+
+Implication: deleting a role, permission, organization, or membership may transitively alter effective billing authorization. Each path needs a transaction-ordering review; do not infer safety from the role-delete fixture alone. No production changes were made.
