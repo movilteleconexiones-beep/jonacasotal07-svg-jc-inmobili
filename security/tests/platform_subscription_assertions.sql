@@ -237,3 +237,28 @@ begin
 end;
 $unchanged$;
 select 'PASS: actual API role denial and authorized RPC retry' as result;
+
+-- Baseline: without audit evidence the production FK really cascades.
+-- The audited organization above must fail because of retention protection,
+-- rather than because the fixture omitted ON DELETE CASCADE.
+begin;
+insert into public.organizations(id,status)
+values ('88888888-8888-4888-8888-888888888888','ACTIVE');
+insert into public.subscriptions(organization_id,plan_id,status,billing_mode)
+values ('88888888-8888-4888-8888-888888888888',
+        '33333333-3333-4333-8333-333333333333','SUSPENDED','SAAS_MONTHLY');
+delete from public.organizations where id='88888888-8888-4888-8888-888888888888';
+do $cascade$
+begin
+  if exists (select 1 from public.subscriptions
+             where organization_id='88888888-8888-4888-8888-888888888888') then
+    raise exception 'Production subscription cascade was not reproduced';
+  end if;
+  if (select count(*) from public.subscriptions) <> 1
+     or (select count(*) from public.platform_subscription_audit) <> 1 then
+    raise exception 'Cascade baseline changed audited records';
+  end if;
+end;
+$cascade$;
+rollback;
+select 'PASS: unaudited cascade and audited deletion restriction' as result;
