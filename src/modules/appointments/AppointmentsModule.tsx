@@ -61,8 +61,8 @@ export function AppointmentsModule() {
     const endsAt = String(form.get('ends_at') ?? '').trim();
     const startsAtDate = new Date(String(form.get('starts_at') ?? ''));
     const endsAtDate = endsAt ? new Date(endsAt) : null;
-    if (!Number.isFinite(startsAtDate.getTime()) || (endsAtDate && (!Number.isFinite(endsAtDate.getTime()) || endsAtDate <= startsAtDate))) {
-      setMessage('Verifica las fechas: el inicio debe ser válido y el fin posterior al inicio.');
+    if (!Number.isFinite(startsAtDate.getTime()) || startsAtDate.getTime() < Date.now() || (endsAtDate && (!Number.isFinite(endsAtDate.getTime()) || endsAtDate <= startsAtDate))) {
+      setMessage('Verifica las fechas: el inicio no puede estar en el pasado y el fin debe ser posterior al inicio.');
       return;
     }
 
