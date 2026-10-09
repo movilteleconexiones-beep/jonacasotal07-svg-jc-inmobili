@@ -25,7 +25,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const [activePhotoIndex, setActivePhotoIndex] = useState<0 | 1>(0);
   const [visitorName, setVisitorName] = useState('');
   const [visitorPhone, setVisitorPhone] = useState('');
-  const [visitDate, setVisitDate] = useState('2026-10-08');
+  const [visitDate, setVisitDate] = useState('');
   const [visitModality, setVisitModality] = useState<'Recorrido en Propiedad' | 'Cita en oficina principal' | 'Videollamada Ejecutiva'>('Recorrido en Propiedad');
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
@@ -51,6 +51,12 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
     const phoneDigits = visitorPhone.replace(/\D/g, '');
     if (phoneDigits.length < 7 || phoneDigits.length > 15) {
       setFormError('Ingresa un teléfono válido con código de país cuando corresponda.');
+      return;
+    }
+    const today = new Date();
+    const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(visitDate) || visitDate < localToday || new Date(`${visitDate}T12:00:00`).toString() === 'Invalid Date') {
+      setFormError('Selecciona una fecha válida que no sea anterior a hoy.');
       return;
     }
     setFormError('');
