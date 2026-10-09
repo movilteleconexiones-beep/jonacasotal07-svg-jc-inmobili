@@ -22,3 +22,11 @@ The proposed RPC intentionally stops changing organizations.plan_id and organiza
 
 ## CI scope
 GitHub Actions uses isolated PostgreSQL 17 and verifies draft insertion, denial of activation, idempotency, concurrency, atomic audit rollback, role access checks, and audit FK deletion restrictions. It does not test all real Supabase extensions, production triggers, grants, or existing application callers.
+
+
+## Frontend review (2026-10-09)
+- Inspected src/modules/platform/SuperAdminModule.tsx on this PR branch.
+- The current panel is read-only and invokes supabase.rpc('platform_list_organizations'), not platform_set_subscription.
+- It displays organization_status, plan_name, billing_mode, and subscription_status but provides no activation, suspension, or contract-editing controls.
+- This verifies **only this component**. It does not establish that other modules, server handlers, or future clients never call the legacy RPC.
+- GitHub code search did not return a complete cross-branch caller inventory; a repository-wide local grep or source index is still a release gate.
