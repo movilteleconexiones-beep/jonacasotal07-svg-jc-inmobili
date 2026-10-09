@@ -28,10 +28,11 @@ export function SuperAdminModule() {
   const inactiveCount = organizations.length - activeCount;
   const statuses = [...new Set(organizations.map((org) => org.organization_status).filter(Boolean))].sort();
   const billingModes = [...new Set(organizations.map((org) => org.billing_mode).filter((mode): mode is string => Boolean(mode)))].sort();
+  const hasOrganizationsWithoutContract = organizations.some((org) => !org.billing_mode);
   const filteredOrganizations = organizations.filter((org) => {
     const query = search.trim().toLocaleLowerCase('es');
     const matchesSearch = !query || [org.organization_name, org.organization_slug, org.plan_name ?? ''].some((value) => value.toLocaleLowerCase('es').includes(query));
-    return matchesSearch && (statusFilter === 'ALL' || org.organization_status === statusFilter) && (billingFilter === 'ALL' || org.billing_mode === billingFilter);
+    return matchesSearch && (statusFilter === 'ALL' || org.organization_status === statusFilter) && (billingFilter === 'ALL' || (billingFilter === 'NONE' ? !org.billing_mode : org.billing_mode === billingFilter));
   });
 
   const refresh = useCallback(async () => {
@@ -102,10 +103,12 @@ export function SuperAdminModule() {
           <label className="text-sm font-medium">Modalidad de contrato
             <select value={billingFilter} onChange={(event) => setBillingFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3">
               <option value="ALL">Todos los contratos</option>
+              {hasOrganizationsWithoutContract && <option value="NONE">Sin contrato</option>}
               {billingModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
             </select>
           </label>
         </section>
+        {billingModes.length === 0 && !loading && !error && <p className="mt-2 text-sm text-slate-500">Todavía no hay modalidades de contrato asignadas a las inmobiliarias registradas.</p>}
         <p className="mt-3 text-sm text-slate-600" aria-live="polite">Mostrando {filteredOrganizations.length} de {organizations.length} inmobiliarias</p>
         {error && <p role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
         <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
