@@ -1,6 +1,23 @@
 -- INMOJCO: hardened platform subscription assignment.
 -- REVIEW ONLY. Apply in an isolated Supabase branch after security tests.
 -- Preserves the RPC signature for existing clients.
+-- Append-only record for manual, non-entitled contract drafts.
+-- No billing activation or payment verification is implied by this record.
+create table if not exists public.platform_subscription_audit (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id),
+  subscription_id uuid not null references public.subscriptions(id),
+  actor_id uuid not null,
+  action text not null check (action = 'CREATE_NON_ENTITLED_DRAFT'),
+  plan_id uuid not null references public.plans(id),
+  billing_mode text not null,
+  subscription_status text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.platform_subscription_audit enable row level security;
+revoke all on public.platform_subscription_audit from public;
+-- No client-facing policies: access requires a separately reviewed admin read API.
+
 create or replace function public.platform_set_subscription(
   target_org uuid,
   target_plan_code text,
@@ -17,6 +34,7 @@ declare
   existing_subscription public.subscriptions%rowtype;
   target_org_status text;
   period_end timestamptz;
+  created_subscription_id uuid;
 begin
   if auth.uid() is null or not public.is_platform_admin() then
     raise exception 'Permission denied' using errcode = '42501';
@@ -98,6 +116,14 @@ begin
   ) values (
     target_org, target_plan_id, target_status, target_billing_mode,
     null, period_end, now()
+  ) returning id into created_subscription_id;
+
+  insert into public.platform_subscription_audit (
+    organization_id, subscription_id, actor_id, action,
+    plan_id, billing_mode, subscription_status
+  ) values (
+    target_org, created_subscription_id, auth.uid(), 'CREATE_NON_ENTITLED_DRAFT',
+    target_plan_id, target_billing_mode, target_status
   );
   -- Do not modify organizations.status: administrative and commercial status are separate.
 end;
