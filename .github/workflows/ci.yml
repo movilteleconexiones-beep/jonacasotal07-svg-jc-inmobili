@@ -55,3 +55,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d jco_security_test -f security/tests/member_roles_rls_test.sql
+
+      - name: Payment SQL integration tests (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_payment_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f security/tests/payment_staging_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0026_payment_orders_wompi_sandbox.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0027_process_verified_payment_events.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0028_verified_payment_subscription_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f security/tests/payment_staging_assertions.sql
