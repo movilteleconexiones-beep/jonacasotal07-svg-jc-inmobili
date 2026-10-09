@@ -44,16 +44,37 @@ export function ContactsModule() {
 
   async function createContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.CLIENTS_CREATE)) {
+      setMessage('No tienes permiso para crear contactos.');
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
+    const email = String(form.get('email') ?? '').trim();
+    const phone = String(form.get('phone') ?? '').trim();
+    const whatsapp = String(form.get('whatsapp') ?? '').trim();
+    if (!email && !phone && !whatsapp) {
+      setMessage('Ingresa al menos un medio de contacto: correo, teléfono o WhatsApp.');
+      return;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setMessage('Ingresa un correo electrónico válido.');
+      return;
+    }
+    for (const number of [phone, whatsapp]) {
+      const length = number.replace(/\D/g, '').length;
+      if (number && (length < 7 || length > 15)) {
+        setMessage('Los teléfonos deben contener entre 7 y 15 dígitos.');
+        return;
+      }
+    }
     const payload = {
       organization_id: organizationId,
       first_name: String(form.get('first_name') ?? '').trim(),
       last_name: String(form.get('last_name') ?? '').trim() || null,
-      email: String(form.get('email') ?? '').trim() || null,
-      phone: String(form.get('phone') ?? '').trim() || null,
-      whatsapp: String(form.get('whatsapp') ?? '').trim() || null,
+      email: email || null,
+      phone: phone || null,
+      whatsapp: whatsapp || null,
       source: String(form.get('source') ?? 'MANUAL'),
       notes: String(form.get('notes') ?? '').trim() || null,
       assigned_agent_id: user.id,
