@@ -110,3 +110,12 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f supabase/migrations/0031_tenant_billing_authorization_draft.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_assertions.sql
+
+      - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_atomic_order_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f security/tests/atomic_order_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f supabase/migrations/0032_atomic_sandbox_payment_order_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f security/tests/atomic_order_assertions.sql
