@@ -1,0 +1,132 @@
+-- DRAFT ONLY: transactional serialization of billing authorization changes.
+-- Must be tested in isolated PostgreSQL and reviewed staging before any deployment.
+BEGIN;
+CREATE OR REPLACE FUNCTION public.lock_tenant_billing_authorization(target_org uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+ IF target_org IS NULL THEN RAISE EXCEPTION 'Missing organization'; END IF;
+ -- UUID-derived advisory transaction lock. Collision only serializes extra tenants.
+ PERFORM pg_advisory_xact_lock(hashtextextended(target_org::text, 743821));
+END;
+$$;
+REVOKE ALL ON FUNCTION public.lock_tenant_billing_authorization(uuid) FROM PUBLIC,anon,authenticated;
+
+-- Acquire the identical lock before any change to member permissions or role assignments.
+-- Trigger obtains organization from the existing membership; DELETE uses OLD.
+CREATE OR REPLACE FUNCTION public.serialize_member_billing_authorization()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+DECLARE v_old_org uuid; v_new_org uuid;
+BEGIN
+ IF TG_OP IN ('UPDATE','DELETE') THEN
+  SELECT organization_id INTO v_old_org FROM public.organization_members
+   WHERE id=OLD.organization_member_id;
+ END IF;
+ IF TG_OP IN ('UPDATE','INSERT') THEN
+  SELECT organization_id INTO v_new_org FROM public.organization_members
+   WHERE id=NEW.organization_member_id;
+ END IF;
+ IF v_old_org IS NULL AND TG_OP IN ('UPDATE','DELETE') THEN
+  RAISE EXCEPTION 'Billing authorization membership not found (old)';
+ END IF;
+ IF v_new_org IS NULL AND TG_OP IN ('UPDATE','INSERT') THEN
+  RAISE EXCEPTION 'Billing authorization membership not found (new)';
+ END IF;
+ -- Ordered acquisition prevents cross-organization deadlocks on reassignment.
+ IF v_old_org IS NOT NULL AND v_new_org IS NOT NULL AND v_old_org<>v_new_org THEN
+  PERFORM public.lock_tenant_billing_authorization(least(v_old_org,v_new_org));
+  PERFORM public.lock_tenant_billing_authorization(greatest(v_old_org,v_new_org));
+ ELSE
+  PERFORM public.lock_tenant_billing_authorization(coalesce(v_old_org,v_new_org));
+ END IF;
+ RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+DROP TRIGGER IF EXISTS serialize_member_permissions_billing ON public.member_permissions;
+CREATE TRIGGER serialize_member_permissions_billing
+ BEFORE INSERT OR UPDATE OR DELETE ON public.member_permissions
+ FOR EACH ROW EXECUTE FUNCTION public.serialize_member_billing_authorization();
+DROP TRIGGER IF EXISTS serialize_member_roles_billing ON public.member_roles;
+CREATE TRIGGER serialize_member_roles_billing
+ BEFORE INSERT OR UPDATE OR DELETE ON public.member_roles
+ FOR EACH ROW EXECUTE FUNCTION public.serialize_member_billing_authorization();
+
+-- Membership deactivation must also serialize with order creation.
+CREATE OR REPLACE FUNCTION public.serialize_membership_billing_authorization()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+ IF TG_OP='UPDATE' AND OLD.organization_id IS DISTINCT FROM NEW.organization_id THEN
+  PERFORM public.lock_tenant_billing_authorization(least(OLD.organization_id,NEW.organization_id));
+  PERFORM public.lock_tenant_billing_authorization(greatest(OLD.organization_id,NEW.organization_id));
+ ELSE
+  PERFORM public.lock_tenant_billing_authorization(CASE WHEN TG_OP='DELETE' THEN OLD.organization_id ELSE NEW.organization_id END);
+ END IF;
+ RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+DROP TRIGGER IF EXISTS serialize_organization_members_billing ON public.organization_members;
+CREATE TRIGGER serialize_organization_members_billing
+ BEFORE INSERT OR UPDATE OR DELETE ON public.organization_members
+ FOR EACH ROW EXECUTE FUNCTION public.serialize_membership_billing_authorization();
+
+-- IMPORTANT: role_permissions and organizations changes are NOT YET protected.
+-- Shared roles and lock ordering need independent review; DO NOT DEPLOY.
+
+-- Replace order RPC only after shared lock function and revocation triggers exist.
+CREATE OR REPLACE FUNCTION public.create_authorized_sandbox_payment_order(
+ p_organization_id uuid, p_plan_code text, p_reference text
+) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+ v_plan public.plans%ROWTYPE;
+ v_order_id uuid;
+ v_billing_mode text;
+BEGIN
+ IF auth.uid() IS NULL OR auth.role() IS DISTINCT FROM 'authenticated' THEN
+   RAISE EXCEPTION 'Not authenticated';
+ END IF;
+ -- Never create new paid orders after the approved 2026 tax policy expires.
+ IF (now() AT TIME ZONE 'America/Bogota')::date >= DATE '2027-01-01' THEN
+   RAISE EXCEPTION 'Tax configuration required';
+ END IF;
+ IF p_reference !~ '^JCO_[a-f0-9]{32}$' THEN
+   RAISE EXCEPTION 'Invalid order reference';
+ END IF;
+ -- Same tenant-scoped transaction lock used by revocation triggers.
+ PERFORM public.lock_tenant_billing_authorization(p_organization_id);
+ -- Serialize with organization suspension and membership/permission revocation.
+ PERFORM 1 FROM public.organizations
+   WHERE id=p_organization_id AND status='ACTIVE' FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Inactive or unknown organization'; END IF;
+ IF NOT EXISTS (
+   SELECT 1 FROM public.organization_members
+   WHERE organization_id=p_organization_id AND user_id=auth.uid() AND status='ACTIVE'
+   FOR SHARE
+ ) OR NOT public.has_org_permission(p_organization_id,'billing.manage') THEN
+   RAISE EXCEPTION 'Billing permission denied';
+ END IF;
+ -- Billing permission must not be inferred from settings.edit or role labels.
+ -- Lock explicit overrides/role assignments at the application transaction boundary
+ -- before enabling this RPC in production (see release gate).
+ SELECT * INTO v_plan FROM public.plans
+   WHERE code=p_plan_code AND active=true AND currency='COP'
+     AND price>0 AND billing_cycle IN ('MONTHLY','ANNUAL')
+   FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Plan unavailable'; END IF;
+ v_billing_mode := CASE WHEN v_plan.billing_cycle='MONTHLY'
+   THEN 'SAAS_MONTHLY' ELSE 'SAAS_ANNUAL' END;
+ INSERT INTO public.payment_orders(
+   organization_id,plan_id,billing_mode,provider,environment,
+   reference,amount_in_cents,currency,status,expires_at
+ ) VALUES (
+   p_organization_id,v_plan.id,v_billing_mode,'WOMPI','sandbox',
+   p_reference,(v_plan.price*100)::bigint,'COP','PENDING',now()+interval '30 minutes'
+ ) RETURNING id INTO v_order_id;
+ RETURN v_order_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.create_authorized_sandbox_payment_order(uuid,text,text)
+ FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.create_authorized_sandbox_payment_order(uuid,text,text)
+ TO authenticated;
+COMMIT;

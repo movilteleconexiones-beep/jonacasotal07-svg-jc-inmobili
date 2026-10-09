@@ -113,6 +113,14 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f supabase/migrations/0031_tenant_billing_authorization_draft.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_assertions.sql
 
+      - name: Billing advisory-lock two-session integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_billing_lock_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_lock_test"
+          bash security/tests/billing_lock_concurrency.sh
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
