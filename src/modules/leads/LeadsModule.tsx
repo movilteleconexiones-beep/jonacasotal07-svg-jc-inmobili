@@ -86,22 +86,41 @@ export function LeadsModule() {
 
   async function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.LEADS_EDIT)) {
+      setMessage('No tienes permiso para crear oportunidades comerciales.');
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
     const budgetMin = String(form.get('budget_min') ?? '').trim();
     const budgetMax = String(form.get('budget_max') ?? '').trim();
     const propertyId = String(form.get('property_id') ?? '').trim();
+    const contactId = String(form.get('contact_id') ?? '').trim();
+    const minValue = budgetMin ? Number(budgetMin) : null;
+    const maxValue = budgetMax ? Number(budgetMax) : null;
+    if (!contactId || !contacts.some((contact) => contact.id === contactId)) {
+      setMessage('Selecciona un contacto válido de esta inmobiliaria.');
+      return;
+    }
+    if (propertyId && !properties.some((property) => property.id === propertyId)) {
+      setMessage('Selecciona una propiedad válida de esta inmobiliaria.');
+      return;
+    }
+    if ([minValue, maxValue].some((value) => value !== null && (!Number.isFinite(value) || value < 0)) ||
+        (minValue !== null && maxValue !== null && minValue > maxValue)) {
+      setMessage('El presupuesto debe ser válido, no negativo y el mínimo no puede superar al máximo.');
+      return;
+    }
 
     const { error } = await supabase.from('leads').insert({
       organization_id: organizationId,
-      contact_id: String(form.get('contact_id') ?? ''),
+      contact_id: contactId,
       property_id: propertyId || null,
       assigned_agent_id: user.id,
       status: 'NEW',
       priority: String(form.get('priority') ?? 'MEDIUM'),
-      budget_min: budgetMin ? Number(budgetMin) : null,
-      budget_max: budgetMax ? Number(budgetMax) : null,
+      budget_min: minValue,
+      budget_max: maxValue,
       desired_operation: String(form.get('desired_operation') ?? '').trim() || null,
       notes: String(form.get('notes') ?? '').trim() || null,
       created_by: user.id,
@@ -119,7 +138,11 @@ export function LeadsModule() {
   }
 
   async function updateStatus(id: string, status: string) {
-    const { error } = await supabase.from('leads').update({ status }).eq('id', id);
+    if (!organizationId || !can(PERMISSIONS.LEADS_EDIT)) {
+      setMessage('No tienes permiso para actualizar oportunidades comerciales.');
+      return;
+    }
+    const { error } = await supabase.from('leads').update({ status }).eq('id', id).eq('organization_id', organizationId);
     if (error) setMessage(error.message);
     else await load();
   }
@@ -135,7 +158,7 @@ export function LeadsModule() {
           <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
             <RefreshCw className="h-4 w-4" /> Actualizar
           </button>
-          {(can(PERMISSIONS.LEADS_EDIT) || can(PERMISSIONS.CLIENTS_CREATE)) && (
+          {can(PERMISSIONS.LEADS_EDIT) && (
             <button type="button" onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
               <Plus className="h-4 w-4" /> Nuevo lead
             </button>

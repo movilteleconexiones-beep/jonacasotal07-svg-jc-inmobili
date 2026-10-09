@@ -52,10 +52,19 @@ export function AppointmentsModule() {
 
   async function createAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.APPOINTMENTS_CREATE)) {
+      setMessage('No tienes permiso para crear citas.');
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const propertyId = String(form.get('property_id') ?? '').trim();
     const endsAt = String(form.get('ends_at') ?? '').trim();
+    const startsAtDate = new Date(String(form.get('starts_at') ?? ''));
+    const endsAtDate = endsAt ? new Date(endsAt) : null;
+    if (!Number.isFinite(startsAtDate.getTime()) || startsAtDate.getTime() < Date.now() || (endsAtDate && (!Number.isFinite(endsAtDate.getTime()) || endsAtDate <= startsAtDate))) {
+      setMessage('Verifica las fechas: el inicio no puede estar en el pasado y el fin debe ser posterior al inicio.');
+      return;
+    }
 
     const { error } = await supabase.from('appointments').insert({
       organization_id: organizationId,
@@ -64,8 +73,8 @@ export function AppointmentsModule() {
       assigned_user_id: user.id,
       appointment_type: String(form.get('appointment_type') ?? 'VISIT'),
       status: 'SCHEDULED',
-      starts_at: new Date(String(form.get('starts_at'))).toISOString(),
-      ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+      starts_at: startsAtDate.toISOString(),
+      ends_at: endsAtDate ? endsAtDate.toISOString() : null,
       location: String(form.get('location') ?? '').trim() || null,
       notes: String(form.get('notes') ?? '').trim() || null,
       created_by: user.id,
@@ -83,7 +92,11 @@ export function AppointmentsModule() {
   }
 
   async function updateStatus(id: string, status: string) {
-    const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+    if (!organizationId || !can(PERMISSIONS.APPOINTMENTS_EDIT)) {
+      setMessage('No tienes permiso para modificar citas.');
+      return;
+    }
+    const { error } = await supabase.from('appointments').update({ status }).eq('id', id).eq('organization_id', organizationId);
     if (error) setMessage(error.message);
     else await load();
   }

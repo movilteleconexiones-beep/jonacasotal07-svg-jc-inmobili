@@ -49,20 +49,39 @@ export function PropertiesModule() {
 
   async function createProperty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.PROPERTIES_CREATE)) {
+      setMessage('No tienes permiso para crear propiedades.');
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
+    const code = String(form.get('code') ?? '').trim();
+    const title = String(form.get('title') ?? '').trim();
+    const propertyType = String(form.get('property_type') ?? '').trim();
+    if (!code || !title || !propertyType) {
+      setMessage('Código, título y tipo de inmueble son obligatorios.');
+      return;
+    }
+    if (rows.some((property) => property.code.toLowerCase() === code.toLowerCase())) {
+      setMessage('Ya existe una propiedad con este código en la inmobiliaria.');
+      return;
+    }
     const priceValue = String(form.get('price') ?? '').trim();
+    const parsedPrice = priceValue ? Number(priceValue) : null;
+    if (parsedPrice !== null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) {
+      setMessage('El precio debe ser un número válido mayor o igual a cero.');
+      return;
+    }
 
     const payload = {
       organization_id: organizationId,
-      code: String(form.get('code') ?? '').trim(),
-      title: String(form.get('title') ?? '').trim(),
+      code,
+      title,
       description: String(form.get('description') ?? '').trim() || null,
       operation_type: String(form.get('operation_type') ?? 'SALE'),
-      property_type: String(form.get('property_type') ?? '').trim(),
+      property_type: propertyType,
       status: 'AVAILABLE',
-      price: priceValue ? Number(priceValue) : null,
+      price: parsedPrice,
       currency: String(form.get('currency') ?? 'COP'),
       city: String(form.get('city') ?? '').trim() || null,
       neighborhood: String(form.get('neighborhood') ?? '').trim() || null,
@@ -74,7 +93,9 @@ export function PropertiesModule() {
     const { error } = await supabase.from('properties').insert(payload);
 
     if (error) {
-      setMessage(error.message);
+      setMessage(error.code === '23505'
+        ? 'El código de esta propiedad ya está registrado en la inmobiliaria. Utiliza otro código.'
+        : error.message);
       return;
     }
 

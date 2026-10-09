@@ -25,7 +25,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const [activePhotoIndex, setActivePhotoIndex] = useState<0 | 1>(0);
   const [visitorName, setVisitorName] = useState('');
   const [visitorPhone, setVisitorPhone] = useState('');
-  const [visitDate, setVisitDate] = useState('2026-10-08');
+  const [visitDate, setVisitDate] = useState('');
   const [visitModality, setVisitModality] = useState<'Recorrido en Propiedad' | 'Cita en oficina principal' | 'Videollamada Ejecutiva'>('Recorrido en Propiedad');
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
@@ -51,6 +51,15 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
     const phoneDigits = visitorPhone.replace(/\D/g, '');
     if (phoneDigits.length < 7 || phoneDigits.length > 15) {
       setFormError('Ingresa un teléfono válido con código de país cuando corresponda.');
+      return;
+    }
+    const today = new Date();
+    const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const parsedVisitDate = new Date(`${visitDate}T12:00:00`);
+    const parsedDateMatches = Number.isFinite(parsedVisitDate.getTime()) &&
+      `${parsedVisitDate.getFullYear()}-${String(parsedVisitDate.getMonth() + 1).padStart(2, '0')}-${String(parsedVisitDate.getDate()).padStart(2, '0')}` === visitDate;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(visitDate) || !parsedDateMatches || visitDate < localToday) {
+      setFormError('Selecciona una fecha válida que no sea anterior a hoy.');
       return;
     }
     setFormError('');
@@ -246,12 +255,12 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <div className="p-5 bg-white border border-[#14532D]/30 rounded-lg space-y-3">
                   <div className="flex items-center gap-2 text-[#14532D] font-semibold text-sm">
                     <Check className="w-4 h-4" />
-                    <span>Recorrido Agendado · Folio #{property.code}</span>
+                    <span>Solicitud de recorrido preparada · Inmueble #{property.code}</span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Hemos registrado tu solicitud a nombre de <strong>{visitorName}</strong> para el día{' '}
+                    Preparaste una solicitud a nombre de <strong>{visitorName}</strong> para el día{' '}
                     <span className="font-mono-tabular font-medium">{visitDate}</span> bajo modalidad{' '}
-                    <strong>{visitModality}</strong>. Un consultor patrimonial de {operatorName} te confirmará al{' '}
+                    <strong>{visitModality}</strong>. La solicitud solo se conserva durante esta sesión y no ha sido enviada a {operatorName}. Contacta a la inmobiliaria para confirmar al{' '}
                     <span className="font-mono-tabular">{visitorPhone}</span>.
                   </p>
                   <button
@@ -350,7 +359,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     type="submit"
                     className="w-full py-2.5 px-4 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                   >
-                    Confirmar Solicitud de Recorrido
+                    Preparar Solicitud de Recorrido
                   </button>
                 </form>
               )}
