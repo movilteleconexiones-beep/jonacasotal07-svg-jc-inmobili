@@ -37,6 +37,11 @@ BEGIN
  THEN RETURN 'conflict'; END IF;
  IF v_order.status <> 'PENDING' THEN RETURN 'conflict'; END IF;
 
+ -- Expired orders require manual reconciliation; never grant a subscription automatically.
+ IF p_status='APPROVED' AND v_order.expires_at <= now() THEN
+   RETURN 'expired_order';
+ END IF;
+
  IF p_status='APPROVED' THEN
    SELECT * INTO v_plan FROM public.plans WHERE id=v_order.plan_id AND active=true;
    IF NOT FOUND OR v_plan.currency <> 'COP' OR v_plan.price <= 0
