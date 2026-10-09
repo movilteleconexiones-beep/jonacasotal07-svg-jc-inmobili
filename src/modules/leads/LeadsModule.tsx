@@ -95,16 +95,32 @@ export function LeadsModule() {
     const budgetMin = String(form.get('budget_min') ?? '').trim();
     const budgetMax = String(form.get('budget_max') ?? '').trim();
     const propertyId = String(form.get('property_id') ?? '').trim();
+    const contactId = String(form.get('contact_id') ?? '').trim();
+    const minValue = budgetMin ? Number(budgetMin) : null;
+    const maxValue = budgetMax ? Number(budgetMax) : null;
+    if (!contactId || !contacts.some((contact) => contact.id === contactId)) {
+      setMessage('Selecciona un contacto válido de esta inmobiliaria.');
+      return;
+    }
+    if (propertyId && !properties.some((property) => property.id === propertyId)) {
+      setMessage('Selecciona una propiedad válida de esta inmobiliaria.');
+      return;
+    }
+    if ([minValue, maxValue].some((value) => value !== null && (!Number.isFinite(value) || value < 0)) ||
+        (minValue !== null && maxValue !== null && minValue > maxValue)) {
+      setMessage('El presupuesto debe ser válido, no negativo y el mínimo no puede superar al máximo.');
+      return;
+    }
 
     const { error } = await supabase.from('leads').insert({
       organization_id: organizationId,
-      contact_id: String(form.get('contact_id') ?? ''),
+      contact_id: contactId,
       property_id: propertyId || null,
       assigned_agent_id: user.id,
       status: 'NEW',
       priority: String(form.get('priority') ?? 'MEDIUM'),
-      budget_min: budgetMin ? Number(budgetMin) : null,
-      budget_max: budgetMax ? Number(budgetMax) : null,
+      budget_min: minValue,
+      budget_max: maxValue,
       desired_operation: String(form.get('desired_operation') ?? '').trim() || null,
       notes: String(form.get('notes') ?? '').trim() || null,
       created_by: user.id,
