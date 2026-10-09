@@ -217,6 +217,15 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_atomicity_test"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_atomicity_test -f security/tests/onboarding_transaction_atomicity.sql
 
+      - name: Captured onboarding RPC smoke test (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_onboarding_rpc_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_rpc_test -f security/tests/fixtures/onboarding_real_rpc_schema.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_rpc_test -f security/tests/fixtures/production_create_organization_with_owner.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_onboarding_rpc_test -f security/tests/fixtures/onboarding_rpc_smoke.sql
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
