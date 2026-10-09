@@ -194,6 +194,14 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_rls_negative_test"
           bash security/tests/role_cross_tenant_rls_negative.sh
 
+      - name: Cross-tenant role assignment RLS fix (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_rls_positive_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_rls_positive_test"
+          bash security/tests/role_cross_tenant_rls_positive.sh
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
