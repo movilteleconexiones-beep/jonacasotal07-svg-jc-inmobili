@@ -6,7 +6,7 @@ create table public.plans(id uuid primary key,code text unique not null,active b
 create table public.subscriptions(
  id uuid primary key default gen_random_uuid(),organization_id uuid not null unique references public.organizations(id),
  plan_id uuid references public.plans(id),status text not null,billing_mode text not null,
- current_period_start timestamptz,current_period_end timestamptz,updated_at timestamptz not null default now()
+ started_at timestamptz not null default now(),current_period_start timestamptz,current_period_end timestamptz,updated_at timestamptz not null default now()
 );
 create function public.is_platform_admin() returns boolean language sql stable as $$
  select auth.uid() = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid
