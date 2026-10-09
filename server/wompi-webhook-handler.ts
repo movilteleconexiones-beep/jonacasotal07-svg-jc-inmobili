@@ -20,7 +20,7 @@ export interface PaymentStore {
     currency: string;
     status: StoredPaymentOrder['status'];
     environment: StoredPaymentOrder['environment'];
-  }): Promise<'processed' | 'duplicate' | 'not_found' | 'mismatch' | 'conflict' | 'organization_inactive' | 'manual_review'>;
+  }): Promise<'processed' | 'duplicate' | 'not_found' | 'mismatch' | 'conflict' | 'organization_inactive' | 'manual_review' | 'expired_order'>;
 }
 
 /**
