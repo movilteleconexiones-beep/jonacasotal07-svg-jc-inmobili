@@ -4,8 +4,10 @@ create function auth.uid() returns uuid language sql stable as $$select nullif(c
 create table public.organizations(id uuid primary key,status text not null);
 create table public.plans(id uuid primary key,code text unique not null,active boolean not null);
 create table public.subscriptions(
- id uuid primary key default gen_random_uuid(),organization_id uuid not null unique references public.organizations(id),
- plan_id uuid references public.plans(id),status text not null,billing_mode text not null,
+ id uuid primary key default gen_random_uuid(),organization_id uuid not null unique references public.organizations(id) on delete cascade,
+ plan_id uuid references public.plans(id) on delete set null,
+ status text not null check (status in ('TRIAL','ACTIVE','PAST_DUE','SUSPENDED','CANCELLED','LIFETIME')),
+ billing_mode text not null check (billing_mode in ('SAAS_MONTHLY','SAAS_ANNUAL','LIFETIME','DEDICATED','CUSTOM')),
  started_at timestamptz not null default now(),current_period_start timestamptz,current_period_end timestamptz,updated_at timestamptz not null default now()
 );
 create function public.is_platform_admin() returns boolean language sql stable as $$
