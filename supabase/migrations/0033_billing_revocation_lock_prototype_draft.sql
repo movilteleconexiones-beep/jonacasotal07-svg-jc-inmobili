@@ -25,6 +25,12 @@ BEGIN
   SELECT organization_id INTO v_new_org FROM public.organization_members
    WHERE id=NEW.organization_member_id;
  END IF;
+ IF v_old_org IS NULL AND TG_OP IN ('UPDATE','DELETE') THEN
+  RAISE EXCEPTION 'Billing authorization membership not found (old)';
+ END IF;
+ IF v_new_org IS NULL AND TG_OP IN ('UPDATE','INSERT') THEN
+  RAISE EXCEPTION 'Billing authorization membership not found (new)';
+ END IF;
  -- Ordered acquisition prevents cross-organization deadlocks on reassignment.
  IF v_old_org IS NOT NULL AND v_new_org IS NOT NULL AND v_old_org<>v_new_org THEN
   PERFORM public.lock_tenant_billing_authorization(least(v_old_org,v_new_org));
@@ -48,7 +54,12 @@ CREATE TRIGGER serialize_member_roles_billing
 CREATE OR REPLACE FUNCTION public.serialize_membership_billing_authorization()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
- PERFORM public.lock_tenant_billing_authorization(CASE WHEN TG_OP='DELETE' THEN OLD.organization_id ELSE NEW.organization_id END);
+ IF TG_OP='UPDATE' AND OLD.organization_id IS DISTINCT FROM NEW.organization_id THEN
+  PERFORM public.lock_tenant_billing_authorization(least(OLD.organization_id,NEW.organization_id));
+  PERFORM public.lock_tenant_billing_authorization(greatest(OLD.organization_id,NEW.organization_id));
+ ELSE
+  PERFORM public.lock_tenant_billing_authorization(CASE WHEN TG_OP='DELETE' THEN OLD.organization_id ELSE NEW.organization_id END);
+ END IF;
  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END;
 $$;
