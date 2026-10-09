@@ -188,13 +188,21 @@ export default function App() {
       setContactError('Por favor ingresa tu nombre completo.');
       return;
     }
-    if (!contactEmail.includes('@') || !contactEmail.includes('.')) {
+    if (contactName.trim().length > 120) {
+      setContactError('El nombre no puede superar 120 caracteres.');
+      return;
+    }
+    if (contactEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
       setContactError('Por favor ingresa un correo electrónico válido.');
       return;
     }
     const phoneDigitCount = contactPhone.replace(/\D/g, '').length;
     if (phoneDigitCount < 7 || phoneDigitCount > 15) {
       setContactError('Ingresa un teléfono válido de 7 a 15 dígitos, con indicativo si corresponde.');
+      return;
+    }
+    if (contactNotes.length > 2000) {
+      setContactError('El mensaje no puede superar 2000 caracteres.');
       return;
     }
     setContactError('');
