@@ -53,6 +53,8 @@ jobs:
         run: node --import tsx --test tests/wompi-express-router.test.mjs
       - name: JCO tax policy and approved prices tests
         run: node --import tsx --test tests/jco-pricing-tax-policy.test.mjs
+      - name: Trusted Wompi sandbox quote tests
+        run: node --import tsx --test tests/wompi-sandbox-order-quote.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
