@@ -19,3 +19,17 @@ insert into public.plans values
 ('44444444-4444-4444-8444-444444444444','ENTERPRISE',true),
 ('55555555-5555-4555-8555-555555555555','LIFETIME',true),
 ('66666666-6666-4666-8666-666666666666','INACTIVE_PLAN',false);
+
+-- Simulate Supabase API role default grants before applying the proposed migration.
+-- PostgreSQL roles are cluster-wide; do not assume a fresh role namespace per database.
+do $roles$
+begin
+ if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+   create role authenticated nologin;
+ end if;
+ if not exists (select 1 from pg_roles where rolname = 'anon') then
+   create role anon nologin;
+ end if;
+end;
+$roles$;
+alter default privileges in schema public grant select, insert, update, delete on tables to authenticated, anon;
