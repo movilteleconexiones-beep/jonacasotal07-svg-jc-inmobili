@@ -121,6 +121,23 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_lock_test"
           bash security/tests/billing_lock_concurrency.sh
 
+      - name: Role revocation negative security test (expected failure on 0033)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_role_negative_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_negative_test"
+          set +e
+          bash security/tests/billing_role_revocation_negative.sh > /tmp/jco_role_negative.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/jco_role_negative.log
+          if [ "$status" -ne 1 ] || ! grep -q "FAIL SECURITY: role grant revocation bypassed" /tmp/jco_role_negative.log; then
+            echo "Expected security regression not reproduced (or fixture failed)" >&2
+            exit 1
+          fi
+          echo "Confirmed expected role-revocation bypass in draft 0033; deployment remains blocked"
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
