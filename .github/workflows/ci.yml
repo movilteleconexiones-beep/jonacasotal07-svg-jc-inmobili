@@ -162,6 +162,14 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_cascade_test"
           bash security/tests/billing_role_cascade_fixture.sh
 
+      - name: Inactive role permission regression (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+          DB_URL: postgresql://postgres:postgres@localhost:5432/jco_inactive_role_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_inactive_role_test"
+          bash security/tests/inactive_role_permission.sh
+
       - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
