@@ -178,7 +178,7 @@ export default function App() {
       setEnrolledModules((prev) => [...prev, selectedAcademyModule.id]);
     }
     setAcademyNotice(
-      `Lugar reservado para ${academyStudentName.trim()} en ${selectedAcademyModule.number} (${selectedAcademyModule.nextCohortDate}). Enviamos ficha de inscripción a ${academyStudentEmail.trim()}.`
+      `Solicitud registrada temporalmente para ${academyStudentName.trim()} en ${selectedAcademyModule.number} (${selectedAcademyModule.nextCohortDate}). No se ha enviado un correo ni confirmado un cupo; contacta a la administración para completar la inscripción.`
     );
   };
 
@@ -1062,13 +1062,13 @@ export default function App() {
                       <Check className="w-5 h-5" />
                     </div>
                     <h3 className="text-2xl font-semibold text-slate-900">
-                      Solicitud Recibida por el Comité Patrimonial
+                      Consulta preparada — envío pendiente
                     </h3>
                     <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                      Gracias, <strong>{contactName}</strong>. Hemos asignado tu requerimiento de{' '}
-                      <strong>{contactService}</strong>. Te contactaremos al{' '}
+                      Gracias, <strong>{contactName}</strong>. Los datos de tu consulta sobre{' '}
+                      <strong>{contactService}</strong> están disponibles únicamente en esta pantalla. No se ha enviado una solicitud al equipo ni se ha confirmado atención al{' '}
                       <span className="font-mono-tabular">{contactPhone}</span> y al correo{' '}
-                      <span className="font-mono-tabular">{contactEmail}</span> en menos de 2 horas hábiles.
+                      <span className="font-mono-tabular">{contactEmail}</span>. Comunícate mediante los datos de contacto publicados para solicitar atención.
                     </p>
                     <button
                       type="button"
@@ -1078,7 +1078,7 @@ export default function App() {
                       }}
                       className="px-4 py-2 bg-[#0F2942] text-white text-xs font-medium rounded-lg"
                     >
-                      Enviar otra consulta
+                      Preparar otra consulta
                     </button>
                   </div>
                 ) : (
