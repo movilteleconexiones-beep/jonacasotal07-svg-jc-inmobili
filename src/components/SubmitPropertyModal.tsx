@@ -34,6 +34,8 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [bedrooms, setBedrooms] = useState('3');
   const [bathrooms, setBathrooms] = useState('3.5');
   const [parkingSpaces, setParkingSpaces] = useState('0');
+  const [maintenanceFee, setMaintenanceFee] = useState('0');
+  const [constructionYear, setConstructionYear] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [summary, setSummary] = useState('');
@@ -96,11 +98,18 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     const bedroomCount = Number(bedrooms);
     const bathroomCount = Number(bathrooms);
     const parkingCount = Number(parkingSpaces);
+    const maintenanceAmount = Number(maintenanceFee);
+    const yearValue = constructionYear.trim() ? Number(constructionYear) : 0;
     if (!bedrooms.trim() || !bathrooms.trim() ||
         !Number.isInteger(bedroomCount) || bedroomCount < 0 ||
         !Number.isFinite(bathroomCount) || bathroomCount < 0 ||
         !parkingSpaces.trim() || !Number.isInteger(parkingCount) || parkingCount < 0) {
       setError('Ingresa cantidades válidas de habitaciones y baños, sin valores negativos.');
+      return;
+    }
+    if (!maintenanceFee.trim() || !Number.isFinite(maintenanceAmount) || maintenanceAmount < 0 ||
+        (constructionYear.trim() && (!Number.isInteger(yearValue) || yearValue < 1800 || yearValue > new Date().getFullYear()))) {
+      setError('Ingresa una cuota de mantenimiento válida y un año de construcción real, si lo conoces.');
       return;
     }
     if (!region.trim() || !locality.trim()) {
@@ -136,7 +145,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
         operation === 'Renta'
           ? numericPrice
           : Math.round((numericPrice * (benchmark.avgYieldPct / 100)) / 12),
-      maintenanceFeeCOP: 500000,
+      maintenanceFeeCOP: maintenanceAmount,
       landAreaM2: numericLand,
       constructionAreaM2: numericConst,
       bedrooms: bedroomCount,
@@ -160,7 +169,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
         'Diagnóstico técnico sujeto a disponibilidad, alcance contratado y proveedor responsable'
       ],
       coordinatesLabel: `${neighborhood.trim() ? neighborhood.trim() + ' · ' : ''}${locality}, ${region} · ${configuredCountry.name}`,
-      yearBuilt: 2024
+      yearBuilt: yearValue
     };
 
     onAddProperty(newProperty);
@@ -442,6 +451,17 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                   onChange={(e) => setParkingSpaces(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-mono-tabular"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="prop-maintenance" className="block text-xs font-medium text-slate-700 mb-1">Cuota de mantenimiento ({branding.currency})</label>
+                <input id="prop-maintenance" type="number" min="0" required value={maintenanceFee} onChange={(e) => setMaintenanceFee(e.target.value)} className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label htmlFor="prop-year" className="block text-xs font-medium text-slate-700 mb-1">Año de construcción (opcional)</label>
+                <input id="prop-year" type="number" min="1800" max={new Date().getFullYear()} value={constructionYear} onChange={(e) => setConstructionYear(e.target.value)} className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm" />
               </div>
             </div>
 
