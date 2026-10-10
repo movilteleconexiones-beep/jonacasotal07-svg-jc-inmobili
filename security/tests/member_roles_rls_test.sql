@@ -119,14 +119,14 @@ end $$;
 insert into public.member_roles values
  ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000222');
 -- B can read its own assignment and no assignment from A.
-do $
+do $$
 declare visible_count integer;
 begin
  select count(*) into visible_count from public.member_roles;
  if visible_count <> 1 then
    raise exception 'SECURITY TEST FAILED: tenant B must see exactly its own assignment';
  end if;
-end $;
+end $$;
 -- The other tenant cannot read A's assignment, even when it knows the IDs.
 do $$
 declare visible_count integer;
@@ -140,16 +140,16 @@ begin
 end $$;
 -- Recheck tenant A visibility after tenant B creates its own assignment.
 set app.allowed_org = '00000000-0000-0000-0000-000000000001';
-do $
+do $$
 declare visible_count integer;
 begin
  select count(*) into visible_count from public.member_roles;
  if visible_count <> 1 then
    raise exception 'SECURITY TEST FAILED: tenant A gained visibility into B';
  end if;
-end $;
+end $$;
 reset role;
-do $
+do $$
 begin
  if (select count(*) from public.member_roles) <> 2 then
   raise exception 'SECURITY TEST FAILED: expected one authorized assignment per tenant';
