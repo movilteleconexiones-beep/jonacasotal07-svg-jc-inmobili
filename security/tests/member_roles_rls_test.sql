@@ -115,6 +115,9 @@ begin
    raise exception 'SECURITY TEST FAILED: unauthorized UPDATE changed assignment';
  end if;
 end $$;
+-- Tenant B can assign its own role without gaining access to A.
+insert into public.member_roles values
+ ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000222');
 -- The other tenant cannot read A's assignment, even when it knows the IDs.
 do $
 declare visible_count integer;
