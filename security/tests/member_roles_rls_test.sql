@@ -101,6 +101,22 @@ begin
   raise exception 'SECURITY TEST FAILED: rejected UPDATE changed valid assignment';
  end if;
 end $unchanged_assignment$;
+-- Authorized tenant A administrator can remove a pre-existing inactive assignment.
+reset role;
+insert into public.member_roles values
+ ('00000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000333');
+set role authenticated;
+delete from public.member_roles
+ where organization_member_id='00000000-0000-0000-0000-000000000011'
+   and role_id='00000000-0000-0000-0000-000000000333';
+do $inactive_cleanup$
+begin
+ if exists (select 1 from public.member_roles
+  where organization_member_id='00000000-0000-0000-0000-000000000011'
+    and role_id='00000000-0000-0000-0000-000000000333') then
+  raise exception 'SECURITY TEST FAILED: authorized inactive assignment cleanup failed';
+ end if;
+end $inactive_cleanup$;
 -- Forbidden: update an existing assignment to a role belonging to B.
 do $$
 begin
