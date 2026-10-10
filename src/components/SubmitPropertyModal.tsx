@@ -82,9 +82,16 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       return;
     }
 
-    const numericPrice = Math.max(1000000, Number(priceCOP) || 450000000);
-    const numericLand = Math.max(60, Number(landAreaM2) || 200);
-    const numericConst = Math.max(60, Number(constructionAreaM2) || 220);
+    const numericPrice = Number(priceCOP);
+    const numericLand = Number(landAreaM2);
+    const numericConst = Number(constructionAreaM2);
+    if (!priceCOP.trim() || !landAreaM2.trim() || !constructionAreaM2.trim() ||
+        !Number.isFinite(numericPrice) || numericPrice <= 0 ||
+        !Number.isFinite(numericLand) || numericLand <= 0 ||
+        !Number.isFinite(numericConst) || numericConst <= 0) {
+      setError('Ingresa valores y áreas numéricas mayores que cero.');
+      return;
+    }
     if (!region.trim() || !locality.trim()) {
       setError(`Selecciona ${locationLabels.region.toLowerCase()} y ${locationLabels.locality.toLowerCase()}.`);
       return;
