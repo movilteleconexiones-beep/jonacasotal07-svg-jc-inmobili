@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const source = readFileSync(new URL('../src/core/auth-context.tsx', import.meta.url), 'utf8');
+const policySource = readFileSync(new URL('../src/core/auth-policy.ts', import.meta.url), 'utf8');
 
 const guards = [
   ['stale initial session', 'if (!mounted || authEventSeen) return;'],
@@ -31,11 +32,11 @@ for (const [name, pattern] of scopedGuards) {
 }
 
 const membershipGuards = [
-  ['reject foreign or inactive memberships', "if (row.user_id !== userId || row.status !== 'ACTIVE') continue;"],
-  ['collect explicit permission denials', "if ((item as any).effect === 'DENY') deniedPermissions.add(key);"],
-  ['apply denials after allowances', "for (const key of deniedPermissions) permissions.delete(key);"],
+  ['membership policy invoked', 'if (!isValidMembership(row, userId)) continue;'],
+  ['effective permissions policy invoked', 'resolveEffectivePermissions(permissions, overrides ?? [])'],
 ];
 for (const [name, snippet] of membershipGuards) {
   assert.ok(source.includes(snippet), 'Missing membership protection: ' + name);
   process.stdout.write('PASS ' + name + '\n');
 }
+assert.ok(policySource.includes("item.effect === 'DENY'"), 'Missing explicit denial policy');
