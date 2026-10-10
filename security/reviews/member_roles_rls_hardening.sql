@@ -2,6 +2,10 @@
 -- This file is intentionally NOT an auto-applied migration.
 -- Existing data inspection (2026-10-08): zero cross-organization member-role assignments.
 -- Current roles are organization-scoped; review if global roles are added later.
+-- IMPORTANT: USING requires an active, same-tenant role even for DELETE.
+-- Existing inactive or cross-tenant assignments therefore cannot be removed
+-- through this admin policy. Before staging, split command-specific policies
+-- to permit authorized cleanup without allowing new invalid assignments.
 begin;
 
 drop policy if exists member_roles_manage_admin on public.member_roles;
