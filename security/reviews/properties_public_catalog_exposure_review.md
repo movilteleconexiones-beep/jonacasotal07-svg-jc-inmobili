@@ -25,3 +25,10 @@ Acordar el contrato público: qué propiedades se publican, qué columnas se exp
 6. Ejecutar pruebas en staging y revisar plan de reversión antes de autorizar cambios en producción.
 
 No se ejecutó DDL/DML ni se desplegó este plan.
+
+## Verificación adicional del flujo de creación
+- El módulo src/modules/properties/PropertiesModule.tsx crea propiedades con status: 'AVAILABLE' de manera predeterminada.
+- La tabla properties no tiene columna de publicación independiente; AVAILABLE representa disponibilidad comercial, no autorización de difusión.
+- organization_settings.enable_public_website existe, pero no está presente como condición en la política pública actual de properties.
+- Por lo tanto, filtrar únicamente status = 'AVAILABLE' no evita publicación accidental. Requerir consentimiento explícito por propiedad y una proyección de columnas públicas.
+- No cambiar el estado de creación ni añadir migraciones hasta inventariar consumidores y acordar compatibilidad con el catálogo.
