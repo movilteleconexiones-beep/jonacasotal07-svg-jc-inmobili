@@ -78,6 +78,29 @@ begin
   when insufficient_privilege then null;
  end;
 end $inactive_role$;
+-- Forbidden: changing an existing assignment to an inactive same-tenant role.
+do $inactive_update$
+begin
+ begin
+  update public.member_roles
+     set role_id='00000000-0000-0000-0000-000000000333'
+   where organization_member_id='00000000-0000-0000-0000-000000000011';
+  raise exception 'SECURITY TEST FAILED: inactive role UPDATE succeeded';
+ exception
+  when insufficient_privilege then null;
+ end;
+end $inactive_update$;
+-- The rejected UPDATE must preserve the authorized assignment.
+do $unchanged_assignment$
+begin
+ if not exists (
+  select 1 from public.member_roles
+  where organization_member_id='00000000-0000-0000-0000-000000000011'
+    and role_id='00000000-0000-0000-0000-000000000111'
+ ) then
+  raise exception 'SECURITY TEST FAILED: rejected UPDATE changed valid assignment';
+ end if;
+end $unchanged_assignment$;
 -- Forbidden: update an existing assignment to a role belonging to B.
 do $$
 begin
