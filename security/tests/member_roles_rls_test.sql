@@ -160,6 +160,19 @@ begin
    raise exception 'SECURITY TEST FAILED: unexpected visible assignments';
  end if;
 end $$;
+-- Read access through a permissive SELECT policy must not confer write access.
+-- Here the user is a member of tenant B but has no roles.assign permission.
+set app.allowed_org = '00000000-0000-0000-0000-000000000002';
+do $select_not_write$
+declare affected integer;
+begin
+ delete from public.member_roles
+ where organization_member_id='00000000-0000-0000-0000-000000000011';
+ get diagnostics affected = row_count;
+ if affected <> 0 then
+  raise exception 'SECURITY TEST FAILED: SELECT policy bypassed DELETE restrictions';
+ end if;
+end $select_not_write$;
 -- Without roles.assign in the member's organization, the existing assignment
 -- must not be writable or removable, even if its ID is known.
 set app.allowed_org = '00000000-0000-0000-0000-000000000002';
