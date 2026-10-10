@@ -21,3 +21,11 @@ test('membership identity and organization must match', () => {
   assert.equal(isValidMembership({ ...row, organizations: { id: 'org-b' } }, 'user-a'), false);
   assert.equal(isValidMembership({ ...row, organizations: null }, 'user-a'), false);
 });
+
+test('Supabase array-shaped permission relations are accepted', () => {
+  const overrides = [
+    { effect: 'ALLOW', permissions: [{ key: 'properties.read' }] },
+    { effect: 'DENY', permissions: [{ key: 'properties.delete' }] },
+  ];
+  assert.deepEqual(resolveEffectivePermissions(['properties.delete'], overrides), ['properties.read']);
+});
