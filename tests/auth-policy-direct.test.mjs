@@ -48,6 +48,16 @@ test('tenant role filter excludes roles from other organizations', () => {
     { roles: { id: 'inactive', active: false, organization_id: 'org-a' } },
     { roles: null },
   ];
-  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-a').map((role) => role.id), ['own', 'global']);
-  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-b').map((role) => role.id), ['foreign', 'global']);
+  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-a').map((role) => role.id), ['own']);
+  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-b').map((role) => role.id), ['foreign']);
+});
+
+test('global and missing-organization roles never grant tenant permissions', () => {
+  const entries = [
+    { roles: { id: 'global', active: true, organization_id: null } },
+    { roles: { id: 'missing-org', active: true } },
+    { roles: { id: 'tenant-a', active: true, organization_id: 'org-a' } },
+  ];
+  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-b'), []);
+  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-a').map((role) => role.id), ['tenant-a']);
 });
