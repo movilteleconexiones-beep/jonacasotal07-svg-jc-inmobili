@@ -102,7 +102,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     const yearValue = constructionYear.trim() ? Number(constructionYear) : 0;
     if (!bedrooms.trim() || !bathrooms.trim() ||
         !Number.isInteger(bedroomCount) || bedroomCount < 0 ||
-        !Number.isFinite(bathroomCount) || bathroomCount < 0 ||
+        !Number.isFinite(bathroomCount) || bathroomCount < 0 || !Number.isInteger(bathroomCount * 2) ||
         !parkingSpaces.trim() || !Number.isInteger(parkingCount) || parkingCount < 0) {
       setError('Ingresa cantidades válidas de habitaciones y baños, sin valores negativos.');
       return;
