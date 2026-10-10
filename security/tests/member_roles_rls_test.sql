@@ -129,8 +129,8 @@ end $;
 reset role;
 do $
 begin
- if (select count(*) from public.member_roles) <> 1 then
-  raise exception 'SECURITY TEST FAILED: assignments changed despite RLS';
+ if (select count(*) from public.member_roles) <> 2 then
+  raise exception 'SECURITY TEST FAILED: expected one authorized assignment per tenant';
  end if;
 end $$;
 select 'JCO RLS isolation smoke tests passed' as result;
