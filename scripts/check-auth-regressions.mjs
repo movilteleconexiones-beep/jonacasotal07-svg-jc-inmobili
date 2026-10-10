@@ -52,7 +52,7 @@ assert.ok(
   'Joined roles must be normalized before tenant validation',
 );
 assert.ok(
-  policySource.includes('(!role.organization_id || role.organization_id === organizationId)'),
+  policySource.includes('role.organization_id === organizationId'),
   'Foreign-organization roles must not grant tenant permissions',
 );
 process.stdout.write('PASS tenant-scoped role filtering\n');
