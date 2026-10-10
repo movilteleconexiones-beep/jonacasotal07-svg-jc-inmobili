@@ -42,6 +42,15 @@ set app.allowed_org = '00000000-0000-0000-0000-000000000001';
 -- Allowed: assign an organization A role to an organization A member.
 insert into public.member_roles values
  ('00000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000111');
+-- Foreign tenant assignments must not be visible to an A-only administrator.
+do $
+declare visible_count integer;
+begin
+ select count(*) into visible_count from public.member_roles;
+ if visible_count <> 1 then
+   raise exception 'SECURITY TEST FAILED: tenant A must see only its authorized assignment';
+ end if;
+end $;
 -- Forbidden: role B to member A, even with A's role assignment permission.
 do $$
 begin
