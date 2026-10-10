@@ -10,12 +10,14 @@ import {
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Organization, OrganizationMember, Role } from './types';
+import { parseBillingAccess, type BillingAccess } from './billing-access';
 
 export interface AuthMembership {
   member: OrganizationMember;
   organization: Organization;
   roles: Role[];
   permissions: string[];
+  billing: BillingAccess;
 }
 
 interface AuthContextValue {
@@ -76,37 +78,14 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
         active: Boolean(role.active),
       }));
 
-    const roleIds = roles.map((role) => role.id);
-    const permissions = new Set<string>();
-
-    if (roleIds.length > 0) {
-      const { data: rolePermissions } = await supabase
-        .from('role_permissions')
-        .select('permissions(key)')
-        .in('role_id', roleIds);
-
-      for (const item of rolePermissions ?? []) {
-        const key = (item as any).permissions?.key;
-        if (key) permissions.add(key);
-      }
-    }
-
-    const { data: overrides } = await supabase
-      .from('member_permissions')
-      .select('effect, permissions(key)')
-      .eq('organization_member_id', row.id);
-
-    for (const item of overrides ?? []) {
-      const key = (item as any).permissions?.key;
-      if (!key) continue;
-      if ((item as any).effect === 'DENY') permissions.delete(key);
-      if ((item as any).effect === 'ALLOW') permissions.add(key);
-    }
-
     const org = row.organizations as any;
     // A membership without a readable organization, or one linked to a
     // different organization, must never grant tenant-scoped UI permissions.
     if (!org || !org.id || org.id !== row.organization_id) continue;
+
+    const { data: accessData, error: accessError } = await supabase.rpc('billing_get_access', { target_org: org.id });
+    if (accessError) throw new Error('No se pudo verificar la activación de la inmobiliaria.');
+    const billing = parseBillingAccess(accessData);
 
     result.push({
       member: {
@@ -132,7 +111,8 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
         updatedAt: org.updated_at,
       },
       roles,
-      permissions: [...permissions],
+      permissions: billing.permissions,
+      billing,
     });
   }
 

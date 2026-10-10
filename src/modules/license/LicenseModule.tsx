@@ -42,7 +42,7 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
     void Promise.all([
       supabase
         .from('organization_licenses')
-        .select('id,license_type,status,operational_control_full,copyright_transferred,resale_allowed,sublicensing_allowed,redistribution_allowed,white_label_allowed,terms_version_id')
+        .select('id,license_type,status,operational_control_full,copyright_transferred,resale_allowed,sublicensing_allowed,redistribution_allowed,white_label_allowed')
         .eq('organization_id', organizationId)
         .maybeSingle(),
       supabase
@@ -76,15 +76,13 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
   }, [organizationId, user?.id]);
 
   async function acceptTerms() {
-    if (!licenseId || !termsId || !user?.id || accepting) return;
+    if (!termsId || !user?.id || !activeMembership?.billing.can_manage_billing || accepting) return;
     setAccepting(true);
     setMessage('');
 
-    const { error } = await supabase.from('license_acceptances').insert({
-      organization_license_id: licenseId,
-      terms_version_id: termsId,
-      accepted_by: user.id,
-      accepted_at: new Date().toISOString(),
+    const { error } = await supabase.rpc('billing_accept_terms', {
+      target_org: organizationId,
+      target_terms: termsId,
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
     });
 
@@ -186,7 +184,7 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
                 <button
                   type="button"
                   onClick={() => void acceptTerms()}
-                  disabled={accepting || !licenseId || !termsId}
+                  disabled={accepting || !termsId || !activeMembership?.billing.can_manage_billing}
                   className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {accepting ? 'Registrando…' : 'Acepto los términos'}
