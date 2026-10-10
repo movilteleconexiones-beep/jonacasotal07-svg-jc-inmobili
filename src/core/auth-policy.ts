@@ -51,6 +51,6 @@ export function eligibleRolesForOrganization(
     .filter((role): role is ScopedRole =>
       Boolean(role?.id) &&
       role?.active === true &&
-      (!role.organization_id || role.organization_id === organizationId),
+      role.organization_id === organizationId,
     );
 }
