@@ -32,3 +32,16 @@ No se ejecutó DDL/DML ni se desplegó este plan.
 - organization_settings.enable_public_website existe, pero no está presente como condición en la política pública actual de properties.
 - Por lo tanto, filtrar únicamente status = 'AVAILABLE' no evita publicación accidental. Requerir consentimiento explícito por propiedad y una proyección de columnas públicas.
 - No cambiar el estado de creación ni añadir migraciones hasta inventariar consumidores y acordar compatibilidad con el catálogo.
+
+## Inventario inicial de consumidores (rama de revisión)
+- src/App.tsx inicializa el catálogo público desde PROPERTIES importado de src/data/properties.ts, y añade nuevas propiedades al estado local mediante setProperties. No consulta directamente public.properties en ese flujo revisado.
+- src/modules/properties/PropertiesModule.tsx sí consulta public.properties para el inventario privado, filtrando organization_id y seleccionando columnas concretas; también inserta registros.
+- La exposición RLS existe independientemente de que la portada actual use datos estáticos: un cliente con la clave pública puede solicitar la tabla mediante la API.
+- Antes de revocar SELECT a anon, revisar otros consumidores (incluidas integraciones externas) y el contrato de publicación; la portada estática no justifica mantener USING(true).
+
+## Comprobaciones previas a despliegue
+- Catálogo anónimo: solo propiedades publicadas explícitamente y campos permitidos.
+- Usuario autenticado A: propiedades de A según permisos; ninguna propiedad privada de B.
+- Usuario portal: únicamente propiedades vinculadas a su relación autorizada.
+- Datos internos como address, assigned_agent_id, created_by e import_job_id nunca deben salir de la proyección anónima.
+- Cualquier cambio en RLS requiere pruebas en staging y aprobación separada.
