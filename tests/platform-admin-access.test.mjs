@@ -19,7 +19,7 @@ test('central JCO admin navigation is not available to ordinary tenants', () => 
   const admin = read('../src/modules/platform/SuperAdminModule.tsx');
   assert.match(access, /isPlatformAdmin\s*\?/);
   assert.match(access, /\{isPlatformAdmin\s*&&/);
-  assert.match(dashboard, /visible:\s*isPlatformAdmin/);
+  assert.match(dashboard, /\{isPlatformAdmin\s*&&\s*<a href="\/super-admin"/);
   assert.match(admin, /if\s*\(!user\s*\|\|\s*!isPlatformAdmin\)/);
 });
 

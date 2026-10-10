@@ -9,6 +9,7 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  LockKeyhole,
   Settings,
   ScrollText,
   BadgeDollarSign,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
+import { tenantMenu } from '../../core/tenant-menu';
 import { supabase } from '../../lib/supabase';
 import { DataImportCenter } from '../imports/DataImportCenter';
 import { PropertiesModule } from '../properties/PropertiesModule';
@@ -38,7 +40,6 @@ import { DocumentsModule } from '../documents/DocumentsModule';
 import { CommissionsModule } from '../commissions/CommissionsModule';
 import { ReportsModule } from '../reports/ReportsModule';
 import { PortalHub } from '../portal/PortalHub';
-import { SuperAdminModule } from '../platform/SuperAdminModule';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type DashboardView =
@@ -58,8 +59,7 @@ type DashboardView =
   | 'DOCUMENTS'
   | 'COMMISSIONS'
   | 'REPORTS'
-  | 'PORTAL'
-  | 'SUPER_ADMIN';
+  | 'PORTAL';
 
 interface DashboardStats {
   properties: number;
@@ -102,6 +102,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const [licenseCheckLoading, setLicenseCheckLoading] = useState(true);
 
   const organizationId = activeMembership?.organization.id;
+  const billingOwner = activeMembership?.billing.can_manage_billing ?? false;
 
   useEffect(() => {
     if (!organizationId || !user) {
@@ -110,7 +111,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       return;
     }
 
-    const isOwner = activeMembership?.roles.some((role) => role.key === 'ORGANIZATION_OWNER') ?? false;
+    const isOwner = activeMembership?.billing.can_manage_billing ?? false;
     if (!isOwner) {
       setTermsRequired(false);
       setLicenseCheckLoading(false);
@@ -142,7 +143,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, user?.id, activeMembership?.roles]);
+  }, [organizationId, user?.id, billingOwner]);
 
   useEffect(() => {
     if (!organizationId) {
@@ -197,31 +198,15 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const menuItems = useMemo(
     () =>
       [
-        { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: !termsRequired },
-        { id: 'PROPERTIES' as const, label: 'Propiedades', icon: Building2, visible: can(PERMISSIONS.PROPERTIES_VIEW) },
-        { id: 'CONSIGNMENTS' as const, label: 'Consignaciones', icon: Building2, visible: can(PERMISSIONS.PROPERTIES_VIEW) && can(PERMISSIONS.CLIENTS_VIEW) },
-        { id: 'CONTACTS' as const, label: 'Clientes', icon: ContactRound, visible: can(PERMISSIONS.CLIENTS_VIEW) },
-        { id: 'LEADS' as const, label: 'Leads / CRM', icon: UsersRound, visible: can(PERMISSIONS.LEADS_VIEW) },
-        { id: 'APPOINTMENTS' as const, label: 'Agenda', icon: CalendarDays, visible: can(PERMISSIONS.APPOINTMENTS_VIEW) },
-        { id: 'DEALS' as const, label: 'Negocios', icon: Handshake, visible: can(PERMISSIONS.DEALS_VIEW) },
-        { id: 'OWNERS' as const, label: 'Propietarios', icon: UserRoundCog, visible: can(PERMISSIONS.OWNERS_VIEW) },
-        { id: 'DOCUMENTS' as const, label: 'Documentos', icon: FileText, visible: can(PERMISSIONS.DOCUMENTS_VIEW) },
-        { id: 'COMMISSIONS' as const, label: 'Comisiones', icon: BadgeDollarSign, visible: can(PERMISSIONS.COMMISSIONS_VIEW) },
-        { id: 'REPORTS' as const, label: 'Reportes', icon: BarChart3, visible: can(PERMISSIONS.REPORTS_VIEW) },
-        { id: 'PORTAL' as const, label: 'Mi Portal', icon: UserCircle2, visible: true },
-       { id: 'SUPER_ADMIN' as const, label: 'Super Admin', icon: ShieldCheck, visible: isPlatformAdmin },
-        { id: 'USERS' as const, label: 'Usuarios', icon: UsersRound, visible: can(PERMISSIONS.USERS_VIEW) },
-        {
-          id: 'IMPORT' as const,
-          label: 'Importar datos',
-          icon: FileSpreadsheet,
-          visible: can(PERMISSIONS.CLIENTS_CREATE) || can(PERMISSIONS.PROPERTIES_CREATE),
-        },
-        { id: 'SETTINGS' as const, label: 'Configuración', icon: Settings, visible: can(PERMISSIONS.SETTINGS_VIEW) },
-        { id: 'LICENSE' as const, label: 'Licencia', icon: ScrollText, visible: can(PERMISSIONS.SETTINGS_VIEW) },
-        { id: 'BILLING' as const, label: 'Plan y activación', icon: BadgeDollarSign, visible: activeMembership?.billing.can_manage_billing ?? false },
-      ].filter((item) => item.visible && (!termsRequired || item.id === 'LICENSE' || item.id === 'BILLING')),
-    [can, isPlatformAdmin, termsRequired, activeMembership?.billing.can_manage_billing],
+        { id: 'DASHBOARD', icon: LayoutDashboard }, { id: 'PROPERTIES', icon: Building2 },
+        { id: 'CONTACTS', icon: ContactRound }, { id: 'LEADS', icon: UsersRound },
+        { id: 'APPOINTMENTS', icon: CalendarDays }, { id: 'DEALS', icon: Handshake },
+        { id: 'OWNERS', icon: UserRoundCog }, { id: 'DOCUMENTS', icon: FileText },
+        { id: 'COMMISSIONS', icon: BadgeDollarSign }, { id: 'REPORTS', icon: BarChart3 },
+        { id: 'PORTAL', icon: UserCircle2 }, { id: 'USERS', icon: UsersRound },
+        { id: 'IMPORT', icon: FileSpreadsheet }, { id: 'SETTINGS', icon: Settings }, { id: 'LICENSE', icon: ScrollText },
+      ].flatMap(icon => tenantMenu(can, billingOwner, termsRequired).filter(item => item.id === icon.id).map(item => ({ ...item, icon: icon.icon }))),
+    [can, billingOwner, termsRequired],
   );
 
   if (!user || !activeMembership) {
@@ -248,6 +233,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            {isPlatformAdmin && <a href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><ShieldCheck className="h-4 w-4" />SuperAdmin</a>}
             {memberships.length > 1 && (
               <select
                 value={activeMembership.organization.id}
@@ -289,38 +275,28 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           <nav className="space-y-1" aria-label="Módulos del sistema">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const active = view === item.id;
+              const active = view === item.id || (view === 'CONSIGNMENTS' && item.id === 'PROPERTIES') || (view === 'BILLING' && item.id === 'LICENSE');
               return (
                 <button
                   key={item.id}
                   type="button"
+                  disabled={!item.available}
+                  title={!item.available ? termsRequired ? 'Acepta la licencia para continuar' : 'Módulo fuera de tus permisos actuales' : undefined}
                   onClick={() => setView(item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                     active
                       ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-stone-100 hover:text-slate-900'
+                      : 'text-slate-600 hover:bg-stone-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50'
                   }`}
                 >
                   <Icon className="w-5 h-5 shrink-0" />
                   <span>{item.label}</span>
+                  {!item.available && <LockKeyhole className="ml-auto h-3 w-3" aria-hidden="true" />}
                 </button>
               );
             })}
           </nav>
 
-          {isPlatformAdmin && <div className="mt-4 pt-4 border-t border-stone-200">
-            <button
-              type="button"
-              onClick={() => {
-                window.location.hash = 'super-admin';
-                window.location.reload();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
-            >
-              <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
-              <span>Súper Admin</span>
-            </button>
-          </div>}
         </aside>
 
         <main className="min-w-0">
@@ -344,16 +320,23 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             />
           )}
 
-          {view === 'PROPERTIES' && <PropertiesModule />}
-          {view === 'CONSIGNMENTS' && <PropertyConsignmentsModule key={organizationId} />}
-          {view === 'CONTACTS' && <ContactsModule />}
-          {view === 'LEADS' && <LeadsModule />}
-          {view === 'APPOINTMENTS' && <AppointmentsModule />}
-          {view === 'DEALS' && <DealsModule />}
-          {view === 'IMPORT' && <DataImportCenter />}
-          {view === 'USERS' && <UsersRolesModule />}
-          {view === 'SETTINGS' && <SettingsModule />}
-          {view === 'LICENSE' && (
+          {(view === 'PROPERTIES' || view === 'CONSIGNMENTS') && !termsRequired && can(PERMISSIONS.PROPERTIES_VIEW) && <>
+            {can(PERMISSIONS.CLIENTS_VIEW) && <div className="mb-4 flex gap-2" aria-label="Gestión de propiedades">
+              <button type="button" onClick={() => setView('PROPERTIES')} className={`rounded-lg border px-4 py-2 text-sm ${view === 'PROPERTIES' ? 'bg-slate-900 text-white' : 'bg-white'}`}>Inventario</button>
+              <button type="button" onClick={() => setView('CONSIGNMENTS')} className={`rounded-lg border px-4 py-2 text-sm ${view === 'CONSIGNMENTS' ? 'bg-slate-900 text-white' : 'bg-white'}`}>Consignaciones</button>
+            </div>}
+            {view === 'PROPERTIES' ? <PropertiesModule /> : can(PERMISSIONS.CLIENTS_VIEW) && <PropertyConsignmentsModule key={organizationId} />}
+          </>}
+          {view === 'CONTACTS' && !termsRequired && can(PERMISSIONS.CLIENTS_VIEW) && <ContactsModule />}
+          {view === 'LEADS' && !termsRequired && can(PERMISSIONS.LEADS_VIEW) && <LeadsModule />}
+          {view === 'APPOINTMENTS' && !termsRequired && can(PERMISSIONS.APPOINTMENTS_VIEW) && <AppointmentsModule />}
+          {view === 'DEALS' && !termsRequired && can(PERMISSIONS.DEALS_VIEW) && <DealsModule />}
+          {view === 'IMPORT' && !termsRequired && (can(PERMISSIONS.CLIENTS_CREATE) || can(PERMISSIONS.PROPERTIES_CREATE)) && <DataImportCenter />}
+          {view === 'USERS' && !termsRequired && can(PERMISSIONS.USERS_VIEW) && <UsersRolesModule />}
+          {view === 'SETTINGS' && !termsRequired && can(PERMISSIONS.SETTINGS_VIEW) && <SettingsModule />}
+          {view === 'LICENSE' && (billingOwner || can(PERMISSIONS.SETTINGS_VIEW)) && (
+            <>
+            {billingOwner && <button type="button" onClick={() => setView('BILLING')} className="mb-4 rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Plan y activación</button>}
             <LicenseModule
               onAccepted={() => {
                 setTermsRequired(false);
@@ -361,16 +344,16 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
                 setView('DASHBOARD');
               }}
             />
+            </>
           )}
-          {view === 'BILLING' && <BillingModule key={organizationId} />}
-          {view === 'OWNERS' && <OwnersModule />}
-          {view === 'DOCUMENTS' && <DocumentsModule />}
-          {view === 'COMMISSIONS' && <CommissionsModule />}
-          {view === 'REPORTS' && <ReportsModule />}
-          {view === 'PORTAL' && <PortalHub />}
-          {view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
+          {view === 'BILLING' && billingOwner && <><button type="button" onClick={() => setView('LICENSE')} className="mb-4 rounded-lg border bg-white px-4 py-2 text-sm">Volver a licencia</button><BillingModule key={organizationId} /></>}
+          {view === 'OWNERS' && !termsRequired && can(PERMISSIONS.OWNERS_VIEW) && <OwnersModule />}
+          {view === 'DOCUMENTS' && !termsRequired && can(PERMISSIONS.DOCUMENTS_VIEW) && <DocumentsModule />}
+          {view === 'COMMISSIONS' && !termsRequired && can(PERMISSIONS.COMMISSIONS_VIEW) && <CommissionsModule />}
+          {view === 'REPORTS' && !termsRequired && can(PERMISSIONS.REPORTS_VIEW) && <ReportsModule />}
+          {view === 'PORTAL' && !termsRequired && <PortalHub />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'BILLING' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'BILLING' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
