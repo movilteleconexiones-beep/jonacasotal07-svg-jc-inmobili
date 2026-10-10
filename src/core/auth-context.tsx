@@ -11,7 +11,7 @@ import {
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Organization, OrganizationMember, Role } from './types';
-import { isValidMembership, resolveEffectivePermissions } from './auth-policy';
+import { eligibleRolesForOrganization, isValidMembership, resolveEffectivePermissions } from './auth-policy';
 
 export interface AuthMembership {
   member: OrganizationMember;
@@ -64,12 +64,7 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
       .eq('organization_member_id', row.id);
     if (memberRolesError) throw new Error(`No se pudieron verificar los roles: ${memberRolesError.message}`);
 
-    const roles: Role[] = (memberRoles ?? [])
-      .flatMap((entry: any) => Array.isArray(entry.roles) ? entry.roles : [entry.roles])
-      .filter((role: any) =>
-        Boolean(role) && Boolean(role.active) &&
-        (!role.organization_id || role.organization_id === row.organization_id),
-      )
+    const roles: Role[] = eligibleRolesForOrganization(memberRoles ?? [], row.organization_id)
       .map((role: any) => ({
         id: role.id,
         organizationId: role.organization_id ?? undefined,
