@@ -216,7 +216,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           clearFailedLoad(loadVersion);
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && loadVersion === membershipLoadVersion.current) setLoading(false);
       }
     }).catch((error) => {
       console.error('Unable to initialize authentication', error);
@@ -247,7 +247,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             if (mounted) clearFailedLoad(loadVersion);
           })
           .finally(() => {
-            if (mounted) setLoading(false);
+            if (mounted && loadVersion === membershipLoadVersion.current) setLoading(false);
           });
       }, 0);
     });
