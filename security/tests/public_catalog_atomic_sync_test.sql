@@ -88,6 +88,26 @@ do $assert$ begin
  if (select approved from public.atomic_properties where id=11) is distinct from true then raise exception 'rollback lost source approval'; end if;
  if (select count(*) from public.atomic_public_listings where property_id=11)<>1 then raise exception 'rollback lost public projection'; end if;
 end $assert$;
+-- Cascading deletion must remove the published projection.
+insert into public.atomic_properties(id,org_id,title,address,status,approved)
+ values (13,1,'Delete me','SECRET DELETE','AVAILABLE',true);
+do $assert$ begin
+ if (select count(*) from public.atomic_public_listings where property_id=13)<>1 then raise exception 'delete fixture not published'; end if;
+end $assert$;
+delete from public.atomic_properties where id=13;
+do $assert$ begin
+ if exists(select 1 from public.atomic_public_listings where property_id=13) then raise exception 'deleted property still public'; end if;
+end $assert$;
+-- The public table must not be writable by anonymous callers.
+set role anon;
+do $assert$ begin
+ if has_table_privilege(current_user,'public.atomic_public_listings','INSERT') or
+    has_table_privilege(current_user,'public.atomic_public_listings','UPDATE') or
+    has_table_privilege(current_user,'public.atomic_public_listings','DELETE') then
+  raise exception 'anon can mutate public projection';
+ end if;
+end $assert$;
+reset role;
 set role anon;
 do $assert$ begin
  if has_table_privilege(current_user,'public.atomic_properties','SELECT') then raise exception 'anon can read source'; end if;
