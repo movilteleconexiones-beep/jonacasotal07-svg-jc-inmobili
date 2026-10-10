@@ -112,6 +112,7 @@ end
 $test$;
 reset role;
 -- Simulate a publication withdrawal and rebuild of the restricted projection.
+-- In production this operation must be atomic, not two independently committed calls.
 update public.catalog_test_properties
 set is_published=false
 where id='00000000-0000-0000-0000-000000000011';
