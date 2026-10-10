@@ -29,3 +29,13 @@ for (const [name, pattern] of scopedGuards) {
   assert.match(source, pattern, 'Missing scoped auth protection: ' + name);
   process.stdout.write('PASS ' + name + '\n');
 }
+
+const membershipGuards = [
+  ['reject foreign or inactive memberships', "if (row.user_id !== userId || row.status !== 'ACTIVE') continue;"],
+  ['collect explicit permission denials', "if ((item as any).effect === 'DENY') deniedPermissions.add(key);"],
+  ['apply denials after allowances', "for (const key of deniedPermissions) permissions.delete(key);"],
+];
+for (const [name, snippet] of membershipGuards) {
+  assert.ok(source.includes(snippet), 'Missing membership protection: ' + name);
+  process.stdout.write('PASS ' + name + '\n');
+}
