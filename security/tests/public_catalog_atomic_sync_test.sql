@@ -88,6 +88,25 @@ do $assert$ begin
  if (select approved from public.atomic_properties where id=11) is distinct from true then raise exception 'rollback lost source approval'; end if;
  if (select count(*) from public.atomic_public_listings where property_id=11)<>1 then raise exception 'rollback lost public projection'; end if;
 end $assert$;
+-- Authorization model: a tenant member without publication permission must not approve.
+-- Fixture roles are intentionally limited; production must use the real membership/RLS model.
+do $setup$ begin
+ if not exists(select 1 from pg_roles where rolname='catalog_test_member') then create role catalog_test_member nologin; end if;
+end $setup$;
+grant usage on schema public to catalog_test_member;
+grant select on public.atomic_properties to catalog_test_member;
+set role catalog_test_member;
+do $assert$ begin
+ if has_table_privilege(current_user,'public.atomic_properties','UPDATE') then
+  raise exception 'unprivileged member can change publication consent';
+ end if;
+ if has_table_privilege(current_user,'public.atomic_public_listings','INSERT') or
+    has_table_privilege(current_user,'public.atomic_public_listings','UPDATE') or
+    has_table_privilege(current_user,'public.atomic_public_listings','DELETE') then
+  raise exception 'unprivileged member can directly mutate public catalog';
+ end if;
+end $assert$;
+reset role;
 -- Tenant relocation must update the public projection without stale org association.
 update public.atomic_properties set org_id=2 where id=11;
 do $assert$ begin
