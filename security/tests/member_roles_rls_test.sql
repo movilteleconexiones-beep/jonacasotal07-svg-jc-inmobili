@@ -120,9 +120,17 @@ reset role;
 insert into public.member_roles values
  ('00000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000333');
 set role authenticated;
-delete from public.member_roles
+do $inactive_delete$
+declare affected integer;
+begin
+ delete from public.member_roles
  where organization_member_id='00000000-0000-0000-0000-000000000011'
    and role_id='00000000-0000-0000-0000-000000000333';
+ get diagnostics affected = row_count;
+ if affected <> 1 then
+  raise exception 'SECURITY TEST FAILED: expected exactly one inactive role assignment deleted, got %', affected;
+ end if;
+end $inactive_delete$;
 do $inactive_cleanup$
 begin
  if exists (select 1 from public.member_roles
