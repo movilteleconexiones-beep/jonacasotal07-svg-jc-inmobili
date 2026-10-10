@@ -99,7 +99,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
   const organizationId = activeMembership?.organization.id;
   const licenseScope = organizationId && user ? `${organizationId}:${user.id}` : null;
-  const licenseReady = !licenseCheckLoading && licenseCheckedFor === licenseScope;
+  const licenseReady = Boolean(licenseScope) && !licenseCheckLoading && licenseCheckedFor === licenseScope;
 
   // Switching organizations starts in the overview, not the prior tenant's module.
   useEffect(() => {
@@ -362,7 +362,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         </aside>
 
         <main key={licenseScope ?? "no-organization"} className="min-w-0">
-          {termsRequired && !licenseCheckLoading && (
+          {termsRequired && licenseReady && (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
               <div className="font-bold">Aceptación de licencia requerida</div>
               <p className="mt-1">
@@ -390,7 +390,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {licenseReady && !termsRequired && view === 'IMPORT' && <DataImportCenter />}
           {licenseReady && !termsRequired && view === 'USERS' && <UsersRolesModule />}
           {licenseReady && !termsRequired && view === 'SETTINGS' && <SettingsModule />}
-          {view === 'LICENSE' && (
+          {licenseReady && view === 'LICENSE' && (
             <LicenseModule
               onAccepted={() => {
                 setTermsRequired(false);
