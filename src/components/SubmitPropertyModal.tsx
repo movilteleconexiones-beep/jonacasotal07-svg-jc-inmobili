@@ -92,6 +92,14 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       setError('Ingresa valores y áreas numéricas mayores que cero.');
       return;
     }
+    const bedroomCount = Number(bedrooms);
+    const bathroomCount = Number(bathrooms);
+    if (!bedrooms.trim() || !bathrooms.trim() ||
+        !Number.isInteger(bedroomCount) || bedroomCount < 0 ||
+        !Number.isFinite(bathroomCount) || bathroomCount < 0) {
+      setError('Ingresa cantidades válidas de habitaciones y baños, sin valores negativos.');
+      return;
+    }
     if (!region.trim() || !locality.trim()) {
       setError(`Selecciona ${locationLabels.region.toLowerCase()} y ${locationLabels.locality.toLowerCase()}.`);
       return;
@@ -128,9 +136,9 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       maintenanceFeeCOP: 500000,
       landAreaM2: numericLand,
       constructionAreaM2: numericConst,
-      bedrooms: Number(bedrooms) || 3,
-      bathrooms: Number(bathrooms) || 3,
-      parkingSpaces: 3,
+      bedrooms: bedroomCount,
+      bathrooms: bathroomCount,
+      parkingSpaces: 0,
       annualAppreciationPct: benchmark.annualAppreciationPct,
       rentalYieldPct: benchmark.avgYieldPct,
       image: HERO_IMAGE,
