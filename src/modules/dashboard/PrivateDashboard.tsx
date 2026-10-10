@@ -118,11 +118,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     setLicenseCheckLoading(true);
 
     void (async () => {
-      const { data: license } = await supabase
+      const { data: license, error: licenseError } = await supabase
         .from('organization_licenses')
         .select('id,terms_version_id')
         .eq('organization_id', organizationId)
         .maybeSingle();
+      if (licenseError) throw licenseError;
 
       if (!license?.id || !license?.terms_version_id) {
         if (!cancelled) {
@@ -133,13 +134,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         return;
       }
 
-      const { data: acceptance } = await supabase
+      const { data: acceptance, error: acceptanceError } = await supabase
         .from('license_acceptances')
         .select('id')
         .eq('organization_license_id', license.id)
         .eq('terms_version_id', license.terms_version_id)
         .eq('accepted_by', user.id)
         .maybeSingle();
+      if (acceptanceError) throw acceptanceError;
 
       if (!cancelled) {
         const required = !acceptance;
@@ -147,7 +149,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         setLicenseCheckLoading(false);
         if (required) setView('LICENSE');
       }
-    })();
+    })().catch((error) => {
+      console.error('Unable to verify organization license acceptance', error);
+      if (!cancelled) {
+        setTermsRequired(true);
+        setLicenseCheckLoading(false);
+        setView('LICENSE');
+      }
+    });
 
     return () => {
       cancelled = true;
