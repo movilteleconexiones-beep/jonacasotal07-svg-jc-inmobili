@@ -231,7 +231,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const menuItems = useMemo(
     () =>
       [
-        { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: !termsRequired },
+        { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: !termsRequired && !licenseCheckLoading },
         { id: 'PROPERTIES' as const, label: 'Propiedades', icon: Building2, visible: can(PERMISSIONS.PROPERTIES_VIEW) },
         { id: 'CONTACTS' as const, label: 'Clientes', icon: ContactRound, visible: can(PERMISSIONS.CLIENTS_VIEW) },
         { id: 'LEADS' as const, label: 'Leads / CRM', icon: UsersRound, visible: can(PERMISSIONS.LEADS_VIEW) },
@@ -252,8 +252,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         },
         { id: 'SETTINGS' as const, label: 'Configuración', icon: Settings, visible: can(PERMISSIONS.SETTINGS_VIEW) },
         { id: 'LICENSE' as const, label: 'Licencia', icon: ScrollText, visible: can(PERMISSIONS.SETTINGS_VIEW) },
-      ].filter((item) => item.visible && (!termsRequired || item.id === 'LICENSE')),
-    [can, isPlatformAdmin, termsRequired],
+      ].filter((item) => item.visible && ((!termsRequired && !licenseCheckLoading) || item.id === 'LICENSE')),
+    [can, isPlatformAdmin, termsRequired, licenseCheckLoading],
   );
 
   if (!user || !activeMembership) {
@@ -261,7 +261,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 text-slate-900">
+    <div key={organizationId} className="min-h-screen bg-stone-100 text-slate-900">
       <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="min-w-0">
