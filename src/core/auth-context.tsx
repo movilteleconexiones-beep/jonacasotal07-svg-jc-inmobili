@@ -91,8 +91,11 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
       if (rolePermissionsError) throw new Error(`No se pudieron verificar los permisos de roles: ${rolePermissionsError.message}`);
 
       for (const item of rolePermissions ?? []) {
-        const key = (item as any).permissions?.key;
-        if (key) permissions.add(key);
+        const relation = (item as any).permissions;
+        const linkedPermissions = Array.isArray(relation) ? relation : [relation];
+        for (const linked of linkedPermissions) {
+          if (linked?.key) permissions.add(linked.key);
+        }
       }
     }
 
