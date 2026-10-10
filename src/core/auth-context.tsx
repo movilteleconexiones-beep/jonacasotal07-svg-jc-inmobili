@@ -151,6 +151,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [memberships, setMemberships] = useState<AuthMembership[]>([]);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
   const membershipLoadVersion = useRef(0);
+  const currentAuthUserId = useRef<string | null>(null);
 
   const loadForUser = useCallback(async (userId: string | null) => {
     const version = ++membershipLoadVersion.current;
@@ -192,6 +193,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     let mounted = true;
+    let authEventSeen = false;
     const clearFailedLoad = (failedVersion: number) => {
       if (failedVersion !== membershipLoadVersion.current) return;
       membershipLoadVersion.current += 1;
@@ -202,7 +204,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
 
     supabase.auth.getSession().then(async ({ data, error }) => {
-      if (!mounted) return;
+      if (!mounted || authEventSeen) return;
+      currentAuthUserId.current = error ? null : data.session?.user.id ?? null;
       setSession(error ? null : data.session);
       const loadVersion = membershipLoadVersion.current + 1;
       try {
@@ -223,6 +226,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     // Supabase warns against awaiting other Supabase calls inside this callback.
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
+      authEventSeen = true;
+      const nextUserId = nextSession?.user.id ?? null;
+      if (currentAuthUserId.current !== nextUserId) {
+        membershipLoadVersion.current += 1;
+        setMemberships([]);
+        setIsPlatformAdmin(false);
+        setActiveOrganizationId(null);
+        setAccessError(null);
+        setLoading(Boolean(nextUserId));
+      }
+      currentAuthUserId.current = nextUserId;
       setSession(nextSession);
       setTimeout(() => {
         if (!mounted) return;
