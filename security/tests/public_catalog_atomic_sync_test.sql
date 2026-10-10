@@ -109,7 +109,8 @@ end $assert$;
 -- Verify actual attempted unauthorized writes are rejected.
 do $denied$
 begin
- update public.atomic_properties set approved=false where id=11;
+ begin
+  update public.atomic_properties set approved=false where id=11;
  raise exception 'unprivileged member unexpectedly updated approval';
 exception when insufficient_privilege then null;
 end;
@@ -119,6 +120,7 @@ begin
  raise exception 'unprivileged member unexpectedly inserted a public listing';
 exception when insufficient_privilege then null;
 end;
+end
 $denied$;
 reset role;
 -- Tenant relocation must update the public projection without stale org association.
