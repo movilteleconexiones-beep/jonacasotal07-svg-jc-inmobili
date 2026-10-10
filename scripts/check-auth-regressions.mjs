@@ -46,3 +46,13 @@ assert.ok(
   'Role permissions must accept array-shaped Supabase relations',
 );
 process.stdout.write('PASS role permission relation compatibility\n');
+
+assert.ok(
+  source.includes('.flatMap((entry: any) => Array.isArray(entry.roles) ? entry.roles : [entry.roles])'),
+  'Joined roles must be normalized before tenant validation',
+);
+assert.ok(
+  source.includes('(!role.organization_id || role.organization_id === row.organization_id)'),
+  'Foreign-organization roles must not grant tenant permissions',
+);
+process.stdout.write('PASS tenant-scoped role filtering\n');
