@@ -21,8 +21,8 @@ INSERT INTO public.organization_licenses(organization_id,license_type,status,ter
 INSERT INTO public.license_acceptances(organization_license_id,terms_version_id,accepted_by,user_agent,accepted_at)
  SELECT id,terms_version_id,'10000000-0000-0000-0000-000000000003','original agent','2026-10-08T12:00:00Z'
  FROM public.organization_licenses;
-CREATE TEMP TABLE original_acceptances AS TABLE public.license_acceptances;
-CREATE TEMP TABLE original_licenses AS TABLE public.organization_licenses;
+CREATE TABLE original_acceptances AS TABLE public.license_acceptances;
+CREATE TABLE original_licenses AS TABLE public.organization_licenses;
 CREATE TABLE public.leases(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid REFERENCES public.organizations(id));
 ALTER TABLE public.leases ENABLE ROW LEVEL SECURITY;
 CREATE POLICY legacy_lease_access ON public.leases FOR ALL TO authenticated USING(true) WITH CHECK(true);

@@ -17,6 +17,28 @@ DO $$ BEGIN
 END $$;
 CREATE INDEX IF NOT EXISTS license_acceptances_organization_idx ON public.license_acceptances(organization_id);
 
+-- An older frontend still submits license ID, terms ID and user_agent. Derive
+-- the added fields from that actual acceptance, never from an assumed version.
+CREATE OR REPLACE FUNCTION public.normalize_license_acceptance() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE expected_org uuid; accepted_terms text;
+BEGIN
+  SELECT organization_id INTO expected_org FROM public.organization_licenses WHERE id=NEW.organization_license_id;
+  SELECT terms_markdown INTO accepted_terms FROM public.license_terms_versions WHERE id=NEW.terms_version_id;
+  IF expected_org IS NULL OR accepted_terms IS NULL OR
+    (NEW.organization_id IS NOT NULL AND NEW.organization_id<>expected_org) THEN
+    RAISE EXCEPTION 'Invalid license acceptance' USING ERRCODE='42501';
+  END IF;
+  NEW.organization_id:=expected_org;
+  NEW.terms_snapshot:=accepted_terms;
+  NEW.acceptance_user_agent:=coalesce(NEW.acceptance_user_agent,to_jsonb(NEW)->>'user_agent');
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.normalize_license_acceptance() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS normalize_license_acceptance ON public.license_acceptances;
+CREATE TRIGGER normalize_license_acceptance BEFORE INSERT ON public.license_acceptances
+  FOR EACH ROW EXECUTE FUNCTION public.normalize_license_acceptance();
+
 -- Both released schemas keep their existing status values; new registrations
 -- also need a pending license. No licenses or acceptances are deleted.
 DO $$ DECLARE c record; BEGIN

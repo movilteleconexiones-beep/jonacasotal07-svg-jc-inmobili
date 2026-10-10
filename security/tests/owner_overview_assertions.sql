@@ -16,6 +16,13 @@ SELECT pg_temp.assert((SELECT status='TRIAL' FROM public.organizations WHERE slu
 SELECT pg_temp.assert((SELECT count(*)=1 AND bool_and(status='PENDING') FROM public.organization_licenses
  WHERE organization_id=(SELECT id FROM public.organizations WHERE slug='owner-test')),'bootstrap keeps exactly one pending license');
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.subscriptions),'bootstrap creates no free commercial subscription');
+-- A real acceptance submitted through the older client derives the new fields.
+INSERT INTO public.license_acceptances(organization_license_id,terms_version_id,accepted_by,user_agent)
+ SELECT id,'40000000-0000-0000-0000-000000000001',auth.uid(),'older client'
+ FROM public.organization_licenses WHERE organization_id=(SELECT id FROM public.organizations WHERE slug='owner-test');
+SELECT pg_temp.assert((SELECT organization_id=(SELECT id FROM public.organizations WHERE slug='owner-test')
+ AND terms_snapshot='ORIGINAL LEGAL TEXT' AND acceptance_user_agent='older client' FROM public.license_acceptances
+ WHERE accepted_by=auth.uid()),'older client acceptance remains compatible');
 DO $$ BEGIN
  BEGIN PERFORM public.platform_organization_overview(); RAISE EXCEPTION 'FAIL customer overview'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  BEGIN PERFORM public.billing_admin_authorize_trial((SELECT id FROM public.organizations WHERE slug='owner-test'),auth.uid(),
