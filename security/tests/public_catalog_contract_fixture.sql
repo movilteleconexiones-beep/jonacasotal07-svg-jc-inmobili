@@ -111,4 +111,23 @@ begin
 end
 $test$;
 reset role;
+-- Simulate a publication withdrawal and rebuild of the restricted projection.
+update public.catalog_test_properties
+set is_published=false
+where id='00000000-0000-0000-0000-000000000011';
+delete from public.catalog_test_published
+where property_id='00000000-0000-0000-0000-000000000011';
+set role anon;
+do $test$
+begin
+ if exists(select 1 from public.catalog_test_published
+           where property_id='00000000-0000-0000-0000-000000000011') then
+  raise exception 'SECURITY TEST FAILED: withdrawn listing still publicly visible';
+ end if;
+ if (select count(*) from public.catalog_test_published) <> 0 then
+  raise exception 'SECURITY TEST FAILED: unexpected catalog rows after withdrawal';
+ end if;
+end
+$test$;
+reset role;
 select 'Catalog publication contract fixture passed' as result;
