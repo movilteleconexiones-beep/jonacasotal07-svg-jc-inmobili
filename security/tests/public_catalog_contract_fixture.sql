@@ -49,6 +49,17 @@ begin
  if has_table_privilege(current_user,'public.catalog_test_public_properties','SELECT') then
   raise exception 'SECURITY TEST FAILED: unsafe invoker view granted to anon';
  end if;
+ -- Exercise actual SQL authorization rather than relying only on privilege metadata.
+ begin
+  perform count(*) from public.catalog_test_properties;
+  raise exception 'SECURITY TEST FAILED: anon SELECT unexpectedly succeeded';
+ exception when insufficient_privilege then null;
+ end;
+ begin
+  perform count(*) from public.catalog_test_public_properties;
+  raise exception 'SECURITY TEST FAILED: anon public view SELECT unexpectedly succeeded';
+ exception when insufficient_privilege then null;
+ end;
 end
 $test$;
 reset role;
