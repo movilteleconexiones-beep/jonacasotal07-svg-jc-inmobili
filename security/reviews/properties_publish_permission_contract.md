@@ -16,6 +16,11 @@ public.has_org_permission(target_org uuid, permission_key text) comprueba organi
 6. Mantener SELECT anónimo sobre una proyección mínima; nunca sobre la tabla privada de propiedades.
 7. Si se utiliza SECURITY DEFINER, fijar search_path seguro y calificar esquemas, revocar EXECUTE a PUBLIC y conceder solo a roles previstos.
 
+## Riesgo concreto observado en la función productiva (solo lectura)
+La definición actual de `has_org_permission` une `member_roles` con `role_permissions` sin unir `roles` ni comprobar `roles.organization_id = organization_members.organization_id` o `roles.active = true`. Por ello, una asignación inconsistente de un rol de otra organización o desactivado podría conceder permisos heredados. No se ha demostrado explotación real ni se han modificado filas de producción.
+
+La corrección propuesta debe filtrar explícitamente los roles activos y pertenecientes a la organización del miembro, conservar prioridad DENY y comprobar que las políticas RLS de asignación de roles impidan referencias cruzadas. Preparar y probar la función corregida en PostgreSQL aislado antes de staging.
+
 ## Riesgos y pruebas necesarias
 - La función actual no verifica de forma explícita el estado/organización del rol unido en role_grant; revisar coherencia con las políticas member_roles y roles antes de reutilizarla para publicación.
 - Probar DENY sobre ALLOW, usuario inactivo, permisos de otra organización, revocación inmediata y concurrencia.
