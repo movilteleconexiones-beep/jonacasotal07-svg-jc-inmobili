@@ -389,6 +389,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             <LicenseModule
               onAccepted={() => {
                 setTermsRequired(false);
+                setLicenseCheckedFor(licenseScope);
                 setView('DASHBOARD');
               }}
             />
