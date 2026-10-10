@@ -173,6 +173,18 @@ begin
   raise exception 'SECURITY TEST FAILED: SELECT policy bypassed DELETE restrictions';
  end if;
 end $select_not_write$;
+-- A SELECT policy cannot elevate a tenant B member into a tenant A role editor.
+do $select_not_update$
+declare affected integer;
+begin
+ update public.member_roles
+ set role_id='00000000-0000-0000-0000-000000000222'
+ where organization_member_id='00000000-0000-0000-0000-000000000011';
+ get diagnostics affected = row_count;
+ if affected <> 0 then
+  raise exception 'SECURITY TEST FAILED: SELECT policy bypassed UPDATE restrictions';
+ end if;
+end $select_not_update$;
 -- Without roles.assign in the member's organization, the existing assignment
 -- must not be writable or removable, even if its ID is known.
 set app.allowed_org = '00000000-0000-0000-0000-000000000002';
