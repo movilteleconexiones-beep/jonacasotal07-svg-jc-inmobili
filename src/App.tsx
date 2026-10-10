@@ -63,6 +63,7 @@ export default function App() {
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(false);
   // Catalog state
+  // DEMO ONLY: this public catalog uses session-local sample data, not published Supabase records.
   const [properties, setProperties] = useState<Property[]>(PROPERTIES);
   const [operationFilter, setOperationFilter] = useState<'Todas' | Property['operation']>('Todas');
   const [categoryFilter, setCategoryFilter] = useState<'Todas' | Property['category']>('Todas');
