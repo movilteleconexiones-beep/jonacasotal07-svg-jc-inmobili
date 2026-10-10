@@ -65,7 +65,7 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
     if (memberRolesError) throw new Error(`No se pudieron verificar los roles: ${memberRolesError.message}`);
 
     const roles: Role[] = (memberRoles ?? [])
-      .map((entry: any) => entry.roles)
+      .flatMap((entry: any) => Array.isArray(entry.roles) ? entry.roles : [entry.roles])
       .filter((role: any) =>
         Boolean(role) && Boolean(role.active) &&
         (!role.organization_id || role.organization_id === row.organization_id),
