@@ -68,7 +68,7 @@ reset role;
 insert into public.roles(id,organization_id,active) values
  ('00000000-0000-0000-0000-000000000333','00000000-0000-0000-0000-000000000001',false);
 set role authenticated;
-do $
+do $inactive_role$
 begin
  begin
   insert into public.member_roles values
@@ -77,7 +77,7 @@ begin
  exception
   when insufficient_privilege then null;
  end;
-end $;
+end $inactive_role$;
 -- Forbidden: update an existing assignment to a role belonging to B.
 do $$
 begin
