@@ -35,3 +35,22 @@ export function resolveEffectivePermissions(
   for (const key of denied) permissions.delete(key);
   return [...permissions];
 }
+
+export interface ScopedRole {
+  id: string;
+  active?: boolean | null;
+  organization_id?: string | null;
+}
+
+export function eligibleRolesForOrganization(
+  entries: Array<{ roles?: ScopedRole | ScopedRole[] | null }>,
+  organizationId: string,
+): ScopedRole[] {
+  return entries
+    .flatMap((entry) => Array.isArray(entry.roles) ? entry.roles : [entry.roles])
+    .filter((role): role is ScopedRole =>
+      Boolean(role?.id) &&
+      role?.active === true &&
+      (!role.organization_id || role.organization_id === organizationId),
+    );
+}
