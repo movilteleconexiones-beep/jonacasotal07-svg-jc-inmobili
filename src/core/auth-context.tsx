@@ -192,7 +192,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     let mounted = true;
-    const clearFailedLoad = () => {
+    const clearFailedLoad = (failedVersion: number) => {
+      if (failedVersion !== membershipLoadVersion.current) return;
       membershipLoadVersion.current += 1;
       setMemberships([]);
       setIsPlatformAdmin(false);
@@ -203,12 +204,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     supabase.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
       setSession(error ? null : data.session);
+      const loadVersion = membershipLoadVersion.current + 1;
       try {
         await loadForUser(error ? null : data.session?.user.id ?? null);
       } catch (loadError) {
         console.error('Unable to load organization memberships', loadError);
         if (mounted) {
-          clearFailedLoad();
+          clearFailedLoad(loadVersion);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -224,10 +226,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setSession(nextSession);
       setTimeout(() => {
         if (!mounted) return;
+        const loadVersion = membershipLoadVersion.current + 1;
         void loadForUser(nextSession?.user.id ?? null)
           .catch((error) => {
             console.error('Unable to refresh memberships', error);
-            if (mounted) clearFailedLoad();
+            if (mounted) clearFailedLoad(loadVersion);
           })
           .finally(() => {
             if (mounted) setLoading(false);
