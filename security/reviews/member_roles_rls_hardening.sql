@@ -17,6 +17,7 @@ using (
     join public.roles r on r.id = member_roles.role_id
     where m.id = member_roles.organization_member_id
       and r.organization_id = m.organization_id
+      and r.active = true
       and public.has_org_permission(m.organization_id, 'roles.assign')
   )
 )
@@ -27,6 +28,7 @@ with check (
     join public.roles r on r.id = member_roles.role_id
     where m.id = member_roles.organization_member_id
       and r.organization_id = m.organization_id
+      and r.active = true
       and public.has_org_permission(m.organization_id, 'roles.assign')
   )
 );
