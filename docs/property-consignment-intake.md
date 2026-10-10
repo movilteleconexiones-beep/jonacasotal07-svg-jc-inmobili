@@ -10,10 +10,12 @@ La bandeja privada requiere `properties.view` y `clients.view`. La revisión req
 
 Se retira la política `Permitir lectura publica de propiedades`, que exponía todos los borradores de todas las inmobiliarias. El catálogo actual se alimenta de datos de ejemplo; no depende de esa política. La publicación de inventario real requiere una proyección pública explícita de inmuebles aprobados en un trabajo posterior.
 
+La comprobación contra producción detectó recursión entre las políticas de propiedades y titularidades del portal. La migración `20261010214633_fix_property_portal_rls_recursion.sql` sustituye la consulta circular por una función interna en `private`, con identidad autenticada y organización comprobadas. Conserva los accesos de propietarios y contactos relacionados por leads, negocios o citas, y rechaza relaciones que crucen inmobiliarias. La prueba de regresión reproduce el fallo anterior antes de aplicar la corrección.
+
 ## Publicación y validación
 
 1. Ejecutar TypeScript, pruebas de contrato y SQL en PostgreSQL aislado, incluidas concurrencia, aislamiento, cuotas, rechazo de parámetros de revisión, reintentos y reversión de fallos parciales.
-2. Aplicar exclusivamente `20261010212630_property_consignment_intake.sql`; no ejecutar en bloque las migraciones de pagos pendientes.
+2. Aplicar exclusivamente `20261010212630_property_consignment_intake.sql` y `20261010214633_fix_property_portal_rls_recursion.sql`; no ejecutar en bloque las migraciones de pagos pendientes.
 3. Registrar el sitio activo de la inmobiliaria comprobada y configurar `VITE_PUBLIC_SITE_SLUG` en Railway.
 4. Fusionar solo el commit cuyo CI terminó correctamente, comprobar el SHA desplegado y verificar el formulario público.
 5. La recepción y revisión deben funcionar por API. Las pruebas contra producción deben usar datos sintéticos y una transacción que termine en ROLLBACK, o limpieza restringida a los identificadores creados para la prueba.
