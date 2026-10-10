@@ -33,6 +33,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [constructionAreaM2, setConstructionAreaM2] = useState('360');
   const [bedrooms, setBedrooms] = useState('3');
   const [bathrooms, setBathrooms] = useState('3.5');
+  const [parkingSpaces, setParkingSpaces] = useState('0');
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [summary, setSummary] = useState('');
@@ -94,9 +95,11 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     }
     const bedroomCount = Number(bedrooms);
     const bathroomCount = Number(bathrooms);
+    const parkingCount = Number(parkingSpaces);
     if (!bedrooms.trim() || !bathrooms.trim() ||
         !Number.isInteger(bedroomCount) || bedroomCount < 0 ||
-        !Number.isFinite(bathroomCount) || bathroomCount < 0) {
+        !Number.isFinite(bathroomCount) || bathroomCount < 0 ||
+        !parkingSpaces.trim() || !Number.isInteger(parkingCount) || parkingCount < 0) {
       setError('Ingresa cantidades válidas de habitaciones y baños, sin valores negativos.');
       return;
     }
@@ -138,7 +141,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       constructionAreaM2: numericConst,
       bedrooms: bedroomCount,
       bathrooms: bathroomCount,
-      parkingSpaces: 0,
+      parkingSpaces: parkingCount,
       annualAppreciationPct: benchmark.annualAppreciationPct,
       rentalYieldPct: benchmark.avgYieldPct,
       image: HERO_IMAGE,
@@ -422,6 +425,21 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                   step="0.5"
                   value={bathrooms}
                   onChange={(e) => setBathrooms(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-mono-tabular"
+                />
+              </div>
+              <div>
+                <label htmlFor="prop-parking" className="block text-xs font-medium text-slate-700 mb-1">
+                  Estacionamientos
+                </label>
+                <input
+                  id="prop-parking"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={parkingSpaces}
+                  onChange={(e) => setParkingSpaces(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-mono-tabular"
                 />
               </div>
