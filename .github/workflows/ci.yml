@@ -114,6 +114,11 @@ jobs:
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_security_test -f security/tests/public_catalog_contract_fixture.sql
 
+      - name: Atomic public catalog synchronization (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_security_test -f security/tests/public_catalog_atomic_sync_test.sql
+
       - name: Payment SQL integration tests (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
