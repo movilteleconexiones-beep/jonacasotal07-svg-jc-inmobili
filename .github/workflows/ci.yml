@@ -117,7 +117,9 @@ jobs:
       - name: Scoped authorization function (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
-        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_security_test -f security/tests/has_org_permission_role_scope_test.sql
+        run: |
+          createdb -h localhost -U postgres jco_permission_scope_test
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_permission_scope_test -f security/tests/has_org_permission_role_scope_test.sql
 
       - name: Atomic public catalog synchronization (isolated PostgreSQL)
         env:
