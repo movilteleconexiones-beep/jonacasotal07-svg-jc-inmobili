@@ -162,6 +162,32 @@ update public.atomic_memberships set can_publish=true where actor_id=101 and org
 do $assert$ begin
  if not public.atomic_approve_for_actor(101,11) then raise exception 'restored permission denied'; end if;
 end $assert$;
+-- Role inheritance fixture matching production roles/member_roles/role_permissions joins.
+-- A role attached to another tenant or marked inactive must never grant publication.
+create table public.atomic_roles(id int primary key,org_id int not null,active boolean not null);
+create table public.atomic_role_permissions(role_id int not null,permission_key text not null);
+create table public.atomic_member_roles(actor_id int not null,member_org_id int not null,role_id int not null);
+insert into public.atomic_roles values (1,1,true),(2,2,true),(3,1,false);
+insert into public.atomic_role_permissions values
+ (1,'properties.publish'),(2,'properties.publish'),(3,'properties.publish');
+insert into public.atomic_member_roles values (201,1,2),(202,1,3),(203,1,1);
+create function public.atomic_role_can_publish(p_actor int,p_org int)
+returns boolean language sql stable as $roles$
+ select exists (
+  select 1 from public.atomic_member_roles mr
+  join public.atomic_roles r on r.id=mr.role_id
+  join public.atomic_role_permissions rp on rp.role_id=r.id
+  where mr.actor_id=p_actor and mr.member_org_id=p_org
+    and r.org_id=p_org and r.active=true
+    and rp.permission_key='properties.publish'
+ );
+$roles$;
+do $assert$ begin
+ if public.atomic_role_can_publish(201,1) then raise exception 'cross-org inherited role granted publication'; end if;
+ if public.atomic_role_can_publish(202,1) then raise exception 'inactive role granted publication'; end if;
+ if not public.atomic_role_can_publish(203,1) then raise exception 'active same-org role denied'; end if;
+ if public.atomic_role_can_publish(203,2) then raise exception 'role permission leaked to other org'; end if;
+end $assert$;
 -- Tenant relocation must update the public projection without stale org association.
 update public.atomic_properties set org_id=2 where id=11;
 do $assert$ begin
