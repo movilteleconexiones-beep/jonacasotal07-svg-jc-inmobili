@@ -84,8 +84,8 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       return;
     }
     const phoneDigits = ownerPhone.replace(/\D/g, '');
-    if (ownerName.trim().length < 3 || phoneDigits.length < 7 || phoneDigits.length > 15) {
-      setError('Por favor proporciona tu nombre y un teléfono válido, con código de país cuando corresponda.');
+    if (ownerName.trim().length < 3 || ownerName.trim().length > 120 || ownerPhone.length > 40 || phoneDigits.length < 7 || phoneDigits.length > 15) {
+      setError('Ingresa un nombre de 3 a 120 caracteres y un teléfono válido de 7 a 15 dígitos.');
       return;
     }
 
