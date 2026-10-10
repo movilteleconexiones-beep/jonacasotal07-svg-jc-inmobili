@@ -195,7 +195,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         await loadForUser(error ? null : data.session?.user.id ?? null);
       } catch (loadError) {
         console.error('Unable to load organization memberships', loadError);
-        if (mounted) setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+        if (mounted) {
+          setMemberships([]);
+          setIsPlatformAdmin(false);
+          setActiveOrganizationId(null);
+          setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+        }
       } finally {
         if (mounted) setLoading(false);
       }
