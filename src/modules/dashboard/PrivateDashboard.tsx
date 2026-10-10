@@ -101,6 +101,11 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const licenseScope = organizationId && user ? `${organizationId}:${user.id}` : null;
   const licenseReady = !licenseCheckLoading && licenseCheckedFor === licenseScope;
 
+  // Switching organizations starts in the overview, not the prior tenant's module.
+  useEffect(() => {
+    setView('DASHBOARD');
+  }, [organizationId]);
+
   useEffect(() => {
     if (!organizationId || !user) {
       setTermsRequired(false);
@@ -356,7 +361,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           </div>}
         </aside>
 
-        <main className="min-w-0">
+        <main key={licenseScope ?? "no-organization"} className="min-w-0">
           {termsRequired && !licenseCheckLoading && (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
               <div className="font-bold">Aceptación de licencia requerida</div>
