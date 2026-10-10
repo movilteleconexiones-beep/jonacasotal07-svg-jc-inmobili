@@ -37,6 +37,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Authentication permission policy model tests
+        run: node --test tests/auth-permission-policy.test.mjs
       - name: Authentication concurrency model tests
         run: node --test tests/auth-session-concurrency.test.mjs
       - name: Authentication session isolation regression guards
