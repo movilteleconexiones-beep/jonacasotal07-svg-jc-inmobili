@@ -40,3 +40,9 @@ for (const [name, snippet] of membershipGuards) {
   process.stdout.write('PASS ' + name + '\n');
 }
 assert.ok(policySource.includes("item.effect === 'DENY'"), 'Missing explicit denial policy');
+
+assert.ok(
+  source.includes('const linkedPermissions = Array.isArray(relation) ? relation : [relation];'),
+  'Role permissions must accept array-shaped Supabase relations',
+);
+process.stdout.write('PASS role permission relation compatibility\n');
