@@ -123,6 +123,45 @@ end;
 end
 $denied$;
 reset role;
+-- Organization-scoped publication approval fixture. This models the authorization
+-- invariant but does not replace production organization_members / permission RPCs.
+create table public.atomic_memberships (
+ actor_id int not null, org_id int not null references public.atomic_orgs(id),
+ active boolean not null, can_publish boolean not null default false,
+ primary key(actor_id,org_id)
+);
+insert into public.atomic_memberships values
+ (101,1,true,true),(101,2,true,false),(102,1,true,false),(103,1,false,true);
+create function public.atomic_approve_for_actor(p_actor int,p_property int)
+returns boolean language plpgsql as $auth$
+declare target_org int;
+begin
+ select org_id into target_org from public.atomic_properties where id=p_property for update;
+ if target_org is null then return false; end if;
+ if not exists (
+  select 1 from public.atomic_memberships
+  where actor_id=p_actor and org_id=target_org and active and can_publish
+ ) then return false; end if;
+ update public.atomic_properties set approved=true where id=p_property;
+ return true;
+end $auth$;
+-- Permission checks are tenant-scoped and fail closed.
+do $assert$ begin
+ if public.atomic_approve_for_actor(102,11) then raise exception 'member without permission approved'; end if;
+ if public.atomic_approve_for_actor(103,11) then raise exception 'inactive member approved'; end if;
+ if public.atomic_approve_for_actor(101,21) then raise exception 'permission crossed tenant boundary'; end if;
+ if not public.atomic_approve_for_actor(101,11) then raise exception 'authorized member denied'; end if;
+end $assert$;
+update public.atomic_memberships set can_publish=false where actor_id=101 and org_id=1;
+update public.atomic_properties set approved=false where id=11;
+do $assert$ begin
+ if public.atomic_approve_for_actor(101,11) then raise exception 'revoked permission still approved'; end if;
+ if exists(select 1 from public.atomic_public_listings where property_id=11) then raise exception 'revoked publication still public'; end if;
+end $assert$;
+update public.atomic_memberships set can_publish=true where actor_id=101 and org_id=1;
+do $assert$ begin
+ if not public.atomic_approve_for_actor(101,11) then raise exception 'restored permission denied'; end if;
+end $assert$;
 -- Tenant relocation must update the public projection without stale org association.
 update public.atomic_properties set org_id=2 where id=11;
 do $assert$ begin
