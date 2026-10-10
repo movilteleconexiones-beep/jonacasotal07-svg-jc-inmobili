@@ -1,0 +1,24 @@
+-- INMOJCO: regression test specification for isolated PostgreSQL/Supabase only.
+-- DO NOT execute against production.
+-- Before running, install a disposable Supabase database with matching schema,
+-- seed a platform admin and two organizations, and run the migration under review.
+-- Assertions to implement using pgTAP or an isolated integration test runner:
+--
+-- 01 non-platform authenticated user -> SQLSTATE 42501, zero changes
+-- 02 null org/plan/mode/status -> SQLSTATE 22023
+-- 03 unknown or inactive plan -> SQLSTATE 22023
+-- 04 nonexistent organization -> SQLSTATE 22023
+-- 05 administratively inactive org -> SQLSTATE 22023
+-- 06 LIFETIME plan paired with SAAS_MONTHLY -> SQLSTATE 22023
+-- 07 LIFETIME billing paired with ACTIVE status -> SQLSTATE 22023
+-- 08 DEDICATED or CUSTOM billing with BASIC/PRO -> SQLSTATE 22023
+-- 09 direct creation of ACTIVE/LIFETIME entitlement -> SQLSTATE 22023
+-- 10 repeat identical subscription assignment -> dates and updated_at unchanged
+-- 11 change existing subscription plan/mode -> SQLSTATE 22023
+-- 12 change existing subscription status -> SQLSTATE 22023
+-- 13 concurrency: two calls for same org -> one consistent subscription
+-- 14 no update of organizations.status by subscription RPC
+-- 15 Wompi event duplicate/rejected -> no entitlement activation
+--
+-- CAUTION: These are pending acceptance cases, not passing test results.
+select 'PENDING: execute isolated subscription security integration tests' as test_status;

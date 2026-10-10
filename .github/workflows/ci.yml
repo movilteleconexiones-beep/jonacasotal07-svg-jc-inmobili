@@ -37,6 +37,14 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Production authorization policy unit tests
+        run: npx tsx --test tests/auth-policy-direct.test.mjs
+      - name: Authentication permission policy model tests
+        run: node --test tests/auth-permission-policy.test.mjs
+      - name: Authentication concurrency model tests
+        run: node --test tests/auth-session-concurrency.test.mjs
+      - name: Authentication session isolation regression guards
+        run: npm run test:auth-guards
       - name: Supabase configuration regression tests
         run: node --test tests/supabase-config.test.mjs
       - name: Platform admin access regression tests
@@ -67,12 +75,56 @@ jobs:
         run: node --test tests/wompi-atomic-order-sql.test.mjs
       - name: Billing revocation concurrency release-gate checks
         run: node --test tests/wompi-billing-revocation-contract.test.mjs
+      - name: Legacy platform subscription caller inventory
+        run: node scripts/check-platform-subscription-callers.mjs
+      - name: Platform subscription RPC static security gates
+        run: node --test tests/platform-subscription-rpc-static.test.mjs
+      - name: Platform subscription SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_subscription_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f supabase/migrations/20261009_platform_subscription_guardrails_review.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_test -f security/tests/platform_subscription_two_transactions.sql
+      - name: Concurrent subscription assignments (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_subscription_race_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -f security/tests/platform_subscription_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -f supabase/migrations/20261009_platform_subscription_guardrails_review.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -c "SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false); SELECT public.platform_set_subscription('11111111-1111-4111-8111-111111111111','BASIC','SAAS_MONTHLY','SUSPENDED');" &
+          first_pid=$!
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -c "SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false); SELECT public.platform_set_subscription('11111111-1111-4111-8111-111111111111','BASIC','SAAS_MONTHLY','SUSPENDED');" &
+          second_pid=$!
+          wait "$first_pid"
+          wait "$second_pid"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_subscription_race_test -c "DO \$\$ BEGIN IF (SELECT count(*) FROM public.subscriptions WHERE organization_id='11111111-1111-4111-8111-111111111111') <> 1 THEN RAISE EXCEPTION 'Concurrent assignments created duplicates'; END IF; END \$\$;"
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d jco_security_test -f security/tests/member_roles_rls_test.sql
+
+      - name: Public catalog privacy contract (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_security_test -f security/tests/public_catalog_contract_fixture.sql
+
+      - name: Scoped authorization function (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          createdb -h localhost -U postgres jco_permission_scope_test
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_permission_scope_test -f security/tests/has_org_permission_role_scope_test.sql
+
+      - name: Atomic public catalog synchronization (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_security_test -f security/tests/public_catalog_atomic_sync_test.sql
 
       - name: Payment SQL integration tests (isolated PostgreSQL)
         env:

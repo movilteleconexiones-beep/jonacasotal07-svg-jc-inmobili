@@ -1,0 +1,237 @@
+\set ON_ERROR_STOP on
+-- Atomic publication synchronization prototype: disposable PostgreSQL only.
+do $setup$ begin
+ if not exists(select 1 from pg_roles where rolname='anon') then create role anon nologin; end if;
+end $setup$;
+create table public.atomic_orgs(id int primary key, website_enabled boolean not null default false);
+create table public.atomic_properties(
+ id int primary key, org_id int not null references public.atomic_orgs(id),
+ title text not null, address text not null, status text not null,
+ approved boolean not null default false
+);
+create table public.atomic_public_listings(
+ property_id int primary key references public.atomic_properties(id) on delete cascade,
+ org_id int not null, title text not null
+);
+create function public.atomic_refresh_property(p_id int) returns void
+language plpgsql as $fn$
+begin
+ delete from public.atomic_public_listings where property_id=p_id;
+ insert into public.atomic_public_listings(property_id,org_id,title)
+ select p.id,p.org_id,p.title from public.atomic_properties p
+ join public.atomic_orgs o on o.id=p.org_id
+ where p.id=p_id and p.approved and p.status='AVAILABLE' and o.website_enabled;
+end $fn$;
+create function public.atomic_property_changed() returns trigger
+language plpgsql as $fn$
+begin
+ if tg_op='DELETE' then return old; end if;
+ perform public.atomic_refresh_property(new.id);
+ return new;
+end $fn$;
+create trigger atomic_property_sync after insert or update on public.atomic_properties
+for each row execute function public.atomic_property_changed();
+create function public.atomic_org_changed() returns trigger language plpgsql as $fn$
+declare p_id int;
+begin
+ if new.website_enabled is distinct from old.website_enabled then
+  for p_id in select id from public.atomic_properties where org_id=new.id loop
+   perform public.atomic_refresh_property(p_id);
+  end loop;
+ end if;
+ return new;
+end $fn$;
+create trigger atomic_org_sync after update of website_enabled on public.atomic_orgs
+for each row execute function public.atomic_org_changed();
+alter table public.atomic_properties enable row level security;
+alter table public.atomic_orgs enable row level security;
+alter table public.atomic_public_listings enable row level security;
+create policy atomic_anon_listings on public.atomic_public_listings for select to anon using (true);
+revoke all on public.atomic_properties,public.atomic_orgs,public.atomic_public_listings from public;
+grant usage on schema public to anon;
+grant select on public.atomic_public_listings to anon;
+insert into public.atomic_orgs values (1,true),(2,false);
+insert into public.atomic_properties(id,org_id,title,address,status,approved) values
+ (11,1,'A','SECRET A','AVAILABLE',false),
+ (12,1,'B','SECRET B','DRAFT',true),
+ (21,2,'C','SECRET C','AVAILABLE',true);
+do $assert$ begin
+ if (select count(*) from public.atomic_public_listings)<>0 then raise exception 'unapproved, draft or disabled org leaked'; end if;
+end $assert$;
+update public.atomic_properties set approved=true where id=11;
+do $assert$ begin
+ if (select count(*) from public.atomic_public_listings)<>1 then raise exception 'approval did not publish'; end if;
+end $assert$;
+update public.atomic_properties set approved=false where id=11;
+do $assert$ begin
+ if exists(select 1 from public.atomic_public_listings where property_id=11) then raise exception 'withdrawal did not unpublish'; end if;
+end $assert$;
+update public.atomic_properties set approved=true where id=11;
+update public.atomic_properties set status='INACTIVE' where id=11;
+do $assert$ begin
+ if exists(select 1 from public.atomic_public_listings where property_id=11) then raise exception 'inactive listing leaked'; end if;
+end $assert$;
+update public.atomic_properties set status='AVAILABLE' where id=11;
+update public.atomic_orgs set website_enabled=false where id=1;
+do $assert$ begin
+ if (select count(*) from public.atomic_public_listings)<>0 then raise exception 'disabled website leaked'; end if;
+end $assert$;
+update public.atomic_orgs set website_enabled=true where id=1;
+-- Transaction rollback: both source approval and public projection must revert.
+begin;
+ update public.atomic_properties set approved=false where id=11;
+ do $assert$ begin
+  if exists(select 1 from public.atomic_public_listings where property_id=11) then raise exception 'withdrawal not visible inside transaction'; end if;
+ end $assert$;
+rollback;
+do $assert$ begin
+ if (select approved from public.atomic_properties where id=11) is distinct from true then raise exception 'rollback lost source approval'; end if;
+ if (select count(*) from public.atomic_public_listings where property_id=11)<>1 then raise exception 'rollback lost public projection'; end if;
+end $assert$;
+-- Authorization model: a tenant member without publication permission must not approve.
+-- Fixture roles are intentionally limited; production must use the real membership/RLS model.
+do $setup$ begin
+ if not exists(select 1 from pg_roles where rolname='catalog_test_member') then create role catalog_test_member nologin; end if;
+end $setup$;
+grant usage on schema public to catalog_test_member;
+grant select on public.atomic_properties to catalog_test_member;
+set role catalog_test_member;
+do $assert$ begin
+ if has_table_privilege(current_user,'public.atomic_properties','UPDATE') then
+  raise exception 'unprivileged member can change publication consent';
+ end if;
+ if has_table_privilege(current_user,'public.atomic_public_listings','INSERT') or
+    has_table_privilege(current_user,'public.atomic_public_listings','UPDATE') or
+    has_table_privilege(current_user,'public.atomic_public_listings','DELETE') then
+  raise exception 'unprivileged member can directly mutate public catalog';
+ end if;
+end $assert$;
+-- Verify actual attempted unauthorized writes are rejected.
+do $denied$
+begin
+ begin
+  update public.atomic_properties set approved=false where id=11;
+ raise exception 'unprivileged member unexpectedly updated approval';
+exception when insufficient_privilege then null;
+end;
+-- Verify a direct catalog insertion is rejected.
+begin
+ insert into public.atomic_public_listings(property_id,org_id,title) values (999,1,'FORGED');
+ raise exception 'unprivileged member unexpectedly inserted a public listing';
+exception when insufficient_privilege then null;
+end;
+end
+$denied$;
+reset role;
+-- Organization-scoped publication approval fixture. This models the authorization
+-- invariant but does not replace production organization_members / permission RPCs.
+create table public.atomic_memberships (
+ actor_id int not null, org_id int not null references public.atomic_orgs(id),
+ active boolean not null, can_publish boolean not null default false,
+ primary key(actor_id,org_id)
+);
+insert into public.atomic_memberships values
+ (101,1,true,true),(101,2,true,false),(102,1,true,false),(103,1,false,true);
+create function public.atomic_approve_for_actor(p_actor int,p_property int)
+returns boolean language plpgsql as $auth$
+declare target_org int;
+begin
+ select org_id into target_org from public.atomic_properties where id=p_property for update;
+ if target_org is null then return false; end if;
+ if not exists (
+  select 1 from public.atomic_memberships
+  where actor_id=p_actor and org_id=target_org and active and can_publish
+ ) then return false; end if;
+ update public.atomic_properties set approved=true where id=p_property;
+ return true;
+end $auth$;
+-- Permission checks are tenant-scoped and fail closed.
+do $assert$ begin
+ if public.atomic_approve_for_actor(102,11) then raise exception 'member without permission approved'; end if;
+ if public.atomic_approve_for_actor(103,11) then raise exception 'inactive member approved'; end if;
+ if public.atomic_approve_for_actor(101,21) then raise exception 'permission crossed tenant boundary'; end if;
+ if not public.atomic_approve_for_actor(101,11) then raise exception 'authorized member denied'; end if;
+end $assert$;
+update public.atomic_memberships set can_publish=false where actor_id=101 and org_id=1;
+update public.atomic_properties set approved=false where id=11;
+do $assert$ begin
+ if public.atomic_approve_for_actor(101,11) then raise exception 'revoked permission still approved'; end if;
+ if exists(select 1 from public.atomic_public_listings where property_id=11) then raise exception 'revoked publication still public'; end if;
+end $assert$;
+update public.atomic_memberships set can_publish=true where actor_id=101 and org_id=1;
+do $assert$ begin
+ if not public.atomic_approve_for_actor(101,11) then raise exception 'restored permission denied'; end if;
+end $assert$;
+-- Role inheritance fixture matching production roles/member_roles/role_permissions joins.
+-- A role attached to another tenant or marked inactive must never grant publication.
+create table public.atomic_roles(id int primary key,org_id int not null,active boolean not null);
+create table public.atomic_role_permissions(role_id int not null,permission_key text not null);
+create table public.atomic_member_roles(actor_id int not null,member_org_id int not null,role_id int not null);
+insert into public.atomic_roles values (1,1,true),(2,2,true),(3,1,false);
+insert into public.atomic_role_permissions values
+ (1,'properties.publish'),(2,'properties.publish'),(3,'properties.publish');
+insert into public.atomic_member_roles values (201,1,2),(202,1,3),(203,1,1);
+create function public.atomic_role_can_publish(p_actor int,p_org int)
+returns boolean language sql stable as $roles$
+ select exists (
+  select 1 from public.atomic_member_roles mr
+  join public.atomic_roles r on r.id=mr.role_id
+  join public.atomic_role_permissions rp on rp.role_id=r.id
+  where mr.actor_id=p_actor and mr.member_org_id=p_org
+    and r.org_id=p_org and r.active=true
+    and rp.permission_key='properties.publish'
+ );
+$roles$;
+do $assert$ begin
+ if public.atomic_role_can_publish(201,1) then raise exception 'cross-org inherited role granted publication'; end if;
+ if public.atomic_role_can_publish(202,1) then raise exception 'inactive role granted publication'; end if;
+ if not public.atomic_role_can_publish(203,1) then raise exception 'active same-org role denied'; end if;
+ if public.atomic_role_can_publish(203,2) then raise exception 'role permission leaked to other org'; end if;
+end $assert$;
+-- Tenant relocation must update the public projection without stale org association.
+update public.atomic_properties set org_id=2 where id=11;
+do $assert$ begin
+ if exists(select 1 from public.atomic_public_listings where property_id=11) then
+  raise exception 'cross-tenant move retained public listing in disabled organization';
+ end if;
+end $assert$;
+update public.atomic_properties set org_id=1 where id=11;
+do $assert$ begin
+ if (select count(*) from public.atomic_public_listings where property_id=11 and org_id=1)<>1 then
+  raise exception 'restored organization did not republish correctly';
+ end if;
+end $assert$;
+-- Public metadata edits must propagate without leaking the private address.
+update public.atomic_properties set title='Updated public title',address='CHANGED SECRET' where id=11;
+do $assert$ begin
+ if (select title from public.atomic_public_listings where property_id=11) is distinct from 'Updated public title' then
+  raise exception 'public metadata not synchronized';
+ end if;
+end $assert$;
+-- Cascading deletion must remove the published projection.
+insert into public.atomic_properties(id,org_id,title,address,status,approved)
+ values (13,1,'Delete me','SECRET DELETE','AVAILABLE',true);
+do $assert$ begin
+ if (select count(*) from public.atomic_public_listings where property_id=13)<>1 then raise exception 'delete fixture not published'; end if;
+end $assert$;
+delete from public.atomic_properties where id=13;
+do $assert$ begin
+ if exists(select 1 from public.atomic_public_listings where property_id=13) then raise exception 'deleted property still public'; end if;
+end $assert$;
+-- The public table must not be writable by anonymous callers.
+set role anon;
+do $assert$ begin
+ if has_table_privilege(current_user,'public.atomic_public_listings','INSERT') or
+    has_table_privilege(current_user,'public.atomic_public_listings','UPDATE') or
+    has_table_privilege(current_user,'public.atomic_public_listings','DELETE') then
+  raise exception 'anon can mutate public projection';
+ end if;
+end $assert$;
+reset role;
+set role anon;
+do $assert$ begin
+ if has_table_privilege(current_user,'public.atomic_properties','SELECT') then raise exception 'anon can read source'; end if;
+ if (select count(*) from public.atomic_public_listings)<>1 then raise exception 'anon publication count incorrect'; end if;
+end $assert$;
+reset role;
+select 'Atomic publication fixture passed' as result;
