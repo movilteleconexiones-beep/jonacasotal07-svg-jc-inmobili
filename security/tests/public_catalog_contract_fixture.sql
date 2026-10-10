@@ -76,4 +76,39 @@ begin
  end if;
 end
 $test$;
+-- Prototype of a separately published, column-restricted catalog table.
+-- This fixture does not implement publication synchronization or production RLS.
+create table public.catalog_test_published (
+ property_id uuid primary key,
+ organization_id uuid not null,
+ title text not null,
+ status text not null check (status='AVAILABLE')
+);
+insert into public.catalog_test_published(property_id,organization_id,title,status)
+select p.id,p.organization_id,p.title,p.status
+from public.catalog_test_properties p
+join public.catalog_test_organizations o on o.id=p.organization_id
+where p.status='AVAILABLE' and p.is_published and o.enable_public_website;
+alter table public.catalog_test_published enable row level security;
+create policy catalog_test_public_read on public.catalog_test_published
+ for select to anon using (true);
+revoke all on public.catalog_test_published from public;
+grant select on public.catalog_test_published to anon;
+set role anon;
+do $test$
+declare visible_count integer;
+begin
+ select count(*) into visible_count from public.catalog_test_published;
+ if visible_count <> 1 then
+  raise exception 'SECURITY TEST FAILED: anonymous public projection count differs';
+ end if;
+ if exists(select 1 from public.catalog_test_published where organization_id='00000000-0000-0000-0000-000000000002') then
+  raise exception 'SECURITY TEST FAILED: disabled tenant is publicly visible';
+ end if;
+ if exists(select 1 from information_schema.columns where table_schema='public' and table_name='catalog_test_published' and column_name in ('address','created_by','assigned_agent_id','import_job_id')) then
+  raise exception 'SECURITY TEST FAILED: private columns present in public projection';
+ end if;
+end
+$test$;
+reset role;
 select 'Catalog publication contract fixture passed' as result;
