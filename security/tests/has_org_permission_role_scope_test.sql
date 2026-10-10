@@ -61,4 +61,21 @@ do $test$ begin
   raise exception 'inactive member retained permission';
  end if;
 end $test$;
+-- Authorization must remain tenant-scoped even when the user is active in another org.
+update public.organization_members set status='ACTIVE';
+do $test$ begin
+ if public.has_org_permission('00000000-0000-0000-0000-000000000002','properties.publish') then
+  raise exception 'permission leaked into organization without active membership';
+ end if;
+ if public.has_org_permission('00000000-0000-0000-0000-000000000001','properties.unknown') then
+  raise exception 'nonexistent permission unexpectedly granted';
+ end if;
+end $test$;
+-- Removing the explicit override immediately removes the permission.
+delete from public.member_permissions;
+do $test$ begin
+ if public.has_org_permission('00000000-0000-0000-0000-000000000001','properties.publish') then
+  raise exception 'revoked override retained publication permission';
+ end if;
+end $test$;
 select 'Scoped has_org_permission function passed' as result;
