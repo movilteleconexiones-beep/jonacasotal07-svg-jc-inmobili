@@ -14,7 +14,7 @@ export function isValidMembership(row: MembershipIdentity, userId: string): bool
 
 export interface PermissionOverride {
   effect: string;
-  permissions?: { key?: string | null } | null;
+  permissions?: { key?: string | null } | { key?: string | null }[] | null;
 }
 
 export function resolveEffectivePermissions(
@@ -24,7 +24,9 @@ export function resolveEffectivePermissions(
   const permissions = new Set(inherited);
   const denied = new Set<string>();
   for (const item of overrides) {
-    const key = item.permissions?.key;
+    const key = Array.isArray(item.permissions)
+      ? item.permissions[0]?.key
+      : item.permissions?.key;
     if (!key) continue;
     if (item.effect === 'DENY') denied.add(key);
     if (item.effect === 'ALLOW') permissions.add(key);
