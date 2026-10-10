@@ -46,6 +46,14 @@ do $test$ begin
   raise exception 'DENY did not override role grant';
  end if;
 end $test$;
+-- Conflicting overrides must fail closed: DENY always wins over ALLOW.
+insert into public.member_permissions values
+ ('00000000-0000-0000-0000-000000000101','00000000-0000-0000-0000-000000000201','ALLOW');
+do $test$ begin
+ if public.has_org_permission('00000000-0000-0000-0000-000000000001','properties.publish') then
+  raise exception 'conflicting ALLOW bypassed explicit DENY';
+ end if;
+end $test$;
 delete from public.member_permissions;
 delete from public.member_roles where role_id='00000000-0000-0000-0000-000000000303';
 insert into public.member_permissions values
