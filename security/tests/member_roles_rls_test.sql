@@ -138,8 +138,19 @@ begin
    raise exception 'SECURITY TEST FAILED: tenant B read tenant A role assignment';
  end if;
 end $$;
+-- B must not delete its own assignment unless explicitly authorized;
+-- the A assignment remains untouched throughout the test.
+set app.allowed_org = '00000000-0000-0000-0000-000000000001';
+do $
+declare visible_count integer;
+begin
+ select count(*) into visible_count from public.member_roles;
+ if visible_count <> 1 then
+   raise exception 'SECURITY TEST FAILED: tenant A gained visibility into B';
+ end if;
+end $;
 reset role;
-do $$
+do $
 begin
  if (select count(*) from public.member_roles) <> 2 then
   raise exception 'SECURITY TEST FAILED: expected one authorized assignment per tenant';
