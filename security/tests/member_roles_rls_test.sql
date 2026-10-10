@@ -115,8 +115,19 @@ begin
    raise exception 'SECURITY TEST FAILED: unauthorized UPDATE changed assignment';
  end if;
 end $$;
+-- The other tenant cannot read A's assignment, even when it knows the IDs.
+do $
+declare visible_count integer;
+begin
+ select count(*) into visible_count
+ from public.member_roles
+ where organization_member_id='00000000-0000-0000-0000-000000000011';
+ if visible_count <> 0 then
+   raise exception 'SECURITY TEST FAILED: tenant B read tenant A role assignment';
+ end if;
+end $;
 reset role;
-do $$
+do $
 begin
  if (select count(*) from public.member_roles) <> 1 then
   raise exception 'SECURITY TEST FAILED: assignments changed despite RLS';
