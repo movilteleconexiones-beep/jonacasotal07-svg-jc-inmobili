@@ -18,10 +18,8 @@ import { PropertyDetailModal } from './components/PropertyDetailModal.tsx';
 import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
 import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
-import { PrivateDashboard } from './modules/dashboard/PrivateDashboard.tsx';
 import { useTenantBranding } from './core/use-tenant-branding';
 import { getCountryOption } from './core/countries';
-import SuperAdminModule from './modules/platform/SuperAdminModule';
 import {
   Search,
   ArrowRight,
@@ -34,6 +32,9 @@ import {
   SlidersHorizontal,
   X
 } from 'lucide-react';
+
+const PrivateDashboard = React.lazy(() => import('./modules/dashboard/PrivateDashboard.tsx').then(module => ({ default: module.PrivateDashboard })));
+const SuperAdminModule = React.lazy(() => import('./modules/platform/SuperAdminModule'));
 
 export default function App() {
   const [isSuperAdminRoute, setIsSuperAdminRoute] = useState(
@@ -63,7 +64,7 @@ export default function App() {
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(false);
   // Catalog state
-  const [properties, setProperties] = useState<Property[]>(PROPERTIES);
+  const [properties] = useState<Property[]>(PROPERTIES);
   const [operationFilter, setOperationFilter] = useState<'Todas' | Property['operation']>('Todas');
   const [categoryFilter, setCategoryFilter] = useState<'Todas' | Property['category']>('Todas');
   const [zoneFilter, setZoneFilter] = useState<'Todas' | Property['neighborhood']>('Todas');
@@ -210,11 +211,11 @@ export default function App() {
   };
 
   if (isSuperAdminRoute) {
-    return <SuperAdminModule />;
+    return <React.Suspense fallback={<p role="status" className="p-6">Cargando administración…</p>}><SuperAdminModule /></React.Suspense>;
   }
 
   if (isPrivateDashboardOpen && user && activeMembership) {
-    return <PrivateDashboard onClose={() => setIsPrivateDashboardOpen(false)} />;
+    return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}><PrivateDashboard onClose={() => setIsPrivateDashboardOpen(false)} /></React.Suspense>;
   }
 
   return (
@@ -1373,10 +1374,6 @@ export default function App() {
       <SubmitPropertyModal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
-        onAddProperty={(newProp) => {
-          setProperties((prev) => [newProp, ...prev]);
-          setSavedPropertyIds((prev) => [newProp.id, ...prev]);
-        }}
       />
     </div>
   );
