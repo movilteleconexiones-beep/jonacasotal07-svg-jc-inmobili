@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
@@ -149,8 +150,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [accessError, setAccessError] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<AuthMembership[]>([]);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
+  const membershipLoadVersion = useRef(0);
 
   const loadForUser = useCallback(async (userId: string | null) => {
+    const version = ++membershipLoadVersion.current;
     if (!userId) {
       setAccessError(null);
       setMemberships([]);
@@ -168,9 +171,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       console.warn('Unable to claim invitations', invitationError);
     }
     const { data: admin, error: adminError } = await supabase.from('platform_admins').select('user_id,admin_level,active').eq('user_id', userId).eq('active',true).in('admin_level',['SUPER_ADMIN','PLATFORM_OWNER']).maybeSingle();
+    if (version !== membershipLoadVersion.current) return;
     setIsPlatformAdmin(!adminError && admin?.user_id === userId);
     if (adminError) console.warn('Unable to verify platform administrator', adminError.message);
     const nextMemberships = await loadMemberships(userId);
+    if (version !== membershipLoadVersion.current) return;
     setAccessError(adminError ? 'No se pudo verificar el acceso administrativo. Intenta actualizar el acceso.' : null);
     setMemberships(nextMemberships);
     setActiveOrganizationId((current) => {
@@ -187,6 +192,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     let mounted = true;
+    const clearFailedLoad = () => {
+      membershipLoadVersion.current += 1;
+      setMemberships([]);
+      setIsPlatformAdmin(false);
+      setActiveOrganizationId(null);
+      setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+    };
 
     supabase.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
@@ -196,10 +208,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       } catch (loadError) {
         console.error('Unable to load organization memberships', loadError);
         if (mounted) {
-          setMemberships([]);
-          setIsPlatformAdmin(false);
-          setActiveOrganizationId(null);
-          setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+          clearFailedLoad();
         }
       } finally {
         if (mounted) setLoading(false);
@@ -218,7 +227,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         void loadForUser(nextSession?.user.id ?? null)
           .catch((error) => {
             console.error('Unable to refresh memberships', error);
-            if (mounted) setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+            if (mounted) clearFailedLoad();
           })
           .finally(() => {
             if (mounted) setLoading(false);
@@ -228,6 +237,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     return () => {
       mounted = false;
+      membershipLoadVersion.current += 1;
       subscription.subscription.unsubscribe();
     };
   }, [loadForUser]);
