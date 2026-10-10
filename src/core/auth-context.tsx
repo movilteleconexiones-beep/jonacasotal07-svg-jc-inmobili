@@ -55,10 +55,11 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
   const result: AuthMembership[] = [];
 
   for (const row of memberships as any[]) {
-    const { data: memberRoles } = await supabase
+    const { data: memberRoles, error: memberRolesError } = await supabase
       .from('member_roles')
       .select('roles(id, organization_id, key, name, description, is_system_role, active)')
       .eq('organization_member_id', row.id);
+    if (memberRolesError) throw new Error(`No se pudieron verificar los roles: ${memberRolesError.message}`);
 
     const roles: Role[] = (memberRoles ?? [])
       .map((entry: any) => entry.roles)
@@ -80,10 +81,11 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
     const permissions = new Set<string>();
 
     if (roleIds.length > 0) {
-      const { data: rolePermissions } = await supabase
+      const { data: rolePermissions, error: rolePermissionsError } = await supabase
         .from('role_permissions')
         .select('permissions(key)')
         .in('role_id', roleIds);
+      if (rolePermissionsError) throw new Error(`No se pudieron verificar los permisos de roles: ${rolePermissionsError.message}`);
 
       for (const item of rolePermissions ?? []) {
         const key = (item as any).permissions?.key;
@@ -91,10 +93,11 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
       }
     }
 
-    const { data: overrides } = await supabase
+    const { data: overrides, error: overridesError } = await supabase
       .from('member_permissions')
       .select('effect, permissions(key)')
       .eq('organization_member_id', row.id);
+    if (overridesError) throw new Error(`No se pudieron verificar los permisos individuales: ${overridesError.message}`);
 
     for (const item of overrides ?? []) {
       const key = (item as any).permissions?.key;
