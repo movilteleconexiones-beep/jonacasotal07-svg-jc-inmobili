@@ -13,7 +13,8 @@ create table public.organization_members (
 );
 create table public.roles (
  id uuid primary key,
- organization_id uuid
+ organization_id uuid,
+ active boolean not null default true
 );
 create table public.member_roles (
  organization_member_id uuid not null references public.organization_members(id),
@@ -62,6 +63,21 @@ begin
   when insufficient_privilege then null;
  end;
 end $$;
+-- Forbidden: assign an inactive role even when it belongs to tenant A.
+reset role;
+insert into public.roles(id,organization_id,active) values
+ ('00000000-0000-0000-0000-000000000333','00000000-0000-0000-0000-000000000001',false);
+set role authenticated;
+do $
+begin
+ begin
+  insert into public.member_roles values
+   ('00000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000333');
+  raise exception 'SECURITY TEST FAILED: inactive role INSERT succeeded';
+ exception
+  when insufficient_privilege then null;
+ end;
+end $;
 -- Forbidden: update an existing assignment to a role belonging to B.
 do $$
 begin
