@@ -88,6 +88,26 @@ do $assert$ begin
  if (select approved from public.atomic_properties where id=11) is distinct from true then raise exception 'rollback lost source approval'; end if;
  if (select count(*) from public.atomic_public_listings where property_id=11)<>1 then raise exception 'rollback lost public projection'; end if;
 end $assert$;
+-- Tenant relocation must update the public projection without stale org association.
+update public.atomic_properties set org_id=2 where id=11;
+do $assert$ begin
+ if exists(select 1 from public.atomic_public_listings where property_id=11) then
+  raise exception 'cross-tenant move retained public listing in disabled organization';
+ end if;
+end $assert$;
+update public.atomic_properties set org_id=1 where id=11;
+do $assert$ begin
+ if (select count(*) from public.atomic_public_listings where property_id=11 and org_id=1)<>1 then
+  raise exception 'restored organization did not republish correctly';
+ end if;
+end $assert$;
+-- Public metadata edits must propagate without leaking the private address.
+update public.atomic_properties set title='Updated public title',address='CHANGED SECRET' where id=11;
+do $assert$ begin
+ if (select title from public.atomic_public_listings where property_id=11) is distinct from 'Updated public title' then
+  raise exception 'public metadata not synchronized';
+ end if;
+end $assert$;
 -- Cascading deletion must remove the published projection.
 insert into public.atomic_properties(id,org_id,title,address,status,approved)
  values (13,1,'Delete me','SECRET DELETE','AVAILABLE',true);
