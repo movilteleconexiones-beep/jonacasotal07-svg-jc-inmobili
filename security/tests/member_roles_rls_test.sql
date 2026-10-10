@@ -139,6 +139,35 @@ begin
   raise exception 'SECURITY TEST FAILED: authorized inactive assignment cleanup failed';
  end if;
 end $inactive_cleanup$;
+-- Authorized same-tenant UPDATE must change exactly one assignment.
+reset role;
+insert into public.roles(id,organization_id,active) values
+ ('00000000-0000-0000-0000-000000000444','00000000-0000-0000-0000-000000000001',true);
+set role authenticated;
+do $authorized_update$
+declare affected integer;
+begin
+ update public.member_roles
+ set role_id='00000000-0000-0000-0000-000000000444'
+ where organization_member_id='00000000-0000-0000-0000-000000000011'
+   and role_id='00000000-0000-0000-0000-000000000111';
+ get diagnostics affected = row_count;
+ if affected <> 1 then
+  raise exception 'SECURITY TEST FAILED: authorized UPDATE affected % rows', affected;
+ end if;
+end $authorized_update$;
+do $authorized_update_restore$
+declare affected integer;
+begin
+ update public.member_roles
+ set role_id='00000000-0000-0000-0000-000000000111'
+ where organization_member_id='00000000-0000-0000-0000-000000000011'
+   and role_id='00000000-0000-0000-0000-000000000444';
+ get diagnostics affected = row_count;
+ if affected <> 1 then
+  raise exception 'SECURITY TEST FAILED: authorized UPDATE restore affected % rows', affected;
+ end if;
+end $authorized_update_restore$;
 -- Forbidden: update an existing assignment to a role belonging to B.
 do $$
 begin
