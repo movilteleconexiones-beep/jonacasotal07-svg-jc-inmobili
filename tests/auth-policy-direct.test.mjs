@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { isValidMembership, resolveEffectivePermissions } from '../src/core/auth-policy.ts';
+import { eligibleRolesForOrganization, isValidMembership, resolveEffectivePermissions } from '../src/core/auth-policy.ts';
 
 test('DENY always overrides ALLOW regardless of row order', () => {
   for (const effects of [['ALLOW', 'DENY'], ['DENY', 'ALLOW']]) {
@@ -39,4 +39,15 @@ test('all permission keys in an array-shaped relation are processed', () => {
     resolveEffectivePermissions(['properties.delete', 'properties.export'], overrides),
     ['properties.read'],
   );
+});
+
+test('tenant role filter excludes roles from other organizations', () => {
+  const entries = [
+    { roles: { id: 'own', active: true, organization_id: 'org-a' } },
+    { roles: [{ id: 'foreign', active: true, organization_id: 'org-b' }, { id: 'global', active: true, organization_id: null }] },
+    { roles: { id: 'inactive', active: false, organization_id: 'org-a' } },
+    { roles: null },
+  ];
+  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-a').map((role) => role.id), ['own', 'global']);
+  assert.deepEqual(eligibleRolesForOrganization(entries, 'org-b').map((role) => role.id), ['foreign', 'global']);
 });
