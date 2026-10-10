@@ -118,6 +118,15 @@ end $$;
 -- Tenant B can assign its own role without gaining access to A.
 insert into public.member_roles values
  ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000222');
+-- B can read its own assignment and no assignment from A.
+do $
+declare visible_count integer;
+begin
+ select count(*) into visible_count from public.member_roles;
+ if visible_count <> 1 then
+   raise exception 'SECURITY TEST FAILED: tenant B must see exactly its own assignment';
+ end if;
+end $;
 -- The other tenant cannot read A's assignment, even when it knows the IDs.
 do $$
 declare visible_count integer;
