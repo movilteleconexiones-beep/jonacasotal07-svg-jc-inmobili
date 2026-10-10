@@ -261,7 +261,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   }
 
   return (
-    <div key={organizationId} className="min-h-screen bg-stone-100 text-slate-900">
+    <div className="min-h-screen bg-stone-100 text-slate-900">
       <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="min-w-0">
@@ -357,7 +357,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             </div>
           )}
 
-          {view === 'DASHBOARD' && !termsRequired && (
+          {!licenseCheckLoading && !termsRequired && view === 'DASHBOARD' && (
             <DashboardHome
               stats={stats}
               loading={loadingStats}
@@ -368,14 +368,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             />
           )}
 
-          {view === 'PROPERTIES' && <PropertiesModule />}
-          {view === 'CONTACTS' && <ContactsModule />}
-          {view === 'LEADS' && <LeadsModule />}
-          {view === 'APPOINTMENTS' && <AppointmentsModule />}
-          {view === 'DEALS' && <DealsModule />}
-          {view === 'IMPORT' && <DataImportCenter />}
-          {view === 'USERS' && <UsersRolesModule />}
-          {view === 'SETTINGS' && <SettingsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'PROPERTIES' && <PropertiesModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'CONTACTS' && <ContactsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'LEADS' && <LeadsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'APPOINTMENTS' && <AppointmentsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'DEALS' && <DealsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'IMPORT' && <DataImportCenter />}
+          {!licenseCheckLoading && !termsRequired && view === 'USERS' && <UsersRolesModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'SETTINGS' && <SettingsModule />}
           {view === 'LICENSE' && (
             <LicenseModule
               onAccepted={() => {
@@ -384,12 +384,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               }}
             />
           )}
-          {view === 'OWNERS' && <OwnersModule />}
-          {view === 'DOCUMENTS' && <DocumentsModule />}
-          {view === 'COMMISSIONS' && <CommissionsModule />}
-          {view === 'REPORTS' && <ReportsModule />}
-          {view === 'PORTAL' && <PortalHub />}
-          {view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'OWNERS' && <OwnersModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'DOCUMENTS' && <DocumentsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'COMMISSIONS' && <CommissionsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'REPORTS' && <ReportsModule />}
+          {!licenseCheckLoading && !termsRequired && view === 'PORTAL' && <PortalHub />}
+          {!licenseCheckLoading && !termsRequired && view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
 
           {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
             <ModuleComingOnline
