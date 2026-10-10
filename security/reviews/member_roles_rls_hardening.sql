@@ -8,9 +8,10 @@ drop policy if exists member_roles_admin_update on public.member_roles;
 drop policy if exists member_roles_admin_delete on public.member_roles;
 drop policy if exists member_roles_admin_select on public.member_roles;
 
--- Preserve organization-scoped visibility independently of management privileges.
--- In production the existing member_roles_select_org policy remains in place;
--- isolated test databases must also have an explicit SELECT policy.
+-- Preserve existing member_roles_select_org (organization-membership visibility).
+-- This additional SELECT policy permits role administrators to see same-tenant
+-- assignments, including inactive roles; PostgreSQL combines permissive SELECT
+-- policies with OR. The INSERT/UPDATE/DELETE policies remain command-scoped.
 create policy member_roles_admin_select on public.member_roles
 for select to authenticated
 using (
