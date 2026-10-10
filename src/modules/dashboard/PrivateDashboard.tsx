@@ -95,12 +95,16 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
   const [termsRequired, setTermsRequired] = useState(false);
   const [licenseCheckLoading, setLicenseCheckLoading] = useState(true);
+  const [licenseCheckedFor, setLicenseCheckedFor] = useState<string | null>(null);
 
   const organizationId = activeMembership?.organization.id;
+  const licenseScope = organizationId && user ? `${organizationId}:${user.id}` : null;
+  const licenseReady = !licenseCheckLoading && licenseCheckedFor === licenseScope;
 
   useEffect(() => {
     if (!organizationId || !user) {
       setTermsRequired(false);
+      setLicenseCheckedFor(null);
       setLicenseCheckLoading(false);
       return;
     }
@@ -108,6 +112,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     const isOwner = activeMembership?.roles.some((role) => role.key === 'ORGANIZATION_OWNER') ?? false;
     if (!isOwner) {
       setTermsRequired(false);
+      setLicenseCheckedFor(licenseScope);
       setLicenseCheckLoading(false);
       return;
     }
@@ -115,6 +120,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     let cancelled = false;
     // Do not retain the prior organization's license decision while checking this one.
     setTermsRequired(true);
+    setLicenseCheckedFor(null);
     setLicenseCheckLoading(true);
 
     void (async () => {
@@ -128,6 +134,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       if (!license?.id || !license?.terms_version_id) {
         if (!cancelled) {
           setTermsRequired(true);
+          setLicenseCheckedFor(licenseScope);
           setLicenseCheckLoading(false);
           setView('LICENSE');
         }
@@ -146,6 +153,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       if (!cancelled) {
         const required = !acceptance;
         setTermsRequired(required);
+        setLicenseCheckedFor(licenseScope);
         setLicenseCheckLoading(false);
         if (required) setView('LICENSE');
       }
@@ -153,6 +161,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       console.error('Unable to verify organization license acceptance', error);
       if (!cancelled) {
         setTermsRequired(true);
+        setLicenseCheckedFor(licenseScope);
         setLicenseCheckLoading(false);
         setView('LICENSE');
       }
@@ -161,7 +170,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, user?.id, activeMembership?.roles]);
+  }, [organizationId, user?.id, activeMembership?.roles, licenseScope]);
 
   useEffect(() => {
     if (!organizationId) {
@@ -231,7 +240,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const menuItems = useMemo(
     () =>
       [
-        { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: !termsRequired && !licenseCheckLoading },
+        { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: !termsRequired && licenseReady },
         { id: 'PROPERTIES' as const, label: 'Propiedades', icon: Building2, visible: can(PERMISSIONS.PROPERTIES_VIEW) },
         { id: 'CONTACTS' as const, label: 'Clientes', icon: ContactRound, visible: can(PERMISSIONS.CLIENTS_VIEW) },
         { id: 'LEADS' as const, label: 'Leads / CRM', icon: UsersRound, visible: can(PERMISSIONS.LEADS_VIEW) },
@@ -252,8 +261,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         },
         { id: 'SETTINGS' as const, label: 'Configuración', icon: Settings, visible: can(PERMISSIONS.SETTINGS_VIEW) },
         { id: 'LICENSE' as const, label: 'Licencia', icon: ScrollText, visible: can(PERMISSIONS.SETTINGS_VIEW) },
-      ].filter((item) => item.visible && ((!termsRequired && !licenseCheckLoading) || item.id === 'LICENSE')),
-    [can, isPlatformAdmin, termsRequired, licenseCheckLoading],
+      ].filter((item) => item.visible && ((!termsRequired && licenseReady) || item.id === 'LICENSE')),
+    [can, isPlatformAdmin, termsRequired, licenseReady],
   );
 
   if (!user || !activeMembership) {
@@ -357,7 +366,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             </div>
           )}
 
-          {!licenseCheckLoading && !termsRequired && view === 'DASHBOARD' && (
+          {licenseReady && !termsRequired && view === 'DASHBOARD' && (
             <DashboardHome
               stats={stats}
               loading={loadingStats}
@@ -368,14 +377,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             />
           )}
 
-          {!licenseCheckLoading && !termsRequired && view === 'PROPERTIES' && <PropertiesModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'CONTACTS' && <ContactsModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'LEADS' && <LeadsModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'APPOINTMENTS' && <AppointmentsModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'DEALS' && <DealsModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'IMPORT' && <DataImportCenter />}
-          {!licenseCheckLoading && !termsRequired && view === 'USERS' && <UsersRolesModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'SETTINGS' && <SettingsModule />}
+          {licenseReady && !termsRequired && view === 'PROPERTIES' && <PropertiesModule />}
+          {licenseReady && !termsRequired && view === 'CONTACTS' && <ContactsModule />}
+          {licenseReady && !termsRequired && view === 'LEADS' && <LeadsModule />}
+          {licenseReady && !termsRequired && view === 'APPOINTMENTS' && <AppointmentsModule />}
+          {licenseReady && !termsRequired && view === 'DEALS' && <DealsModule />}
+          {licenseReady && !termsRequired && view === 'IMPORT' && <DataImportCenter />}
+          {licenseReady && !termsRequired && view === 'USERS' && <UsersRolesModule />}
+          {licenseReady && !termsRequired && view === 'SETTINGS' && <SettingsModule />}
           {view === 'LICENSE' && (
             <LicenseModule
               onAccepted={() => {
@@ -384,12 +393,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               }}
             />
           )}
-          {!licenseCheckLoading && !termsRequired && view === 'OWNERS' && <OwnersModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'DOCUMENTS' && <DocumentsModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'COMMISSIONS' && <CommissionsModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'REPORTS' && <ReportsModule />}
-          {!licenseCheckLoading && !termsRequired && view === 'PORTAL' && <PortalHub />}
-          {!licenseCheckLoading && !termsRequired && view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
+          {licenseReady && !termsRequired && view === 'OWNERS' && <OwnersModule />}
+          {licenseReady && !termsRequired && view === 'DOCUMENTS' && <DocumentsModule />}
+          {licenseReady && !termsRequired && view === 'COMMISSIONS' && <CommissionsModule />}
+          {licenseReady && !termsRequired && view === 'REPORTS' && <ReportsModule />}
+          {licenseReady && !termsRequired && view === 'PORTAL' && <PortalHub />}
+          {licenseReady && !termsRequired && view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
 
           {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
             <ModuleComingOnline
