@@ -32,6 +32,7 @@ import { DealsModule } from '../deals/DealsModule';
 import { SettingsModule } from '../settings/SettingsModule';
 import { UsersRolesModule } from '../users/UsersRolesModule';
 import { LicenseModule } from '../license/LicenseModule';
+import { BillingModule } from '../billing/BillingModule';
 import { OwnersModule } from '../owners/OwnersModule';
 import { DocumentsModule } from '../documents/DocumentsModule';
 import { CommissionsModule } from '../commissions/CommissionsModule';
@@ -52,6 +53,7 @@ type DashboardView =
   | 'IMPORT'
   | 'SETTINGS'
   | 'LICENSE'
+  | 'BILLING'
   | 'OWNERS'
   | 'DOCUMENTS'
   | 'COMMISSIONS'
@@ -88,6 +90,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     can,
     signOut,
     isPlatformAdmin,
+    refreshMemberships,
   } = useAuth();
 
   const { branding } = useTenantBranding();
@@ -118,13 +121,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     setLicenseCheckLoading(true);
 
     void (async () => {
-      const { data: license } = await supabase
-        .from('organization_licenses')
-        .select('id,terms_version_id')
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-
-      if (!license?.id || !license?.terms_version_id) {
+      const { data: access, error } = await supabase.rpc('billing_get_access', { target_org: organizationId });
+      if (error || !access) {
         if (!cancelled) {
           setTermsRequired(true);
           setLicenseCheckLoading(false);
@@ -133,16 +131,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         return;
       }
 
-      const { data: acceptance } = await supabase
-        .from('license_acceptances')
-        .select('id')
-        .eq('organization_license_id', license.id)
-        .eq('terms_version_id', license.terms_version_id)
-        .eq('accepted_by', user.id)
-        .maybeSingle();
-
       if (!cancelled) {
-        const required = !acceptance;
+        const required = !access.terms_accepted;
         setTermsRequired(required);
         setLicenseCheckLoading(false);
         if (required) setView('LICENSE');
@@ -229,12 +219,21 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         },
         { id: 'SETTINGS' as const, label: 'Configuración', icon: Settings, visible: can(PERMISSIONS.SETTINGS_VIEW) },
         { id: 'LICENSE' as const, label: 'Licencia', icon: ScrollText, visible: can(PERMISSIONS.SETTINGS_VIEW) },
-      ].filter((item) => item.visible && (!termsRequired || item.id === 'LICENSE')),
-    [can, isPlatformAdmin, termsRequired],
+        { id: 'BILLING' as const, label: 'Plan y activación', icon: BadgeDollarSign, visible: activeMembership?.billing.can_manage_billing ?? false },
+      ].filter((item) => item.visible && (!termsRequired || item.id === 'LICENSE' || item.id === 'BILLING')),
+    [can, isPlatformAdmin, termsRequired, activeMembership?.billing.can_manage_billing],
   );
 
   if (!user || !activeMembership) {
     return null;
+  }
+
+  if (!activeMembership.billing.operational) {
+    return <main className="min-h-screen bg-stone-100 p-5 text-slate-900"><div className="mx-auto max-w-6xl">
+      <header className="mb-6 flex justify-between gap-3"><h1 className="font-bold">{activeMembership.organization.name}</h1>
+        <button type="button" onClick={onClose} className="rounded-lg border bg-white px-4 py-2">Volver al inicio</button></header>
+      <BillingModule key={organizationId} />
+    </div></main>;
   }
 
   return (
@@ -358,10 +357,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             <LicenseModule
               onAccepted={() => {
                 setTermsRequired(false);
+                void refreshMemberships();
                 setView('DASHBOARD');
               }}
             />
           )}
+          {view === 'BILLING' && <BillingModule key={organizationId} />}
           {view === 'OWNERS' && <OwnersModule />}
           {view === 'DOCUMENTS' && <DocumentsModule />}
           {view === 'COMMISSIONS' && <CommissionsModule />}
@@ -369,7 +370,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'PORTAL' && <PortalHub />}
           {view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'BILLING' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}

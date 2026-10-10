@@ -69,6 +69,18 @@ jobs:
         run: node --test tests/wompi-billing-revocation-contract.test.mjs
       - name: Property consignment validation tests
         run: node --import tsx --test tests/property-consignment.test.mjs
+      - name: Verified checkout and webhook tests
+        run: node --import tsx --test tests/billing-edge-handler.test.mjs
+      - name: Commercial activation SQL security and atomicity
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_activation_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_assertions.sql
+          bash security/tests/billing_activation_concurrency.sh
       - name: Property consignment SQL security and atomicity tests
         env:
           PGPASSWORD: postgres

@@ -62,7 +62,9 @@ export default function App() {
   const countryProfile = getCountryOption(branding.country);
   const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
-  const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(false);
+  const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('billing') === 'return',
+  );
   // Catalog state
   const [properties] = useState<Property[]>(PROPERTIES);
   const [operationFilter, setOperationFilter] = useState<'Todas' | Property['operation']>('Todas');
@@ -215,7 +217,7 @@ export default function App() {
   }
 
   if (isPrivateDashboardOpen && user && activeMembership) {
-    return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}><PrivateDashboard onClose={() => setIsPrivateDashboardOpen(false)} /></React.Suspense>;
+    return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}><PrivateDashboard key={activeMembership.organization.id} onClose={() => setIsPrivateDashboardOpen(false)} /></React.Suspense>;
   }
 
   return (
