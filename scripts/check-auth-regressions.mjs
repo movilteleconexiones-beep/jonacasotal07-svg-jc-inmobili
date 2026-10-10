@@ -18,3 +18,14 @@ for (const [name, snippet] of guards) {
   assert.ok(source.includes(snippet), 'Missing auth guard: ' + name);
   process.stdout.write('PASS ' + name + '\n');
 }
+
+const scopedGuards = [
+  ['identity change clears tenant and admin rights', /if \(currentAuthUserId\.current !== nextUserId\) \{[\s\S]*?setMemberships\(\[\]\);[\s\S]*?setIsPlatformAdmin\(false\);[\s\S]*?setActiveOrganizationId\(null\);/],
+  ['deferred load checks identity before requesting memberships', /setTimeout\(\(\) => \{[\s\S]*?currentAuthUserId\.current !== nextUserId\) return;[\s\S]*?loadForUser\(nextSession\?\.user\.id \?\? null\)/],
+  ['initial auth failure revokes tenant access', /Unable to initialize authentication[\s\S]*?setSession\(null\);[\s\S]*?setMemberships\(\[\]\);[\s\S]*?setIsPlatformAdmin\(false\);[\s\S]*?setActiveOrganizationId\(null\);/],
+];
+
+for (const [name, pattern] of scopedGuards) {
+  assert.match(source, pattern, 'Missing scoped auth protection: ' + name);
+  process.stdout.write('PASS ' + name + '\n');
+}
