@@ -79,6 +79,10 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
       setError('Ingresa un título descriptivo para el inmueble.');
       return;
     }
+    if (title.trim().length > 160 || summary.trim().length > 2000) {
+      setError('El título no puede superar 160 caracteres y la descripción no puede superar 2000.');
+      return;
+    }
     const phoneDigits = ownerPhone.replace(/\D/g, '');
     if (ownerName.trim().length < 3 || phoneDigits.length < 7 || phoneDigits.length > 15) {
       setError('Por favor proporciona tu nombre y un teléfono válido, con código de país cuando corresponda.');
