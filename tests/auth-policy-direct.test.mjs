@@ -29,3 +29,14 @@ test('Supabase array-shaped permission relations are accepted', () => {
   ];
   assert.deepEqual(resolveEffectivePermissions(['properties.delete'], overrides), ['properties.read']);
 });
+
+test('all permission keys in an array-shaped relation are processed', () => {
+  const overrides = [
+    { effect: 'DENY', permissions: [{ key: 'properties.delete' }, { key: 'properties.export' }] },
+    { effect: 'ALLOW', permissions: [{ key: 'properties.read' }, { key: 'properties.export' }] },
+  ];
+  assert.deepEqual(
+    resolveEffectivePermissions(['properties.delete', 'properties.export'], overrides),
+    ['properties.read'],
+  );
+});
