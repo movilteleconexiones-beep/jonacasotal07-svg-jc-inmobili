@@ -248,7 +248,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       currentAuthUserId.current = nextUserId;
       setSession(nextSession);
       setTimeout(() => {
-        if (!mounted) return;
+        // Ignore a deferred callback from an identity that has already changed.
+        if (!mounted || currentAuthUserId.current !== nextUserId) return;
         const loadVersion = membershipLoadVersion.current + 1;
         void loadForUser(nextSession?.user.id ?? null)
           .catch((error) => {
