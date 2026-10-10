@@ -155,13 +155,16 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   useEffect(() => {
     if (!organizationId) {
       setStats(EMPTY_STATS);
+      setLoadingStats(false);
       return;
     }
 
     let cancelled = false;
+    // Never display counts from a previously selected tenant during refresh.
+    setStats(EMPTY_STATS);
+    setLoadingStats(true);
 
     async function loadStats() {
-      setLoadingStats(true);
 
       const requests = [
         can(PERMISSIONS.PROPERTIES_VIEW)
@@ -195,7 +198,13 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       }
     }
 
-    void loadStats();
+    void loadStats().catch((error) => {
+      console.error('Unable to load organization dashboard statistics', error);
+      if (!cancelled) {
+        setStats(EMPTY_STATS);
+        setLoadingStats(false);
+      }
+    });
 
     return () => {
       cancelled = true;
