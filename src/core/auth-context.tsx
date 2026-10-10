@@ -56,6 +56,7 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
   const result: AuthMembership[] = [];
 
   for (const row of memberships as any[]) {
+    if (row.user_id !== userId || row.status !== 'ACTIVE') continue;
     const { data: memberRoles, error: memberRolesError } = await supabase
       .from('member_roles')
       .select('roles(id, organization_id, key, name, description, is_system_role, active)')
@@ -100,12 +101,14 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
       .eq('organization_member_id', row.id);
     if (overridesError) throw new Error(`No se pudieron verificar los permisos individuales: ${overridesError.message}`);
 
+    const deniedPermissions = new Set<string>();
     for (const item of overrides ?? []) {
       const key = (item as any).permissions?.key;
       if (!key) continue;
-      if ((item as any).effect === 'DENY') permissions.delete(key);
+      if ((item as any).effect === 'DENY') deniedPermissions.add(key);
       if ((item as any).effect === 'ALLOW') permissions.add(key);
     }
+    for (const key of deniedPermissions) permissions.delete(key);
 
     const org = row.organizations as any;
     // A membership without a readable organization, or one linked to a
