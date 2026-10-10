@@ -185,6 +185,13 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     setCreatedCode(null);
     setTitle('');
     setSummary('');
+    setOwnerName('');
+    setOwnerPhone('');
+    setNeighborhood('');
+    setParkingSpaces('0');
+    setMaintenanceFee('0');
+    setConstructionYear('');
+    setError('');
     onClose();
   };
 
