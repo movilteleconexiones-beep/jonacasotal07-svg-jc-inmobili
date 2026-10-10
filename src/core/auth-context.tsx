@@ -220,7 +220,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     }).catch((error) => {
       console.error('Unable to initialize authentication', error);
-      if (mounted) setLoading(false);
+      if (mounted && !authEventSeen) {
+        membershipLoadVersion.current += 1;
+        currentAuthUserId.current = null;
+        setSession(null);
+        setMemberships([]);
+        setIsPlatformAdmin(false);
+        setActiveOrganizationId(null);
+        setAccessError('No se pudo iniciar la sesión. Intenta actualizar el acceso.');
+        setLoading(false);
+      }
     });
 
     // Supabase warns against awaiting other Supabase calls inside this callback.
