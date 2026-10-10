@@ -48,11 +48,11 @@ assert.ok(
 process.stdout.write('PASS role permission relation compatibility\n');
 
 assert.ok(
-  source.includes('.flatMap((entry: any) => Array.isArray(entry.roles) ? entry.roles : [entry.roles])'),
+  source.includes('eligibleRolesForOrganization(memberRoles ?? [], row.organization_id)'),
   'Joined roles must be normalized before tenant validation',
 );
 assert.ok(
-  source.includes('(!role.organization_id || role.organization_id === row.organization_id)'),
+  policySource.includes('(!role.organization_id || role.organization_id === organizationId)'),
   'Foreign-organization roles must not grant tenant permissions',
 );
 process.stdout.write('PASS tenant-scoped role filtering\n');
