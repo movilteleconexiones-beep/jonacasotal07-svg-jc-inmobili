@@ -15,7 +15,6 @@ as $fn$
    select mp.effect from public.member_permissions mp
    join membership m on m.id=mp.organization_member_id
    join requested_permission p on p.id=mp.permission_id
-   limit 1
  ), role_grant as (
    select exists (
      select 1 from public.member_roles mr
