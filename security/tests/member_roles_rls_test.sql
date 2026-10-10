@@ -43,14 +43,14 @@ set app.allowed_org = '00000000-0000-0000-0000-000000000001';
 insert into public.member_roles values
  ('00000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000111');
 -- Foreign tenant assignments must not be visible to an A-only administrator.
-do $
+do $$
 declare visible_count integer;
 begin
  select count(*) into visible_count from public.member_roles;
  if visible_count <> 1 then
    raise exception 'SECURITY TEST FAILED: tenant A must see only its authorized assignment';
  end if;
-end $;
+end $$;
 -- Forbidden: role B to member A, even with A's role assignment permission.
 do $$
 begin
@@ -119,7 +119,7 @@ end $$;
 insert into public.member_roles values
  ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000222');
 -- The other tenant cannot read A's assignment, even when it knows the IDs.
-do $
+do $$
 declare visible_count integer;
 begin
  select count(*) into visible_count
@@ -128,9 +128,9 @@ begin
  if visible_count <> 0 then
    raise exception 'SECURITY TEST FAILED: tenant B read tenant A role assignment';
  end if;
-end $;
+end $$;
 reset role;
-do $
+do $$
 begin
  if (select count(*) from public.member_roles) <> 2 then
   raise exception 'SECURITY TEST FAILED: expected one authorized assignment per tenant';
