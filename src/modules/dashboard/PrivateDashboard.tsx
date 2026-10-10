@@ -198,6 +198,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       const [properties, contacts, leads, appointments, deals] = await Promise.all(requests);
 
       if (!cancelled) {
+        const failed = [properties, contacts, leads, appointments, deals].some((result) => 'error' in result && Boolean(result.error));
+        if (failed) {
+          setStats(EMPTY_STATS);
+          setLoadingStats(false);
+          return;
+        }
         setStats({
           properties: properties.count ?? 0,
           contacts: contacts.count ?? 0,
