@@ -61,3 +61,40 @@ test('sign out revokes memberships even when an old request resolves afterward',
   await load;
   assert.deepEqual(controller.snapshot(), { user: null, memberships: [], loading: false });
 });
+
+test('older refresh for the same user cannot replace a newer result', async () => {
+  const controller = makeMembershipController();
+  const older = deferred();
+  const newer = deferred();
+  controller.changeUser('user-a');
+  const first = controller.load('user-a', () => older.promise);
+  const second = controller.load('user-a', () => newer.promise);
+  newer.resolve(['current-organization']);
+  await second;
+  older.resolve(['obsolete-organization']);
+  await first;
+  assert.deepEqual(controller.snapshot(), {
+    user: 'user-a',
+    memberships: ['current-organization'],
+    loading: false,
+  });
+});
+
+test('new account response wins even if it completes before the old account', async () => {
+  const controller = makeMembershipController();
+  const older = deferred();
+  const newer = deferred();
+  controller.changeUser('user-a');
+  const first = controller.load('user-a', () => older.promise);
+  controller.changeUser('user-b');
+  const second = controller.load('user-b', () => newer.promise);
+  newer.resolve(['organization-b']);
+  await second;
+  older.resolve(['organization-a']);
+  await first;
+  assert.deepEqual(controller.snapshot(), {
+    user: 'user-b',
+    memberships: ['organization-b'],
+    loading: false,
+  });
+});
