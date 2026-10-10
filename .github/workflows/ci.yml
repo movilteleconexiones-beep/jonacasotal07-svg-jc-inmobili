@@ -37,6 +37,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Production authorization policy unit tests
+        run: npx tsx --test tests/auth-policy-direct.test.mjs
       - name: Authentication permission policy model tests
         run: node --test tests/auth-permission-policy.test.mjs
       - name: Authentication concurrency model tests
