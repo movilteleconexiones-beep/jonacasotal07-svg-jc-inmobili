@@ -105,10 +105,12 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
         avgDaysToLease: 30,
         avgYieldPct: 6,
       };
-    const generatedCode = `JCO-${Math.floor(7000 + Math.random() * 2000)}`;
+    // Temporary session-only identifiers; authoritative property codes must come from the server.
+    const temporaryId = crypto.randomUUID();
+    const generatedCode = `TEMP-${temporaryId.slice(0, 8).toUpperCase()}`;
 
     const newProperty: Property = {
-      id: `prop-custom-${Date.now()}`,
+      id: `prop-custom-${temporaryId}`,
       code: generatedCode,
       title: title.trim(),
       neighborhood: neighborhood.trim() || locality.trim(),
