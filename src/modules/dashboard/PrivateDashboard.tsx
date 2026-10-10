@@ -113,6 +113,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     }
 
     let cancelled = false;
+    // Do not retain the prior organization's license decision while checking this one.
+    setTermsRequired(true);
     setLicenseCheckLoading(true);
 
     void (async () => {
