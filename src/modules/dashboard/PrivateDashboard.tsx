@@ -24,6 +24,7 @@ import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 import { DataImportCenter } from '../imports/DataImportCenter';
 import { PropertiesModule } from '../properties/PropertiesModule';
+import { PropertyConsignmentsModule } from '../consignments/PropertyConsignmentsModule';
 import { ContactsModule } from '../contacts/ContactsModule';
 import { LeadsModule } from '../leads/LeadsModule';
 import { AppointmentsModule } from '../appointments/AppointmentsModule';
@@ -42,6 +43,7 @@ import { useTenantBranding } from '../../core/use-tenant-branding';
 type DashboardView =
   | 'DASHBOARD'
   | 'PROPERTIES'
+  | 'CONSIGNMENTS'
   | 'CONTACTS'
   | 'LEADS'
   | 'APPOINTMENTS'
@@ -207,6 +209,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       [
         { id: 'DASHBOARD' as const, label: 'Inicio', icon: LayoutDashboard, visible: !termsRequired },
         { id: 'PROPERTIES' as const, label: 'Propiedades', icon: Building2, visible: can(PERMISSIONS.PROPERTIES_VIEW) },
+        { id: 'CONSIGNMENTS' as const, label: 'Consignaciones', icon: Building2, visible: can(PERMISSIONS.PROPERTIES_VIEW) && can(PERMISSIONS.CLIENTS_VIEW) },
         { id: 'CONTACTS' as const, label: 'Clientes', icon: ContactRound, visible: can(PERMISSIONS.CLIENTS_VIEW) },
         { id: 'LEADS' as const, label: 'Leads / CRM', icon: UsersRound, visible: can(PERMISSIONS.LEADS_VIEW) },
         { id: 'APPOINTMENTS' as const, label: 'Agenda', icon: CalendarDays, visible: can(PERMISSIONS.APPOINTMENTS_VIEW) },
@@ -343,6 +346,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           )}
 
           {view === 'PROPERTIES' && <PropertiesModule />}
+          {view === 'CONSIGNMENTS' && <PropertyConsignmentsModule key={organizationId} />}
           {view === 'CONTACTS' && <ContactsModule />}
           {view === 'LEADS' && <LeadsModule />}
           {view === 'APPOINTMENTS' && <AppointmentsModule />}
@@ -365,7 +369,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'PORTAL' && <PortalHub />}
           {view === 'SUPER_ADMIN' && isPlatformAdmin && <SuperAdminModule />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && view !== 'SUPER_ADMIN' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}

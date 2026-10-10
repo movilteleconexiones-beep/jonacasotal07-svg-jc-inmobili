@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
       - name: Supabase configuration regression tests
@@ -67,6 +67,17 @@ jobs:
         run: node --test tests/wompi-atomic-order-sql.test.mjs
       - name: Billing revocation concurrency release-gate checks
         run: node --test tests/wompi-billing-revocation-contract.test.mjs
+      - name: Property consignment validation tests
+        run: node --import tsx --test tests/property-consignment.test.mjs
+      - name: Property consignment SQL security and atomicity tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_consignment_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261010212630_property_consignment_intake.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_consignment_assertions.sql
+          bash security/tests/property_consignment_concurrency.sh
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)

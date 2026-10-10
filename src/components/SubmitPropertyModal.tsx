@@ -1,7 +1,8 @@
 // AI Studio resync: source preserved.
-import React, { useEffect, useMemo, useState } from 'react';
-import { Property, ZONE_VALUATION_BENCHMARKS, HERO_IMAGE } from '../data/properties';
-import propSolaresHouse from '../assets/images/prop_solares_house_1791081961290.jpg';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { Property } from '../data/properties';
+import { validatePropertyConsignment, type PropertyConsignmentInput } from '../core/property-consignment';
+import { submitPropertyConsignment, usePublicPropertyIntakeSite } from '../lib/property-consignments';
 import { X, CheckCircle2 } from 'lucide-react';
 import { useTenantBranding } from '../core/use-tenant-branding';
 import { getCountryOption } from '../core/countries';
@@ -10,15 +11,19 @@ import { administrativeLabels, loadAdministrativeCatalog, type AdministrativeCat
 interface SubmitPropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddProperty: (newProp: Property) => void;
 }
 
 export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   isOpen,
-  onClose,
-  onAddProperty
+  onClose
 }) => {
-  const { branding } = useTenantBranding();
+  const { branding: tenantBranding } = useTenantBranding();
+  const { site, loading: siteLoading, error: siteError } = usePublicPropertyIntakeSite(isOpen);
+  const branding = site ? { ...tenantBranding, companyName: site.company_name, country: site.country, currency: site.currency } : tenantBranding;
+  const [submitting, setSubmitting] = useState(false);
+  const [contactConsent, setContactConsent] = useState(false);
+  const submitLock = useRef(false);
+  const request = useRef<{ signature: string; id: string } | null>(null);
   const [title, setTitle] = useState('');
   const configuredCountry = getCountryOption(branding.country || 'CO');
   const [locationCatalog, setLocationCatalog] = useState<AdministrativeCatalog | null>(null);
@@ -28,11 +33,11 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [neighborhood, setNeighborhood] = useState('');
   const [operation, setOperation] = useState<Property['operation']>('Venta');
   const [category, setCategory] = useState<Property['category']>('Residencial');
-  const [priceCOP, setPriceCOP] = useState('450000000');
-  const [landAreaM2, setLandAreaM2] = useState('300');
-  const [constructionAreaM2, setConstructionAreaM2] = useState('360');
-  const [bedrooms, setBedrooms] = useState('3');
-  const [bathrooms, setBathrooms] = useState('3.5');
+  const [priceCOP, setPriceCOP] = useState('');
+  const [landAreaM2, setLandAreaM2] = useState('');
+  const [constructionAreaM2, setConstructionAreaM2] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
   const [parkingSpaces, setParkingSpaces] = useState('0');
   const [maintenanceFee, setMaintenanceFee] = useState('0');
   const [constructionYear, setConstructionYear] = useState('');
@@ -58,11 +63,6 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     void loadAdministrativeCatalog(configuredCountry.code).then((catalog) => {
       if (!active) return;
       setLocationCatalog(catalog);
-      const firstRegion = catalog?.regions[0];
-      if (firstRegion) {
-        setRegion(firstRegion.name);
-        setLocality(firstRegion.localities[0]?.name ?? '');
-      }
       setLocationLoading(false);
     });
 
@@ -73,121 +73,72 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (title.trim().length < 5) {
-      setError('Ingresa un título descriptivo para el inmueble.');
+    if (submitLock.current) return;
+    if (!site || siteLoading) {
+      setError(siteError || 'Espera a que se conecte la recepción de consignaciones.');
       return;
     }
-    if (title.trim().length > 160 || summary.trim().length > 2000) {
-      setError('El título no puede superar 160 caracteres y la descripción no puede superar 2000.');
+    if ([priceCOP, landAreaM2, constructionAreaM2, bedrooms, bathrooms, parkingSpaces, maintenanceFee].some(value => !value.trim())) {
+      setError('Completa los valores, áreas y cantidades del inmueble.');
       return;
     }
-    const phoneDigits = ownerPhone.replace(/\D/g, '');
-    if (ownerName.trim().length < 3 || ownerName.trim().length > 120 || ownerPhone.length > 40 || phoneDigits.length < 7 || phoneDigits.length > 15) {
-      setError('Ingresa un nombre de 3 a 120 caracteres y un teléfono válido de 7 a 15 dígitos.');
+    if (locationLoading || (locationCatalog && !selectedRegion?.localities.some(item => item.name === locality))) {
+      setError('Selecciona una ubicación válida de la lista.');
       return;
     }
-
-    const numericPrice = Number(priceCOP);
-    const numericLand = Number(landAreaM2);
-    const numericConst = Number(constructionAreaM2);
-    if (!priceCOP.trim() || !landAreaM2.trim() || !constructionAreaM2.trim() ||
-        !Number.isFinite(numericPrice) || numericPrice <= 0 ||
-        !Number.isFinite(numericLand) || numericLand <= 0 ||
-        !Number.isFinite(numericConst) || numericConst <= 0) {
-      setError('Ingresa valores y áreas numéricas mayores que cero.');
-      return;
-    }
-    const bedroomCount = Number(bedrooms);
-    const bathroomCount = Number(bathrooms);
-    const parkingCount = Number(parkingSpaces);
-    const maintenanceAmount = Number(maintenanceFee);
-    const yearValue = constructionYear.trim() ? Number(constructionYear) : 0;
-    if (!bedrooms.trim() || !bathrooms.trim() ||
-        !Number.isInteger(bedroomCount) || bedroomCount < 0 ||
-        !Number.isFinite(bathroomCount) || bathroomCount < 0 || !Number.isInteger(bathroomCount * 2) ||
-        !parkingSpaces.trim() || !Number.isInteger(parkingCount) || parkingCount < 0) {
-      setError('Ingresa cantidades válidas de habitaciones y baños, sin valores negativos.');
-      return;
-    }
-    if (!maintenanceFee.trim() || !Number.isFinite(maintenanceAmount) || maintenanceAmount < 0 ||
-        (constructionYear.trim() && (!Number.isInteger(yearValue) || yearValue < 1800 || yearValue > new Date().getFullYear()))) {
-      setError('Ingresa una cuota de mantenimiento válida y un año de construcción real, si lo conoces.');
-      return;
-    }
-    if (!region.trim() || !locality.trim()) {
-      setError(`Selecciona ${locationLabels.region.toLowerCase()} y ${locationLabels.locality.toLowerCase()}.`);
-      return;
-    }
-
-    const benchmark =
-      ZONE_VALUATION_BENCHMARKS[neighborhood.trim()] ??
-      ZONE_VALUATION_BENCHMARKS[locality.trim()] ?? {
-        avgPricePerM2MXN: 0,
-        annualAppreciationPct: 8,
-        avgDaysToLease: 30,
-        avgYieldPct: 6,
-      };
-    // Temporary session-only identifiers; authoritative property codes must come from the server.
-    const temporaryId = crypto.randomUUID();
-    const generatedCode = `TEMP-${temporaryId.slice(0, 8).toUpperCase()}`;
-
-    const newProperty: Property = {
-      id: `prop-custom-${temporaryId}`,
-      code: generatedCode,
+    const input: PropertyConsignmentInput = {
       title: title.trim(),
-      neighborhood: neighborhood.trim() || locality.trim(),
-      municipality: `${locality.trim()}, ${region.trim()}`,
-      countryCode: configuredCountry.code,
-      region: region.trim(),
-      city: locality.trim(),
-      operation,
-      category,
-      priceCOP: operation === 'Renta' ? numericPrice * 180 : numericPrice,
-      monthlyRentEstimationCOP:
-        operation === 'Renta'
-          ? numericPrice
-          : Math.round((numericPrice * (benchmark.avgYieldPct / 100)) / 12),
-      maintenanceFeeCOP: maintenanceAmount,
-      landAreaM2: numericLand,
-      constructionAreaM2: numericConst,
-      bedrooms: bedroomCount,
-      bathrooms: bathroomCount,
-      parkingSpaces: parkingCount,
-      annualAppreciationPct: benchmark.annualAppreciationPct,
-      rentalYieldPct: benchmark.avgYieldPct,
-      image: HERO_IMAGE,
-      secondaryImage: propSolaresHouse,
-      legalStatus: `Información suministrada por el usuario; revisión documental no iniciada`,
-      architecturalSummary:
-        summary.trim() ||
-        `Ficha preliminar creada localmente para una propiedad en ${locality}, ${region}, ${configuredCountry.name}. No se ha solicitado revisión documental ni confirmado disponibilidad para citas.`,
-      highlights: [
-        `Ubicación estratégica en ${locality}, ${region}`,
-        `Revisión documental y valoración comercial pendientes de contratación y verificación`,
-        `Publicación externa pendiente de aprobación y configuración`
-      ],
-      domoticsAndMaintenance: [
-        `Servicios de mantenimiento sujetos a contratación y condiciones de ${branding.companyName} o su proveedor`,
-        'Diagnóstico técnico sujeto a disponibilidad, alcance contratado y proveedor responsable'
-      ],
-      coordinatesLabel: `${neighborhood.trim() ? neighborhood.trim() + ' · ' : ''}${locality}, ${region} · ${configuredCountry.name}`,
-      yearBuilt: yearValue
+      operation_type: operation === 'Venta' ? 'SALE' : operation === 'Renta' ? 'RENT' : 'ADMINISTRATION',
+      property_type: category === 'Residencial' ? 'HOUSE' : category === 'Departamento' ? 'APARTMENT' : 'COMMERCIAL',
+      price: Number(priceCOP), lot_area: Number(landAreaM2), built_area: Number(constructionAreaM2),
+      bedrooms: Number(bedrooms), bathrooms: Number(bathrooms), parking_spaces: Number(parkingSpaces),
+      administration_fee: Number(maintenanceFee), construction_year: constructionYear.trim() ? Number(constructionYear) : null,
+      state: region.trim(), city: locality.trim(), neighborhood: neighborhood.trim(), description: summary.trim(),
+      owner_name: ownerName.trim(), owner_phone: ownerPhone.trim(), contact_consent: contactConsent,
     };
-
-    onAddProperty(newProperty);
+    const validationError = validatePropertyConsignment(input);
+    if (validationError) { setError(validationError); return; }
+    const signature = JSON.stringify([site.slug, input]);
+    if (!request.current || request.current.signature !== signature) {
+      request.current = { signature, id: crypto.randomUUID() };
+    }
+    submitLock.current = true;
+    setSubmitting(true);
     setError('');
-    setCreatedCode(generatedCode);
+    try {
+      const reference = await submitPropertyConsignment(site.slug, request.current.id, input);
+      setCreatedCode(reference);
+      setOwnerName('');
+      setOwnerPhone('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo confirmar la recepción. Intenta nuevamente.');
+    } finally {
+      submitLock.current = false;
+      setSubmitting(false);
+    }
   };
 
   const resetAndClose = () => {
+    if (submitLock.current) return;
+    request.current = null;
+    setContactConsent(false);
+    setPriceCOP('');
+    setLandAreaM2('');
+    setConstructionAreaM2('');
+    setBedrooms('');
+    setBathrooms('');
+    setOperation('Venta');
+    setCategory('Residencial');
     setCreatedCode(null);
     setTitle('');
     setSummary('');
     setOwnerName('');
     setOwnerPhone('');
     setNeighborhood('');
+    setRegion('');
+    setLocality('');
     setParkingSpaces('0');
     setMaintenanceFee('0');
     setConstructionYear('');
@@ -213,6 +164,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
           <button
             type="button"
             onClick={resetAndClose}
+            disabled={submitting}
             className="p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-stone-200/60 transition-colors"
             aria-label="Cerrar ventana"
           >
@@ -225,13 +177,13 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
             <CheckCircle2 className="w-10 h-10 text-[#14532D] mx-auto" />
             <div className="space-y-2">
               <p className="text-xs font-mono-tabular text-stone-500">
-                FICHA TEMPORAL · CLAVE {createdCode}
+                SOLICITUD RECIBIDA · {createdCode}
               </p>
               <h3 className="text-2xl font-semibold text-slate-900">
-                Propiedad visible en este navegador
+                Consignación recibida
               </h3>
               <p className="text-sm text-slate-600 max-w-md mx-auto">
-                La ficha de <strong>{locality}, {region}</strong> aparece en el catálogo de esta sesión. No se ha guardado en la base de datos, publicado externamente ni asignado a un asesor. Se perderá al recargar la página.
+                La solicitud de <strong>{locality}, {region}</strong> quedó guardada para revisión de {branding.companyName}. Conserva la referencia de recepción. La inmobiliaria te contactará para continuar; el inmueble todavía no se ha publicado.
               </p>
             </div>
             <div className="pt-2">
@@ -240,12 +192,15 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 onClick={resetAndClose}
                 className="px-6 py-2.5 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors"
               >
-                Ver Propiedad en el Catálogo
+                Cerrar
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} aria-busy={submitting} className="p-6 space-y-4">
+            <fieldset disabled={submitting} className="contents">
+            {siteLoading && <p role="status" className="text-sm text-slate-600">Conectando con la inmobiliaria…</p>}
+            {siteError && <p role="alert" className="text-sm text-red-700">{siteError}</p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label htmlFor="prop-title" className="block text-xs font-medium text-slate-700 mb-1">
@@ -253,6 +208,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 </label>
                 <input
                   id="prop-title"
+                  maxLength={160}
                   type="text"
                   required
                   placeholder="Ej. Apartamento contemporáneo en El Poblado"
@@ -278,16 +234,17 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 {locationCatalog ? (
                   <select
                     id="prop-region"
+                    required
                     value={region}
                     onChange={(e) => {
                       const nextRegion = e.target.value;
                       setRegion(nextRegion);
-                      const next = locationCatalog.regions.find((item) => item.name === nextRegion);
-                      setLocality(next?.localities[0]?.name ?? '');
+                      setLocality('');
                     }}
                     disabled={locationLoading}
                     className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-[#0F2942]"
                   >
+                    <option value="">Selecciona {locationLabels.region.toLowerCase()}…</option>
                     {locationCatalog.regions.map((item) => (
                       <option key={item.id} value={item.name}>{item.name}</option>
                     ))}
@@ -312,11 +269,13 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 {locationCatalog && selectedRegion ? (
                   <select
                     id="prop-locality"
+                    required
                     value={locality}
                     onChange={(e) => setLocality(e.target.value)}
                     disabled={locationLoading}
                     className="w-full px-3.5 py-2 bg-white border border-stone-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-[#0F2942]"
                   >
+                    <option value="">Selecciona {locationLabels.locality.toLowerCase()}…</option>
                     {selectedRegion.localities.map((item) => (
                       <option key={item.id} value={item.name}>{item.name}</option>
                     ))}
@@ -343,6 +302,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 </label>
                 <input
                   id="prop-zone"
+                  maxLength={160}
                   type="text"
                   placeholder="Ej. El Poblado, Laureles, Chapinero..."
                   value={neighborhood}
@@ -389,6 +349,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 </label>
                 <input
                   id="prop-price"
+                  step="0.01"
                   type="number"
                   required
                   value={priceCOP}
@@ -405,6 +366,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 </label>
                 <input
                   id="prop-land"
+                  step="0.01"
                   type="number"
                   value={landAreaM2}
                   onChange={(e) => setLandAreaM2(e.target.value)}
@@ -417,6 +379,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 </label>
                 <input
                   id="prop-const"
+                  step="0.01"
                   type="number"
                   value={constructionAreaM2}
                   onChange={(e) => setConstructionAreaM2(e.target.value)}
@@ -468,7 +431,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="prop-maintenance" className="block text-xs font-medium text-slate-700 mb-1">Cuota de mantenimiento ({branding.currency})</label>
-                <input id="prop-maintenance" type="number" min="0" required value={maintenanceFee} onChange={(e) => setMaintenanceFee(e.target.value)} className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm" />
+                <input id="prop-maintenance" type="number" min="0" step="0.01" required value={maintenanceFee} onChange={(e) => setMaintenanceFee(e.target.value)} className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm" />
               </div>
               <div>
                 <label htmlFor="prop-year" className="block text-xs font-medium text-slate-700 mb-1">Año de construcción (opcional)</label>
@@ -482,6 +445,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               </label>
               <textarea
                 id="prop-summary"
+                maxLength={2000}
                 rows={2}
                 placeholder="Describe acabados, estado legal, domótica o necesidades de mantenimiento..."
                 value={summary}
@@ -497,6 +461,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 </label>
                 <input
                   id="owner-name"
+                  maxLength={120}
                   type="text"
                   required
                   placeholder="Nombre y apellido"
@@ -511,6 +476,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 </label>
                 <input
                   id="owner-phone"
+                  maxLength={40}
                   type="tel"
                   required
                   placeholder="+57 300 123 4567"
@@ -521,13 +487,17 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               </div>
             </div>
 
+            <label className="flex items-start gap-2 text-xs text-slate-600">
+              <input type="checkbox" checked={contactConsent} onChange={e => setContactConsent(e.target.checked)} required className="mt-0.5" />
+              <span>Autorizo a {branding.companyName} a usar mi nombre y teléfono para atender esta solicitud de consignación.</span>
+            </label>
             <p className="text-[11px] leading-relaxed text-stone-500">
               La inmobiliaria usuaria es responsable de la información publicada, validaciones, contratos,
               seguros, pólizas, avalúos y servicios profesionales asociados al inmueble. INMOJCO actúa como
               proveedor de la plataforma tecnológica.
             </p>
 
-            {error && <p className="text-xs text-red-700 font-medium">{error}</p>}
+            {error && <p role="alert" className="text-xs text-red-700 font-medium">{error}</p>}
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-200">
               <button
@@ -539,11 +509,13 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               </button>
               <button
                 type="submit"
+                disabled={submitting || siteLoading || !site || locationLoading}
                 className="px-5 py-2.5 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
               >
-                Agregar ficha temporal al catálogo
+                {submitting ? 'Enviando solicitud…' : 'Enviar consignación'}
               </button>
             </div>
+            </fieldset>
           </form>
         )}
       </div>
