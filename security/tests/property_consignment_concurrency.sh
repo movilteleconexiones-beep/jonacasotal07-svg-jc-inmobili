@@ -32,7 +32,7 @@ if ! { [[ "$task_status_a" == 0 && "$task_status_b" != 0 ]] || [[ "$task_status_
   cat "$task_test_dir/quota-a" "$task_test_dir/quota-b"
   exit 1
 fi
-rg -q 'intake_rate_limited' "$task_test_dir/quota-a" "$task_test_dir/quota-b"
+grep -q 'intake_rate_limited' "$task_test_dir/quota-a" "$task_test_dir/quota-b"
 "${task_psql[@]}" -q -c "SELECT public.consignment_test_assert((SELECT count(*)=2 FROM public.property_consignments WHERE organization_id='33333333-3333-3333-3333-333333333333'),'concurrent quota respected');"
 echo 'Property consignment concurrency checks passed'
 
