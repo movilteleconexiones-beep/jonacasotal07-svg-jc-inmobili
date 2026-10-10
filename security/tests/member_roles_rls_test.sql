@@ -38,6 +38,20 @@ grant select on public.organization_members,public.roles to authenticated;
 grant select,insert,update,delete on public.member_roles to authenticated;
 grant execute on function public.has_org_permission(uuid,text) to authenticated;
 \i security/reviews/member_roles_rls_hardening.sql
+-- Mirror production's permissive organization-member SELECT policy.
+-- It must not accidentally authorize INSERT, UPDATE or DELETE.
+create function public.is_org_member(target_org uuid)
+returns boolean language sql stable as $is_member$
+ select target_org::text = current_setting('app.allowed_org', true)
+$is_member$;
+grant execute on function public.is_org_member(uuid) to authenticated;
+create policy member_roles_select_org on public.member_roles
+for select to authenticated
+using (
+ exists (select 1 from public.organization_members m
+ where m.id=member_roles.organization_member_id
+ and public.is_org_member(m.organization_id))
+);
 set role authenticated;
 set app.allowed_org = '00000000-0000-0000-0000-000000000001';
 -- Allowed: assign an organization A role to an organization A member.
