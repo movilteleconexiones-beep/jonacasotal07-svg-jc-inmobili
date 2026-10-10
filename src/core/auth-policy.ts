@@ -24,12 +24,13 @@ export function resolveEffectivePermissions(
   const permissions = new Set(inherited);
   const denied = new Set<string>();
   for (const item of overrides) {
-    const key = Array.isArray(item.permissions)
-      ? item.permissions[0]?.key
-      : item.permissions?.key;
-    if (!key) continue;
-    if (item.effect === 'DENY') denied.add(key);
-    if (item.effect === 'ALLOW') permissions.add(key);
+    const relations = Array.isArray(item.permissions) ? item.permissions : [item.permissions];
+    for (const relation of relations) {
+      const key = relation?.key;
+      if (!key) continue;
+      if (item.effect === 'DENY') denied.add(key);
+      if (item.effect === 'ALLOW') permissions.add(key);
+    }
   }
   for (const key of denied) permissions.delete(key);
   return [...permissions];
