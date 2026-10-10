@@ -106,7 +106,8 @@ do $assert$ begin
   raise exception 'unprivileged member can directly mutate public catalog';
  end if;
 end $assert$;
--- Verify an actual attempted unauthorized update is rejected.
+-- Verify actual attempted unauthorized writes are rejected.
+do $denied$
 begin
  update public.atomic_properties set approved=false where id=11;
  raise exception 'unprivileged member unexpectedly updated approval';
@@ -118,6 +119,7 @@ begin
  raise exception 'unprivileged member unexpectedly inserted a public listing';
 exception when insufficient_privilege then null;
 end;
+$denied$;
 reset role;
 -- Tenant relocation must update the public projection without stale org association.
 update public.atomic_properties set org_id=2 where id=11;
