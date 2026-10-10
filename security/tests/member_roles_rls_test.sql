@@ -138,8 +138,7 @@ begin
    raise exception 'SECURITY TEST FAILED: tenant B read tenant A role assignment';
  end if;
 end $$;
--- B must not delete its own assignment unless explicitly authorized;
--- the A assignment remains untouched throughout the test.
+-- Recheck tenant A visibility after tenant B creates its own assignment.
 set app.allowed_org = '00000000-0000-0000-0000-000000000001';
 do $
 declare visible_count integer;
