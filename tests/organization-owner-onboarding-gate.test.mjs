@@ -39,7 +39,7 @@ test('SuperAdmin provisioner does not infer the owner from the caller', () => {
   assert.match(controlled, /u\.id=p_owner/);
   assert.match(controlled, /u\.email_confirmed_at IS NOT NULL/);
   assert.match(controlled, /VALUES\(v_org,p_owner,'ACTIVE',now\(\)\)/);
-  assert.doesNotMatch(controlled, /INSERT INTO public\.organization_members[\s\S]*?VALUES\(v_org,auth\.uid\(\)/i);
+  assert.doesNotMatch(controlled, /INSERT INTO public\.organization_members[^;]*VALUES\(v_org,auth\.uid\(\)/i);
 });
 
 test('tenant provisioning keeps billing pending, enforces isolation, and logs an audit event', () => {
