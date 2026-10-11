@@ -5,7 +5,7 @@ import { monthLabel, organizationStatusLabel, parsePlatformOverview, type Organi
 import { BillingAdminControls } from './BillingAdminControls';
 
 export function SuperAdminModule() {
-  const { user, loading: authLoading, isPlatformAdmin } = useAuth();
+  const { user, activeMembership, loading: authLoading, isPlatformAdmin } = useAuth();
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +58,7 @@ export function SuperAdminModule() {
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Sistema Inmobiliario JCO</p>
       <h1 className="text-3xl font-bold">Panel de Superadministrador</h1><p className="mt-2 text-sm text-slate-600">Todas tus inmobiliarias · Estado y seguimiento mensual</p>
     </div><div className="flex gap-3"><button type="button" onClick={() => void refresh()} disabled={loading} className="rounded-lg border bg-white px-4 py-2 font-semibold disabled:opacity-50">Actualizar</button>
+      {activeMembership && <a href="/?billing=return" className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-900" aria-label="Abrir portal de la inmobiliaria activa">Portal</a>}
       <a href="/" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Volver al inicio</a></div></header>
     <nav aria-label="Menú de SuperAdmin" className="mb-6 flex flex-wrap gap-2">
       <a href="#resumen-inmobiliarias" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Resumen</a>
