@@ -4,6 +4,7 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { MAX_PHOTOS, validateInventoryPhotos, saveInventoryPhotos, loadInventoryPhotos, type InventoryPhoto } from '../../lib/property-private-photos';
 
 interface PropertyRow {
   id: string;
@@ -26,6 +27,12 @@ export function PropertiesModule() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyRow | null>(null);
+  const [photoList, setPhotoList] = useState<InventoryPhoto[]>([]);
+  const [galleryBusy, setGalleryBusy] = useState(false);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
 
   const organizationId = activeMembership?.organization.id;
 
@@ -48,6 +55,8 @@ export function PropertiesModule() {
   }, [organizationId]);
 
   async function createProperty(event: FormEvent<HTMLFormElement>) {
+    if(saving)return;
+    const formNode = event.currentTarget;
     event.preventDefault();
     if (!organizationId || !user || !can(PERMISSIONS.PROPERTIES_CREATE)) {
       setMessage('No tienes permiso para crear propiedades.');
@@ -73,6 +82,9 @@ export function PropertiesModule() {
       return;
     }
 
+    const photoError=validateInventoryPhotos(pendingPhotos);
+    if(photoError){setMessage(photoError);return;}
+    setSaving(true);
     const payload = {
       organization_id: organizationId,
       code,
@@ -90,19 +102,53 @@ export function PropertiesModule() {
       assigned_agent_id: user.id,
     };
 
-    const { error } = await supabase.from('properties').insert(payload);
+    const { data: created, error } = await supabase.from('properties').insert(payload).select('id').single();
 
     if (error) {
+      setSaving(false);
       setMessage(error.code === '23505'
         ? 'El código de esta propiedad ya está registrado en la inmobiliaria. Utiliza otro código.'
         : error.message);
       return;
     }
 
-    setMessage('Propiedad creada correctamente.');
+    let status='Propiedad creada correctamente.';
+    if(pendingPhotos.length && created?.id){
+      try{
+        const saved=await saveInventoryPhotos(created.id,organizationId,pendingPhotos);
+        status=`Propiedad creada y ${saved} fotografías guardadas.`;
+      }catch(cause){status=`Propiedad creada, pero las fotos no se completaron: ${cause instanceof Error ? cause.message : 'Error de carga'}. Puedes agregarlas desde el inventario.`;}
+    }
+    setMessage(status);
+    setSaving(false);
+    setPendingPhotos([]);
     setShowCreate(false);
-    event.currentTarget.reset();
+    formNode.reset();
     await load();
+  }
+
+  async function openGallery(property: PropertyRow) {
+    setSelectedProperty(property);
+    setPhotoList([]);
+    setGalleryFiles([]);
+    if(!organizationId)return;
+    setGalleryBusy(true);
+    try {setPhotoList(await loadInventoryPhotos(property.id,organizationId));}
+    catch(cause){setMessage(cause instanceof Error?cause.message:'No fue posible abrir la galería.');}
+    finally{setGalleryBusy(false);}
+  }
+  async function addGalleryPhotos() {
+    if(!organizationId||!selectedProperty||galleryBusy)return;
+    const issue=validateInventoryPhotos(galleryFiles,photoList.length);
+    if(issue){setMessage(issue);return;}
+    setGalleryBusy(true);
+    try {
+      const count=await saveInventoryPhotos(selectedProperty.id,organizationId,galleryFiles);
+      setPhotoList(await loadInventoryPhotos(selectedProperty.id,organizationId));
+      setGalleryFiles([]);
+      setMessage(`${count} fotografías guardadas en la propiedad.`);
+    }catch(cause){setMessage(cause instanceof Error?cause.message:'No se pudieron subir las fotografías.');}
+    finally{setGalleryBusy(false);}
   }
 
   return (
@@ -141,15 +187,41 @@ export function PropertiesModule() {
             <span className="mb-1 block text-sm font-medium">Descripción</span>
             <textarea name="description" rows={4} className="w-full rounded-xl border border-stone-300 px-3 py-2.5" />
           </label>
+          <div className="md:col-span-2 rounded-xl border border-stone-200 p-4">
+            <label className="block text-sm font-semibold" htmlFor="inventory-new-photos">Fotografías del inmueble (máximo 10)</label>
+            <p className="mt-1 text-xs text-slate-600">JPG, PNG o WebP. Hasta 5 MB por fotografía. Solo usuarios autorizados de esta inmobiliaria podrán verlas.</p>
+            <input id="inventory-new-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple
+              onChange={e=>{const files=Array.from(e.target.files??[]);e.target.value='';const next=[...pendingPhotos,...files];const issue=validateInventoryPhotos(next);if(issue){setMessage(issue);return;}setPendingPhotos(next);}}
+              className="mt-2 w-full text-sm" />
+            {pendingPhotos.length>0&&<ul className="mt-2 grid gap-2 sm:grid-cols-2">{pendingPhotos.map((file,i)=><li key={i} className="flex justify-between gap-2 rounded bg-stone-50 p-2 text-xs">
+              <span className="truncate">{file.name}</span><button type="button" onClick={()=>setPendingPhotos(list=>list.filter((_,j)=>j!==i))} className="text-red-700">Quitar</button>
+            </li>)}</ul>}
+          </div>
           <div className="md:col-span-2 flex justify-end gap-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Guardar propiedad</button>
+            <button type="button" onClick={() => {setShowCreate(false);setPendingPhotos([]);}} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
+            <button type="submit" disabled={saving} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Guardando…' : 'Guardar propiedad'}</button>
           </div>
         </form>
       )}
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
+      {selectedProperty && <section className="rounded-2xl border border-stone-200 bg-white p-5" aria-label="Galería privada">
+        <div className="flex items-center justify-between gap-2"><h2 className="font-semibold">Fotografías: {selectedProperty.title}</h2><button type="button" onClick={()=>setSelectedProperty(null)} className="rounded-lg border px-3 py-1 text-xs">Cerrar</button></div>
+        {galleryBusy && <p className="mt-2 text-sm">Procesando fotografías…</p>}
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{photoList.map(photo=><a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg border">
+          <img src={photo.url} alt={`Imagen ${photo.order+1} de ${selectedProperty.title}`} loading="lazy" className="h-36 w-full object-cover" />
+        </a>)}</div>
+        {!galleryBusy && photoList.length===0&&<p className="mt-2 text-sm text-slate-600">Esta propiedad todavía no tiene fotografías.</p>}
+        {can(PERMISSIONS.PROPERTIES_EDIT) && <div className="mt-4 space-y-2">
+          <label htmlFor="existing-property-photos" className="block text-sm font-medium">Agregar fotografías ({photoList.length}/{MAX_PHOTOS})</label>
+          <input id="existing-property-photos" type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={galleryBusy || photoList.length>=MAX_PHOTOS}
+            onChange={e=>{const files=Array.from(e.target.files??[]);e.target.value='';const next=[...galleryFiles,...files];const issue=validateInventoryPhotos(next,photoList.length);if(issue){setMessage(issue);return;}setGalleryFiles(next);}}
+            className="w-full text-sm" />
+          {galleryFiles.length>0&&<p className="text-xs">{galleryFiles.length} fotografías seleccionadas</p>}
+          <button type="button" onClick={()=>void addGalleryPhotos()} disabled={galleryBusy||galleryFiles.length===0} className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50">Guardar fotografías</button>
+        </div>}
+      </section>}
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">
           <thead className="bg-stone-50 text-left">
@@ -159,13 +231,13 @@ export function PropertiesModule() {
               <th className="px-4 py-3">Operación</th>
               <th className="px-4 py-3">Ubicación</th>
               <th className="px-4 py-3">Precio</th>
-              <th className="px-4 py-3">Estado</th>
+              <th className="px-4 py-3">Estado</th><th className="px-4 py-3">Fotos</th>
             </tr>
           </thead>
           <tbody>
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                   <Building2 className="mx-auto mb-2 h-6 w-6" />
                   Aún no hay propiedades registradas.
                 </td>
@@ -184,6 +256,7 @@ export function PropertiesModule() {
                   {row.price == null ? '—' : new Intl.NumberFormat(branding.locale || 'es-CO', { style: 'currency', currency: row.currency || branding.currency || 'COP', maximumFractionDigits: 0 }).format(row.price)}
                 </td>
                 <td className="px-4 py-3">{row.status}</td>
+                <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
               </tr>
             ))}
           </tbody>
