@@ -9,6 +9,17 @@ import { useTenantBranding } from '../core/use-tenant-branding';
 import { getCountryOption } from '../core/countries';
 import { administrativeLabels, loadAdministrativeCatalog, type AdministrativeCatalog } from '../core/location-catalog';
 
+function PhotoThumbnail({ file }: { file: File }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return url ? <img src={url} alt={`Vista previa de ${file.name}`}
+    className="h-14 w-16 rounded object-cover" /> : null;
+}
+
 interface SubmitPropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -492,7 +503,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
                 className="w-full text-xs text-slate-800 file:mr-3 file:rounded-md file:border file:bg-white file:px-3 file:py-2" />
               {photos.length > 0 && <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {photos.map((file, index) => <li key={index} className="flex items-center justify-between gap-2 rounded-md bg-stone-50 p-2 text-xs">
-                  <span className="truncate" title={file.name}>{index + 1}. {file.name}</span>
+                  <div className="flex min-w-0 items-center gap-2"><PhotoThumbnail file={file} /><span className="truncate" title={file.name}>{index + 1}. {file.name}</span></div>
                   <button type="button" onClick={() => setPhotos(current => current.filter((_,i) => i !== index))}
                     aria-label={`Eliminar fotografía ${index + 1}`} className="rounded p-1 text-red-700">Quitar</button>
                 </li>)}
