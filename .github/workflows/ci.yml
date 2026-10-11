@@ -111,6 +111,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261010214633_fix_property_portal_rls_recursion.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_assertions.sql
+      - name: Organization owner onboarding authorization gates
+        run: node --test tests/organization-owner-onboarding-gate.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)

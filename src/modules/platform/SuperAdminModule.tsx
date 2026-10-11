@@ -3,6 +3,7 @@ import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 import { monthLabel, organizationStatusLabel, parsePlatformOverview, type OrganizationSummary, type PlatformOverview } from '../../core/platform-overview';
 import { BillingAdminControls } from './BillingAdminControls';
+import { CreateOrganizationAdmin } from './CreateOrganizationAdmin';
 
 export function SuperAdminModule() {
   const { user, loading: authLoading, isPlatformAdmin } = useAuth();
@@ -68,6 +69,7 @@ export function SuperAdminModule() {
     <section id="resumen-inmobiliarias" className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Estado general de las inmobiliarias">
       {cards.map(([label,value]) => <article key={label} className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-600">{label}</p><p className="mt-2 text-3xl font-bold tabular-nums">{loading || value === undefined ? '—' : value}</p></article>)}
     </section><p className="mt-2 text-xs text-slate-500">{totals ? `${totals.tests} cuentas de prueba incluidas en el total. ` : ''}El estado de acceso contempla la vigencia, las suspensiones y la activación pendiente.</p>
+    <CreateOrganizationAdmin onCreated={() => void refresh()} />
     <BillingAdminControls tenant={selectedOrganization} onDone={() => void refresh()} />
     <section id="todas-inmobiliarias" className="mt-6"><h2 className="text-xl font-bold">Inmobiliarias registradas</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Filtros de inmobiliarias">
