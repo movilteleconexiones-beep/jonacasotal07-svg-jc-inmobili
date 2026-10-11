@@ -41,19 +41,15 @@ Deno.serve(async req=>{
    return respond(400,{error:'invalid_photo'},origin);
   const bytes=new Uint8Array(await file.arrayBuffer());
   if(!magic(bytes,file.type))return respond(415,{error:'invalid_file_signature'},origin);
-  const {data:site,error:siteError}=await supabase.schema('private').from('property_intake_sites')
-   .select('organization_id,enabled').eq('slug',slug).single();
-  if(siteError||!site?.enabled)return respond(404,{error:'site_unavailable'},origin);
-  const {data:consignment,error:consignmentError}=await supabase.from('property_consignments')
-   .select('id,organization_id,created_at,status').eq('organization_id',site.organization_id)
-   .eq('request_id',id).eq('reference',reference).single();
-  if(consignmentError||!consignment||consignment.status!=='NEW'
-    ||Date.now()-Date.parse(consignment.created_at)>60*60*1000)
-   return respond(404,{error:'submission_unavailable'},origin);
+  const {data:resolved,error:resolveError}=await supabase.rpc('resolve_consignment_photo_submission',{
+    p_slug:slug,p_request_id:id,p_reference:reference,
+  });
+  const consignment=Array.isArray(resolved)?resolved[0]:null;
+  if(resolveError||!consignment)return respond(404,{error:'submission_unavailable'},origin);
   const {count}=await supabase.from('property_consignment_photos')
    .select('id',{count:'exact',head:true}).eq('consignment_id',consignment.id);
   if((count??0)>=10)return respond(409,{error:'photo_limit'},origin);
-  const path=`${site.organization_id}/${consignment.id}/${position}-${crypto.randomUUID()}`;
+  const path=`${consignment.organization_id}/${consignment.id}/${position}-${crypto.randomUUID()}`;
   const {error:uploadError}=await supabase.storage.from(bucket).upload(path,bytes,{
     contentType:file.type,upsert:false,cacheControl:'0'
   });
