@@ -118,7 +118,8 @@ export function CommissionsModule() {
       return;
     }
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const selectedDealId = String(form.get('deal_id') ?? '');
     const beneficiaryId = String(form.get('beneficiary_user_id') ?? '');
     if (!deals.some((deal) => deal.id === selectedDealId) || (beneficiaryId && !members.some((member) => member.user_id === beneficiaryId))) {
@@ -149,7 +150,7 @@ export function CommissionsModule() {
 
     setMessage('Comisión creada correctamente.');
     setShowCreate(false);
-    event.currentTarget.reset();
+    formElement.reset();
     await load();
   }
 

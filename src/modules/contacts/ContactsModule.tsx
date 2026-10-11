@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ContactRound, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -21,25 +21,37 @@ export function ContactsModule() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const loadVersion = useRef(0);
 
   const organizationId = activeMembership?.organization.id;
 
   async function load() {
-    if (!organizationId) return;
+    const version = ++loadVersion.current;
+    setRows([]);
+    if (!organizationId) { setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase
-      .from('contacts')
-      .select('id, first_name, last_name, email, phone, whatsapp, source, created_at')
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false });
+    setMessage('');
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email, phone, whatsapp, source, created_at')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
 
-    if (error) setMessage(error.message);
-    else setRows((data ?? []) as ContactRow[]);
-    setLoading(false);
+      if (version !== loadVersion.current) return;
+      if (error) setMessage('No se pudieron consultar los contactos. Verifica tus permisos y vuelve a intentar.');
+      else setRows((data ?? []) as ContactRow[]);
+    } catch {
+      if (version !== loadVersion.current) return;
+      setMessage('No se pudo conectar con los contactos. Intenta actualizar.');
+    } finally {
+      if (version === loadVersion.current) setLoading(false);
+    }
   }
 
   useEffect(() => {
     void load();
+    return () => { ++loadVersion.current; };
   }, [organizationId]);
 
   async function createContact(event: FormEvent<HTMLFormElement>) {
@@ -49,7 +61,8 @@ export function ContactsModule() {
       return;
     }
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const email = String(form.get('email') ?? '').trim();
     const phone = String(form.get('phone') ?? '').trim();
     const whatsapp = String(form.get('whatsapp') ?? '').trim();
@@ -90,7 +103,7 @@ export function ContactsModule() {
 
     setMessage('Cliente/contacto creado correctamente.');
     setShowCreate(false);
-    event.currentTarget.reset();
+    formElement.reset();
     await load();
   }
 
