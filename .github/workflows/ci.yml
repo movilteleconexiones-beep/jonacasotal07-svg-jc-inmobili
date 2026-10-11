@@ -73,6 +73,8 @@ jobs:
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
       - name: Customer menu and monthly overview tests
         run: node --import tsx --test tests/tenant-menu-overview.test.mjs
+      - name: Colombian geography and catalog filter tests
+        run: node --import tsx --test tests/catalog-location.test.mjs
       - name: Older official schema, owner trials and monthly overview
         env:
           PGPASSWORD: postgres

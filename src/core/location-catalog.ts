@@ -1,8 +1,10 @@
 import { getCountryOption } from './countries';
+import { COLOMBIA_DIVIPOLA } from '../data/colombia-divipola';
 
 export interface AdministrativeOption {
   id: string;
   name: string;
+  kind?: string;
 }
 
 export interface AdministrativeRegion extends AdministrativeOption {
@@ -118,7 +120,9 @@ export function administrativeLabels(countryCode: string) {
 }
 
 export function loadAdministrativeCatalog(countryCode: string): Promise<AdministrativeCatalog | null> {
-  const code = countryCode.toUpperCase();
+  const code = countryCode.trim().toUpperCase();
+  // Colombia is bundled so all departments and municipalities work without a third-party request.
+  if (code === 'CO') return Promise.resolve(COLOMBIA_DIVIPOLA);
   if (cache.has(code)) return cache.get(code)!;
 
   const request = (async () => {
