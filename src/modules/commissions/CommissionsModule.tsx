@@ -40,6 +40,7 @@ export function CommissionsModule() {
 
   const [rows, setRows] = useState<CommissionRow[]>([]);
   const [deals, setDeals] = useState<DealOption[]>([]);
+  const [dealsLoadError, setDealsLoadError] = useState(false);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
@@ -69,7 +70,14 @@ export function CommissionsModule() {
     if (commissionsResult.error) setMessage(commissionsResult.error.message);
     else setRows((commissionsResult.data ?? []) as unknown as CommissionRow[]);
 
-    if (!dealsResult.error) setDeals((dealsResult.data ?? []) as unknown as DealOption[]);
+    if (dealsResult.error) {
+      setDeals([]);
+      setDealsLoadError(true);
+      setMessage('No se pudieron consultar los negocios. Comprueba tus permisos y vuelve a actualizar.');
+    } else {
+      setDealsLoadError(false);
+      setDeals((dealsResult.data ?? []) as unknown as DealOption[]);
+    }
     if (!membersResult.error) {
       const memberRows = (membersResult.data ?? []) as unknown as MemberOption[];
       setMembers(memberRows);
@@ -99,6 +107,10 @@ export function CommissionsModule() {
   async function createCommission(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!organizationId || !user) return;
+    if (dealsLoadError || deals.length === 0) {
+      setMessage(dealsLoadError ? 'No se pudo comprobar el listado de negocios.' : 'Registra primero un negocio desde Negocios antes de crear la comisión.');
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
     const percentage = String(form.get('percentage') ?? '').trim();
@@ -184,8 +196,8 @@ export function CommissionsModule() {
         <form onSubmit={createCommission} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
           <label>
             <span className="mb-1 block text-sm font-medium">Negocio *</span>
-            <select name="deal_id" required className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
-              <option value="">Selecciona…</option>
+            <select name="deal_id" required disabled={dealsLoadError || deals.length === 0} className="w-full rounded-xl border border-stone-300 px-3 py-2.5 disabled:bg-stone-100">
+              <option value="">{dealsLoadError ? "Error al consultar negocios" : deals.length === 0 ? "No hay negocios registrados" : "Selecciona…"}</option>
               {deals.map((deal) => (
                 <option key={deal.id} value={deal.id}>
                   {(deal.properties?.code || 'Sin código') + ' · ' + (deal.contacts?.first_name || 'Cliente')}
@@ -193,6 +205,9 @@ export function CommissionsModule() {
               ))}
             </select>
           </label>
+          {(dealsLoadError || deals.length === 0) && <div role="status" className="self-end rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            {dealsLoadError ? "No se pudo consultar Negocios. Pulsa Actualizar para reintentar." : "Todavía no hay negocios registrados. Ve al menú Negocios, crea uno asociado a una propiedad y un cliente, y regresa a Comisiones."}
+          </div>}
 
           <label>
             <span className="mb-1 block text-sm font-medium">Beneficiario</span>
@@ -235,7 +250,7 @@ export function CommissionsModule() {
             >
               Cancelar
             </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+            <button type="submit" disabled={dealsLoadError || deals.length === 0} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
               Guardar comisión
             </button>
           </div>
