@@ -7,7 +7,10 @@ const upload=readFileSync(new URL('../supabase/functions/consignment-photo-uploa
 const sql=readFileSync(new URL('../supabase/migrations/20261011090000_private_consignment_photos.sql',import.meta.url),'utf8');
 
 test('photo upload follows persistence of the consignment record',()=>{
- assert.ok(modal.indexOf('await submitPropertyConsignment(')<modal.indexOf('await uploadConsignmentPhoto('));
+ const submitHandler = modal.slice(modal.indexOf('const handleSubmit = async'), modal.indexOf('const resetAndClose'));
+ assert.ok(submitHandler.includes('await submitPropertyConsignment('));
+ assert.ok(submitHandler.indexOf('await submitPropertyConsignment(') < submitHandler.indexOf('await attemptPhotoUploads(reference, 0)'));
+ assert.match(modal, /await uploadConsignmentPhoto\(site\.slug, request\.current\.id, reference, i, photos\[i\]\)/);
  assert.match(modal,/next\.length > 10/);
  assert.match(modal,/setUploadedPhotos\(uploaded\)/);
 });
