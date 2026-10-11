@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Plus, RefreshCw, UsersRound } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -41,9 +41,12 @@ export function LeadsModule() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const loadVersion = useRef(0);
 
   async function load() {
-    if (!organizationId) return;
+    const version = ++loadVersion.current;
+    setRows([]); setContacts([]); setProperties([]);
+    if (!organizationId) { setLoading(false); return; }
     setLoading(true);
 
     const [leadResult, contactResult, propertyResult] = await Promise.all([
@@ -64,17 +67,20 @@ export function LeadsModule() {
         .order('created_at', { ascending: false }),
     ]);
 
-    if (leadResult.error) setMessage(leadResult.error.message);
+    if (version !== loadVersion.current) return;
+    if (leadResult.error) setMessage('No se pudieron consultar las oportunidades comerciales. Comprueba tus permisos.');
     else setRows((leadResult.data ?? []) as unknown as LeadRow[]);
 
-    if (!contactResult.error) setContacts((contactResult.data ?? []) as ContactOption[]);
-    if (!propertyResult.error) setProperties((propertyResult.data ?? []) as PropertyOption[]);
+    setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
+    setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
+    if (contactResult.error || propertyResult.error) setMessage('Error al consultar clientes o propiedades. Actualiza antes de continuar.');
 
     setLoading(false);
   }
 
   useEffect(() => {
     void load();
+    return () => { ++loadVersion.current; };
   }, [organizationId]);
 
   const grouped = useMemo(() => {
@@ -142,6 +148,7 @@ export function LeadsModule() {
       setMessage('No tienes permiso para actualizar oportunidades comerciales.');
       return;
     }
+    if (!STATUSES.some(([value]) => value === status)) return;
     const { error } = await supabase.from('leads').update({ status }).eq('id', id).eq('organization_id', organizationId);
     if (error) setMessage(error.message);
     else await load();
@@ -168,6 +175,8 @@ export function LeadsModule() {
 
       {showCreate && (
         <form onSubmit={createLead} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
+          {!loading && contacts.length === 0 && <p role="alert" className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Para crear una oportunidad primero registra un contacto en Clientes y contactos.</p>}
+          {loading && <p role="status" className="md:col-span-2 text-sm text-slate-500">Consultando clientes disponibles…</p>}
           <label>
             <span className="mb-1 block text-sm font-medium">Cliente / contacto *</span>
             <select name="contact_id" required className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
@@ -214,7 +223,7 @@ export function LeadsModule() {
           </label>
           <div className="md:col-span-2 flex justify-end gap-2">
             <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Guardar lead</button>
+            <button type="submit" disabled={loading || contacts.length === 0} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Guardar lead</button>
           </div>
         </form>
       )}
