@@ -12,7 +12,7 @@ test('photo upload follows persistence of the consignment record',()=>{
  assert.ok(submitHandler.indexOf('await submitPropertyConsignment(') < submitHandler.indexOf('await attemptPhotoUploads(reference, 0)'));
  assert.match(modal, /await uploadConsignmentPhoto\(site\.slug, request\.current\.id, reference, i, photos\[i\]\)/);
  assert.match(modal,/next\.length > 10/);
- assert.match(modal,/setUploadedPhotos\(uploaded\)/);
+ assert.match(modal,/setUploadedPhotos\(i \+ 1\)/);
 });
 test('storage remains private with tenant scoped reviewer policy',()=>{
  assert.match(sql,/values\('jco-consignment-photos','jco-consignment-photos',false/);
