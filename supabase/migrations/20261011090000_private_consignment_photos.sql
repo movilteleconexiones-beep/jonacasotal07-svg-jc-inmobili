@@ -27,4 +27,21 @@ create policy property_consignment_photos_reviewer_read on public.property_consi
  and public.has_org_permission(c.organization_id,'clients.view')));
 -- Objects have no anonymous storage policies. Service role uploads only after the
 -- Edge handler has verified the unguessable request id and tenant submission.
+-- Service-role-only resolver avoids exposing the private tenant mapping through PostgREST.
+create or replace function public.resolve_consignment_photo_submission(
+ p_slug text,p_request_id uuid,p_reference text
+) returns table(consignment_id uuid,organization_id uuid,created_at timestamptz,status text)
+language sql security definer set search_path='' as $
+ select c.id,c.organization_id,c.created_at,c.status
+ from private.property_intake_sites s
+ join public.property_consignments c on c.organization_id=s.organization_id
+ where s.slug=p_slug and s.enabled and c.request_id=p_request_id
+   and c.reference=p_reference and c.status='NEW'
+   and c.created_at > now()-interval '1 hour'
+   and exists(select 1 from public.organizations o where o.id=s.organization_id and o.status='ACTIVE')
+ limit 1;
+$;
+revoke all on function public.resolve_consignment_photo_submission(text,uuid,text)
+ from public,anon,authenticated;
+grant execute on function public.resolve_consignment_photo_submission(text,uuid,text) to service_role;
 commit;
