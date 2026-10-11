@@ -29,7 +29,25 @@ Deno.serve(async req=>{
  const length=Number(req.headers.get('content-length')||0);
  if(length>5500000)return respond(413,{error:'too_large'},origin);
  try {
-  const form=await req.formData();
+  // Bound streaming payloads even when Content-Length is absent or forged.
+  const reader=req.body?.getReader();
+  if(!reader)return respond(400,{error:'empty_upload'},origin);
+  const chunks:Uint8Array[]=[];
+  let total=0;
+  try {
+    while(true) {
+      const {value,done}=await reader.read();
+      if(done)break;
+      total+=value.length;
+      if(total>5500000){await reader.cancel();return respond(413,{error:'too_large'},origin);}
+      chunks.push(value);
+    }
+  } finally {reader.releaseLock();}
+  const buffer=new Uint8Array(total);
+  let cursor=0;
+  for(const chunk of chunks){buffer.set(chunk,cursor);cursor+=chunk.length;}
+  const bounded=new Request(req.url,{method:'POST',headers:req.headers,body:buffer});
+  const form=await bounded.formData();
   const slug=form.get('siteSlug'), id=form.get('requestId'),reference=form.get('reference'),position=Number(form.get('position'));
   const file=form.get('photo');
   const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
