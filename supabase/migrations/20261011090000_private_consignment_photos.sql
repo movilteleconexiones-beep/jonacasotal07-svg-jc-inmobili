@@ -31,7 +31,7 @@ create policy property_consignment_photos_reviewer_read on public.property_consi
 create or replace function public.resolve_consignment_photo_submission(
  p_slug text,p_request_id uuid,p_reference text
 ) returns table(consignment_id uuid,organization_id uuid,created_at timestamptz,status text)
-language sql security definer set search_path='' as $
+language sql security definer set search_path='' as $jco_photo$
  select c.id,c.organization_id,c.created_at,c.status
  from private.property_intake_sites s
  join public.property_consignments c on c.organization_id=s.organization_id
@@ -40,7 +40,7 @@ language sql security definer set search_path='' as $
    and c.created_at > now()-interval '1 hour'
    and exists(select 1 from public.organizations o where o.id=s.organization_id and o.status='ACTIVE')
  limit 1;
-$;
+$jco_photo$;
 revoke all on function public.resolve_consignment_photo_submission(text,uuid,text)
  from public,anon,authenticated;
 grant execute on function public.resolve_consignment_photo_submission(text,uuid,text) to service_role;
