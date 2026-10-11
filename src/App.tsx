@@ -20,6 +20,8 @@ import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
 import { useTenantBranding } from './core/use-tenant-branding';
 import { getCountryOption } from './core/countries';
+import { CatalogLocationFilter } from './components/CatalogLocationFilter';
+import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
 import {
   Search,
   ArrowRight,
@@ -69,9 +71,13 @@ export default function App() {
   const [properties] = useState<Property[]>(PROPERTIES);
   const [operationFilter, setOperationFilter] = useState<'Todas' | Property['operation']>('Todas');
   const [categoryFilter, setCategoryFilter] = useState<'Todas' | Property['category']>('Todas');
-  const [zoneFilter, setZoneFilter] = useState<'Todas' | Property['neighborhood']>('Todas');
+  const [locationFilter, setLocationFilter] = useState<CatalogLocationSelection>({ region: '', locality: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-desc' | 'price-asc' | 'yield-desc'>('featured');
+
+  React.useEffect(() => {
+    setLocationFilter({ region: '', locality: '' });
+  }, [countryProfile.code]);
 
   // Interactive modals & portfolio state
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -112,18 +118,11 @@ export default function App() {
   };
 
   const filteredProperties = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
     const list = properties.filter((item) => {
       const matchesOp = operationFilter === 'Todas' || item.operation === operationFilter;
       const matchesCat = categoryFilter === 'Todas' || item.category === categoryFilter;
-      const matchesZone = zoneFilter === 'Todas' || item.neighborhood === zoneFilter;
-      const matchesQuery =
-        !q ||
-        item.title.toLowerCase().includes(q) ||
-        item.neighborhood.toLowerCase().includes(q) ||
-        item.code.toLowerCase().includes(q) ||
-        item.architecturalSummary.toLowerCase().includes(q);
-      return matchesOp && matchesCat && matchesZone && matchesQuery;
+      const matchesLocation = matchesCatalogLocation(item, countryProfile.code, locationFilter);
+      return matchesOp && matchesCat && matchesLocation && matchesCatalogSearch(item, searchQuery);
     });
 
     if (sortBy === 'price-desc') {
@@ -136,7 +135,7 @@ export default function App() {
       return [...list].sort((a, b) => b.rentalYieldPct - a.rentalYieldPct);
     }
     return list;
-  }, [properties, operationFilter, categoryFilter, zoneFilter, searchQuery, sortBy]);
+  }, [properties, operationFilter, categoryFilter, countryProfile.code, locationFilter, searchQuery, sortBy]);
 
   const savedProperties = useMemo(
     () => properties.filter((p) => savedPropertyIds.includes(p.id)),
@@ -355,20 +354,20 @@ export default function App() {
             <div className="mt-10 bg-white text-slate-900 p-4 md:p-5 rounded-xl border border-stone-200 shadow-xl">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                 {/* Search input */}
-                <div className="md:col-span-4 relative">
+                <div className="md:col-span-3 relative">
                   <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar por colonia, clave (JCO-1084) o acabado..."
+                    placeholder="Buscar por barrio, ciudad, código o acabado…"
                     aria-label="Buscar propiedades"
                     className="w-full pl-10 pr-3 py-2.5 bg-[#F6F6F4] border border-stone-200 rounded-lg text-xs text-slate-900 placeholder:text-stone-500 focus:outline-none focus:border-[#0F2942]"
                   />
                 </div>
 
                 {/* Operation Segmented Buttons */}
-                <div className="md:col-span-4 flex items-center bg-[#F6F6F4] p-1 rounded-lg border border-stone-200">
+                <div className="md:col-span-3 flex items-center bg-[#F6F6F4] p-1 rounded-lg border border-stone-200">
                   {(['Todas', 'Venta', 'Renta', 'Administración'] as const).map((op) => (
                     <button
                       key={op}
@@ -385,23 +384,7 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Zone Selector */}
-                <div className="md:col-span-2">
-                  <select
-                    value={zoneFilter}
-                    onChange={(e) => setZoneFilter(e.target.value as 'Todas' | Property['neighborhood'])}
-                    aria-label={`Filtrar por zona en ${countryProfile.name}`}
-                    className="w-full px-3 py-2.5 bg-[#F6F6F4] border border-stone-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-[#0F2942]"
-                  >
-                    <option value="Todas">Todas las zonas</option>
-                    <option value="El Poblado">El Poblado</option>
-                    <option value="Chicó">Chicó</option>
-                    <option value="Envigado">Envigado</option>
-                    <option value="Laureles">Laureles</option>
-                    <option value="Usaquén">Usaquén</option>
-                    <option value="Ciudad del Río">Ciudad del Río</option>
-                  </select>
-                </div>
+                <CatalogLocationFilter countryCode={countryProfile.code} value={locationFilter} onChange={setLocationFilter} />
 
                 {/* Jump to Catalog CTA */}
                 <div className="md:col-span-2">
@@ -414,6 +397,11 @@ export default function App() {
                   </a>
                 </div>
               </div>
+              {countryProfile.code === 'CO' && (
+                <p className="mt-3 text-[10px] text-stone-500">
+                  Ubicaciones: <a href="https://www.datos.gov.co/Mapas-Nacionales/DIVIPOLA-C-digos-municipios/gdxc-w37w" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">DANE · DIVIPOLA</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">CC BY-SA 4.0</a>
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -548,7 +536,7 @@ export default function App() {
                 onClick={() => {
                   setOperationFilter('Todas');
                   setCategoryFilter('Todas');
-                  setZoneFilter('Todas');
+                  setLocationFilter({ region: '', locality: '' });
                   setSearchQuery('');
                 }}
                 className="px-4 py-2 bg-[#0F2942] text-white text-xs font-medium rounded-lg"
