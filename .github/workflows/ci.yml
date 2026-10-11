@@ -127,6 +127,8 @@ jobs:
         run: node --test tests/commissions-prerequisites.test.mjs
       - name: Active member and organization owner UI safety
         run: node --test tests/member-status-safety.test.mjs
+      - name: Report reliability and tenant scoping tests
+        run: node --test tests/reports-reliability.test.mjs
       - name: CRM prerequisites and tenant isolation checks
         run: node --test tests/crm-prerequisites.test.mjs
       - name: Production build
