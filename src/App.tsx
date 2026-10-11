@@ -64,7 +64,6 @@ export default function App() {
   const countryProfile = getCountryOption(branding.country);
   const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
-  const [portalAccessNotice, setPortalAccessNotice] = useState(false);
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
   );
@@ -291,14 +290,13 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   if (activeMembership) {
-                    setPortalAccessNotice(false);
                     setIsPrivateDashboardOpen(true);
-                  } else {
-                    setPortalAccessNotice(true);
+                  } else if (isPlatformAdmin) {
+                    window.location.assign('/super-admin');
                   }
                 }}
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
-                aria-label="Abrir panel de gestión de la inmobiliaria"
+                aria-label={activeMembership ? "Abrir panel de gestión de la inmobiliaria" : "Abrir administración central SuperAdmin"}
               >
                 Panel
               </button>
@@ -311,12 +309,6 @@ export default function App() {
         </div>
       </header>
 
-      {portalAccessNotice && user && isPlatformAdmin && !activeMembership && (
-        <div role="status" className="mx-auto max-w-5xl rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          El acceso al portal de una inmobiliaria requiere una membresía activa en ella. SuperAdmin puede supervisar todas las cuentas desde Administración central, pero no puede entrar a una inmobiliaria sin una autorización específica.
-          <button type="button" onClick={() => setPortalAccessNotice(false)} className="ml-3 font-semibold underline">Cerrar</button>
-        </div>
-      )}
       <main className="flex-1">
         {/* HERO SECTION: Single dominant 16:9 architectural focal carrier */}
         <section className="relative bg-slate-950 text-white overflow-hidden">
