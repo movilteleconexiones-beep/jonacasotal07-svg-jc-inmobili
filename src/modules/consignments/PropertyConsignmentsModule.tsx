@@ -4,6 +4,7 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { consignmentErrorMessage, type PropertyConsignmentInput } from '../../core/property-consignment';
 import { supabase } from '../../lib/supabase';
+import { fetchConsignmentPhotos, type ConsignmentPhoto } from '../../lib/consignment-photo-review';
 
 interface ConsignmentRow {
   id: string;
@@ -34,6 +35,9 @@ export function PropertyConsignmentsModule() {
   const [hasNext, setHasNext] = useState(false);
   const [selected, setSelected] = useState<ConsignmentRow | null>(null);
   const [notes, setNotes] = useState('');
+  const [photos, setPhotos] = useState<ConsignmentPhoto[]>([]);
+  const [photoError, setPhotoError] = useState('');
+  const [photosLoading, setPhotosLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -78,6 +82,20 @@ export function PropertyConsignmentsModule() {
     void load();
     return () => { ++loadVersion.current; };
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPhotos([]);
+    setPhotoError('');
+    if (!selected?.id || !canView) { setPhotosLoading(false); return; }
+    setPhotosLoading(true);
+    void fetchConsignmentPhotos(selected.id).then(items => {
+      if (!cancelled) setPhotos(items);
+    }).catch(() => {
+      if (!cancelled) setPhotoError('No se pudieron cargar las fotografías de esta consignación.');
+    }).finally(() => { if (!cancelled) setPhotosLoading(false); });
+    return () => { cancelled = true; };
+  }, [selected?.id, canView]);
 
   async function review(decision: 'ACCEPTED' | 'REJECTED') {
     if (reviewLock.current || !selected || !canReview || (decision === 'ACCEPTED' && !canAccept)) return;
@@ -154,6 +172,19 @@ export function PropertyConsignmentsModule() {
             <div><dt className="text-slate-500">Año de construcción</dt><dd>{selected.payload.construction_year ?? 'No informado'}</dd></div>
             <div><dt className="text-slate-500">Administración</dt><dd>{selected.payload.administration_fee} {selected.payload.currency}</dd></div>
           </dl>
+          <section className="space-y-2" aria-label="Fotografías de la consignación">
+            <h3 className="text-sm font-semibold">Fotografías recibidas</h3>
+            {photosLoading ? <p className="text-xs text-slate-500">Cargando imágenes privadas…</p>
+              : photoError ? <p role="alert" className="text-xs text-red-700">{photoError}</p>
+              : photos.length === 0 ? <p className="text-xs text-slate-500">No se adjuntaron fotografías.</p>
+              : <div className="grid grid-cols-2 gap-2">
+                {photos.map(photo => <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer"
+                  aria-label={`Abrir fotografía ${photo.position + 1}`} className="overflow-hidden rounded-lg border">
+                  <img src={photo.url} alt={`Fotografía ${photo.position + 1} del inmueble`}
+                    loading="lazy" className="h-36 w-full object-cover" />
+                </a>)}
+              </div>}
+          </section>
           <p className="whitespace-pre-wrap break-words text-sm text-slate-600">{selected.payload.description || 'Sin descripción adicional.'}</p>
           <p className="text-sm text-slate-600">Ubicación: {[selected.payload.neighborhood, selected.payload.city, selected.payload.state].filter(Boolean).join(', ')}</p>
           {selected.status === 'NEW' && canReview ? <>

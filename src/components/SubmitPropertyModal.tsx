@@ -4,9 +4,21 @@ import type { Property } from '../data/properties';
 import { validatePropertyConsignment, type PropertyConsignmentInput } from '../core/property-consignment';
 import { submitPropertyConsignment, usePublicPropertyIntakeSite } from '../lib/property-consignments';
 import { X, CheckCircle2 } from 'lucide-react';
+import { uploadConsignmentPhoto } from '../lib/consignment-photos';
 import { useTenantBranding } from '../core/use-tenant-branding';
 import { getCountryOption } from '../core/countries';
 import { administrativeLabels, loadAdministrativeCatalog, type AdministrativeCatalog } from '../core/location-catalog';
+
+function PhotoThumbnail({ file }: { file: File }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return url ? <img src={url} alt={`Vista previa de ${file.name}`}
+    className="h-14 w-16 rounded object-cover" /> : null;
+}
 
 interface SubmitPropertyModalProps {
   isOpen: boolean;
@@ -46,6 +58,9 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [uploadedPhotos, setUploadedPhotos] = useState(0);
+  const [photoWarning, setPhotoWarning] = useState('');
 
   const locationLabels = administrativeLabels(configuredCountry.code);
   const selectedRegion = useMemo(
@@ -110,6 +125,17 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     try {
       const reference = await submitPropertyConsignment(site.slug, request.current.id, input);
       setCreatedCode(reference);
+      let uploaded = 0;
+      for (let i = 0; i < photos.length; i++) {
+        try {
+          await uploadConsignmentPhoto(site.slug, request.current!.id, reference, i, photos[i]);
+          uploaded++;
+          setUploadedPhotos(uploaded);
+        } catch {
+          setPhotoWarning(`La solicitud fue recibida, pero solo se guardaron ${uploaded} de ${photos.length} fotos. Contacta a la inmobiliaria con la referencia para completar las imágenes.`);
+          break;
+        }
+      }
       setOwnerName('');
       setOwnerPhone('');
     } catch (cause) {
@@ -132,6 +158,9 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     setOperation('Venta');
     setCategory('Residencial');
     setCreatedCode(null);
+    setPhotos([]);
+    setUploadedPhotos(0);
+    setPhotoWarning('');
     setTitle('');
     setSummary('');
     setOwnerName('');
@@ -182,6 +211,8 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               <h3 className="text-2xl font-semibold text-slate-900">
                 Consignación recibida
               </h3>
+              {photos.length > 0 && <p className="text-sm text-slate-700">Fotografías guardadas: {uploadedPhotos} de {photos.length}</p>}
+              {photoWarning && <p role="alert" className="text-sm text-amber-800">{photoWarning}</p>}
               <p className="text-sm text-slate-600 max-w-md mx-auto">
                 La solicitud de <strong>{locality}, {region}</strong> quedó guardada para revisión de {branding.companyName}. Conserva la referencia de recepción. La inmobiliaria te contactará para continuar; el inmueble todavía no se ha publicado.
               </p>
@@ -454,6 +485,30 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               />
             </div>
 
+            <section aria-label="Fotografías del inmueble" className="space-y-2 rounded-lg border border-stone-200 p-4">
+              <label htmlFor="consignment-photos" className="block text-sm font-semibold text-slate-900">Fotografías del inmueble (opcional)</label>
+              <p className="text-xs text-slate-600">Adjunta hasta 10 fotografías JPG, PNG o WebP de máximo 5 MB cada una. Se guardarán de forma privada para revisión.</p>
+              <input id="consignment-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple
+                onChange={e => {
+                  const selected = Array.from(e.target.files ?? []);
+                  e.target.value = '';
+                  const next = [...photos, ...selected];
+                  if (next.length > 10 || next.some(f => f.size > 5242880 || f.size < 1 || !['image/jpeg','image/png','image/webp'].includes(f.type))) {
+                    setError('Máximo 10 fotografías JPG, PNG o WebP de hasta 5 MB cada una.');
+                    return;
+                  }
+                  setError('');
+                  setPhotos(next);
+                }}
+                className="w-full text-xs text-slate-800 file:mr-3 file:rounded-md file:border file:bg-white file:px-3 file:py-2" />
+              {photos.length > 0 && <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {photos.map((file, index) => <li key={index} className="flex items-center justify-between gap-2 rounded-md bg-stone-50 p-2 text-xs">
+                  <div className="flex min-w-0 items-center gap-2"><PhotoThumbnail file={file} /><span className="truncate" title={file.name}>{index + 1}. {file.name}</span></div>
+                  <button type="button" onClick={() => setPhotos(current => current.filter((_,i) => i !== index))}
+                    aria-label={`Eliminar fotografía ${index + 1}`} className="rounded p-1 text-red-700">Quitar</button>
+                </li>)}
+              </ul>}
+            </section>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-stone-200/80">
               <div>
                 <label htmlFor="owner-name" className="block text-xs font-medium text-slate-700 mb-1">
