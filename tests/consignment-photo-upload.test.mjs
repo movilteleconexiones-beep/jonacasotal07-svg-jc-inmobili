@@ -8,7 +8,7 @@ const sql=readFileSync(new URL('../supabase/migrations/20261011090000_private_co
 
 test('photo upload follows persistence of the consignment record',()=>{
  assert.ok(modal.indexOf('await submitPropertyConsignment(')<modal.indexOf('await uploadConsignmentPhoto('));
- assert.match(modal,/photos\.length > 10/);
+ assert.match(modal,/next\.length > 10/);
  assert.match(modal,/setUploadedPhotos\(uploaded\)/);
 });
 test('storage remains private with tenant scoped reviewer policy',()=>{
