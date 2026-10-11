@@ -16,6 +16,7 @@ test('CRM ignores stale tenant fetches and clears previous tenant data', () => {
   assert.match(source, /if \(version !== loadVersion\.current\) return/);
   assert.match(source, /return \(\) => \{ \+\+loadVersion\.current; \}/);
   assert.match(source, /setContacts\(contactResult\.error \? \[\]/);
+  assert.match(source, /setProperties\(propertyResult\.error \? \[\]/);
 });
 test('CRM stage writes respect allowed statuses, permissions and tenant scope', () => {
   assert.match(source, /STATUSES\.some\(\(\[value\]\) => value === status\)/);
