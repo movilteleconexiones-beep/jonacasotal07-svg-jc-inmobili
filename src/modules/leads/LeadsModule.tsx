@@ -97,7 +97,8 @@ export function LeadsModule() {
       return;
     }
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const budgetMin = String(form.get('budget_min') ?? '').trim();
     const budgetMax = String(form.get('budget_max') ?? '').trim();
     const propertyId = String(form.get('property_id') ?? '').trim();
@@ -139,7 +140,7 @@ export function LeadsModule() {
 
     setMessage('Lead creado correctamente.');
     setShowCreate(false);
-    event.currentTarget.reset();
+    formElement.reset();
     await load();
   }
 
