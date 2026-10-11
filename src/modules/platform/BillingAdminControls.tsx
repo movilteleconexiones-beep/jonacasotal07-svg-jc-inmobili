@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
-interface Tenant { organization_id: string; organization_name: string; organization_status: string }
-interface Plan { id: string; name: string; billing_cycle: string }
+interface Tenant { organization_id: string; organization_name: string; organization_status: string; owner_user_id: string | null }
+interface Plan { id: string; name: string; code: string; billing_cycle: string; currency: string }
 export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null; onDone: () => void }) {
   const [mode, setMode] = useState('');
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -14,7 +14,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   useEffect(() => {
     void Promise.all([
       supabase.from('billing_activation_settings').select('activation_mode').single(),
-      supabase.from('plans').select('id,name,billing_cycle').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL']).order('price'),
+      supabase.from('plans').select('id,name,code,billing_cycle,currency').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL']).order('price'),
     ]).then(([config,catalog]) => { if (config.error || catalog.error) { setMessage('No se pudo consultar la configuración comercial.'); return; }
       setMode(config.data.activation_mode); setPlans(catalog.data ?? []); });
   }, []);
@@ -29,8 +29,10 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   async function apply() {
     if (!tenant || busy) return;
     setBusy(true); setMessage('');
-    const { error } = await supabase.rpc('billing_admin_action', { target_org: tenant.organization_id,
-      action, reason: reason.trim(), target_plan: action === 'APPROVE' ? plan : null });
+    const { error } = action === 'TRIAL'
+      ? await supabase.rpc('billing_admin_authorize_trial', { target_org: tenant.organization_id, target_owner: tenant.owner_user_id, target_plan: plan, trial_days:30, reason:reason.trim() })
+      : await supabase.rpc('billing_admin_action', { target_org: tenant.organization_id,
+        action, reason: reason.trim(), target_plan: action === 'APPROVE' ? plan : null });
     if (error) setMessage('No se pudo aplicar el cambio. Verifica el motivo, el plan y el estado del contrato.');
     else { setMessage('Cambio aplicado y registrado en auditoría.'); onDone(); }
     setBusy(false);
@@ -44,16 +46,16 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
         </select></label></div>
     {tenant && <div className="mt-5 border-t pt-5"><h3 className="font-semibold">Gestionar {tenant.organization_name}</h3>
       <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm">Acción
-        <select aria-label="Acción administrativa" value={action} onChange={e=>setAction(e.target.value)} className="mt-1 w-full rounded-lg border p-3">
-          <option value="APPROVE">Autorizar acceso por un período del plan</option><option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para Sandbox</option>
+        <select aria-label="Acción administrativa" value={action} onChange={e=>{setAction(e.target.value);setPlan('');}} className="mt-1 w-full rounded-lg border p-3">
+          <option value="APPROVE">Autorizar acceso por un período del plan</option><option value="TRIAL" disabled={!tenant.owner_user_id}>Autorizar prueba completa por 30 días</option><option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para Sandbox</option>
         </select></label>
-        {action==='APPROVE' && <label className="text-sm">Plan
+        {(action==='APPROVE' || action==='TRIAL') && <label className="text-sm">Plan
           <select aria-label="Plan para autorización" value={plan} onChange={e=>setPlan(e.target.value)} className="mt-1 w-full rounded-lg border p-3">
-            <option value="">Selecciona un plan</option>{plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="">Selecciona un plan</option>{plans.filter(p=>action==='TRIAL' ? p.billing_cycle==='MONTHLY' && ['PRO','ENTERPRISE'].includes(p.code) : p.currency==='COP').map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
           </select></label>}
       </div><label className="mt-3 block text-sm">Motivo (queda en auditoría)
         <textarea aria-label="Motivo del cambio" value={reason} minLength={10} maxLength={1000} onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <button type="button" disabled={busy || reason.trim().length<10 || (action==='APPROVE' && !plan)} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
+      <button type="button" disabled={busy || reason.trim().length<10 || ((action==='APPROVE'||action==='TRIAL') && !plan) || (action==='TRIAL' && !tenant.owner_user_id)} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
     </div>}
     {message && <p role="status" className="mt-3 text-sm">{message}</p>}
   </section>;

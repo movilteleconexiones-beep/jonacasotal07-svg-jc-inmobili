@@ -13,12 +13,21 @@ El código se mantiene en `movilteleconexiones-beep/jonacasotal07-svg-jc-inmobil
 - Las solicitudes de checkout y los eventos repetidos no duplican activaciones. El identificador de evento deriva del estado de transacción; `payload_sha256` conserva el hash del cuerpo recibido, separado de ese identificador.
 - Solo los permisos incluidos en el plan y en el rol del usuario quedan efectivos. Los límites de usuarios e inmuebles se comprueban bajo bloqueo del tenant.
 - Sandbox requiere una inmobiliaria de prueba expresamente marcada por el superadministrador. No activa inmobiliarias comerciales. La inmobiliaria principal existente no puede marcarse como prueba.
+- El superadministrador puede autorizar una prueba completa de propietario por 1–30 días con un plan Profesional o Empresarial mensual. La RPC comprueba correo confirmado, rol Propietario activo, cuenta separada del administrador central y ausencia de un contrato pagado o suspendido. Registra la prueba, su vencimiento y el motivo; no registra un pago ni habilita el comercio Wompi.
+- El menú de propietarios conserva los 15 módulos y el orden de la referencia: Inicio, Propiedades, Clientes, Leads / CRM, Agenda, Negocios, Propietarios, Documentos, Comisiones, Reportes, Mi Portal, Usuarios, Importar datos, Configuración y Licencia. Consignaciones está dentro de Propiedades y Plan y activación dentro de Licencia. El acceso central SuperAdmin aparece en la cabecera solo para administradores de plataforma activos.
+- El panel central incluye todas las inmobiliarias, filtros por estado, contrato, mes de registro y prueba/comercial, vigencia, miembros e inmuebles. Los rangos de 6, 12 o 24 meses cuentan altas según `America/Bogota`, incluyen meses sin registros y muestran el estado actual de cada cohorte; no presentan esos estados como una reconstrucción histórica.
 - Los archivos usan una ruta cuyo primer segmento es el ID de la inmobiliaria. Los permisos de Storage usan el nombre del objeto; se retiran las reglas antiguas de escritura global de imágenes.
 - Licencias perpetuas, dedicadas y acuerdos personalizados mantienen un proceso contractual separado. No se habilita checkout automático de esos contratos.
 
 ## Despliegue
 
 Migraciones: `20261010222342_verified_tenant_billing.sql` y `20261010222700_commercial_plan_permissions.sql`. Sustituyen el recorrido de pagos preliminar; no ejecutar además los borradores `0026`–`0032` sobre este esquema. La función Edge `billing` es el recorrido operativo; el runtime Node y sus documentos anteriores corresponden al prototipo y no son la configuración de producción de esta entrega.
+
+La base encontrada en la compilación del dominio oficial es `cuitgyqrjibgwuniapmk` (Sistema Inmobiliario JCO). Contiene las cuentas existentes del titular y del propietario de prueba. El servicio conectado usaba anteriormente `nqzopzhmhqdssgpljypu`; se conservan sus datos y se alinea el frontend publicado con la base oficial, sin copiar ni recrear usuarios.
+
+La actualización del tarifario `commercial_plan_permissions` fue rechazada por la revisión automática en la base oficial, sin motivo adicional. No se insistió ni se cambiaron sus precios existentes (0 USD). `20261011000300_independent_owner_trial_entitlements.sql` permite la prueba solicitada sin depender de moneda, precio o features del catálogo: conserva un plan Profesional mensual activo, toma una lista permitida de permisos del producto y guarda esa autorización solo en el tenant de prueba. No modifica planes ni contratos pagados. Aplicarla después de `owner_trials_and_platform_overview`. Los cobros permanecen deshabilitados; el catálogo comercial aprobado y las credenciales Wompi siguen pendientes en esta base antes de ofrecer checkout real.
+
+En instalaciones antiguas, aplicar primero `20261010231042_compatible_licensing_records.sql`, antes de `verified_tenant_billing`. Conserva fecha, usuario, versión y licencia de cada aceptación, completa el snapshot desde la versión aceptada y adapta el bootstrap para conservar una sola licencia pendiente y evitar una suscripción gratuita. Después instalar, en este orden, `20261010212630_property_consignment_intake.sql`, `20261010214633_fix_property_portal_rls_recursion.sql`, `20261010222342_verified_tenant_billing.sql`, `20261010222700_commercial_plan_permissions.sql` y `20261010231048_owner_trials_and_platform_overview.sql`. Esta última aporta la autorización de pruebas, el resumen mensual privado y la restricción comercial de tablas de arrendamientos antiguas. En la instalación que ya tiene consignaciones y billing, solo hacen falta las dos migraciones nuevas de compatibilidad y pruebas/resumen. No sustituir la migración antigua de arrendamientos `0026_rental_management_core` del proyecto oficial por los borradores de pagos numerados del repositorio.
 
 La función se despliega con `verify_jwt=false` porque Wompi no envía JWT Supabase. Su endpoint `/checkout` verifica el usuario con `auth.getUser` y usa un cliente bajo ese JWT; `/events` verifica la firma del comercio y reconcilia el API antes de ejecutar la RPC privilegiada.
 
@@ -34,7 +43,7 @@ Secretos de la función Edge, exclusivamente en el servidor:
 
 Supabase aporta las variables de su proyecto y del rol de servicio a la función. No se copian esas claves al frontend ni al repositorio.
 
-Endpoint de notificaciones: `https://nqzopzhmhqdssgpljypu.supabase.co/functions/v1/billing/events`. Configurarlo en el dashboard Wompi del ambiente de prueba. El endpoint responde 503 si el comercio no tiene secretos configurados, y no procesa pagos.
+Endpoint de notificaciones de la base oficial: `https://cuitgyqrjibgwuniapmk.supabase.co/functions/v1/billing/events`. Configurarlo en el dashboard Wompi del ambiente de prueba. El endpoint responde 503 si el comercio no tiene secretos configurados, y no procesa pagos.
 
 `billing_activation_settings.sandbox_enabled` y `production_enabled` parten en `false`; las credenciales por sí solas no habilitan cobros. No habilitar pagos reales como parte de una prueba. Antes de habilitar producción se debe verificar el ciclo Sandbox completo, la configuración tributaria/facturación y la atención de conciliaciones. Esta entrega no realiza cobros recurrentes automáticos ni emite facturas; activa o renueva por cada pago confirmado.
 
@@ -51,3 +60,4 @@ En la revisión del 10 de octubre, `www.inmojco.com` seguía mostrando la compil
 - Pruebas SQL de acceso pendiente, permisos del plan, reintentos, renovación, aislamiento Sandbox, suspensión, control administrativo y reversión ante falla de auditoría.
 - Prueba de entrega concurrente en PostgreSQL de GitHub Actions.
 - Ensayo contra el esquema oficial dentro de una transacción revertida antes de aplicar la migración.
+- Pruebas de preservación de aceptaciones antiguas, bootstrap pendiente, autorización limitada de propietario, separación del superadministrador, vencimiento, bloqueo de arrendamientos, reversión por fallo de auditoría y conciliación de totales mensuales, incluido el límite UTC/Colombia.
