@@ -215,8 +215,8 @@ export default function App() {
     return <React.Suspense fallback={<p role="status" className="p-6">Cargando administración…</p>}><SuperAdminModule /></React.Suspense>;
   }
 
-  if (isPrivateDashboardOpen && user && activeMembership) {
-    return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}><PrivateDashboard key={activeMembership.organization.id} onClose={() => setIsPrivateDashboardOpen(false)} /></React.Suspense>;
+  if (isPrivateDashboardOpen && user && (activeMembership || isPlatformAdmin)) {
+    return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}><PrivateDashboard key={activeMembership?.organization.id ?? 'platform-no-tenant'} onClose={() => setIsPrivateDashboardOpen(false)} /></React.Suspense>;
   }
 
   return (
@@ -288,15 +288,9 @@ export default function App() {
             {user && (activeMembership || isPlatformAdmin) && (
               <button
                 type="button"
-                onClick={() => {
-                  if (activeMembership) {
-                    setIsPrivateDashboardOpen(true);
-                  } else if (isPlatformAdmin) {
-                    window.location.assign('/super-admin');
-                  }
-                }}
+                onClick={() => setIsPrivateDashboardOpen(true)}
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
-                aria-label={activeMembership ? "Abrir panel de gestión de la inmobiliaria" : "Abrir administración central SuperAdmin"}
+                aria-label="Abrir panel inmobiliario"
               >
                 Panel
               </button>
