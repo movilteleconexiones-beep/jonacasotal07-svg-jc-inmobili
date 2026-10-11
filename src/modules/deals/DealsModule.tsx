@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Handshake, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -29,35 +29,46 @@ export function DealsModule() {
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const loadVersion = useRef(0);
   const hasRequiredOptions = contacts.length > 0 && properties.length > 0;
 
   async function load() {
-    if (!organizationId) {
-      setRows([]); setContacts([]); setProperties([]); setLoadingOptions(false);
-      return;
-    }
+    const version = ++loadVersion.current;
+    setRows([]); setContacts([]); setProperties([]);
+    if (!organizationId) { setLoadingOptions(false); return; }
     setLoadingOptions(true);
-    const [dealResult, contactResult, propertyResult] = await Promise.all([
-      supabase
-        .from('deals')
-        .select('id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, contacts(first_name,last_name), properties(code,title,currency)')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false }),
-      supabase.from('contacts').select('id, first_name, last_name').eq('organization_id', organizationId).order('first_name'),
-      supabase.from('properties').select('id, code, title, price, currency').eq('organization_id', organizationId).order('created_at', { ascending: false }),
-    ]);
+    setMessage('');
+    try {
+      const [dealResult, contactResult, propertyResult] = await Promise.all([
+        supabase
+          .from('deals')
+          .select('id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, contacts(first_name,last_name), properties(code,title,currency)')
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false }),
+        supabase.from('contacts').select('id, first_name, last_name').eq('organization_id', organizationId).order('first_name'),
+        supabase.from('properties').select('id, code, title, price, currency').eq('organization_id', organizationId).order('created_at', { ascending: false }),
+      ]);
 
-    if (dealResult.error) setMessage('No se pudieron cargar los negocios. Comprueba tus permisos.');
-    else setRows((dealResult.data ?? []) as unknown as DealRow[]);
-    setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
-    setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
-    if (contactResult.error || propertyResult.error) {
-      setMessage('No se pudieron consultar los clientes o las propiedades. Intenta actualizar antes de crear un negocio.');
+      if (version !== loadVersion.current) return;
+      if (dealResult.error) setMessage('No se pudieron consultar los negocios. Verifica tus permisos.');
+      else setRows((dealResult.data ?? []) as unknown as DealRow[]);
+      setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
+      setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
+      if (contactResult.error || propertyResult.error) {
+        setMessage('No se pudieron consultar clientes o propiedades. Actualiza antes de crear un negocio.');
+      }
+    } catch {
+      if (version !== loadVersion.current) return;
+      setMessage('No se pudieron consultar los datos del negocio. Intenta actualizar.');
+    } finally {
+      if (version === loadVersion.current) setLoadingOptions(false);
     }
-    setLoadingOptions(false);
   }
 
-  useEffect(() => { void load(); }, [organizationId]);
+  useEffect(() => {
+    void load();
+    return () => { ++loadVersion.current; };
+  }, [organizationId]);
 
   async function createDeal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,7 +77,8 @@ export function DealsModule() {
       setMessage('Primero registra al menos un cliente y una propiedad, o actualiza la lista.');
       return;
     }
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const contactId = String(form.get('contact_id') ?? '');
     const propertyId = String(form.get('property_id') ?? '');
     if (!contacts.some((item) => item.id === contactId) || !properties.some((item) => item.id === propertyId)) {
@@ -99,7 +111,7 @@ export function DealsModule() {
 
     setMessage('Negocio creado correctamente.');
     setShowCreate(false);
-    event.currentTarget.reset();
+    formElement.reset();
     await load();
   }
 
