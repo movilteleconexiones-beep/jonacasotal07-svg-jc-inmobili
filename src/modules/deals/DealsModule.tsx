@@ -28,9 +28,15 @@ export function DealsModule() {
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const hasRequiredOptions = contacts.length > 0 && properties.length > 0;
 
   async function load() {
-    if (!organizationId) return;
+    if (!organizationId) {
+      setRows([]); setContacts([]); setProperties([]); setLoadingOptions(false);
+      return;
+    }
+    setLoadingOptions(true);
     const [dealResult, contactResult, propertyResult] = await Promise.all([
       supabase
         .from('deals')
@@ -41,18 +47,32 @@ export function DealsModule() {
       supabase.from('properties').select('id, code, title, price, currency').eq('organization_id', organizationId).order('created_at', { ascending: false }),
     ]);
 
-    if (dealResult.error) setMessage(dealResult.error.message);
+    if (dealResult.error) setMessage('No se pudieron cargar los negocios. Comprueba tus permisos.');
     else setRows((dealResult.data ?? []) as unknown as DealRow[]);
-    if (!contactResult.error) setContacts((contactResult.data ?? []) as ContactOption[]);
-    if (!propertyResult.error) setProperties((propertyResult.data ?? []) as PropertyOption[]);
+    setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
+    setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
+    if (contactResult.error || propertyResult.error) {
+      setMessage('No se pudieron consultar los clientes o las propiedades. Intenta actualizar antes de crear un negocio.');
+    }
+    setLoadingOptions(false);
   }
 
   useEffect(() => { void load(); }, [organizationId]);
 
   async function createDeal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.DEALS_CREATE)) return;
+    if (!hasRequiredOptions || loadingOptions) {
+      setMessage('Primero registra al menos un cliente y una propiedad, o actualiza la lista.');
+      return;
+    }
     const form = new FormData(event.currentTarget);
+    const contactId = String(form.get('contact_id') ?? '');
+    const propertyId = String(form.get('property_id') ?? '');
+    if (!contacts.some((item) => item.id === contactId) || !properties.some((item) => item.id === propertyId)) {
+      setMessage('El cliente o la propiedad seleccionados ya no están disponibles. Actualiza antes de continuar.');
+      return;
+    }
     const asking = String(form.get('asking_price') ?? '').trim();
     const offered = String(form.get('offered_price') ?? '').trim();
     const commission = String(form.get('commission_percentage') ?? '').trim();
@@ -60,8 +80,8 @@ export function DealsModule() {
 
     const { error } = await supabase.from('deals').insert({
       organization_id: organizationId,
-      contact_id: String(form.get('contact_id') ?? ''),
-      property_id: String(form.get('property_id') ?? ''),
+      contact_id: contactId,
+      property_id: propertyId,
       assigned_agent_id: user.id,
       operation_type: String(form.get('operation_type') ?? 'SALE'),
       stage: 'INTEREST',
@@ -84,10 +104,12 @@ export function DealsModule() {
   }
 
   async function updateStage(id: string, stage: string) {
+    if (!organizationId || !can(PERMISSIONS.DEALS_EDIT)) return;
+    if (!['INTEREST','VISIT','OFFER','NEGOTIATION','DOCUMENTATION','CLOSING','WON','LOST'].includes(stage)) return;
     const patch: Record<string, unknown> = { stage };
-    if (stage === 'WON' || stage === 'LOST') patch.closed_at = new Date().toISOString();
+    patch.closed_at = stage === 'WON' || stage === 'LOST' ? new Date().toISOString() : null;
 
-    const { error } = await supabase.from('deals').update(patch).eq('id', id);
+    const { error } = await supabase.from('deals').update(patch).eq('id', id).eq('organization_id', organizationId);
     if (error) setMessage(error.message);
     else await load();
   }
@@ -113,6 +135,14 @@ export function DealsModule() {
 
       {showCreate && (
         <form onSubmit={createDeal} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
+          {!loadingOptions && !hasRequiredOptions && (
+            <p role="alert" className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Para registrar un negocio necesitas al menos un cliente y una propiedad de esta inmobiliaria.
+              {contacts.length === 0 ? ' Falta registrar un cliente en Clientes.' : ''}
+              {properties.length === 0 ? ' Falta registrar una propiedad en Propiedades.' : ''}
+            </p>
+          )}
+          {loadingOptions && <p role="status" className="md:col-span-2 text-sm text-slate-600">Cargando clientes y propiedades…</p>}
           <label>
             <span className="mb-1 block text-sm font-medium">Cliente *</span>
             <select name="contact_id" required className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
@@ -140,7 +170,7 @@ export function DealsModule() {
           <Field name="commission_percentage" label="Comisión %" type="number" min="0" step="0.01" />
           <div className="md:col-span-2 flex justify-end gap-2">
             <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Guardar negocio</button>
+            <button type="submit" disabled={!hasRequiredOptions || loadingOptions} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Guardar negocio</button>
           </div>
         </form>
       )}
