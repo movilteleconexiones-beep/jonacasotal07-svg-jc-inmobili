@@ -119,6 +119,8 @@ jobs:
         run: node --test tests/billing-plan-entitlements.test.mjs
       - name: Dual Panel and SuperAdmin navigation regression
         run: node --test tests/dual-panel-navigation-regression.test.mjs
+      - name: Consignment photo retry regression
+        run: node --test tests/consignment-photo-retry.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)

@@ -88,6 +88,35 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Only resume files not acknowledged by the server; never resubmit the consignment.
+  const attemptPhotoUploads = async (reference: string, startIndex: number) => {
+    if (!site || !request.current) return;
+    setPhotoWarning('');
+    for (let i = startIndex; i < photos.length; i++) {
+      try {
+        await uploadConsignmentPhoto(site.slug, request.current.id, reference, i, photos[i]);
+        setUploadedPhotos(i + 1);
+      } catch {
+        setPhotoWarning(
+          `La consignación se recibió, pero solo se confirmaron ${i} de ${photos.length} fotografías. Puedes reintentar las fotos pendientes sin enviar otra solicitud. Si el error continúa, contacta a la inmobiliaria con la referencia.`,
+        );
+        return;
+      }
+    }
+  };
+
+  const retryPhotoUploads = async () => {
+    if (submitLock.current || !createdCode || !site || !request.current || uploadedPhotos >= photos.length) return;
+    submitLock.current = true;
+    setSubmitting(true);
+    try {
+      await attemptPhotoUploads(createdCode, uploadedPhotos);
+    } finally {
+      submitLock.current = false;
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitLock.current) return;
@@ -125,17 +154,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     try {
       const reference = await submitPropertyConsignment(site.slug, request.current.id, input);
       setCreatedCode(reference);
-      let uploaded = 0;
-      for (let i = 0; i < photos.length; i++) {
-        try {
-          await uploadConsignmentPhoto(site.slug, request.current!.id, reference, i, photos[i]);
-          uploaded++;
-          setUploadedPhotos(uploaded);
-        } catch {
-          setPhotoWarning(`La solicitud fue recibida, pero solo se guardaron ${uploaded} de ${photos.length} fotos. Contacta a la inmobiliaria con la referencia para completar las imágenes.`);
-          break;
-        }
-      }
+      await attemptPhotoUploads(reference, 0);
       setOwnerName('');
       setOwnerPhone('');
     } catch (cause) {
@@ -211,8 +230,14 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               <h3 className="text-2xl font-semibold text-slate-900">
                 Consignación recibida
               </h3>
-              {photos.length > 0 && <p className="text-sm text-slate-700">Fotografías guardadas: {uploadedPhotos} de {photos.length}</p>}
-              {photoWarning && <p role="alert" className="text-sm text-amber-800">{photoWarning}</p>}
+              {photos.length > 0 && <p aria-live="polite" className="text-sm text-slate-700">Fotografías confirmadas: {uploadedPhotos} de {photos.length}{submitting ? ' · procesando…' : ''}</p>}
+              {photoWarning && <div role="alert" className="space-y-2">
+                <p className="text-sm text-amber-800">{photoWarning}</p>
+                {uploadedPhotos < photos.length && <button type="button" disabled={submitting} onClick={() => void retryPhotoUploads()}
+                  className="rounded-lg border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-900 disabled:opacity-50">
+                  {submitting ? 'Reintentando…' : 'Reintentar fotografías pendientes'}
+                </button>}
+              </div>}
               <p className="text-sm text-slate-600 max-w-md mx-auto">
                 La solicitud de <strong>{locality}, {region}</strong> quedó guardada para revisión de {branding.companyName}. Conserva la referencia de recepción. La inmobiliaria te contactará para continuar; el inmueble todavía no se ha publicado.
               </p>
