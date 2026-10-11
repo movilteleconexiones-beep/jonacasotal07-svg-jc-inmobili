@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { BadgeDollarSign, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -43,10 +43,18 @@ export function CommissionsModule() {
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const loadVersion = useRef(0);
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
 
   async function load() {
-    if (!organizationId) return;
+    const version = ++loadVersion.current;
+    if (!organizationId) {
+      setRows([]); setDeals([]); setMembers([]); setProfileNames({}); setLoadingOptions(false);
+      return;
+    }
+    setLoadingOptions(true);
+    setRows([]); setDeals([]); setMembers([]); setProfileNames({});
 
     const [commissionsResult, dealsResult, membersResult] = await Promise.all([
       supabase
@@ -66,10 +74,13 @@ export function CommissionsModule() {
         .eq('status', 'ACTIVE'),
     ]);
 
+    if (version !== loadVersion.current) return;
     if (commissionsResult.error) setMessage(commissionsResult.error.message);
     else setRows((commissionsResult.data ?? []) as unknown as CommissionRow[]);
 
-    if (!dealsResult.error) setDeals((dealsResult.data ?? []) as unknown as DealOption[]);
+    setDeals(dealsResult.error ? [] : ((dealsResult.data ?? []) as unknown as DealOption[]));
+    if (dealsResult.error) setMessage('No fue posible cargar los negocios. Comprueba permisos y actualiza.');
+    if (membersResult.error) { setMembers([]); setProfileNames({}); }
     if (!membersResult.error) {
       const memberRows = (membersResult.data ?? []) as unknown as MemberOption[];
       setMembers(memberRows);
@@ -80,6 +91,7 @@ export function CommissionsModule() {
           .from('profiles')
           .select('id,full_name')
           .in('id', userIds);
+        if (version !== loadVersion.current) return;
 
         const names: Record<string, string> = {};
         for (const profile of profiles ?? []) {
@@ -90,24 +102,36 @@ export function CommissionsModule() {
         setProfileNames({});
       }
     }
+    setLoadingOptions(false);
   }
 
   useEffect(() => {
     void load();
+    return () => { ++loadVersion.current; };
   }, [organizationId]);
 
   async function createCommission(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user) return;
+    if (!organizationId || !user || !can(PERMISSIONS.COMMISSIONS_CREATE)) return;
+    if (loadingOptions || deals.length === 0) {
+      setMessage('Registra primero un negocio o actualiza la lista para crear una comisión.');
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
+    const selectedDealId = String(form.get('deal_id') ?? '');
+    const beneficiaryId = String(form.get('beneficiary_user_id') ?? '');
+    if (!deals.some((deal) => deal.id === selectedDealId) || (beneficiaryId && !members.some((member) => member.user_id === beneficiaryId))) {
+      setMessage('El negocio o beneficiario seleccionado no está disponible. Actualiza y vuelve a intentarlo.');
+      return;
+    }
     const percentage = String(form.get('percentage') ?? '').trim();
     const amount = String(form.get('amount') ?? '').trim();
 
     const { error } = await supabase.from('commissions').insert({
       organization_id: organizationId,
-      deal_id: String(form.get('deal_id') ?? ''),
-      beneficiary_user_id: String(form.get('beneficiary_user_id') ?? '') || null,
+      deal_id: selectedDealId,
+      beneficiary_user_id: beneficiaryId || null,
       commission_type: String(form.get('commission_type') ?? 'AGENT'),
       percentage: percentage ? Number(percentage) : null,
       amount: amount ? Number(amount) : null,
@@ -130,10 +154,13 @@ export function CommissionsModule() {
   }
 
   async function updateStatus(row: CommissionRow, status: string) {
+    if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status) return;
+    if (!['PENDING','APPROVED','PAYABLE','PAID','CANCELLED'].includes(status)) return;
+    if (status === 'PAID' && !window.confirm('¿Confirmas que esta comisión ya fue pagada? Cambiar el estado no realiza un pago bancario.')) return;
     const patch: Record<string, unknown> = { status };
-    if (status === 'PAID') patch.paid_at = new Date().toISOString();
+    patch.paid_at = status === 'PAID' ? new Date().toISOString() : null;
 
-    const { error } = await supabase.from('commissions').update(patch).eq('id', row.id);
+    const { error } = await supabase.from('commissions').update(patch).eq('id', row.id).eq('organization_id', organizationId);
     if (error) setMessage(error.message);
     else await load();
   }
@@ -182,6 +209,8 @@ export function CommissionsModule() {
 
       {showCreate && (
         <form onSubmit={createCommission} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
+          {loadingOptions && <p role="status" className="md:col-span-2 text-sm text-slate-600">Cargando negocios disponibles…</p>}
+          {!loadingOptions && deals.length === 0 && <p role="alert" className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Todavía no hay negocios disponibles. Primero crea un negocio en la sección Negocios; después podrás registrar sus comisiones.</p>}
           <label>
             <span className="mb-1 block text-sm font-medium">Negocio *</span>
             <select name="deal_id" required className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
@@ -235,7 +264,7 @@ export function CommissionsModule() {
             >
               Cancelar
             </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+            <button type="submit" disabled={loadingOptions || deals.length === 0} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
               Guardar comisión
             </button>
           </div>

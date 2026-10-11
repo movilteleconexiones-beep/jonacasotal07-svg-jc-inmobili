@@ -123,6 +123,8 @@ jobs:
         run: node --test tests/consignment-photo-retry.test.mjs
       - name: Deals form prerequisites and tenant write safety
         run: node --test tests/deals-prerequisites.test.mjs
+      - name: Commission prerequisites and safe paid status
+        run: node --test tests/commissions-prerequisites.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
