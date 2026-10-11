@@ -27,3 +27,19 @@ test('uploads verify a persisted submission and inspect binary image signature',
  assert.match(upload,/upsert:false/);
  assert.doesNotMatch(upload,/getPublicUrl\(/);
 });
+
+const review=readFileSync(new URL('../supabase/functions/consignment-photo-review/index.ts',import.meta.url),'utf8');
+const moduleUi=readFileSync(new URL('../src/modules/consignments/PropertyConsignmentsModule.tsx',import.meta.url),'utf8');
+test('review photo links require a verified user and tenant RLS',()=>{
+ assert.match(review,/privileged\.auth\.getUser\(bearer\)/);
+ assert.match(review,/asUser\.from\('property_consignments'\)/);
+ assert.match(review,/asUser\.from\('property_consignment_photos'\)/);
+ assert.match(review,/createSignedUrl\(photo\.storage_path,300\)/);
+ assert.doesNotMatch(review,/getPublicUrl\(/);
+ assert.match(moduleUi,/fetchConsignmentPhotos\(selected\.id\)/);
+});
+test('public handler applies streaming limits before decoding images',()=>{
+ assert.match(upload,/req\.body\?\.getReader\(\)/);
+ assert.match(upload,/total>5500000/);
+ assert.match(upload,/bytes\[0\]===255/);
+});
