@@ -290,11 +290,33 @@ export function UsersRolesModule() {
     await load();
   }
 
+  function isLastActiveOwner(member: MemberRow) {
+    if (member.status !== 'ACTIVE') return false;
+    const hasOwnerRole = member.member_roles.some(({ roles }) => roles?.key === 'ORGANIZATION_OWNER');
+    if (!hasOwnerRole) return false;
+    return members.filter((item) => item.status === 'ACTIVE' &&
+      item.member_roles.some(({ roles }) => roles?.key === 'ORGANIZATION_OWNER')).length <= 1;
+  }
+
   async function changeMemberStatus(member: MemberRow, status: string) {
+    if (!organizationId || !can(PERMISSIONS.USERS_EDIT) || status === member.status) return;
+    if (!['ACTIVE', 'INACTIVE', 'SUSPENDED'].includes(status)) return;
+    if (member.status === 'ACTIVE' && status !== 'ACTIVE') {
+      if (member.user_id === user?.id) {
+        setMessage('Tu propia membresía está protegida. Solicita el cambio a otra persona autorizada.');
+        return;
+      }
+      if (isLastActiveOwner(member)) {
+        setMessage('Debe permanecer al menos un propietario activo de la inmobiliaria.');
+        return;
+      }
+      if (!window.confirm('¿Confirmas desactivar el acceso de este usuario a la inmobiliaria?')) return;
+    }
     const { error } = await supabase
       .from('organization_members')
       .update({ status })
-      .eq('id', member.id);
+      .eq('id', member.id)
+      .eq('organization_id', organizationId);
 
     if (error) setMessage(error.message);
     else await load();
@@ -398,7 +420,7 @@ export function UsersRolesModule() {
         <div>
           <h1 className="text-2xl font-bold">Usuarios, roles y permisos</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Controla quién accede al sistema y qué puede hacer dentro de esta inmobiliaria.
+            Controla quién accede al sistema y qué puede hacer dentro de esta inmobiliaria. Los roles marcados se acumulan; no son un selector de vista.
           </p>
         </div>
 
@@ -546,7 +568,7 @@ export function UsersRolesModule() {
                     <span className="mb-1 block text-xs font-semibold text-slate-500">Estado</span>
                     <select
                       value={member.status}
-                      disabled={!can(PERMISSIONS.USERS_EDIT)}
+                      disabled={!can(PERMISSIONS.USERS_EDIT) || (member.status === 'ACTIVE' && (member.user_id === user?.id || isLastActiveOwner(member)))}
                       onChange={(event) => void changeMemberStatus(member, event.target.value)}
                       className="w-full rounded-lg border border-stone-300 px-2 py-2 text-sm disabled:bg-stone-50"
                     >
