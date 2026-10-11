@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { BadgeDollarSign, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -44,14 +44,17 @@ export function CommissionsModule() {
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const loadVersion = useRef(0);
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
 
   async function load() {
+    const version = ++loadVersion.current;
     if (!organizationId) {
       setRows([]); setDeals([]); setMembers([]); setProfileNames({}); setLoadingOptions(false);
       return;
     }
     setLoadingOptions(true);
+    setRows([]); setDeals([]); setMembers([]); setProfileNames({});
 
     const [commissionsResult, dealsResult, membersResult] = await Promise.all([
       supabase
@@ -71,6 +74,7 @@ export function CommissionsModule() {
         .eq('status', 'ACTIVE'),
     ]);
 
+    if (version !== loadVersion.current) return;
     if (commissionsResult.error) setMessage(commissionsResult.error.message);
     else setRows((commissionsResult.data ?? []) as unknown as CommissionRow[]);
 
@@ -87,6 +91,7 @@ export function CommissionsModule() {
           .from('profiles')
           .select('id,full_name')
           .in('id', userIds);
+        if (version !== loadVersion.current) return;
 
         const names: Record<string, string> = {};
         for (const profile of profiles ?? []) {
@@ -102,6 +107,7 @@ export function CommissionsModule() {
 
   useEffect(() => {
     void load();
+    return () => { ++loadVersion.current; };
   }, [organizationId]);
 
   async function createCommission(event: FormEvent<HTMLFormElement>) {
