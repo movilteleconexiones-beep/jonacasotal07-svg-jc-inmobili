@@ -85,6 +85,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010222342_verified_tenant_billing.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010231048_owner_trials_and_platform_overview.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261011000300_independent_owner_trial_entitlements.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f security/tests/owner_overview_assertions.sql
       - name: Commercial activation SQL security and atomicity
         env:

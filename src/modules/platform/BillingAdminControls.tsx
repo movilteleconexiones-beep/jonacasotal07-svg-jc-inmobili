@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
 interface Tenant { organization_id: string; organization_name: string; organization_status: string; owner_user_id: string | null }
-interface Plan { id: string; name: string; code: string; billing_cycle: string }
+interface Plan { id: string; name: string; code: string; billing_cycle: string; currency: string }
 export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null; onDone: () => void }) {
   const [mode, setMode] = useState('');
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -14,7 +14,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   useEffect(() => {
     void Promise.all([
       supabase.from('billing_activation_settings').select('activation_mode').single(),
-      supabase.from('plans').select('id,name,code,billing_cycle').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL']).order('price'),
+      supabase.from('plans').select('id,name,code,billing_cycle,currency').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL']).order('price'),
     ]).then(([config,catalog]) => { if (config.error || catalog.error) { setMessage('No se pudo consultar la configuración comercial.'); return; }
       setMode(config.data.activation_mode); setPlans(catalog.data ?? []); });
   }, []);
@@ -51,7 +51,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
         </select></label>
         {(action==='APPROVE' || action==='TRIAL') && <label className="text-sm">Plan
           <select aria-label="Plan para autorización" value={plan} onChange={e=>setPlan(e.target.value)} className="mt-1 w-full rounded-lg border p-3">
-            <option value="">Selecciona un plan</option>{plans.filter(p=>action!=='TRIAL'||p.billing_cycle==='MONTHLY' && ['PRO','ENTERPRISE'].includes(p.code)).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="">Selecciona un plan</option>{plans.filter(p=>action==='TRIAL' ? p.billing_cycle==='MONTHLY' && ['PRO','ENTERPRISE'].includes(p.code) : p.currency==='COP').map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
           </select></label>}
       </div><label className="mt-3 block text-sm">Motivo (queda en auditoría)
         <textarea aria-label="Motivo del cambio" value={reason} minLength={10} maxLength={1000} onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>

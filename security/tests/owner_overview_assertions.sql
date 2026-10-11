@@ -31,12 +31,16 @@ END $$;
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000004',false);
 DO $$ BEGIN BEGIN PERFORM public.platform_organization_overview(); RAISE EXCEPTION 'FAIL support overview'; EXCEPTION WHEN insufficient_privilege THEN NULL; END; END $$;
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003',false);
+-- A no-charge trial also works before the legacy price catalog is configured.
+UPDATE public.plans SET currency='USD',price=0 WHERE code='PRO';
+CREATE TEMP TABLE prices_before_trial AS TABLE public.plans;
 SELECT public.billing_admin_authorize_trial((SELECT id FROM public.organizations WHERE slug='owner-test'),
  '10000000-0000-0000-0000-000000000001',(SELECT id FROM public.plans WHERE code='PRO'),30,'Owner test explicitly requested');
 SELECT pg_temp.assert((SELECT is_test AND requires_payment AND manual_access_until>now()+interval '29 days'
  FROM public.organization_billing_access WHERE organization_id=(SELECT id FROM public.organizations WHERE slug='owner-test')),'time-limited test authorization');
 SELECT pg_temp.assert((SELECT status='TRIAL' AND current_period_end=trial_ends_at FROM public.subscriptions),'trial is not a paid subscription');
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.payment_orders),'trial invents no payments');
+SELECT pg_temp.assert(NOT EXISTS(SELECT * FROM public.plans EXCEPT SELECT * FROM prices_before_trial),'trial preserves commercial prices');
 SELECT pg_temp.assert((SELECT NOT sandbox_enabled AND NOT production_enabled FROM public.billing_activation_settings),'trial enables no charging');
 SELECT pg_temp.assert((SELECT metadata->>'payment_received'='false' FROM public.audit_log WHERE action='billing.owner_trial_authorized'),'trial audit states no payment');
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
