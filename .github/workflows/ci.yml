@@ -125,6 +125,8 @@ jobs:
         run: node --test tests/deals-prerequisites.test.mjs
       - name: Commission prerequisites and safe paid status
         run: node --test tests/commissions-prerequisites.test.mjs
+      - name: Active member and organization owner UI safety
+        run: node --test tests/member-status-safety.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
