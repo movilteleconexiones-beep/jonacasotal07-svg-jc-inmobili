@@ -31,3 +31,21 @@ test('onboarding permission must be reviewed before widening grants', () => {
   // This guard documents the dependency without silently adding a broad GRANT.
   assert.doesNotMatch(bootstrap, /GRANT\s+ALL\s+ON\s+SCHEMA\s+public\s+TO\s+anon/i);
 });
+
+const controlled = readFileSync(new URL('../supabase/migrations/20261011080000_platform_controlled_organization_onboarding.sql', import.meta.url), 'utf8');
+
+test('SuperAdmin provisioner does not infer the owner from the caller', () => {
+  assert.match(controlled, /NOT public\.is_platform_admin\(\)/);
+  assert.match(controlled, /u\.id=p_owner/);
+  assert.match(controlled, /u\.email_confirmed_at IS NOT NULL/);
+  assert.match(controlled, /VALUES\(v_org,p_owner,'ACTIVE',now\(\)\)/);
+  assert.doesNotMatch(controlled, /VALUES\(v_org,auth\.uid\(\)/i);
+});
+
+test('tenant provisioning keeps billing pending, enforces isolation, and logs an audit event', () => {
+  assert.match(controlled, /WHERE organization_id=v_org AND requires_payment=true AND is_test=false/);
+  assert.match(controlled, /VALUES\(v_org,v_role_key,v_role_name,true,true\)/);
+  assert.match(controlled, /platform\.organization_created/);
+  assert.match(controlled, /REVOKE ALL ON FUNCTION public\.platform_create_organization/);
+  assert.match(controlled, /TO authenticated, service_role/);
+});
