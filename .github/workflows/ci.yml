@@ -115,6 +115,8 @@ jobs:
         run: node --test tests/consignment-photo-upload.test.mjs
       - name: Private inventory photos security checks
         run: node --test tests/private-inventory-photos.test.mjs
+      - name: Billing plan entitlement safety tests
+        run: node --test tests/billing-plan-entitlements.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
