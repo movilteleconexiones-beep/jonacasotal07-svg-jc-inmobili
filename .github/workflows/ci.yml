@@ -113,6 +113,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_assertions.sql
       - name: Consignment private photo safety checks
         run: node --test tests/consignment-photo-upload.test.mjs
+      - name: Private inventory photos security checks
+        run: node --test tests/private-inventory-photos.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
