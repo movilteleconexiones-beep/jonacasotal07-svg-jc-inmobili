@@ -298,9 +298,9 @@ export default function App() {
                   }
                 }}
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
-                aria-label="Abrir portal de la inmobiliaria"
+                aria-label="Abrir panel de gestión de la inmobiliaria"
               >
-                Portal
+                Panel
               </button>
             )}
             {user && isPlatformAdmin && (
