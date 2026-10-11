@@ -25,3 +25,10 @@ test('paid status requires confirmation and corrects payment timestamp on reopen
   assert.match(source, /patch\.paid_at = status === 'PAID' \? new Date\(\)\.toISOString\(\) : null/);
   assert.match(source, /\.update\(patch\)\.eq\('id', row\.id\)\.eq\('organization_id', organizationId\)/);
 });
+
+test('stale requests cannot replace rows when switching organizations', () => {
+  assert.match(source, /const loadVersion = useRef\(0\)/);
+  assert.match(source, /const version = \+\+loadVersion\.current/);
+  assert.match(source, /if \(version !== loadVersion\.current\) return/);
+  assert.match(source, /return \(\) => \{ \+\+loadVersion\.current; \}/);
+});
