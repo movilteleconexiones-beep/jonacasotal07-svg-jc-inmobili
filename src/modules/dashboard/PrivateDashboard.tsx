@@ -209,8 +209,18 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     [can, billingOwner, termsRequired],
   );
 
-  if (!user || !activeMembership) {
-    return null;
+  if (!user) return null;
+  if (!activeMembership) {
+    return <main className="min-h-screen bg-stone-100 p-6 text-slate-900">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-stone-200 bg-white p-8">
+        <h1 className="text-2xl font-bold">Panel inmobiliario</h1>
+        <p className="mt-3 text-slate-700">Tu cuenta tiene acceso a la administración central, pero todavía no dispone de una membresía activa en una inmobiliaria. Para ver propiedades, clientes, CRM y demás módulos necesitas que una inmobiliaria te asigne un perfil autorizado.</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          {isPlatformAdmin && <a href="/super-admin" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Administración central · SuperAdmin</a>}
+          <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 font-semibold">Volver al inicio</button>
+        </div>
+      </div>
+    </main>;
   }
 
   if (!activeMembership.billing.operational) {
