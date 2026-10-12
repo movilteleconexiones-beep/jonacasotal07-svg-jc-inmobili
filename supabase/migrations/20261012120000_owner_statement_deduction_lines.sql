@@ -94,7 +94,7 @@ BEGIN
   SELECT s.status INTO parent_status
   FROM public.owner_statements s
   WHERE s.organization_id = NEW.organization_id AND s.id = NEW.statement_id
-  FOR UPDATE;
+  FOR SHARE;
   IF parent_status IS DISTINCT FROM 'DRAFT' THEN
     RAISE EXCEPTION 'Only draft owner statements accept deductions' USING ERRCODE='23514';
   END IF;
