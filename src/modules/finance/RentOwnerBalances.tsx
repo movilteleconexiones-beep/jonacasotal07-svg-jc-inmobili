@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { financialAmount as amount, rentalBalance, ownerNetFromDeductions } from '../../core/rent-owner-money';
 
 interface Lease {
   id: string;
@@ -34,21 +35,8 @@ interface Identity { id: string; first_name: string; last_name: string | null }
 
 const cop = (value: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 2 }).format(value);
-const amount = (value: number | string | null | undefined) => {
-  const n = Number(value ?? 0);
-  return Number.isFinite(n) && n >= 0 && Number.isSafeInteger(Math.round(n * 100)) ? n : NaN;
-};
 const fullName = (person: Identity | undefined) =>
   person ? [person.first_name, person.last_name].filter(Boolean).join(' ') : 'Sin nombre disponible';
-
-export function rentalBalance(expected: number, paid: number): number {
-  return Math.max(0, amount(expected) - amount(paid));
-}
-export function ownerNetFromDeductions(statement: Pick<OwnerStatement,
-  'gross_income' | 'commission_amount' | 'tax_amount' | 'other_deductions'>): number {
-  return amount(statement.gross_income) - amount(statement.commission_amount) -
-    amount(statement.tax_amount) - amount(statement.other_deductions);
-}
 
 /** Read-only tenant obligations. An unregistered payment period is NOT a confirmed debt. */
 export function TenantRentBalanceSummary({ organizationId }: { organizationId: string }) {
