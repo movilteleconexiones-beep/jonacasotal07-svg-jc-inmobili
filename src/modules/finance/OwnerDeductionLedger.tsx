@@ -128,6 +128,20 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     else{setRevision(v=>v+1);setMessage('Estado actualizado y auditado.');}
   }
 
+  async function reconcileStatement(statement:Statement) {
+    if(!writable||saving||!organizationId||statement.status!=='DRAFT')return;
+    if(!window.confirm('¿Actualizar el neto con los abonos y deducciones aprobadas? Esto no realiza transferencias.'))return;
+    setSaving(true);setMessage('');
+    const {error}=await supabase.rpc('reconcile_owner_draft_statement',{
+      target_org:organizationId,target_statement:statement.id,
+    });
+    setSaving(false);
+    if(error){setMessage('No se pudo conciliar: '+error.message);return;}
+    setMessage('Neto actualizado según los ingresos registrados y descuentos aprobados.');
+    window.dispatchEvent(new Event('owner-statement-updated'));
+    setRevision(x=>x+1);
+  }
+
   const approvedOwnerOther=lines.filter(x=>x.status==='APPROVED'&&x.responsible_party==='OWNER'
     &&x.category!=='TAX'&&x.category!=='COMMISSION')
     .reduce((sum,x)=>sum+Number(x.amount),0);
