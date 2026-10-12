@@ -8,6 +8,8 @@ import {
   Handshake,
   Home,
   LayoutDashboard,
+  Palette,
+  ExternalLink,
   LogOut,
   LockKeyhole,
   Settings,
@@ -41,6 +43,7 @@ import { CommissionsModule } from '../commissions/CommissionsModule';
 import { ReportsModule } from '../reports/ReportsModule';
 import { PortalHub } from '../portal/PortalHub';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
 
 type DashboardView =
   | 'DASHBOARD'
@@ -93,7 +96,13 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     refreshMemberships,
   } = useAuth();
 
-  const { branding } = useTenantBranding();
+  const { branding, refresh: refreshBranding } = useTenantBranding();
+  const [applyingLogoPalette, setApplyingLogoPalette] = useState(false);
+  const [brandingNotice, setBrandingNotice] = useState('');
+  const logoUrl = safeBrandUrl(branding.logoUrl);
+  const websiteUrl = safeBrandUrl(branding.website);
+  const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
+  const tenantSecondary = safeTenantColor(branding.secondaryColor, TENANT_DEFAULT_SECONDARY);
   const [view, setView] = useState<DashboardView>('DASHBOARD');
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -103,6 +112,27 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
   const organizationId = activeMembership?.organization.id;
   const billingOwner = activeMembership?.billing.can_manage_billing ?? false;
+
+  async function applyLogoPalette() {
+    if (!organizationId || !can(PERMISSIONS.SETTINGS_EDIT) || !logoUrl || applyingLogoPalette) return;
+    setApplyingLogoPalette(true);
+    setBrandingNotice('');
+    try {
+      const palette = await paletteFromLogoUrl(logoUrl);
+      const { error } = await supabase.from('organization_branding').upsert({
+        organization_id: organizationId,
+        primary_color: palette.primary,
+        secondary_color: palette.secondary,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'organization_id' });
+      if (error) throw new Error('No se pudieron guardar los colores. Comprueba tus permisos.');
+      await refreshBranding();
+      window.dispatchEvent(new Event('tenant-branding-updated'));
+      setBrandingNotice('Portada adaptada a los colores del logo de esta inmobiliaria.');
+    } catch (error) {
+      setBrandingNotice(error instanceof Error ? error.message : 'No fue posible adaptar los colores.');
+    } finally { setApplyingLogoPalette(false); }
+  }
 
   useEffect(() => {
     if (!organizationId || !user) {
@@ -233,16 +263,28 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
   return (
     <div className="min-h-screen bg-stone-100 text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/95 backdrop-blur" style={branding.primaryColor ? { borderBottomColor: tenantPrimary } : undefined}>
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {branding.softwareName}
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-14 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-white" aria-label="Logo de la inmobiliaria">
+              {logoUrl ? <img src={logoUrl} alt={'Logo de ' + branding.companyName} className="max-h-full max-w-full object-contain p-1.5" /> :
+                <Building2 className="h-7 w-7 text-slate-500" aria-hidden="true" />}
             </div>
-            <div className="truncate text-lg font-bold">{branding.companyName}</div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {branding.softwareName}
+              </div>
+              <div className="truncate text-lg font-bold" style={branding.primaryColor ? { color: tenantPrimary } : undefined}>{branding.companyName}</div>
+              {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-slate-600 hover:underline">
+                <ExternalLink className="h-3 w-3" /> Sitio web de la inmobiliaria
+              </a>}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {can(PERMISSIONS.SETTINGS_EDIT) && logoUrl && <button type="button" onClick={() => void applyLogoPalette()} disabled={applyingLogoPalette} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold disabled:opacity-50" title="Guardar únicamente los colores de esta inmobiliaria">
+              <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
+            </button>}
             {isPlatformAdmin && <a href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><ShieldCheck className="h-4 w-4" />SuperAdmin</a>}
             {memberships.length > 1 && (
               <select
@@ -280,6 +322,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         </div>
       </header>
 
+      {brandingNotice && <p role="status" className="mx-auto max-w-[1500px] px-4 pt-3 text-sm text-slate-700 md:px-6">{brandingNotice}</p>}
       <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-2">
           <nav className="space-y-1" aria-label="Módulos del sistema">
@@ -298,6 +341,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
                       ? 'bg-slate-900 text-white'
                       : 'text-slate-600 hover:bg-stone-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50'
                   }`}
+                  style={active && branding.primaryColor ? { backgroundColor: tenantPrimary } : undefined}
                 >
                   <Icon className="w-5 h-5 shrink-0" />
                   <span>{item.label}</span>
@@ -325,6 +369,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               loading={loadingStats}
               organizationName={activeMembership.organization.name}
               roleNames={activeMembership.roles.map((role) => role.name)}
+              tenantPrimary={tenantPrimary}
+              tenantSecondary={tenantSecondary}
+              themed={Boolean(branding.primaryColor)}
               onNavigate={setView}
               can={can}
             />
@@ -389,6 +436,9 @@ function DashboardHome({
   loading,
   organizationName,
   roleNames,
+  tenantPrimary,
+  tenantSecondary,
+  themed,
   onNavigate,
   can,
 }: DashboardHomeProps) {
