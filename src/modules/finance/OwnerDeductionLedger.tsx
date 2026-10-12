@@ -158,6 +158,14 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     </div>
     <p className="text-xs text-slate-600">Solo se descuentan al propietario los cargos aprobados cuya responsabilidad sea del propietario. Los conceptos del inquilino y de la inmobiliaria permanecen separados. El estado del extracto no certifica giro ni movimiento de fondos.</p>
     {message&&<p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{message}</p>}
+    {writable&&active.length>0&&<div className="space-y-2 rounded-xl border p-3">
+      <h3 className="text-sm font-bold">Conciliar y actualizar el neto del propietario</h3>
+      {active.map(statement=><div key={statement.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span>{ownerName(statement.owner_id)} · {statement.period_month}</span>
+        <button type="button" disabled={saving} onClick={()=>void reconcileStatement(statement)}
+          className="rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40">Conciliar descuentos</button>
+      </div>)}
+    </div>}
     {showForm&&writable&&<form onSubmit={e=>void submit(e)} className="grid gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 md:grid-cols-2">
       <label className="text-sm">Liquidación en borrador
         <select required name="statement_id" className="mt-1 block w-full rounded-lg border p-2">
