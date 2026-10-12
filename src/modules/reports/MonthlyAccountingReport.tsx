@@ -23,7 +23,7 @@ const currentMonth = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 };
-const safeFilename = (text: string) => text.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
+const safeFilename = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,40);
 
 export function MonthlyAccountingReport() {
@@ -84,12 +84,14 @@ export function MonthlyAccountingReport() {
   const ownerNet = financialTotal(find('Liquidaciones'),'net_amount');
   const ownerCommission = financialTotal(find('Liquidaciones'),'commission_amount');
   const ownerOther = financialTotal(find('Liquidaciones'),'other_deductions');
+  const canSeeRents = sheets.some(item=>item.name==='Cánones');
+  const canSeeStatements = sheets.some(item=>item.name==='Liquidaciones');
   const totals = [
-    ['Canon esperado',billed],['Pago registrado',paid],
-    ['Saldo por recaudar (períodos registrados)',rent.outstanding],
-    ['Neto registrado para propietarios',ownerNet],
-    ['Comisiones de administración en liquidaciones',ownerCommission],
-    ['Otras deducciones de propietarios',ownerOther],
+    ['Canon esperado',canSeeRents?billed:null],['Pago registrado',canSeeRents?paid:null],
+    ['Saldo por recaudar (períodos registrados)',canSeeRents?rent.outstanding:null],
+    ['Neto registrado para propietarios',canSeeStatements?ownerNet:null],
+    ['Comisiones de administración en liquidaciones',canSeeStatements?ownerCommission:null],
+    ['Otras deducciones de propietarios',canSeeStatements?ownerOther:null],
   ] as const;
 
   async function exportXlsx() {
@@ -106,7 +108,7 @@ export function MonthlyAccountingReport() {
         ['Alcance','Solo módulos autorizados y registros correspondientes al período'],
         ['Precisión','Registros comerciales filtrados por fecha de creación; arriendos y liquidaciones por período'],
         [],['Indicador','Valor'],
-        ...totals.map(([label,total])=>[label,total]),
+        ...totals.map(([label,total])=>[label,total===null?'Sin autorización':total]),
         [],['Módulo','Registros exportados'],
         ...sheets.map(item=>[item.name,item.rows.length]),
       ];
@@ -158,7 +160,7 @@ export function MonthlyAccountingReport() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {totals.map(([label,total])=><div key={label} className="rounded-xl border border-stone-200 p-3">
             <div className="text-sm text-slate-500">{label}</div>
-            <div className="mt-1 text-lg font-bold">{money(total)}</div>
+            <div className="mt-1 text-lg font-bold">{total===null?'Sin autorización':money(total)}</div>
           </div>)}
         </div>
         <div className="flex flex-wrap gap-2">
