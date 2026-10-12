@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, RefreshCw, UserRoundCog } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { OwnerNetStatementsSummary } from '../finance/RentOwnerBalances';
+import { OwnerSettlementEntry } from '../finance/OwnerSettlementEntry';
+import { OwnerDeductionLedger } from '../finance/OwnerDeductionLedger';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 
@@ -202,6 +204,8 @@ export function OwnersModule() {
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
+      {organizationId && <OwnerSettlementEntry organizationId={organizationId} />}
+      {organizationId && <OwnerDeductionLedger organizationId={organizationId} />}
       {organizationId && <OwnerNetStatementsSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
