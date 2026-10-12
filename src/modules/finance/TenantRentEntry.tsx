@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
@@ -30,6 +30,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [revision,setRevision]=useState(0);
+  const pendingReceiptKey=useRef<string|null>(null);
 
   useEffect(()=>{
     let cancelled=false;
@@ -105,12 +106,14 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
       setError('Verifica el cobro, el abono y la referencia del soporte.');return;
     }
     setBusy(true);setError('');
+    if(!pendingReceiptKey.current) pendingReceiptKey.current=crypto.randomUUID();
     const {error:failure}=await supabase.rpc('record_tenant_rent_receipt',{
       target_org:organizationId,target_payment:id,receipt_amount:amount,
-      receipt_method:method,receipt_reference:reference,request_key:crypto.randomUUID(),
+      receipt_method:method,receipt_reference:reference,request_key:pendingReceiptKey.current,
     });
     setBusy(false);
     if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
+    pendingReceiptKey.current=null;
     setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
     setRevision(x=>x+1);
   }
@@ -150,7 +153,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
         <div className="md:col-span-2"><button type="submit" disabled={busy||!paymentAllowed||!active.length}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-40">Guardar cobro del mes</button></div>
       </form>}
-      {action==='RECEIPT'&&<form onSubmit={e=>void recordReceipt(e)} className="grid gap-3 md:grid-cols-2">
+      {action==='RECEIPT'&&<form onSubmit={e=>void recordReceipt(e)} onChange={()=>{pendingReceiptKey.current=null;}} className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">Mes con saldo pendiente<select name="period_id" required className={fieldClass}><option value="">Seleccionar cobro</option>
           {owing.map(x=><option key={x.id} value={x.id}>{String(x.period_month).slice(0,7)} · {leases.find(l=>l.id===x.lease_id)?.contract_number||x.lease_id} · saldo {(Number(x.expected_amount)-Number(x.paid_amount)).toLocaleString('es-CO')} COP</option>)}</select></label>
         <label className="text-sm">Importe recibido (COP)<input type="number" name="amount" min="0.01" step="0.01" required className={fieldClass}/></label>
