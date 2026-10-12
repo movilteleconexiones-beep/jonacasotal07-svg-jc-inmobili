@@ -21,7 +21,7 @@ export function SuperAdminModule() {
 
   async function suspendOrganization(org: OrganizationSummary) {
     if (!user || !isPlatformAdmin || retiringOrg) return;
-    if (org.organization_id === activeMembership?.organization.id) {
+    if (org.organization_id === activeMembership?.organization.id || org.owner_user_id === user.id) {
       setActionMessage('No puedes retirar desde aquí la inmobiliaria de tu Panel activo: primero selecciona y verifica otra organización para preservar los dos accesos.');
       return;
     }
@@ -119,10 +119,10 @@ export function SuperAdminModule() {
       </tr></thead><tbody>{filteredOrganizations.map(org => <tr key={org.organization_id} className="border-t">
         <td className="p-4"><p className="font-semibold">{org.organization_name}</p><p className="mt-1 text-xs text-slate-500">{org.organization_slug}</p>
           <button type="button" onClick={() => setSelectedOrganization(org)} className="mt-2 text-xs font-semibold text-blue-700 underline">Gestionar activación</button>
-          {org.access_status !== 'SUSPENDED' && (
+          {org.organization_status !== 'SUSPENDED' && (
             <button type="button" onClick={() => void suspendOrganization(org)}
-              disabled={retiringOrg !== null || org.organization_id === activeMembership?.organization.id}
-              title={org.organization_id === activeMembership?.organization.id ? 'El Panel activo está protegido contra suspensión accidental' : 'Suspender acceso conservando los datos y el historial'}
+              disabled={retiringOrg !== null || org.organization_id === activeMembership?.organization.id || org.owner_user_id === user?.id}
+              title={org.organization_id === activeMembership?.organization.id || org.owner_user_id === user?.id ? 'La inmobiliaria de tu propiedad está protegida contra suspensión accidental' : 'Suspender acceso conservando los datos y el historial'}
               className="ml-3 mt-2 text-xs font-semibold text-red-800 underline disabled:cursor-not-allowed disabled:opacity-40">
               {retiringOrg === org.organization_id ? 'Suspendiendo…' : 'Suspender acceso'}
             </button>
