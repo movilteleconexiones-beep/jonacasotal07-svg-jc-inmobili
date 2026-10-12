@@ -60,6 +60,18 @@ SET ROLE authenticated;
 SET jco_test.actor='99999999-9999-4999-8999-999999999999';
 SET jco_test.organization='11111111-1111-4111-8111-111111111111';
 
+-- Authorization must not allow leases.create to bypass draft activation.
+SELECT pg_temp.fail_with($deny$
+ INSERT INTO public.leases(id,organization_id,property_id,tenant_id,owner_id,
+   contract_number,monthly_rent,start_date,status)
+ VALUES('96969696-9696-4969-8969-969696969696',
+ '11111111-1111-4111-8111-111111111111',
+ '11111111-2222-4333-8444-555555555555',
+ '33333333-4444-4555-8666-777777777777',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ 'SHOULD-NOT-ACTIVATE',1600000,'2026-10-01','ACTIVE')
+$deny$,'42501');
+
 -- Tenant A cannot see Tenant B's lease, despite the old permissive ALL policy.
 DO $assert$
 BEGIN
