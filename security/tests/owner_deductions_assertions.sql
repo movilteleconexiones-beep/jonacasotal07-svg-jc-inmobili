@@ -58,7 +58,7 @@ SELECT pg_temp.expect_failure($q$
   VALUES ('11111111-1111-4111-8111-111111111111',
     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-01','GAS','OWNER',30000,
     'Estado fraudulento','APPROVED')
-$q$, '42501');
+$q$, '23514');
 
 SELECT pg_temp.expect_failure($q$
   INSERT INTO public.owner_statement_deductions
@@ -66,7 +66,7 @@ SELECT pg_temp.expect_failure($q$
   VALUES ('11111111-1111-4111-8111-111111111111',
     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-01','GAS','OWNER',30000,
     'Autor falsificado','55555555-5555-4555-8555-555555555555')
-$q$, '42501');
+$q$, '23514');
 
 SELECT pg_temp.expect_failure($q$
   INSERT INTO public.owner_statement_deductions
