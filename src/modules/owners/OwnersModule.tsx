@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, RefreshCw, UserRoundCog } from 'lucide-react';
+import { CheckCircle2, Plus, RefreshCw, UserRoundCog } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { OwnerNetStatementsSummary } from '../finance/RentOwnerBalances';
 import { OwnerSettlementEntry } from '../finance/OwnerSettlementEntry';
@@ -26,34 +26,54 @@ interface PropertyOption {
   title: string;
 }
 
-export function OwnersModule({ownersOnly=false}: {ownersOnly?:boolean} = {}) {
+export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onCreated}: {
+  ownersOnly?:boolean;selectedOwnerId?:string;
+  onSelect?:(ownerId:string,ownerName:string)=>void;
+  onCreated?:(ownerId:string,ownerName:string)=>void;
+} = {}) {
   const { user, activeMembership, can } = useAuth();
   const organizationId = activeMembership?.organization.id;
   const [owners, setOwners] = useState<OwnerRow[]>([]);
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const [ownerSearch, setOwnerSearch] = useState('');
+  const [loadingOwners, setLoadingOwners] = useState(false);
+  const [ownersLoadError, setOwnersLoadError] = useState(false);
 
   async function load() {
     if (!organizationId) return;
-    const [ownersResult, propertiesResult] = await Promise.all([
-      supabase
-        .from('property_owners')
-        .select('id,first_name,last_name,document_type,document_number,email,phone,whatsapp,notes,created_at')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('properties')
-        .select('id,code,title')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false }),
-    ]);
-
-    if (ownersResult.error) setMessage(ownersResult.error.message);
-    else setOwners((ownersResult.data ?? []) as OwnerRow[]);
-
-    if (!propertiesResult.error) {
-      setProperties((propertiesResult.data ?? []) as PropertyOption[]);
+    setLoadingOwners(true);
+    setOwnersLoadError(false);
+    try {
+      const [ownersResult, propertiesResult] = await Promise.all([
+        supabase.from('property_owners')
+          .select('id,first_name,last_name,document_type,document_number,email,phone,whatsapp,notes,created_at')
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false }),
+        supabase.from('properties').select('id,code,title')
+          .eq('organization_id', organizationId).order('created_at', { ascending: false }),
+      ]);
+      if (ownersResult.error) {
+        setOwners([]);
+        setOwnersLoadError(true);
+        setMessage('No se pudieron consultar los propietarios: ' + ownersResult.error.message);
+      } else {
+        setOwners((ownersResult.data ?? []) as OwnerRow[]);
+      }
+      if (propertiesResult.error) {
+        setProperties([]);
+        setMessage('No se pudieron consultar los inmuebles para vinculación: ' + propertiesResult.error.message);
+      } else {
+        setProperties((propertiesResult.data ?? []) as PropertyOption[]);
+      }
+    } catch {
+      setOwners([]);
+      setProperties([]);
+      setOwnersLoadError(true);
+      setMessage('Falló la conexión al consultar propietarios. Intenta actualizar.');
+    } finally {
+      setLoadingOwners(false);
     }
   }
 
@@ -111,6 +131,7 @@ export function OwnersModule({ownersOnly=false}: {ownersOnly?:boolean} = {}) {
       }
     }
 
+    onCreated?.(data.id, [String(form.get('first_name') ?? '').trim(),String(form.get('last_name') ?? '').trim()].filter(Boolean).join(' '));
     setMessage('Propietario registrado correctamente.');
     setShowCreate(false);
     formElement.reset();
@@ -208,7 +229,43 @@ export function OwnersModule({ownersOnly=false}: {ownersOnly?:boolean} = {}) {
       {!ownersOnly && organizationId && <OwnerDeductionLedger key={'deductions-'+organizationId} organizationId={organizationId} />}
       {!ownersOnly && organizationId && <OwnerNetStatementsSummary key={organizationId} organizationId={organizationId} />}
 
-      <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
+      {onSelect ? <div className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+        <label className="block text-sm font-medium">Elegir propietario registrado
+          <input type="search" value={ownerSearch} onChange={event=>setOwnerSearch(event.target.value)}
+            placeholder="Buscar por nombre o documento…" className="mt-2 w-full rounded-lg border border-stone-300 px-3 py-2" />
+        </label>
+        {loadingOwners && <p role="status" className="text-sm text-slate-600">Consultando propietarios…</p>}
+        {ownersLoadError && <p role="alert" className="text-sm text-red-800">
+          No se pudo cargar el listado; pulsa Actualizar para volver a intentarlo.
+        </p>}
+        {!loadingOwners && !ownersLoadError && owners.length === 0 && <p className="text-sm text-slate-500">
+          Aún no hay propietarios registrados. Usa «Nuevo propietario» para crearlo.
+        </p>}
+        {!loadingOwners && !ownersLoadError && owners.length > 0 &&
+          owners.filter(owner => [owner.first_name,owner.last_name,owner.document_number]
+            .filter(Boolean).join(' ').toLocaleLowerCase('es')
+            .includes(ownerSearch.trim().toLocaleLowerCase('es'))).map(owner=>{
+              const name=[owner.first_name,owner.last_name].filter(Boolean).join(' ');
+              const selected=owner.id===selectedOwnerId;
+              return <button type="button" key={owner.id} aria-pressed={selected}
+                onClick={()=>onSelect(owner.id,name)}
+                className={'flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 '+
+                  (selected?'border-slate-900 bg-slate-100':'border-stone-200 hover:border-slate-500 hover:bg-stone-50')}>
+                <span className="min-w-0">
+                  <span className="block font-semibold">{name}</span>
+                  <span className="block text-xs text-slate-600">
+                    {[owner.document_type,owner.document_number].filter(Boolean).join(' ')||'Sin documento registrado'}
+                    {' · '}{owner.phone||owner.whatsapp||owner.email||'Sin teléfono'}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold">
+                  {selected?<span className="inline-flex items-center gap-1 text-emerald-800">
+                    <CheckCircle2 className="h-4 w-4" /> Seleccionado
+                  </span>:'Seleccionar'}
+                </span>
+              </button>;
+            })}
+      </div> : <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">
           <thead className="bg-stone-50 text-left">
             <tr>
@@ -245,7 +302,7 @@ export function OwnersModule({ownersOnly=false}: {ownersOnly?:boolean} = {}) {
             )}
           </tbody>
         </table>
-      </div>
+      </div>}
     </section>
   );
 }
