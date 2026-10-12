@@ -18,8 +18,8 @@ test('six-step rental intake is available for tenant agents and administrators',
     assert.ok(wizard.includes(name),name);
   assert.match(sidebar,/RENTAL_INTAKE.*Nueva vinculación.*LEASES_VIEW/);
   assert.match(dashboard,/<RentalIntakeWizard key=\{organizationId\} organizationId=\{organizationId\}/);
-  assert.match(wizard,/<PropertiesModule[\\s\\S]*?onCreated=\\{id =>/);
-  assert.match(wizard,/selectedPropertyId=\\{propertyId\\}/);
+  assert.ok(wizard.includes('<PropertiesModule') && wizard.includes('onCreated={id =>'));
+  assert.ok(wizard.includes('selectedPropertyId={propertyId}'));
   assert.match(wizard,/<OwnersModule ownersOnly/);
   assert.match(wizard,/<ContactsModule contactsOnly onCreated=/);
   assert.match(wizard,/mode="DRAFT"/);
