@@ -156,6 +156,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_assertions.sql
       - name: Itemized owner ledger SQL and concurrency checks
         env:
