@@ -33,7 +33,7 @@ END $$;
 
 -- Even if authenticated can update a deal, other-agency contact/property IDs
 -- cannot be associated through direct API writes.
-DO $
+DO $$
 BEGIN
   BEGIN
     UPDATE public.deals
@@ -49,7 +49,7 @@ BEGIN
     RAISE EXCEPTION 'UNSAFE: cross-organization property assigned';
   EXCEPTION WHEN foreign_key_violation THEN NULL;
   END;
-END $;
+END $$;
 
 -- Existing activities, commissions and completed sales must be retained.
 DO $$
