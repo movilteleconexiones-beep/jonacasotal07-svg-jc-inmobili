@@ -85,6 +85,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_deals_cleanup_test -f security/tests/deals_safe_delete_assertions.sql
       - name: Customer menu and monthly overview tests
         run: node --import tsx --test tests/tenant-menu-overview.test.mjs
+      - name: Dashboard home card navigation and permission tests
+        run: node --import tsx --test tests/dashboard-card-navigation.test.mjs
       - name: Colombian geography and catalog filter tests
         run: node --import tsx --test tests/catalog-location.test.mjs
       - name: Older official schema, owner trials and monthly overview
