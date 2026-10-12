@@ -129,8 +129,8 @@ export function OwnerDeductionEvidence({
     const invoice = (form.elements.namedItem('invoice_pdf') as HTMLInputElement | null)?.files?.[0];
     const payment = (form.elements.namedItem('payment_pdf') as HTMLInputElement | null)?.files?.[0];
     const selected: DeductionEvidenceFile[] = [];
-    if (invoice?.size) selected.push({ kind: 'invoice', file: invoice });
-    if (payment?.size) selected.push({ kind: 'payment', file: payment });
+    if (invoice) selected.push({ kind: 'invoice', file: invoice });
+    if (payment) selected.push({ kind: 'payment', file: payment });
     if (!selected.length) { setMessage('Selecciona una factura o un comprobante de pago en PDF.'); return; }
 
     setBusy(true);
