@@ -53,12 +53,15 @@ export function MonthlyAccountingReport() {
         const results: ReportSheet[] = [];
         for (const section of permitted) {
           const columns = section.cols.split(',');
+          const tableName: string = section.table;
+          const selectFields: string = section.cols;
+          const dateColumn: string = section.date;
           // A hard result cap and exact count prevent exporting a silently truncated workbook.
-          const query = await supabase.from(section.table)
-            .select(section.cols,{count:'exact'})
+          const query = await supabase.from(tableName)
+            .select(selectFields,{count:'exact'})
             .eq('organization_id', organizationId)
-            .gte(section.date,start).lt(section.date,end)
-            .order(section.date,{ascending:true}).limit(1000);
+            .gte(dateColumn,start).lt(dateColumn,end)
+            .order(dateColumn,{ascending:true}).limit(1000);
           if (cancelled) return;
           if (query.error) throw new Error('No fue posible consultar '+section.name+': '+query.error.message);
           const rows = (query.data ?? []) as unknown as DataRow[];
