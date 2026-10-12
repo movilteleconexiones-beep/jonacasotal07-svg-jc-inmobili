@@ -107,6 +107,8 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
         </p>
       </div>
 
+      <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-700">La licencia de INMOJCO es para uso interno de la inmobiliaria autorizada. No permite vender el software a terceros, revender licencias, sublicenciar, redistribuir, transferir derechos de autor ni ofrecer INMOJCO como marca blanca. El comercio Wompi de la plataforma pertenece exclusivamente al titular del software.</p>
+
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-stone-200 bg-white p-5">
           <div className="flex items-center gap-3">
