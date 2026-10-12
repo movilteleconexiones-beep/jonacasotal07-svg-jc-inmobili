@@ -67,6 +67,7 @@ export function BillingModule() {
         ? 'La inmobiliaria está suspendida o inactiva. Contacta al administrador.' : 'La inmobiliaria está registrada y pendiente de activación.'}</p>
       {billing.period_end && <p className="mt-1 text-sm">Vigencia hasta {new Date(billing.period_end).toLocaleDateString('es-CO')}.</p>}
     </div>
+    <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-700">Los pagos por Wompi corresponden exclusivamente a las licencias y suscripciones de INMOJCO, cobradas por el comercio central del propietario del software. La inmobiliaria contrata el derecho de uso para su propia operación; no puede revender, sublicenciar ni redistribuir INMOJCO, ni operar como distribuidora del sistema.</p>
     {billing.can_manage_billing ? <>
       {billing.is_test && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Inmobiliaria de prueba · Sandbox. Los pagos de esta cuenta no habilitan otras inmobiliarias.</p>}
       <p className="rounded-xl border bg-white p-4 text-sm">{settings?.activation_mode === 'MANUAL'
