@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
+import { localDateISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
 
 const CONCEPTS = [
@@ -126,12 +127,13 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       if(reason.length<6||reason.length>500)return;
     }else if(!window.confirm('¿Confirmas aprobar el concepto y su responsable? No constituye un pago bancario.'))return;
     setSaving(true);setMessage('');
-    const {error}=await supabase.from('owner_statement_deductions')
+    const {data:changed,error}=await supabase.from('owner_statement_deductions')
       .update(status==='VOIDED'?{status,void_reason:reason}:{status})
-      .eq('id',line.id).eq('organization_id',organizationId).eq('statement_id',line.statement_id);
+      .eq('id',line.id).eq('organization_id',organizationId).eq('statement_id',line.statement_id)
+      .select('id').maybeSingle();
     setSaving(false);
-    if(error)setMessage('No se pudo cambiar el estado: '+error.message);
-    else{setRevision(v=>v+1);setMessage('Estado actualizado y auditado.');}
+    if(error||!changed)setMessage('No se actualizó la deducción: '+(error?.message??'Sin filas autorizadas o el estado ya cambió.'));
+    else{setRevision(v=>v+1);setMessage('Deducción actualizada. Vuelve a conciliar la liquidación para recalcular el neto.');}
   }
 
   async function reconcileStatement(statement:Statement) {
@@ -192,7 +194,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
         <input type="number" name="amount" required min="0.01" step="0.01" className="mt-1 block w-full rounded-lg border p-2" />
       </label>
       <label className="text-sm">Fecha del cargo
-        <input type="date" name="charge_date" required defaultValue={new Date().toISOString().slice(0,10)} className="mt-1 block w-full rounded-lg border p-2" />
+        <input type="date" name="charge_date" required defaultValue={localDateISO()} className="mt-1 block w-full rounded-lg border p-2" />
       </label>
       <label className="text-sm">Referencia del soporte
         <input name="support_reference" maxLength={500} placeholder="Factura o soporte" className="mt-1 block w-full rounded-lg border p-2" />
