@@ -4,6 +4,7 @@ import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
 import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
+import { SignedLeaseDocuments } from './SignedLeaseDocuments';
 
 type Option={id:string;label:string};
 type Lease={id:string;contract_number:string|null;monthly_rent:number;status:string};
@@ -22,7 +23,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
   const [owners,setOwners]=useState<Option[]>([]);
   const [leases,setLeases]=useState<Lease[]>([]);
   const [periods,setPeriods]=useState<Period[]>([]);
-  const [action,setAction]=useState<'CONTRACT'|'PERIOD'|'RECEIPT'>('CONTRACT');
+  const [action,setAction]=useState<'CONTRACT'|'PERIOD'|'RECEIPT'|'SIGNED_PDF'>('CONTRACT');
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -162,7 +163,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     <div><h2 className="text-lg font-bold">Registrar arriendos y pagos</h2>
       <p className="text-sm text-slate-600">Elige el paso correspondiente. Los cobros y abonos solo se registran para contratos activos de esta inmobiliaria.</p></div>
     <div className="flex flex-wrap gap-2">
-      {([['CONTRACT','Nuevo contrato'],['PERIOD','Crear cobro mensual'],['RECEIPT','Registrar abono']] as const).map(([key,label])=>
+      {([['CONTRACT','Nuevo contrato'],['PERIOD','Crear cobro mensual'],['RECEIPT','Registrar abono'],['SIGNED_PDF','Contrato firmado (PDF)']] as const).map(([key,label])=>
         <button key={key} type="button" aria-pressed={action===key} onClick={()=>{setAction(key);setError('');}}
           className={'rounded-lg border px-3 py-2 text-sm font-semibold '+(action===key?'bg-slate-900 text-white':'bg-white')}>
           {label}</button>)}
@@ -199,6 +200,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
         <div className="md:col-span-2"><button type="submit" disabled={busy||!paymentAllowed||!active.length}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-40">Guardar cobro del mes</button></div>
       </form>}
+      {action==='SIGNED_PDF'&&<SignedLeaseDocuments organizationId={organizationId} leases={leases} />}
       {action==='RECEIPT'&&<form onSubmit={e=>void recordReceipt(e)} onChange={()=>{pendingReceiptKey.current=null;}} className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">Mes con saldo pendiente<select name="period_id" required className={fieldClass}><option value="">Seleccionar cobro</option>
           {owing.map(x=><option key={x.id} value={x.id}>{String(x.period_month).slice(0,7)} · {leases.find(l=>l.id===x.lease_id)?.contract_number||x.lease_id} · saldo {(Number(x.expected_amount)-Number(x.paid_amount)).toLocaleString('es-CO')} COP</option>)}</select></label>
