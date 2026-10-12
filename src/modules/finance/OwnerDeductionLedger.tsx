@@ -30,9 +30,11 @@ const label=(list:readonly (readonly [string,string])[],val:string)=>list.find(i
  * Records and reconciles classified charges against draft owner statements.
  */
 export function OwnerDeductionLedger({ organizationId }: { organizationId:string }) {
-  const {can,user}=useAuth();
+  const {can,user,activeMembership}=useAuth();
   const readable=can(PERMISSIONS.OWNER_STATEMENTS_VIEW);
   const writable=can(PERMISSIONS.OWNER_STATEMENTS_CREATE);
+  const canReconcile=writable&&can(PERMISSIONS.RENT_PAYMENTS_VIEW);
+  const canRevert=canReconcile&&(activeMembership?.roles.some(role=>role.key==='ADMIN')??false);
   const canReadDocs=can(PERMISSIONS.DOCUMENTS_VIEW);
   const canUploadDocs=canReadDocs&&can(PERMISSIONS.DOCUMENTS_UPLOAD);
   const [statements,setStatements]=useState<Statement[]>([]);
@@ -187,15 +189,15 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
   }
 
   async function reconcileStatement(statement:Statement) {
-    if(!writable||saving||!organizationId||statement.status!=='DRAFT')return;
-    if(!window.confirm('¿Actualizar el neto con los abonos y deducciones aprobadas? Esto no realiza transferencias.'))return;
+    if(!canReconcile||saving||!organizationId||statement.status!=='DRAFT')return;
+    if(!window.confirm('¿Actualizar la conciliación con los abonos y deducciones aprobadas actuales? Se registrará una revisión auditada. No transfiere fondos.'))return;
     setSaving(true);setMessage('');
     try {
-      const {error}=await supabase.rpc('reconcile_owner_draft_statement',{
+      const {error}=await supabase.rpc('reconcile_owner_draft_statement_audited',{
         target_org:organizationId,target_statement:statement.id,
       });
       if(error){setMessage('No se pudo conciliar: '+error.message);return;}
-      setMessage('Neto actualizado según los ingresos registrados y descuentos aprobados.');
+      setMessage('Conciliación actualizada y revisión guardada en auditoría. No se realizó ningún giro.');
       window.dispatchEvent(new Event('owner-statement-updated'));
     } catch {
       setMessage('No se pudo confirmar la conciliación. Verifica el neto actual antes de reintentar.');
@@ -203,6 +205,32 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     } finally {
       setSaving(false);
     }
+  }
+
+  async function revertStatement(statement:Statement) {
+    if(!canRevert||saving||!organizationId||statement.status!=='DRAFT')return;
+    const reason=window.prompt('Motivo de la reversión financiera (8 a 500 caracteres):')?.trim()??'';
+    if(reason.length<8||reason.length>500){
+      if(reason) setMessage('El motivo debe contener entre 8 y 500 caracteres.');
+      return;
+    }
+    if(!window.confirm('¿Deshacer la última conciliación auditada y restaurar sus importes anteriores? Los pagos, deducciones y comprobantes permanecerán registrados.'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {error}=await supabase.rpc('revert_owner_draft_reconciliation',{
+        target_org:organizationId,target_statement:statement.id,reason,
+      });
+      if(error){
+        setMessage('No se pudo deshacer la conciliación: '+error.message+
+          ' Las conciliaciones previas al nuevo historial no pueden revertirse automáticamente.');
+        return;
+      }
+      setMessage('Última conciliación revertida con trazabilidad de auditoría. Revisa el borrador antes de volver a conciliar.');
+      window.dispatchEvent(new Event('owner-statement-updated'));
+    } catch {
+      setMessage('No se confirmó la reversión. Consulta los importes actuales antes de repetir la acción.');
+      setRevision(v=>v+1);
+    } finally {setSaving(false);}
   }
 
   const approvedOwnerOther=lines.filter(x=>x.status==='APPROVED'&&x.responsible_party==='OWNER'
@@ -221,13 +249,25 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     </div>
     <p className="text-xs text-slate-600">Solo se descuentan al propietario los cargos aprobados cuya responsabilidad sea del propietario. Los conceptos del inquilino y de la inmobiliaria permanecen separados. El estado del extracto no certifica giro ni movimiento de fondos.</p>
     {message&&<p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{message}</p>}
-    {writable&&active.length>0&&<div className="space-y-2 rounded-xl border p-3">
+    {canReconcile&&active.length>0&&<div className="space-y-2 rounded-xl border p-3">
       <h3 className="text-sm font-bold">Conciliar y actualizar el neto del propietario</h3>
       {active.map(statement=><div key={statement.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span>{ownerName(statement.owner_id)} · {statement.period_month}</span>
-        <button type="button" disabled={saving} onClick={()=>void reconcileStatement(statement)}
-          className="rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40">Conciliar descuentos</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={saving} onClick={()=>void reconcileStatement(statement)}
+            className="rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40">Actualizar conciliación</button>
+          {canRevert&&<button type="button" disabled={saving} onClick={()=>void revertStatement(statement)}
+            className="rounded-lg border border-red-300 px-3 py-1.5 font-semibold text-red-800 disabled:opacity-40">
+            Deshacer última conciliación
+          </button>}
+        </div>
       </div>)}
+      <p className="text-xs text-slate-600">
+        «Actualizar» vuelve a calcular el borrador con ingresos y cargos aprobados y deja auditoría.
+        «Deshacer» requiere ser administrador y una conciliación reciente con importe previo auditado;
+        no elimina pagos, soportes ni cargos, y se bloquea si cambiaron las fuentes o ya se generó/pagó el extracto.
+        Las conciliaciones antiguas sin historial no pueden deshacerse automáticamente.
+      </p>
     </div>}
     {showForm&&writable&&<form onSubmit={e=>void submit(e)} className="grid gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 md:grid-cols-2">
       <label className="text-sm">Liquidación en borrador

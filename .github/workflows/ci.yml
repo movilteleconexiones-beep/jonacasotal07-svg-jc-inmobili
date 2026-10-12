@@ -169,6 +169,22 @@ jobs:
         run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
       - name: Owner deduction invoice and payment PDF security tests
         run: node --import tsx --test tests/owner-deduction-pdf-evidence.test.mjs
+      - name: Audited owner reconciliation update and reversal UI security tests
+        run: node --test tests/owner-reconciliation-undo-ui.test.mjs
+      - name: Audited owner reconciliation and safe reversal SQL regression
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_reconcile_undo_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f security/tests/owner_reconciliation_undo_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012203000_owner_reconciliation_audit_and_safe_undo.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f security/tests/owner_reconciliation_undo_assertions.sql
       - name: Rent receipts and owner statements SQL checks
         env:
           PGPASSWORD: postgres
