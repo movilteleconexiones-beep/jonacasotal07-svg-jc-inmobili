@@ -427,6 +427,9 @@ interface DashboardHomeProps {
   loading: boolean;
   organizationName: string;
   roleNames: string[];
+  tenantPrimary: string;
+  tenantSecondary: string;
+  themed: boolean;
   onNavigate: (view: DashboardView) => void;
   can: (permission: string) => boolean;
 }
@@ -482,11 +485,11 @@ function DashboardHome({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 md:p-6">
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 md:p-6" style={themed ? { backgroundColor: tenantSecondary, borderColor: tenantPrimary } : undefined}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-sm font-medium text-slate-500">Panel de gestión</div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">{organizationName}</h1>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight" style={themed ? { color: tenantPrimary } : undefined}>{organizationName}</h1>
             <p className="mt-2 text-sm text-slate-600">
               Tu información está aislada por inmobiliaria y cada módulo respeta los permisos asignados.
             </p>
@@ -510,10 +513,10 @@ function DashboardHome({
               onClick={() => onNavigate(card.target)}
               className="rounded-2xl border border-stone-200 bg-white p-4 text-left hover:border-slate-400"
             >
-              <div className="mb-5 flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100">
+              <div className="mb-5 flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100" style={themed ? { backgroundColor: tenantSecondary, color: tenantPrimary } : undefined}>
                 <Icon className="h-4 w-4" />
               </div>
-              <div className="text-3xl font-bold tabular-nums">{loading ? '—' : card.value}</div>
+              <div className="text-3xl font-bold tabular-nums" style={themed ? { color: tenantPrimary } : undefined}>{loading ? '—' : card.value}</div>
               <div className="mt-1 text-sm text-slate-600">{card.label}</div>
             </button>
           );
@@ -541,6 +544,7 @@ function DashboardHome({
               type="button"
               onClick={() => onNavigate('IMPORT')}
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+              style={themed ? { backgroundColor: tenantPrimary } : undefined}
             >
               <FileSpreadsheet className="h-4 w-4" />
               Importar datos
