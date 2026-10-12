@@ -36,6 +36,11 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM pg_constraint
   WHERE conrelid='public.leases'::regclass AND conname='leases_tenant_same_tenant_fk')
  THEN RAISE EXCEPTION 'Missing lease tenant-bound contact FK'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint
+   WHERE conrelid='public.owner_statements'::regclass
+     AND conname='owner_statement_owner_same_tenant_fk') THEN
+   RAISE EXCEPTION 'Missing owner statement composite foreign key';
+ END IF;
 END
 $assert$;
 
