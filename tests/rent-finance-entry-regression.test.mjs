@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
+import {localDateISO,localMonthISO} from '../src/core/local-calendar.ts';
+import {parseMoneyInput} from '../src/core/rent-owner-money.ts';
 
 const main=readFileSync(new URL('../src/modules/finance/TenantRentEntry.tsx',import.meta.url),'utf8');
 const owner=readFileSync(new URL('../src/modules/finance/OwnerSettlementEntry.tsx',import.meta.url),'utf8');
@@ -47,4 +49,32 @@ test('abonos use atomic audited server functions, no client-side aggregate edits
   assert.match(migration,/WHERE organization_id=target_org AND id=target_payment FOR UPDATE/);
   assert.match(migration,/RAISE EXCEPTION 'Receipt exceeds the recorded pending amount'/);
   assert.match(dashboard,/isPlatformAdmin && <a href="\/super-admin"/);
+});
+
+
+test('accounting forms use Colombian local calendar rather than UTC calendar',()=>{
+  const previousTZ=process.env.TZ;
+  try {
+    process.env.TZ='America/Bogota';
+    const boundary=new Date('2026-11-01T01:00:00.000Z');
+    assert.equal(boundary.toISOString().slice(0,7),'2026-11');
+    assert.equal(localMonthISO(boundary),'2026-10');
+    assert.equal(localDateISO(boundary),'2026-10-31');
+    assert.match(main,/const thisMonth=localMonthISO;/);
+    assert.match(owner,/useState\(localMonthISO\(\)\)/);
+    assert.match(deductions,/defaultValue=\{localDateISO\(\)\}/);
+  } finally {
+    if(previousTZ===undefined) delete process.env.TZ;
+    else process.env.TZ=previousTZ;
+  }
+});
+
+test('money precision and server row counts cannot create false financial confirmations',()=>{
+  assert.equal(parseMoneyInput('0.29'),0.29);
+  assert.equal(parseMoneyInput('120000.50'),120000.5);
+  assert.ok(Number.isNaN(parseMoneyInput('1.999')));
+  assert.match(deductions,/parseMoneyInput\(form.get\('amount'\)\)/);
+  assert.match(main,/\.select\('id'\)\.maybeSingle\(\)/);
+  assert.match(deductions,/\.select\('id'\)\.maybeSingle\(\)/);
+  assert.match(owner,/can\(PERMISSIONS\.RENT_PAYMENTS_VIEW\)/);
 });
