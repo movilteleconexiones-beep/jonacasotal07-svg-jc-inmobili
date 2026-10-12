@@ -33,6 +33,7 @@ export function DealsModule() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [dealListState, setDealListState] = useState<'loading' | 'ready' | 'error'>('loading');
   const loadVersion = useRef(0);
   const hasRequiredOptions = contacts.length > 0 && properties.length > 0;
   const isAgencyAdministrator = activeMembership?.roles.some(role => role.key === 'ADMIN') ?? false;
@@ -41,14 +42,15 @@ export function DealsModule() {
   async function load() {
     const version = ++loadVersion.current;
     setRows([]); setContacts([]); setProperties([]);
-    if (!organizationId) { setLoadingOptions(false); return; }
+    setDealListState('loading');
+    if (!organizationId) { setLoadingOptions(false); setDealListState('error'); return; }
     setLoadingOptions(true);
     setMessage('');
     try {
       const [dealResult, contactResult, propertyResult] = await Promise.all([
         supabase
           .from('deals')
-          .select('id, contact_id, property_id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, contacts(first_name,last_name), properties(code,title,currency)')
+          .select('id, contact_id, property_id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, contacts!deals_contact_id_fkey(first_name,last_name), properties!deals_property_id_fkey(code,title,currency)')
           .eq('organization_id', organizationId)
           .order('created_at', { ascending: false }),
         supabase.from('contacts').select('id, first_name, last_name').eq('organization_id', organizationId).order('first_name'),
@@ -56,8 +58,13 @@ export function DealsModule() {
       ]);
 
       if (version !== loadVersion.current) return;
-      if (dealResult.error) setMessage('No se pudieron consultar los negocios. Verifica tus permisos.');
-      else setRows((dealResult.data ?? []) as unknown as DealRow[]);
+      if (dealResult.error) {
+        setDealListState('error');
+        setMessage('No se pudieron consultar los negocios. No significa que se hayan borrado. Intenta actualizar o contacta al administrador.');
+      } else {
+        setRows((dealResult.data ?? []) as unknown as DealRow[]);
+        setDealListState('ready');
+      }
       setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
       setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
       if (contactResult.error || propertyResult.error) {
@@ -65,7 +72,8 @@ export function DealsModule() {
       }
     } catch {
       if (version !== loadVersion.current) return;
-      setMessage('No se pudieron consultar los datos del negocio. Intenta actualizar.');
+      setDealListState('error');
+      setMessage('Falló la consulta de negocios. Los registros no han sido eliminados; intenta actualizar.');
     } finally {
       if (version === loadVersion.current) setLoadingOptions(false);
     }
@@ -237,6 +245,11 @@ export function DealsModule() {
         <div>
           <h1 className="text-2xl font-bold">Negocios</h1>
           <p className="mt-1 text-sm text-slate-600">Ofertas, negociaciones, cierres y comisiones.</p>
+          <p role="status" className="mt-1 text-sm font-semibold text-slate-700">
+            {dealListState === 'ready' ? 'Negocios registrados: ' + rows.length :
+              dealListState === 'loading' ? 'Consultando cantidad de negocios…' :
+              'Cantidad no disponible por error de consulta'}
+          </p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
@@ -387,7 +400,12 @@ export function DealsModule() {
               </Fragment>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500"><Handshake className="mx-auto mb-2 h-6 w-6" />No hay negocios registrados.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                <Handshake className="mx-auto mb-2 h-6 w-6" />
+                {dealListState === 'loading' ? 'Consultando negocios…' :
+                 dealListState === 'error' ? 'No fue posible cargar los negocios. Los registros pueden seguir en la base de datos.' :
+                 'No hay negocios registrados.'}
+              </td></tr>
             )}
           </tbody>
         </table>
