@@ -31,6 +31,26 @@ BEGIN
 EXCEPTION WHEN insufficient_privilege THEN NULL;
 END $$;
 
+-- Even if authenticated can update a deal, other-agency contact/property IDs
+-- cannot be associated through direct API writes.
+DO $
+BEGIN
+  BEGIN
+    UPDATE public.deals
+    SET contact_id='e4444444-4444-4444-8444-444444444444'
+    WHERE id='d1111111-1111-4111-8111-111111111111';
+    RAISE EXCEPTION 'UNSAFE: cross-organization contact assigned';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.deals
+    SET property_id='f4444444-4444-4444-8444-444444444444'
+    WHERE id='d1111111-1111-4111-8111-111111111111';
+    RAISE EXCEPTION 'UNSAFE: cross-organization property assigned';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+END $;
+
 -- Existing activities, commissions and completed sales must be retained.
 DO $$
 DECLARE deal_id uuid;
