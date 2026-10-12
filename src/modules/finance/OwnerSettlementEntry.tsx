@@ -68,7 +68,7 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
     setBusy(false);
     if(error){setMessage('No se pudo guardar la liquidación: '+error.message);return;}
     setMessage('Liquidación creada en borrador. Puedes registrar sus deducciones individuales con soporte antes de aprobarla.');
-    setRevision(n=>n+1);
+    window.dispatchEvent(new Event('owner-statement-updated'));setRevision(n=>n+1);
   }
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5">
     <div><h2 className="text-lg font-bold">Crear liquidación del propietario</h2>
