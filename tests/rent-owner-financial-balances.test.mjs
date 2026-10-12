@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { rentalBalance, ownerNetFromDeductions } from '../src/modules/finance/RentOwnerBalances.tsx';
+import { rentalBalance, ownerNetFromDeductions } from '../src/core/rent-owner-money.ts';
 
 const source = readFileSync(new URL('../src/modules/finance/RentOwnerBalances.tsx', import.meta.url), 'utf8');
 const clients = readFileSync(new URL('../src/modules/contacts/ContactsModule.tsx', import.meta.url), 'utf8');
