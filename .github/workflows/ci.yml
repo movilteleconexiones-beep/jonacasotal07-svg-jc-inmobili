@@ -71,6 +71,16 @@ jobs:
         run: node --import tsx --test tests/property-consignment.test.mjs
       - name: Verified checkout and webhook tests
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
+      - name: Deal editing and audited deletion UI checks
+        run: node --test tests/deals-edit-safe-delete.test.mjs
+      - name: Deal administrator deletion SQL integrity and tenant isolation tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_deals_cleanup_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_deals_cleanup_test -f security/tests/deals_safe_delete_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_deals_cleanup_test -f supabase/migrations/20261012193000_deals_safe_admin_deletion.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_deals_cleanup_test -f security/tests/deals_safe_delete_assertions.sql
       - name: Customer menu and monthly overview tests
         run: node --import tsx --test tests/tenant-menu-overview.test.mjs
       - name: Colombian geography and catalog filter tests
