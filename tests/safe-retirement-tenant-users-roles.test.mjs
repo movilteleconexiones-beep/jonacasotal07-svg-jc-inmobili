@@ -10,6 +10,7 @@ const dashboard=readFileSync(new URL('../src/modules/dashboard/PrivateDashboard.
 test('SuperAdmin suspends a named tenant via the existing server-audited billing RPC',()=>{
   assert.match(platform,/isPlatformAdmin/);
   assert.match(platform,/org\.organization_id === activeMembership\?\.organization\.id/);
+  assert.match(platform,/org\.owner_user_id === user\.id/);
   assert.match(platform,/identifier !== org\.organization_slug/);
   assert.match(platform,/reason\.trim\(\)\.length < 10/);
   assert.match(platform,/\.rpc\('billing_admin_action', \{/);
