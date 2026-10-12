@@ -18,6 +18,7 @@ const fieldClass='mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 p
 export function TenantRentEntry({organizationId}:{organizationId:string}) {
   const {can}=useAuth();
   const contractAllowed=can(PERMISSIONS.LEASES_CREATE);
+  const activationAllowed=can(PERMISSIONS.LEASES_EDIT);
   const paymentAllowed=can(PERMISSIONS.RENT_PAYMENTS_CREATE);
   const [properties,setProperties]=useState<Option[]>([]);
   const [tenants,setTenants]=useState<Option[]>([]);
@@ -79,6 +80,18 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     if(failure){setError('No se pudo guardar el contrato: '+failure.message);return;}
     element.reset();setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
     window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
+  }
+
+  async function activateContract(id:string) {
+    if(!activationAllowed||busy||!organizationId||!leases.some(l=>l.id===id&&l.status==='DRAFT'))return;
+    if(!window.confirm('¿Confirmas que revisaste el contrato y debe pasar a ACTIVO?'))return;
+    setBusy(true);setError('');
+    const {error:failure}=await supabase.from('leases').update({status:'ACTIVE'})
+      .eq('organization_id',organizationId).eq('id',id).eq('status','DRAFT');
+    setBusy(false);
+    if(failure){setError('No se pudo activar el contrato: '+failure.message);return;}
+    setNotice('Contrato activado. Ahora puedes crear su cobro mensual.');
+    setRevision(n=>n+1);
   }
 
   async function createPeriod(event:FormEvent<HTMLFormElement>){
@@ -144,6 +157,14 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
         {(!properties.length||!tenants.length)&&<p className="md:col-span-2 text-sm text-amber-800">Para guardar: primero registra un inmueble en Propiedades y un inquilino en Clientes.</p>}
         <div className="md:col-span-2"><button type="submit" disabled={busy||!contractAllowed||!properties.length||!tenants.length}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-40">Guardar contrato en borrador</button></div>
+        {activationAllowed&&leases.some(l=>l.status==='DRAFT')&&<div className="space-y-2 md:col-span-2">
+          <h3 className="text-sm font-semibold">Contratos pendientes de activar</h3>
+          {leases.filter(l=>l.status==='DRAFT').map(l=><div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+            <span>{l.contract_number||l.id} · canon {Number(l.monthly_rent).toLocaleString('es-CO')} COP</span>
+            <button type="button" disabled={busy} onClick={()=>void activateContract(l.id)}
+              className="rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40">Activar contrato</button>
+          </div>)}
+        </div>}
       </form>}
       {action==='PERIOD'&&<form onSubmit={e=>void createPeriod(e)} className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">Contrato activo<select name="lease_id" required className={fieldClass}><option value="">Seleccionar contrato</option>
