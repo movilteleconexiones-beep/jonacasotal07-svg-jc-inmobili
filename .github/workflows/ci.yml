@@ -145,6 +145,8 @@ jobs:
         run: node --test tests/safe-retirement-tenant-users-roles.test.mjs
       - name: Financial form and permission gate regressions
         run: node --test tests/rent-finance-entry-regression.test.mjs
+      - name: Signed lease PDF private storage and tenant isolation tests
+        run: node --import tsx --test tests/signed-lease-pdf.test.mjs
       - name: Owner deduction pure accounting tests
         run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
       - name: Rent receipts and owner statements SQL checks
