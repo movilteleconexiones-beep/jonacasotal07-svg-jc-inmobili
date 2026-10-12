@@ -28,18 +28,23 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
     let cancelled=false;
     setLeases([]);setPayments([]);setLeaseId('');setMessage('');setLoading(true);
     void(async()=>{
-      const [l,p]=await Promise.all([
-        supabase.from('leases').select('id,owner_id,contract_number,status').eq('organization_id',organizationId).limit(501),
-        supabase.from('rent_payments').select('lease_id,period_month,paid_amount,status').eq('organization_id',organizationId).limit(501),
-      ]);
-      if(cancelled)return;
-      if(l.error||p.error||(l.data?.length??0)>500||(p.data?.length??0)>500)
-        setMessage('No se pudieron consultar todos los contratos y pagos de esta inmobiliaria.');
-      else{
-        setLeases((l.data??[]) as Lease[]);
-        setPayments((p.data??[]) as ReceiptPeriod[]);
+      try {
+        const [l,p]=await Promise.all([
+          supabase.from('leases').select('id,owner_id,contract_number,status').eq('organization_id',organizationId).limit(501),
+          supabase.from('rent_payments').select('lease_id,period_month,paid_amount,status').eq('organization_id',organizationId).limit(501),
+        ]);
+        if(cancelled)return;
+        if(l.error||p.error||(l.data?.length??0)>500||(p.data?.length??0)>500)
+          setMessage('No se pudieron consultar todos los contratos y pagos de esta inmobiliaria.');
+        else {
+          setLeases((l.data??[]) as Lease[]);
+          setPayments((p.data??[]) as ReceiptPeriod[]);
+        }
+      } catch {
+        if(!cancelled) setMessage('Falló la conexión al consultar contratos y pagos. Reintenta ingresar al módulo.');
+      } finally {
+        if(!cancelled) setLoading(false);
       }
-      setLoading(false);
     })();
     return()=>{cancelled=true;};
   },[organizationId,revision]);
@@ -60,14 +65,20 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
     }
     if(!window.confirm('Crear liquidación en BORRADOR. Los valores no representan un giro al propietario. ¿Confirmas?'))return;
     setBusy(true);setMessage('');
-    const {error}=await supabase.rpc('create_owner_draft_statement',{
-      target_org:organizationId,target_lease:selected.id,target_month:period+'-01',
-      agency_commission:commissionNumber,withholding_tax:taxNumber,
-    });
-    setBusy(false);
-    if(error){setMessage('No se pudo guardar la liquidación: '+error.message);return;}
-    setMessage('Liquidación creada en borrador. Puedes registrar sus deducciones individuales con soporte antes de aprobarla.');
-    window.dispatchEvent(new Event('owner-statement-updated'));setRevision(n=>n+1);
+    try {
+      const {error}=await supabase.rpc('create_owner_draft_statement',{
+        target_org:organizationId,target_lease:selected.id,target_month:period+'-01',
+        agency_commission:commissionNumber,withholding_tax:taxNumber,
+      });
+      if(error){setMessage('No se pudo guardar la liquidación: '+error.message);return;}
+      setMessage('Liquidación creada en borrador. Puedes registrar sus deducciones individuales con soporte antes de aprobarla.');
+      window.dispatchEvent(new Event('owner-statement-updated'));setRevision(n=>n+1);
+    } catch {
+      setMessage('No se confirmó la creación de la liquidación. Consulta los registros antes de reintentar para evitar duplicados.');
+      setRevision(n=>n+1);
+    } finally {
+      setBusy(false);
+    }
   }
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5">
     <div><h2 className="text-lg font-bold">Crear liquidación del propietario</h2>
