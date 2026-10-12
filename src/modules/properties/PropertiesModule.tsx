@@ -20,7 +20,7 @@ interface PropertyRow {
   created_at: string;
 }
 
-export function PropertiesModule() {
+export function PropertiesModule({onCreated}: {onCreated?: (propertyId:string)=>void} = {}) {
   const { user, activeMembership, can } = useAuth();
   const { branding } = useTenantBranding();
   const [rows, setRows] = useState<PropertyRow[]>([]);
@@ -112,6 +112,7 @@ export function PropertiesModule() {
       return;
     }
 
+    if(created?.id) onCreated?.(created.id);
     let status='Propiedad creada correctamente.';
     if(pendingPhotos.length && created?.id){
       try{
