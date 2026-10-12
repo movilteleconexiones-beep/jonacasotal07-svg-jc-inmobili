@@ -69,6 +69,12 @@ ALTER TABLE public.leases
   ADD CONSTRAINT leases_tenant_id_fkey FOREIGN KEY(tenant_id) REFERENCES public.contacts(id) ON DELETE RESTRICT,
   ADD CONSTRAINT leases_owner_id_fkey FOREIGN KEY(owner_id) REFERENCES public.property_owners(id) ON DELETE RESTRICT;
 
+-- Production has a legacy owner-statement FK, replaced by the financial
+-- tenant-composite migration. Model it here to catch migration drift.
+ALTER TABLE public.owner_statements
+  ADD CONSTRAINT owner_statements_owner_id_fkey
+  FOREIGN KEY (owner_id) REFERENCES public.property_owners(id) ON DELETE RESTRICT;
+
 ALTER TABLE public.leases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rent_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.owner_statements ENABLE ROW LEVEL SECURITY;
