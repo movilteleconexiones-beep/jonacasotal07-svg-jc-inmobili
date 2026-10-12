@@ -104,8 +104,8 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     const invoice=(target.elements.namedItem('invoice_pdf') as HTMLInputElement|null)?.files?.[0];
     const payment=(target.elements.namedItem('payment_pdf') as HTMLInputElement|null)?.files?.[0];
     const attachments:DeductionEvidenceFile[]=[];
-    if(invoice?.size)attachments.push({kind:'invoice',file:invoice});
-    if(payment?.size)attachments.push({kind:'payment',file:payment});
+    if(invoice)attachments.push({kind:'invoice',file:invoice});
+    if(payment)attachments.push({kind:'payment',file:payment});
     if(attachments.length&&(!canUploadDocs||!user)){
       setMessage('Para adjuntar factura o comprobante necesitas permisos de consulta y carga de documentos.');
       return;
