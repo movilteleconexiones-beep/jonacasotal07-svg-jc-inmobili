@@ -136,7 +136,7 @@ SET jco_test.denied_permission='rent_payments.view';
 DO $denied$
 BEGIN
  IF EXISTS(SELECT 1 FROM public.rent_payments
-   WHERE id=current_setting('jco_test.period_id')::uuid) THEN
+   WHERE id=(SELECT id FROM public.rent_payments WHERE organization_id='11111111-1111-4111-8111-111111111111' AND lease_id='33333333-3333-4333-8333-333333333333' AND period_month='2026-10-01')) THEN
   RAISE EXCEPTION 'Member lacking rent_payments.view read rent amounts'; END IF;
 END
 $denied$;
@@ -145,7 +145,7 @@ SET jco_test.denied_permission='owner_statements.view';
 DO $denied$
 BEGIN
  IF EXISTS(SELECT 1 FROM public.owner_statements
-   WHERE id=current_setting('jco_test.owner_statement_id')::uuid) THEN
+   WHERE id=(SELECT id FROM public.owner_statements WHERE organization_id='11111111-1111-4111-8111-111111111111' AND lease_id='33333333-3333-4333-8333-333333333333' AND period_month='2026-10-01')) THEN
   RAISE EXCEPTION 'Member lacking owner_statements.view read settlements'; END IF;
 END
 $denied$;
@@ -159,7 +159,7 @@ $deny$,'42501');
 SELECT pg_temp.fail_with($deny$
  SELECT public.record_tenant_rent_receipt(
  '11111111-1111-4111-8111-111111111111',
- current_setting('jco_test.period_id')::uuid,1,'CASH','DENIED-RECEIPT-001',
+ (SELECT id FROM public.rent_payments WHERE organization_id='11111111-1111-4111-8111-111111111111' AND lease_id='33333333-3333-4333-8333-333333333333' AND period_month='2026-10-01'),1,'CASH','DENIED-RECEIPT-001',
  '23232323-2323-4232-8232-232323232323')
 $deny$,'42501');
 
@@ -172,7 +172,7 @@ $deny$,'42501');
 SELECT pg_temp.fail_with($deny$
  SELECT public.reconcile_owner_draft_statement(
  '11111111-1111-4111-8111-111111111111',
- current_setting('jco_test.owner_statement_id')::uuid)
+ (SELECT id FROM public.owner_statements WHERE organization_id='11111111-1111-4111-8111-111111111111' AND lease_id='33333333-3333-4333-8333-333333333333' AND period_month='2026-10-01'))
 $deny$,'42501');
 
 DO $denied$
