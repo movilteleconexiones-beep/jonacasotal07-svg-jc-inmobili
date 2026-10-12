@@ -41,7 +41,7 @@ SELECT pg_temp.expect_failure($q$
     (organization_id,statement_id,charge_date,category,responsible_party,amount,description)
   VALUES ('11111111-1111-4111-8111-111111111111',
     'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','2026-10-01','GAS','OWNER',30000,'Factura ajena')
-$q$, '23503');
+$q$, '23514');
 
 -- RLS rejects using an organization which is not the signed-in tenant.
 SELECT pg_temp.expect_failure($q$
