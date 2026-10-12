@@ -1,6 +1,14 @@
 -- Artificial fixture: two organizations, not related to any customer in Supabase.
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE authenticated NOLOGIN;
+DO $roles$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+END
+$roles$;
 CREATE SCHEMA auth;
 
 CREATE FUNCTION auth.uid() RETURNS uuid
