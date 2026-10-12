@@ -90,6 +90,7 @@ export function UsersRolesModule() {
   const [profilesById, setProfilesById] = useState<Record<string, { full_name: string | null; phone: string | null; avatar_url: string | null }>>({});
   const [showInvite, setShowInvite] = useState(false);
   const [showRoleCreator, setShowRoleCreator] = useState(false);
+  const [workingOn, setWorkingOn] = useState<string | null>(null);
 
   async function load() {
     if (!organizationId) return;
@@ -106,7 +107,6 @@ export function UsersRolesModule() {
         .from('roles')
         .select('id,name,key,description,is_system_role,active,role_permissions(permissions(key))')
         .eq('organization_id', organizationId)
-        .eq('active', true)
         .order('is_system_role', { ascending: false })
         .order('name'),
       supabase
@@ -183,7 +183,7 @@ export function UsersRolesModule() {
     const email = String(form.get('email') ?? '').trim().toLowerCase();
     const fullName = String(form.get('full_name') ?? '').trim();
     const selectedRoleIds = roles
-      .filter((role) => form.get('role_' + role.id) === 'on')
+      .filter((role) => role.active && form.get('role_' + role.id) === 'on')
       .map((role) => role.id);
 
     if (!email.includes('@')) {
@@ -265,7 +265,7 @@ export function UsersRolesModule() {
   }
 
   async function toggleMemberRole(member: MemberRow, roleId: string, enabled: boolean) {
-    if (!can(PERMISSIONS.ROLES_ASSIGN) || !roles.some((role) => role.id === roleId && isTenantRole(role))) return;
+    if (!can(PERMISSIONS.ROLES_ASSIGN) || !roles.some((role) => role.id === roleId && role.active && isTenantRole(role))) return;
 
     if (enabled) {
       const { error } = await supabase
@@ -288,6 +288,51 @@ export function UsersRolesModule() {
     }
 
     await load();
+  }
+
+  async function retireMember(member: MemberRow, displayName: string) {
+    if (!organizationId || !can(PERMISSIONS.USERS_EDIT) || workingOn) return;
+    if (member.status !== 'ACTIVE') return;
+    if (member.user_id === user?.id || isLastActiveOwner(member)) {
+      setMessage('No se puede retirar tu propio acceso ni el del último propietario activo de la inmobiliaria.');
+      return;
+    }
+    const typed = window.prompt('RETIRAR USUARIO: se desactivarán sus permisos en esta inmobiliaria, pero conservará su cuenta y el historial. Escribe RETIRAR para confirmar a ' + displayName + '.');
+    if (typed !== 'RETIRAR') return;
+    setWorkingOn(member.id);
+    try {
+      const { error } = await supabase.from('organization_members')
+        .update({ status: 'INACTIVE' })
+        .eq('id', member.id).eq('organization_id', organizationId).eq('status', 'ACTIVE');
+      if (error) throw error;
+      await load();
+      setMessage('Usuario retirado de esta inmobiliaria. Su cuenta y los documentos históricos se conservan. Puedes reactivar su acceso.');
+    } catch {
+      setMessage('No se pudo retirar al usuario. Verifica los permisos y actualiza la lista.');
+    } finally { setWorkingOn(null); }
+  }
+
+  async function setCustomRoleActive(role: RoleRow, active: boolean) {
+    if (!organizationId || !can(PERMISSIONS.ROLES_EDIT) || role.is_system_role ||
+        !isTenantRole(role) || workingOn || role.active === active) return;
+    if (!active) {
+      const affected = members.filter(member =>
+        member.status === 'ACTIVE' && member.member_roles.some(link => link.role_id === role.id)).length;
+      const approved = window.prompt('DESACTIVAR ROL PERSONALIZADO: ' + role.name +
+        '. ' + affected + ' miembros activos tienen este rol; perderán sus permisos de este rol. Escribe DESACTIVAR para confirmar.');
+      if (approved !== 'DESACTIVAR') return;
+    }
+    setWorkingOn(role.id);
+    try {
+      const { error } = await supabase.from('roles')
+        .update({ active })
+        .eq('id', role.id).eq('organization_id', organizationId).eq('is_system_role', false);
+      if (error) throw error;
+      await load();
+      setMessage(active ? 'Rol personalizado reactivado.' : 'Rol personalizado desactivado. Sus asignaciones se conservan para una posible reactivación.');
+    } catch {
+      setMessage('No se pudo cambiar el estado del rol. Revisa tu permiso para administrar roles.');
+    } finally { setWorkingOn(null); }
   }
 
   function isLastActiveOwner(member: MemberRow) {
@@ -422,6 +467,7 @@ export function UsersRolesModule() {
           <p className="mt-1 text-sm text-slate-600">
             Controla quién accede al sistema y qué puede hacer dentro de esta inmobiliaria. Los roles marcados se acumulan; no son un selector de vista.
           </p>
+          <p className="mt-2 text-xs text-slate-600">Retirar usuario desactiva solo su acceso a esta inmobiliaria, sin borrar su cuenta, contratos ni historial. Los roles base están protegidos; solo los personalizados pueden desactivarse.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -473,7 +519,7 @@ export function UsersRolesModule() {
           <div className="mt-4">
             <div className="mb-2 text-sm font-semibold">Roles iniciales</div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {roles.map((role) => (
+              {roles.filter((role) => role.active).map((role) => (
                 <label key={role.id} className="flex items-start gap-3 rounded-xl border border-stone-200 p-3">
                   <input type="checkbox" name={'role_' + role.id} className="mt-1" />
                   <span>
@@ -562,6 +608,19 @@ export function UsersRolesModule() {
                     <div className="font-semibold">{displayName}</div>
                     <div className="mt-1 font-mono text-[11px] text-slate-400">{member.user_id}</div>
                     {profile?.phone && <div className="mt-1 text-xs text-slate-500">{profile.phone}</div>}
+                    {can(PERMISSIONS.USERS_EDIT) && member.status === 'ACTIVE' &&
+                      member.user_id !== user?.id && !isLastActiveOwner(member) && (
+                        <button type="button" disabled={workingOn !== null}
+                          onClick={() => void retireMember(member, displayName)}
+                          className="mt-2 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-800 disabled:opacity-40">
+                          {workingOn === member.id ? 'Retirando…' : 'Retirar usuario'}
+                        </button>
+                      )}
+                    {can(PERMISSIONS.USERS_EDIT) && member.status === 'INACTIVE' && member.user_id !== user?.id && (
+                      <button type="button" disabled={workingOn !== null}
+                        onClick={() => void changeMemberStatus(member, 'ACTIVE')}
+                        className="mt-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">Restablecer acceso</button>
+                    )}
                   </div>
 
                   <label>
@@ -582,7 +641,7 @@ export function UsersRolesModule() {
                     <div>
                       <div className="mb-2 text-xs font-semibold text-slate-500">Roles asignados</div>
                       <div className="flex flex-wrap gap-2">
-                        {roles.map((role) => {
+                        {roles.filter((role) => role.active).map((role) => {
                           const checked = assignedRoleIds.has(role.id);
                           return (
                             <label
@@ -714,14 +773,18 @@ export function UsersRolesModule() {
                   <div className="font-semibold">{role.name}</div>
                   <div className="mt-1 text-xs text-slate-500">{role.description || 'Rol personalizado'}</div>
                 </div>
-                {role.is_system_role && (
-                  <span className="rounded-full bg-stone-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
-                    Base
-                  </span>
-                )}
+                {role.is_system_role ? (
+                  <span className="rounded-full bg-stone-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">Base protegida</span>
+                ) : can(PERMISSIONS.ROLES_EDIT) ? (
+                  <button type="button" disabled={workingOn !== null}
+                    onClick={() => void setCustomRoleActive(role, !role.active)}
+                    className={'rounded-lg border px-2 py-1 text-xs font-semibold disabled:opacity-40 ' + (role.active ? 'border-red-200 text-red-800' : 'border-green-200 text-green-800')}>
+                    {workingOn === role.id ? 'Guardando…' : role.active ? 'Desactivar rol' : 'Reactivar rol'}
+                  </button>
+                ) : null}
               </div>
               <div className="mt-3 text-xs text-slate-600">
-                {(role.role_permissions ?? []).length} permisos
+                {(role.role_permissions ?? []).length} permisos · {role.active ? 'Activo' : 'Desactivado'}
               </div>
             </div>
           ))}

@@ -141,6 +141,8 @@ jobs:
         run: node --import tsx --test tests/rent-owner-financial-balances.test.mjs
       - name: Monthly accounting XLSX and internal receipt tests
         run: node --import tsx --test tests/accounting-monthly-excel-receipts.test.mjs
+      - name: Safe tenant, user and role retirement regression
+        run: node --test tests/safe-retirement-tenant-users-roles.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)

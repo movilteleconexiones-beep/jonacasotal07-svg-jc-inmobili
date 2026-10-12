@@ -16,6 +16,40 @@ export function SuperAdminModule() {
   const [testFilter, setTestFilter] = useState('ALL');
   const [monthLimit, setMonthLimit] = useState(12);
   const [selectedOrganization, setSelectedOrganization] = useState<OrganizationSummary | null>(null);
+  const [retiringOrg, setRetiringOrg] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState('');
+
+  async function suspendOrganization(org: OrganizationSummary) {
+    if (!user || !isPlatformAdmin || retiringOrg) return;
+    if (org.organization_id === activeMembership?.organization.id || org.owner_user_id === user.id) {
+      setActionMessage('No puedes retirar desde aquí la inmobiliaria de tu Panel activo: primero selecciona y verifica otra organización para preservar los dos accesos.');
+      return;
+    }
+    const identifier = window.prompt('SUSPENDER INMOBILIARIA: se bloqueará su acceso, pero se conservarán sus datos, pagos, registros y licencias. Para confirmar escribe exactamente: ' + org.organization_slug);
+    if (identifier !== org.organization_slug) return;
+    const reason = window.prompt('Registra el motivo administrativo de la suspensión (mínimo 10 caracteres).');
+    if (!reason || reason.trim().length < 10 || reason.length > 1000) {
+      setActionMessage('Motivo no válido; no se realizaron cambios.');
+      return;
+    }
+    setRetiringOrg(org.organization_id);
+    setActionMessage('');
+    try {
+      const { error: actionError } = await supabase.rpc('billing_admin_action', {
+        target_org: org.organization_id,
+        action: 'SUSPEND',
+        reason: reason.trim(),
+        target_plan: null,
+      });
+      if (actionError) throw actionError;
+      await refresh();
+      setActionMessage('Inmobiliaria suspendida: acceso retirado, registros conservados. Puedes revisar su activación para restablecer el servicio.');
+    } catch {
+      setActionMessage('No se pudo suspender la inmobiliaria. Comprueba tus permisos y vuelve a intentar.');
+    } finally {
+      setRetiringOrg(null);
+    }
+  }
   const organizations = overview?.organizations ?? [];
   const statuses = [...new Set(organizations.map(org => org.access_status))].sort();
   const billingModes = [...new Set(organizations.map(org => org.billing_mode).filter((mode): mode is string => Boolean(mode)))].sort();
@@ -66,11 +100,13 @@ export function SuperAdminModule() {
       <a href="#resumen-mensual" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Resumen mensual</a>
     </nav>
     {error && <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
+    {actionMessage && <p role="status" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">{actionMessage}</p>}
     <section id="resumen-inmobiliarias" className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Estado general de las inmobiliarias">
       {cards.map(([label,value]) => <article key={label} className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-600">{label}</p><p className="mt-2 text-3xl font-bold tabular-nums">{loading || value === undefined ? '—' : value}</p></article>)}
     </section><p className="mt-2 text-xs text-slate-500">{totals ? `${totals.tests} cuentas de prueba incluidas en el total. ` : ''}El estado de acceso contempla la vigencia, las suspensiones y la activación pendiente.</p>
     <BillingAdminControls tenant={selectedOrganization} onDone={() => void refresh()} />
     <section id="todas-inmobiliarias" className="mt-6"><h2 className="text-xl font-bold">Inmobiliarias registradas</h2>
+      <p className="mt-2 text-sm text-slate-600">Para cuentas que dejaron de pagar, utiliza <strong>Suspender acceso</strong>: conserva el historial, los contratos y los datos de la inmobiliaria. La eliminación definitiva requiere respaldo, revisión legal y un proceso independiente; no se realiza desde este panel.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Filtros de inmobiliarias">
         <label className="text-sm font-medium">Buscar<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Nombre, identificador o plan" className="mt-1 w-full rounded-lg border bg-white p-3" /></label>
         <label className="text-sm font-medium">Estado<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="mt-1 w-full rounded-lg border bg-white p-3"><option value="ALL">Todos los estados</option>{statuses.map(status => <option key={status} value={status}>{organizationStatusLabel(status)}</option>)}</select></label>
@@ -82,7 +118,15 @@ export function SuperAdminModule() {
         {['Inmobiliaria','Estado','Plan','Contrato','Vigencia','Miembros','Inmuebles','Registro'].map(label => <th key={label} className="p-4">{label}</th>)}
       </tr></thead><tbody>{filteredOrganizations.map(org => <tr key={org.organization_id} className="border-t">
         <td className="p-4"><p className="font-semibold">{org.organization_name}</p><p className="mt-1 text-xs text-slate-500">{org.organization_slug}</p>
-          <button type="button" onClick={() => setSelectedOrganization(org)} className="mt-2 text-xs font-semibold text-blue-700 underline">Gestionar activación</button></td>
+          <button type="button" onClick={() => setSelectedOrganization(org)} className="mt-2 text-xs font-semibold text-blue-700 underline">Gestionar activación</button>
+          {org.organization_status !== 'SUSPENDED' && (
+            <button type="button" onClick={() => void suspendOrganization(org)}
+              disabled={retiringOrg !== null || org.organization_id === activeMembership?.organization.id || org.owner_user_id === user?.id}
+              title={org.organization_id === activeMembership?.organization.id || org.owner_user_id === user?.id ? 'La inmobiliaria de tu propiedad está protegida contra suspensión accidental' : 'Suspender acceso conservando los datos y el historial'}
+              className="ml-3 mt-2 text-xs font-semibold text-red-800 underline disabled:cursor-not-allowed disabled:opacity-40">
+              {retiringOrg === org.organization_id ? 'Suspendiendo…' : 'Suspender acceso'}
+            </button>
+          )}</td>
         <td className="p-4"><span className={org.access_status === 'ACTIVE' ? 'font-semibold text-emerald-700' : 'font-semibold text-slate-600'}>{organizationStatusLabel(org.access_status)}</span>{org.is_test && <p className="mt-1 text-xs text-amber-800">Cuenta de prueba</p>}</td>
         <td className="p-4">{org.plan_name ?? 'Sin plan'}</td><td className="p-4">{org.billing_mode ?? 'Sin contrato'}<p className="mt-1 text-xs text-slate-500">{org.subscription_status === 'TRIAL' ? 'Prueba autorizada' : org.subscription_status ?? 'Sin suscripción'}</p></td>
         <td className="p-4">{org.access_until ? new Date(org.access_until).toLocaleDateString('es-CO',{timeZone:'America/Bogota'}) : '—'}</td><td className="p-4">{org.member_count}</td><td className="p-4">{org.property_count}</td>
