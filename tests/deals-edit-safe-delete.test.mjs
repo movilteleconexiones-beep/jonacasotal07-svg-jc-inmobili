@@ -24,7 +24,7 @@ test('edit form preloads existing business fields and checks organization scope'
   assert.match(ui, /\.eq\('organization_id', organizationId\)\.eq\('id', row\.id\)/);
   assert.match(ui, /\.select\('id'\)\.maybeSingle\(\)/);
   assert.match(ui, /value > 100/);
-  assert.match(ui, /setMessage\('Negocio actualizado correctamente\.'\)/);
+  assert.match(ui, /setMessage\('Negocio actualizado correctamente\. Se guardaron los importes y la etapa/);
 });
 
 test('delete uses a permission-scoped RPC, confirmation and not a direct client delete', () => {
