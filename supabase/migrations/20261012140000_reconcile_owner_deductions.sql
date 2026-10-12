@@ -71,7 +71,7 @@ BEGIN
   RETURN net_total;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.reconcile_owner_draft_statement(uuid,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reconcile_owner_draft_statement(uuid,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_owner_draft_statement(uuid,uuid) TO authenticated;
 COMMENT ON FUNCTION public.reconcile_owner_draft_statement(uuid,uuid) IS
  'Reconciles draft owner amounts with recorded tenant receipts and approved OWNER charges; does not transfer funds.';

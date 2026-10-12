@@ -8,6 +8,7 @@ $roles$;
 
 -- Match Supabase's real default grants, including RLS-bypassing TRUNCATE.
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon,authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon,authenticated;
 
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE FUNCTION auth.uid() RETURNS uuid

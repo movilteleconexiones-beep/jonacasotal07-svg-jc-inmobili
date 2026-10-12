@@ -17,6 +17,12 @@ $$;
 
 DO $assert$
 BEGIN
+ IF has_function_privilege('anon','public.create_tenant_rent_period(uuid,uuid,date)','EXECUTE')
+  OR has_function_privilege('anon','public.record_tenant_rent_receipt(uuid,uuid,numeric,text,text,uuid)','EXECUTE')
+  OR has_function_privilege('anon','public.create_owner_draft_statement(uuid,uuid,date,numeric,numeric)','EXECUTE')
+  OR has_function_privilege('anon','public.reconcile_owner_draft_statement(uuid,uuid)','EXECUTE') THEN
+  RAISE EXCEPTION 'Anonymous role inherited financial RPC execution';
+ END IF;
  IF EXISTS(SELECT 1 FROM unnest(ARRAY['leases','rent_payments','owner_statements',
      'rent_receipts','owner_statement_deductions']) AS t(name)
    WHERE has_table_privilege('authenticated','public.'||t.name,'TRUNCATE')

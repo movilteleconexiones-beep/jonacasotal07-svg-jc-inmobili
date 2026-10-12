@@ -76,7 +76,7 @@ BEGIN
   RETURN new_id;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.create_tenant_rent_period(uuid,uuid,date) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_tenant_rent_period(uuid,uuid,date) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.create_tenant_rent_period(uuid,uuid,date) TO authenticated;
 
 CREATE FUNCTION public.record_tenant_rent_receipt(
@@ -139,7 +139,7 @@ BEGIN
   RETURN receipt_id;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.record_tenant_rent_receipt(uuid,uuid,numeric,text,text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.record_tenant_rent_receipt(uuid,uuid,numeric,text,text,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.record_tenant_rent_receipt(uuid,uuid,numeric,text,text,uuid) TO authenticated;
 
 CREATE FUNCTION public.create_owner_draft_statement(
@@ -190,7 +190,7 @@ BEGIN
   RETURN record_id;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.create_owner_draft_statement(uuid,uuid,date,numeric,numeric) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_owner_draft_statement(uuid,uuid,date,numeric,numeric) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.create_owner_draft_statement(uuid,uuid,date,numeric,numeric) TO authenticated;
 
 COMMENT ON TABLE public.rent_receipts IS

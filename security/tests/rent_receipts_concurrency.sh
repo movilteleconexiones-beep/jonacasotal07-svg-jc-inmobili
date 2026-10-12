@@ -34,7 +34,7 @@ if { [ "$result_a" = 0 ] && [ "$result_b" = 0 ]; } || { [ "$result_a" != 0 ] && 
  exit 1
 fi
 if [ "$result_a" != 0 ]; then rejection="$logs/a"; else rejection="$logs/b"; fi
-if ! rg -q 'Receipt exceeds the recorded pending amount' "$rejection"; then
+if ! grep -Fq 'Receipt exceeds the recorded pending amount' "$rejection"; then
  cat "$rejection" >&2
  exit 1
 fi
