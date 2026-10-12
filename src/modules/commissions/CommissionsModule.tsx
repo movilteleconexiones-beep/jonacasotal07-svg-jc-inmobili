@@ -59,12 +59,12 @@ export function CommissionsModule() {
     const [commissionsResult, dealsResult, membersResult] = await Promise.all([
       supabase
         .from('commissions')
-        .select('id,beneficiary_user_id,commission_type,percentage,amount,currency,status,due_date,paid_at,notes,deals(properties(code,title),contacts(first_name,last_name))')
+        .select('id,beneficiary_user_id,commission_type,percentage,amount,currency,status,due_date,paid_at,notes,deals(properties!deals_property_id_fkey(code,title),contacts!deals_contact_id_fkey(first_name,last_name))')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false }),
       supabase
         .from('deals')
-        .select('id,stage,properties(code,title),contacts(first_name,last_name)')
+        .select('id,stage,properties!deals_property_id_fkey(code,title),contacts!deals_contact_id_fkey(first_name,last_name)')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false }),
       supabase
