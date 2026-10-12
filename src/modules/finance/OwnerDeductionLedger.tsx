@@ -4,6 +4,8 @@ import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
 import { localDateISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
+import { validateSignedLeasePdf } from '../../core/signed-lease-pdf';
+import { OwnerDeductionEvidence, uploadDeductionEvidence, type DeductionEvidenceFile } from './OwnerDeductionEvidence';
 
 const CONCEPTS = [
   ['WATER','Agua'],['ELECTRICITY','Energía'],['GAS','Gas'],['WASTE','Aseo'],
@@ -28,9 +30,11 @@ const label=(list:readonly (readonly [string,string])[],val:string)=>list.find(i
  * Records and reconciles classified charges against draft owner statements.
  */
 export function OwnerDeductionLedger({ organizationId }: { organizationId:string }) {
-  const {can}=useAuth();
+  const {can,user}=useAuth();
   const readable=can(PERMISSIONS.OWNER_STATEMENTS_VIEW);
   const writable=can(PERMISSIONS.OWNER_STATEMENTS_CREATE);
+  const canReadDocs=can(PERMISSIONS.DOCUMENTS_VIEW);
+  const canUploadDocs=canReadDocs&&can(PERMISSIONS.DOCUMENTS_UPLOAD);
   const [statements,setStatements]=useState<Statement[]>([]);
   const [owners,setOwners]=useState<Owner[]>([]);
   const [lines,setLines]=useState<Line[]>([]);
@@ -46,9 +50,10 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     return()=>window.removeEventListener('owner-statement-updated',refresh);
   },[]);
 
+  useEffect(()=>{setMessage('');},[organizationId]);
   useEffect(()=>{
     let cancelled=false;
-    setStatements([]);setOwners([]);setLines([]);setMessage('');
+    setStatements([]);setOwners([]);setLines([]);
     if(!readable||!organizationId){setLoading(false);return()=>{cancelled=true;};}
     setLoading(true);
     void(async()=>{
@@ -96,6 +101,15 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     const date=String(form.get('charge_date')??'');
     const description=String(form.get('description')??'').trim();
     const support=String(form.get('support_reference')??'').trim();
+    const invoice=(target.elements.namedItem('invoice_pdf') as HTMLInputElement|null)?.files?.[0];
+    const payment=(target.elements.namedItem('payment_pdf') as HTMLInputElement|null)?.files?.[0];
+    const attachments:DeductionEvidenceFile[]=[];
+    if(invoice)attachments.push({kind:'invoice',file:invoice});
+    if(payment)attachments.push({kind:'payment',file:payment});
+    if(attachments.length&&(!canUploadDocs||!user)){
+      setMessage('Para adjuntar factura o comprobante necesitas permisos de consulta y carga de documentos.');
+      return;
+    }
     if(!active.some(s=>s.id===statementId)||!CONCEPTS.some(([key])=>key===category)
       ||!PAYER.some(([key])=>key===responsible)||!Number.isFinite(value)||value<=0
       ||value>999999999999.99
@@ -105,17 +119,41 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       return;
     }
     setSaving(true);setMessage('');
+    let created=false;
     try {
-      const {error}=await supabase.from('owner_statement_deductions').insert({
+      // Reject an invalid file before creating a ledger movement that cannot be undone.
+      for(const attachment of attachments){
+        const invalid=await validateSignedLeasePdf(attachment.file);
+        if(invalid){
+          setMessage((attachment.kind==='invoice'?'Factura':'Comprobante')+': '+invalid);
+          return;
+        }
+      }
+      const {data:record,error}=await supabase.from('owner_statement_deductions').insert({
         organization_id:organizationId,statement_id:statementId,charge_date:date,
         category,responsible_party:responsible,amount:value,description,
         support_reference:support||null,
-      });
-      if(error){setMessage('No se pudo guardar el descuento: '+error.message);return;}
+      }).select('id').single();
+      if(error||!record){setMessage('No se pudo guardar el descuento: '+(error?.message??'Sin confirmación de la fila creada.'));return;}
+      created=true;
+      const failed:string[]=[];
+      for(const attachment of attachments){
+        const uploadError=await uploadDeductionEvidence({
+          organizationId,deductionId:record.id,userId:user!.id,category,
+          kind:attachment.kind,file:attachment.file,
+        });
+        if(uploadError)failed.push(uploadError);
+      }
       target.reset();setShowForm(false);setRevision(v=>v+1);
-      setMessage('Movimiento creado en borrador. Debe aprobarse antes de conciliación.');
+      setMessage(failed.length
+        ?'Deducción creada en borrador. Algunos PDF no se pudieron vincular: '+failed.join(' ')+
+          ' Usa «Adjuntar / ver PDFs» en la fila; no crees otra deducción.'
+        :'Movimiento creado en borrador'+(attachments.length?' con sus PDF privados':'')+
+          '. Debe aprobarse antes de conciliación.');
     } catch {
-      setMessage('No se confirmó la deducción. Revisa el libro antes de volver a crearla para evitar duplicados.');
+      setMessage(created
+        ?'La deducción sí fue creada; no se pudo confirmar la carga de PDF. Verifica los soportes en la fila antes de reintentar.'
+        :'No se confirmó la deducción. Revisa el libro antes de volver a crearla para evitar duplicados.');
       setRevision(v=>v+1);
     } finally {
       setSaving(false);
@@ -214,9 +252,25 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       <label className="text-sm">Fecha del cargo
         <input type="date" name="charge_date" required defaultValue={localDateISO()} className="mt-1 block w-full rounded-lg border p-2" />
       </label>
-      <label className="text-sm">Referencia del soporte
-        <input name="support_reference" maxLength={500} placeholder="Factura o soporte" className="mt-1 block w-full rounded-lg border p-2" />
+      <label className="text-sm">Número de factura o referencia (opcional)
+        <input name="support_reference" maxLength={500} placeholder="Ej. Factura de agua N.º 1540"
+          className="mt-1 block w-full rounded-lg border p-2" />
       </label>
+      <label className="text-sm">Factura o recibo del servicio (PDF)
+        <input name="invoice_pdf" type="file" accept=".pdf,application/pdf"
+          disabled={!canUploadDocs||saving} className="mt-1 block w-full rounded-lg border bg-white p-2 text-sm" />
+      </label>
+      <label className="text-sm">Comprobante de pago (PDF)
+        <input name="payment_pdf" type="file" accept=".pdf,application/pdf"
+          disabled={!canUploadDocs||saving} className="mt-1 block w-full rounded-lg border bg-white p-2 text-sm" />
+      </label>
+      {!canUploadDocs&&<p className="text-xs text-amber-800 md:col-span-2">
+        Tu perfil puede registrar la deducción, pero necesita los permisos «documentos: ver y cargar» para adjuntar PDF.
+      </p>}
+      <p className="text-xs text-slate-600 md:col-span-2">
+        Puedes adjuntar uno o ambos PDF de máximo 10 MB cada uno. El comprobante se conserva
+        para revisión; subirlo no marca el gasto como pagado ni autoriza un giro.
+      </p>
       <label className="text-sm md:col-span-2">Justificación
         <textarea name="description" required minLength={4} maxLength={500} className="mt-1 block w-full rounded-lg border p-2" />
       </label>
@@ -241,7 +295,12 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
             <td className="p-2">{label(CONCEPTS,line.category)}<div className="text-xs text-slate-500">{line.description}</div></td>
             <td className="p-2">{label(PAYER,line.responsible_party)}</td>
             <td className="p-2">{cop(Number(line.amount))}</td>
-            <td className="p-2">{line.support_reference||'Pendiente de soporte'}</td>
+            <td className="p-2">
+              {line.support_reference&&<span className="block text-xs">{line.support_reference}</span>}
+              <OwnerDeductionEvidence key={line.id} organizationId={organizationId}
+                deductionId={line.id} category={line.category} userId={user?.id}
+                canRead={canReadDocs} canUpload={canUploadDocs&&writable&&editable&&line.status!=='VOIDED'} />
+            </td>
             <td className="p-2">{line.status}</td>
             <td className="flex gap-2 p-2">
               {editable&&line.status==='DRAFT'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'APPROVED')} className="text-xs underline">Aprobar</button>}
