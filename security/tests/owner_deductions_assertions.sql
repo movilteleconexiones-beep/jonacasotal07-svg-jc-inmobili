@@ -14,6 +14,8 @@ END;
 $fn$;
 
 SET ROLE authenticated;
+SET jco_test.actor = '99999999-9999-4999-8999-999999999999';
+SET jco_test.organization = '11111111-1111-4111-8111-111111111111';
 -- Client roles can only see/create their currently authorized organization.
 INSERT INTO public.owner_statement_deductions(
   id,organization_id,statement_id,charge_date,category,responsible_party,amount,description,support_reference
