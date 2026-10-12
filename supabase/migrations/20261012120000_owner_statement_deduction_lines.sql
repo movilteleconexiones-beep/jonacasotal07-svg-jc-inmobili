@@ -139,7 +139,7 @@ WITH CHECK (public.has_org_permission(organization_id, 'owner_statements.create'
 COMMENT ON TABLE public.owner_statement_deductions IS
 'Per-owner per-period classified charges. No automatic ledger payouts, tax decisions, or recalculation of owner_statements.';
 COMMENT ON COLUMN public.owner_statement_deductions.responsible_party IS
-'OWNER affects the owner's deduction reconciliation; TENANT and AGENCY must never be deducted from owner net.';
+'OWNER affects the owner''s deduction reconciliation; TENANT and AGENCY must never be deducted from owner net.';
 COMMENT ON COLUMN public.owner_statement_deductions.category IS
 'TAX and COMMISSION are separate columns in owner_statements and must not be counted again as other_deductions.';
 COMMIT;
