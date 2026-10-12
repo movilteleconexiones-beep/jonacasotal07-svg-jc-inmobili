@@ -150,8 +150,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
       window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
     } catch {
       // Keep the idempotency key: retrying the unchanged request cannot double-credit.
-      setError('No se confirmó el abono. Verifica el saldo; si reintentas sin cambiar los datos, se conserva la misma clave de operación.');
-      setRevision(x=>x+1);
+      setError('No se confirmó el abono. Antes de reintentar, comprueba el saldo. Si no cambias el formulario, se conservará la clave de la operación.');
     } finally {
       setBusy(false);
     }
