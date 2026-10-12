@@ -60,7 +60,7 @@ test('Excel reporting is filtered by active tenant, date, permissions and full c
   assert.match(reports,/query\.count == null \|\| query\.count > rows\.length/);
   assert.match(reports,/XLSX\.utils\.book_append_sheet\(book,sheet,chosen\.sheetName\)/);
   assert.match(reports,/XLSX\.writeFile\(book/);
-  assert.match(reports,/excelSafeCell\(row\[col\]\)/);
+  assert.match(reports,/excelSafeCell\(row\[column\]\)/);
   assert.match(reports,/No se exportan registros de otras inmobiliarias/);
 });
 
