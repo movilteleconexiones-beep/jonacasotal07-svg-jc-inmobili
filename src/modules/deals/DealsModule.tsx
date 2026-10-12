@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Handshake, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
+import { DEAL_STAGE_OPTIONS, isAllowedDealStage, isValidDealCloseDate } from '../../core/deal-edit-validation';
 import { supabase } from '../../lib/supabase';
 
 interface DealRow {
@@ -15,6 +16,7 @@ interface DealRow {
   final_price: number | null;
   commission_percentage: number | null;
   expected_close_date: string | null;
+  closed_at: string | null;
   contacts: { first_name: string; last_name: string | null } | null;
   properties: { code: string; title: string; currency: string } | null;
 }
@@ -30,6 +32,7 @@ export function DealsModule() {
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editMessage, setEditMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [loadingOptions, setLoadingOptions] = useState(true);
@@ -50,7 +53,7 @@ export function DealsModule() {
       const [dealResult, contactResult, propertyResult] = await Promise.all([
         supabase
           .from('deals')
-          .select('id, contact_id, property_id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, contacts!deals_contact_id_fkey(first_name,last_name), properties!deals_property_id_fkey(code,title,currency)')
+          .select('id, contact_id, property_id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, closed_at, contacts!deals_contact_id_fkey(first_name,last_name), properties!deals_property_id_fkey(code,title,currency)')
           .eq('organization_id', organizationId)
           .order('created_at', { ascending: false }),
         supabase.from('contacts').select('id, first_name, last_name').eq('organization_id', organizationId).order('first_name'),
@@ -141,17 +144,23 @@ export function DealsModule() {
 
   async function saveEdit(event: FormEvent<HTMLFormElement>, row: DealRow) {
     event.preventDefault();
-    if (!organizationId || !can(PERMISSIONS.DEALS_EDIT) || busy) return;
+    if (!organizationId || !can(PERMISSIONS.DEALS_EDIT) || busy) {
+      setEditMessage('No tienes autorización para guardar esta edición o hay una operación pendiente.');
+      return;
+    }
+    setEditMessage('');
     const form = new FormData(event.currentTarget);
     const contactId = String(form.get('contact_id') ?? '');
     const propertyId = String(form.get('property_id') ?? '');
     const operation = String(form.get('operation_type') ?? '');
+    const stage = String(form.get('stage') ?? '');
     const closeDate = String(form.get('expected_close_date') ?? '');
     if (!contacts.some(item => item.id === contactId) ||
         !properties.some(item => item.id === propertyId) ||
         !['SALE', 'RENT'].includes(operation) ||
-        (closeDate && !/^\\d{4}-\\d{2}-\\d{2}$/.test(closeDate))) {
-      setMessage('Verifica cliente, inmueble, operación y fecha de cierre.');
+        !isAllowedDealStage(stage) ||
+        (closeDate && !isValidDealCloseDate(closeDate))) {
+      setEditMessage('Revisa el cliente, la propiedad, la operación, la etapa y la fecha de cierre. La fecha debe ser válida.');
       return;
     }
 
@@ -161,7 +170,7 @@ export function DealsModule() {
       const value = raw ? Number(raw) : null;
       if (value !== null && (!Number.isFinite(value) || value < 0 ||
           (field === 'commission_percentage' && value > 100))) {
-        setMessage('Los importes no pueden ser negativos y la comisión debe estar entre 0 % y 100 %.');
+        setEditMessage('Los importes deben ser números positivos o cero; la comisión debe estar entre 0 % y 100 %.');
         return;
       }
       amounts[field] = value;
@@ -173,21 +182,25 @@ export function DealsModule() {
         contact_id: contactId,
         property_id: propertyId,
         operation_type: operation,
+        stage,
+        closed_at: stage === 'WON' || stage === 'LOST'
+          ? (row.stage === stage && row.closed_at ? row.closed_at : new Date().toISOString()) : null,
         expected_close_date: closeDate || null,
         ...amounts,
         updated_at: new Date().toISOString(),
       }).eq('organization_id', organizationId).eq('id', row.id)
         .select('id').maybeSingle();
       if (error || !data) {
-        setMessage('No se guardaron los cambios: ' +
+        setEditMessage('No se guardaron los cambios: ' +
           (error?.message ?? 'El negocio no existe o no tienes permiso para modificarlo.'));
         return;
       }
       setEditingId(null);
+      setEditMessage('');
       await load();
-      setMessage('Negocio actualizado correctamente.');
+      setMessage('Negocio actualizado correctamente. Se guardaron los importes y la etapa en Supabase.');
     } catch {
-      setMessage('No se confirmó la edición. Actualiza antes de repetirla.');
+      setEditMessage('No se confirmó la edición. Pulsa Actualizar para comprobar el negocio antes de repetirla.');
     } finally {
       setBusy(false);
     }
@@ -256,7 +269,7 @@ export function DealsModule() {
             <RefreshCw className="h-4 w-4" /> Actualizar
           </button>
           {can(PERMISSIONS.DEALS_CREATE) && (
-            <button type="button" onClick={() => {setEditingId(null);setShowCreate((v) => !v);}} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+            <button type="button" onClick={() => {setEditingId(null);setEditMessage('');setShowCreate((v) => !v);}} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
               <Plus className="h-4 w-4" /> Nuevo negocio
             </button>
           )}
@@ -337,7 +350,7 @@ export function DealsModule() {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     {can(PERMISSIONS.DEALS_EDIT) && <button type="button" disabled={busy}
-                      onClick={() => {setEditingId(editingId === row.id ? null : row.id);setShowCreate(false);setMessage('');}}
+                      onClick={() => {setEditingId(editingId === row.id ? null : row.id);setShowCreate(false);setMessage('');setEditMessage('');}}
                       className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
                       <Pencil className="h-3.5 w-3.5" /> Editar
                     </button>}
@@ -376,18 +389,30 @@ export function DealsModule() {
                         <option value="SALE">Venta</option><option value="RENT">Arriendo</option>
                       </select>
                     </label>
+                    <label className="text-sm">Etapa del negocio
+                      <select name="stage" defaultValue={row.stage}
+                        className="mt-1 w-full rounded-lg border p-2">
+                        {DEAL_STAGE_OPTIONS.map(([code,name]) => <option key={code} value={code}>{name}</option>)}
+                      </select>
+                    </label>
                     <Field name="expected_close_date" label="Cierre esperado" type="date"
                       defaultValue={row.expected_close_date ?? ''} />
-                    <Field name="asking_price" label="Precio solicitado" type="number" min="0" step="0.01"
+                    <Field name="asking_price" label="Precio solicitado (canon mensual si es arriendo)" type="number" min="0" step="0.01"
                       defaultValue={row.asking_price ?? ''} />
-                    <Field name="offered_price" label="Oferta inicial" type="number" min="0" step="0.01"
+                    <Field name="offered_price" label="Oferta inicial del cliente" type="number" min="0" step="0.01"
                       defaultValue={row.offered_price ?? ''} />
-                    <Field name="final_price" label="Precio final (si aplica)" type="number" min="0" step="0.01"
+                    <Field name="final_price" label="Precio final acordado (si aplica)" type="number" min="0" step="0.01"
                       defaultValue={row.final_price ?? ''} />
                     <Field name="commission_percentage" label="Comisión %" type="number"
                       min="0" max="100" step="0.01" defaultValue={row.commission_percentage ?? ''} />
+                    <p className="md:col-span-2 text-xs text-slate-600">
+                      Solicitado: valor anunciado por el propietario. Oferta inicial: lo que propone el cliente.
+                      Precio final: valor aceptado. Para arriendos, estos valores corresponden al canon mensual.
+                      La comisión debe aplicarse según lo pactado contractualmente.
+                    </p>
+                    {editMessage && <p role="alert" className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{editMessage}</p>}
                     <div className="md:col-span-2 flex justify-end gap-2">
-                      <button type="button" disabled={busy} onClick={() => setEditingId(null)}
+                      <button type="button" disabled={busy} onClick={() => {setEditingId(null);setEditMessage('');}}
                         className="rounded-lg border px-4 py-2 text-sm font-semibold">Cancelar</button>
                       <button type="submit" disabled={busy || loadingOptions || !hasRequiredOptions}
                         className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
