@@ -139,6 +139,16 @@ jobs:
         run: node --import tsx --test tests/tenant-logo-palette-site.test.mjs
       - name: Tenant rent and owner liquidation balances regression
         run: node --import tsx --test tests/rent-owner-financial-balances.test.mjs
+      - name: Owner statements ledger and responsibility tests
+        run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
+      - name: Owner deduction ledger tenant and audit SQL tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_deductions_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_assertions.sql
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
