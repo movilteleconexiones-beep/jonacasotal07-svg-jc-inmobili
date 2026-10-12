@@ -78,7 +78,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     setBusy(false);
     if(failure){setError('No se pudo guardar el contrato: '+failure.message);return;}
     element.reset();setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
-    setRevision(x=>x+1);
+    window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
   }
 
   async function createPeriod(event:FormEvent<HTMLFormElement>){
@@ -93,7 +93,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     });
     setBusy(false);
     if(failure){setError('No se pudo crear el cobro: '+failure.message);return;}
-    setNotice('Cobro mensual creado, sin registrar dinero recibido.');setRevision(x=>x+1);
+    setNotice('Cobro mensual creado, sin registrar dinero recibido.');window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
   }
 
   async function recordReceipt(event:FormEvent<HTMLFormElement>){
@@ -115,7 +115,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
     pendingReceiptKey.current=null;
     setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
-    setRevision(x=>x+1);
+    window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
   }
 
   const active=leases.filter(x=>x.status==='ACTIVE');
