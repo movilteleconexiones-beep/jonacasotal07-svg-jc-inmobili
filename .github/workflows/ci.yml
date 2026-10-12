@@ -77,6 +77,14 @@ jobs:
         run: node --test tests/deals-edit-safe-delete.test.mjs
       - name: Deal date validation and stage persistence regression tests
         run: node --import tsx --test tests/deals-edit-persistence-regression.test.mjs
+      - name: API role table grant hardening and RLS preservation SQL tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_api_grants_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_api_grants_test -f security/tests/api_role_table_grants_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_api_grants_test -f supabase/migrations/20261012235500_restrict_excessive_api_role_table_grants.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_api_grants_test -f security/tests/api_role_table_grants_assertions.sql
       - name: Deal administrator deletion SQL integrity and tenant isolation tests
         env:
           PGPASSWORD: postgres
