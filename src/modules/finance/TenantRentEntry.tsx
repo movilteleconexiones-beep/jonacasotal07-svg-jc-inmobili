@@ -2,13 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
+import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
 
 type Option={id:string;label:string};
 type Lease={id:string;contract_number:string|null;monthly_rent:number;status:string};
 type Period={id:string;lease_id:string;period_month:string;expected_amount:number;paid_amount:number;status:string};
 const validMoney = parseMoneyInput;
-const thisMonth=()=>new Date().toISOString().slice(0,7);
+const thisMonth=localMonthISO;
 const fieldClass='mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2';
 
 export function TenantRentEntry({organizationId}:{organizationId:string}) {
@@ -82,10 +83,11 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     if(!activationAllowed||busy||!organizationId||!leases.some(l=>l.id===id&&l.status==='DRAFT'))return;
     if(!window.confirm('¿Confirmas que revisaste el contrato y debe pasar a ACTIVO?'))return;
     setBusy(true);setError('');
-    const {error:failure}=await supabase.from('leases').update({status:'ACTIVE'})
-      .eq('organization_id',organizationId).eq('id',id).eq('status','DRAFT');
+    const {data:changed,error:failure}=await supabase.from('leases').update({status:'ACTIVE'})
+      .eq('organization_id',organizationId).eq('id',id).eq('status','DRAFT')
+      .select('id').maybeSingle();
     setBusy(false);
-    if(failure){setError('No se pudo activar el contrato: '+failure.message);return;}
+    if(failure||!changed){setError('No se activó el contrato: '+(failure?.message??'No se encontró un borrador autorizado para actualizar.'));return;}
     setNotice('Contrato activado. Ahora puedes crear su cobro mensual.');
     setRevision(n=>n+1);
   }
