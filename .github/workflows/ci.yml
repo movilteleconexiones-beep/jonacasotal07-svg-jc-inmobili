@@ -133,6 +133,8 @@ jobs:
         run: node --test tests/crm-prerequisites.test.mjs
       - name: Commercial form lifecycle and tenant isolation regression
         run: node --test tests/commercial-workflow-reliability.test.mjs
+      - name: Central Wompi merchant and non-resale policy checks
+        run: node --import tsx --test tests/central-wompi-merchant-nonresale.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
