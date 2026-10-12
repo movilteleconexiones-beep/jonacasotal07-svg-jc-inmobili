@@ -2,6 +2,16 @@
 -- tenant-composite even when valid UUIDs belong to different organizations.
 BEGIN;
 
+-- Supabase may default to ALL table privileges. TRUNCATE bypasses RLS,
+-- so removing INSERT/UPDATE/DELETE alone does not protect financial ledgers.
+REVOKE ALL ON public.leases,public.rent_payments,public.owner_statements
+  FROM PUBLIC,anon;
+REVOKE TRUNCATE,REFERENCES,TRIGGER
+  ON public.leases,public.rent_payments,public.owner_statements,
+     public.owner_statement_deductions,public.rent_receipts
+  FROM PUBLIC,anon,authenticated;
+GRANT SELECT,INSERT,UPDATE ON public.leases TO authenticated;
+
 -- Abort before acquiring schema locks if historic cross-organization records exist.
 DO $preflight$
 BEGIN
@@ -99,6 +109,41 @@ ALTER TABLE public.rent_payments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY rent_payments_financial_view
   ON public.rent_payments AS RESTRICTIVE FOR SELECT TO authenticated
   USING (public.has_org_permission(organization_id,'rent_payments.view'));
+
+-- Reject non-finite amounts, fractions below one cent and invalid dates even
+-- when a caller skips the browser's form validation. The upper bound also
+-- rejects PostgreSQL numeric NaN/Infinity, which positive-only checks allow.
+ALTER TABLE public.leases
+  ADD CONSTRAINT leases_financial_amount_valid CHECK (
+    monthly_rent BETWEEN 0 AND 999999999999.99 AND monthly_rent=round(monthly_rent,2)
+    AND (status NOT IN ('ACTIVE','RENEWAL') OR (monthly_rent>0 AND tenant_id IS NOT NULL))),
+  ADD CONSTRAINT leases_financial_dates_valid CHECK (
+    isfinite(start_date) AND (end_date IS NULL OR (isfinite(end_date) AND end_date>=start_date)));
+ALTER TABLE public.rent_payments
+  ADD CONSTRAINT rent_payment_financial_amounts_valid CHECK (
+    expected_amount>0 AND expected_amount<=999999999999.99
+    AND expected_amount=round(expected_amount,2)
+    AND paid_amount BETWEEN 0 AND expected_amount AND paid_amount=round(paid_amount,2)),
+  ADD CONSTRAINT rent_payment_month_valid CHECK (
+    isfinite(period_month) AND extract(day FROM period_month)=1);
+ALTER TABLE public.owner_statements
+  ADD CONSTRAINT owner_statement_financial_amounts_valid CHECK (
+    gross_income BETWEEN 0 AND 999999999999.99 AND gross_income=round(gross_income,2)
+    AND commission_amount BETWEEN 0 AND gross_income AND commission_amount=round(commission_amount,2)
+    AND tax_amount BETWEEN 0 AND gross_income AND tax_amount=round(tax_amount,2)
+    AND other_deductions BETWEEN 0 AND gross_income AND other_deductions=round(other_deductions,2)
+    AND net_amount BETWEEN 0 AND gross_income
+    AND net_amount=gross_income-commission_amount-tax_amount-other_deductions),
+  ADD CONSTRAINT owner_statement_month_valid CHECK (
+    isfinite(period_month) AND extract(day FROM period_month)=1);
+ALTER TABLE public.owner_statement_deductions
+  ADD CONSTRAINT owner_deduction_finite_amount CHECK (amount<=999999999999.99);
+ALTER TABLE public.rent_receipts
+  ADD CONSTRAINT rent_receipt_finite_amount CHECK (amount<=999999999999.99);
+
+-- This privileged function is invoked by its trigger, never as a client RPC.
+REVOKE ALL ON FUNCTION public.guard_owner_statement_deduction_change()
+  FROM PUBLIC,anon,authenticated;
 
 COMMENT ON POLICY leases_financial_insert ON public.leases IS
   'Restrictive tenant permission gate, also enforced against legacy ALL policies.';

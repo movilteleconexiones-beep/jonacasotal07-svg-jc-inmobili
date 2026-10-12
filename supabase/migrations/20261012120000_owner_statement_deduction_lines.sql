@@ -120,12 +120,15 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.guard_owner_statement_deduction_change()
+  FROM PUBLIC,anon,authenticated;
+
 CREATE TRIGGER owner_statement_deductions_guard
   BEFORE INSERT OR UPDATE OR DELETE ON public.owner_statement_deductions
   FOR EACH ROW EXECUTE FUNCTION public.guard_owner_statement_deduction_change();
 
 ALTER TABLE public.owner_statement_deductions ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.owner_statement_deductions FROM PUBLIC, anon;
+REVOKE ALL ON public.owner_statement_deductions FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.owner_statement_deductions TO authenticated;
 
 CREATE POLICY owner_deductions_view

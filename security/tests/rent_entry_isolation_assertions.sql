@@ -17,6 +17,12 @@ $$;
 
 DO $assert$
 BEGIN
+ IF EXISTS(SELECT 1 FROM unnest(ARRAY['leases','rent_payments','owner_statements',
+     'rent_receipts','owner_statement_deductions']) AS t(name)
+   WHERE has_table_privilege('authenticated','public.'||t.name,'TRUNCATE')
+      OR has_table_privilege('anon','public.'||t.name,'TRUNCATE')) THEN
+  RAISE EXCEPTION 'A public role retains RLS-bypassing TRUNCATE on a financial table';
+ END IF;
  IF has_table_privilege('authenticated','public.owner_statements','UPDATE') OR
     has_table_privilege('authenticated','public.owner_statements','INSERT') OR
     has_table_privilege('authenticated','public.owner_statements','DELETE') OR
@@ -192,6 +198,35 @@ $denied$;
 RESET jco_test.denied_permission;
 
 RESET ROLE;
+
+-- Constraints must protect callers that skip client validation, including
+-- PostgreSQL's special NaN value (which passes a simple amount > 0 check).
+SELECT pg_temp.fail_with($deny$
+ UPDATE public.leases SET monthly_rent='NaN'::numeric
+ WHERE id='33333333-3333-4333-8333-333333333333'
+$deny$,'23514');
+SELECT pg_temp.fail_with($deny$
+ UPDATE public.leases SET monthly_rent=0.001
+ WHERE id='33333333-3333-4333-8333-333333333333'
+$deny$,'23514');
+SELECT pg_temp.fail_with($deny$
+ UPDATE public.leases SET end_date=start_date-1
+ WHERE id='33333333-3333-4333-8333-333333333333'
+$deny$,'23514');
+SELECT pg_temp.fail_with($deny$
+ UPDATE public.owner_statements SET other_deductions='NaN'::numeric
+ WHERE organization_id='11111111-1111-4111-8111-111111111111'
+$deny$,'23514');
+SELECT pg_temp.fail_with($deny$
+ UPDATE public.rent_payments SET paid_amount=expected_amount+1
+ WHERE organization_id='11111111-1111-4111-8111-111111111111'
+$deny$,'23514');
+SELECT pg_temp.fail_with($deny$
+ INSERT INTO public.owner_statement_deductions
+ (organization_id,statement_id,charge_date,category,responsible_party,amount,description)
+ SELECT organization_id,id,'2026-10-01','OTHER','OWNER','NaN'::numeric,'Importe inválido de ensayo'
+ FROM public.owner_statements WHERE organization_id='11111111-1111-4111-8111-111111111111'
+$deny$,'23514');
 
 -- The existing stored owner statement and receipts remain intact.
 DO $assert$

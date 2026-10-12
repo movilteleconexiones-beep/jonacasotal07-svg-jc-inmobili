@@ -159,6 +159,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_isolation_assertions.sql
+          bash security/tests/rent_receipts_concurrency.sh
       - name: Itemized owner ledger SQL and concurrency checks
         env:
           PGPASSWORD: postgres

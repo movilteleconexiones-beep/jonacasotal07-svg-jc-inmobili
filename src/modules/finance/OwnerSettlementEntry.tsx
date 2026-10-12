@@ -1,16 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
+import { parseMoneyInput } from '../../core/rent-owner-money';
 import { supabase } from '../../lib/supabase';
 
 interface Lease {id:string;owner_id:string|null;contract_number:string|null;status:string}
 interface ReceiptPeriod {lease_id:string;period_month:string;paid_amount:number;status:string}
 const moneyInputClass='mt-1 w-full rounded-lg border border-stone-300 px-3 py-2';
 function nonNegative(value:FormDataEntryValue|null){
-  const input=String(value??'');
-  if(!/^(0|[1-9]\d{0,11})(\.\d{1,2})?$/.test(input))return NaN;
-  const number=Number(input);
-  return Number.isSafeInteger(Math.round(number*100))?number:NaN;
+  return parseMoneyInput(value, true);
 }
 export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
   const {can}=useAuth();

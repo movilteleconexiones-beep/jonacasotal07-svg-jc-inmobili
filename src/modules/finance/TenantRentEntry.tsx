@@ -1,17 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
+import { parseMoneyInput } from '../../core/rent-owner-money';
 import { supabase } from '../../lib/supabase';
 
 type Option={id:string;label:string};
 type Lease={id:string;contract_number:string|null;monthly_rent:number;status:string};
 type Period={id:string;lease_id:string;period_month:string;expected_amount:number;paid_amount:number;status:string};
-const validMoney=(v:FormDataEntryValue|null)=> {
-  const raw=String(v??'');
-  if(!/^[1-9]\d{0,11}(\.\d{1,2})?$|^0\.\d{1,2}$/.test(raw))return NaN;
-  const amount=Number(raw);
-  return Number.isSafeInteger(Math.round(amount*100))&&amount>0?amount:NaN;
-};
+const validMoney = parseMoneyInput;
 const thisMonth=()=>new Date().toISOString().slice(0,7);
 const fieldClass='mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2';
 
@@ -111,7 +107,8 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
 
   async function recordReceipt(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(!paymentAllowed||busy)return;
-    const f=new FormData(event.currentTarget),id=String(f.get('period_id')||'');
+    const element=event.currentTarget;
+    const f=new FormData(element),id=String(f.get('period_id')||'');
     const amount=validMoney(f.get('amount')),method=String(f.get('method')||''),reference=String(f.get('reference')||'').trim();
     const payment=periods.find(p=>p.id===id&&p.status!=='CANCELLED');
     if(!payment||!Number.isFinite(amount)||amount>Number(payment.expected_amount)-Number(payment.paid_amount)+0.001||
@@ -127,6 +124,7 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     setBusy(false);
     if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
     pendingReceiptKey.current=null;
+    element.reset();
     setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
     window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
   }

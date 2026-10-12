@@ -204,8 +204,8 @@ export function OwnersModule() {
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
-      {organizationId && <OwnerSettlementEntry organizationId={organizationId} />}
-      {organizationId && <OwnerDeductionLedger organizationId={organizationId} />}
+      {organizationId && <OwnerSettlementEntry key={'settlement-'+organizationId} organizationId={organizationId} />}
+      {organizationId && <OwnerDeductionLedger key={'deductions-'+organizationId} organizationId={organizationId} />}
       {organizationId && <OwnerNetStatementsSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">

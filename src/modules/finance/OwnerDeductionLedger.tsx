@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
+import { parseMoneyInput } from '../../core/rent-owner-money';
 import { supabase } from '../../lib/supabase';
 
 const CONCEPTS = [
@@ -23,8 +24,7 @@ const cop=(n:number)=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'
 const label=(list:readonly (readonly [string,string])[],val:string)=>list.find(i=>i[0]===val)?.[1]??val;
 
 /**
- * STAGING FEATURE: requires vetted owner_statement_deductions migration.
- * No automatic charges, bank transfers, DIAN invoices, or Wompi connections.
+ * Records and reconciles classified charges against draft owner statements.
  */
 export function OwnerDeductionLedger({ organizationId }: { organizationId:string }) {
   const {can}=useAuth();
@@ -38,6 +38,12 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
   const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState('');
   const [revision,setRevision]=useState(0);
+
+  useEffect(()=>{
+    const refresh=()=>setRevision(value=>value+1);
+    window.addEventListener('owner-statement-updated',refresh);
+    return()=>window.removeEventListener('owner-statement-updated',refresh);
+  },[]);
 
   useEffect(()=>{
     let cancelled=false;
@@ -85,13 +91,13 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     const statementId=String(form.get('statement_id')??'');
     const category=String(form.get('category')??'');
     const responsible=String(form.get('responsible_party')??'');
-    const value=Number(form.get('amount'));
+    const value=parseMoneyInput(form.get('amount'));
     const date=String(form.get('charge_date')??'');
     const description=String(form.get('description')??'').trim();
     const support=String(form.get('support_reference')??'').trim();
     if(!active.some(s=>s.id===statementId)||!CONCEPTS.some(([key])=>key===category)
       ||!PAYER.some(([key])=>key===responsible)||!Number.isFinite(value)||value<=0
-      ||Math.round(value*100)!==value*100||value>999999999999.99
+      ||value>999999999999.99
       ||!/^\d{4}-\d{2}-\d{2}$/.test(date)||description.length<4
       ||description.length>500||(support.length>0&&(support.length<3||support.length>500))){
       setMessage('Verifica la liquidación en borrador, responsable, concepto, importe y soporte.');
@@ -139,7 +145,6 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     if(error){setMessage('No se pudo conciliar: '+error.message);return;}
     setMessage('Neto actualizado según los ingresos registrados y descuentos aprobados.');
     window.dispatchEvent(new Event('owner-statement-updated'));
-    setRevision(x=>x+1);
   }
 
   const approvedOwnerOther=lines.filter(x=>x.status==='APPROVED'&&x.responsible_party==='OWNER'
