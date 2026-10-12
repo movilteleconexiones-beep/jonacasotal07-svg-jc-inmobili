@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { createBillingHandler, sha256 } from '../supabase/functions/_shared/billing-handler.ts';
 
@@ -76,4 +77,26 @@ test('untrusted origins are denied before authentication', async()=> {
 test('oversized or malformed payloads are rejected without side effects', async()=> {
   const f=fixture(); assert.equal((await f.request('x'.repeat(65537))).status,413);
   assert.equal((await f.request('{')).status,400); assert.deepEqual(f.calls,[]);
+});
+
+test('canonical app.inmojco.com origin is enabled in the deployed billing entrypoint', async () => {
+  const entrypoint = readFileSync('supabase/functions/billing/index.ts', 'utf8');
+  assert.match(entrypoint, /allowedOrigins: \['https:\/\/app\.inmojco\.com'/);
+  assert.match(entrypoint, /appUrl: Deno\.env\.get\('APP_URL'\) \?\? 'https:\/\/app\.inmojco\.com\/'/);
+  const cfg = { ...config, appUrl: 'https://app.inmojco.com/',
+    allowedOrigins: ['https://app.inmojco.com'] };
+  const f = fixture({}, cfg);
+  const body = { organizationId: '20000000-0000-0000-0000-000000000002',
+    planId: '60000000-0000-0000-0000-000000000001',
+    requestKey: '50000000-0000-0000-0000-000000000001' };
+  const result = await f.request(body, '/checkout',
+    { authorization: 'Bearer fixture', origin: 'https://app.inmojco.com' });
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get('access-control-allow-origin'), 'https://app.inmojco.com');
+  const payload = await result.json();
+  assert.equal(new URL(payload.checkoutUrl).searchParams.get('redirect-url'),
+    'https://app.inmojco.com/?billing=return');
+  const forbidden = await f.request(body, '/checkout',
+    { authorization: 'Bearer fixture', origin: 'https://malicious.example' });
+  assert.equal(forbidden.status, 403);
 });
