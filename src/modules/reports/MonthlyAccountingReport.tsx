@@ -4,6 +4,7 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
+import { excelSafeCell, monthlyDateBounds, financialTotal, rentPeriodTotals } from '../../core/accounting-export';
 
 type DataRow = Record<string, unknown>;
 interface ReportSheet { name: string; columns: string[]; rows: DataRow[]; }
@@ -18,28 +19,11 @@ const MONTHLY_SECTIONS = [
   { name:'Cánones', table:'rent_payments', permission:PERMISSIONS.RENT_PAYMENTS_VIEW, date:'period_month', cols:'lease_id,period_month,expected_amount,paid_amount,status,paid_at' },
   { name:'Liquidaciones', table:'owner_statements', permission:PERMISSIONS.OWNER_STATEMENTS_VIEW, date:'period_month', cols:'lease_id,owner_id,period_month,gross_income,commission_amount,tax_amount,other_deductions,net_amount,status' },
 ] as const;
-export function excelSafeCell(value: unknown): string | number {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  const str = value == null ? '' : String(value);
-  return /^[\s\u0000-\u001f]*[=+\-@]/.test(str) ? "'" + str : str;
-}
-export function sheetFinancialTotal(rows: DataRow[], column: string): number {
-  return rows.reduce((sum,row) => {
-    const n = Number(row[column] ?? 0);
-    return sum + (Number.isFinite(n) && n >= 0 ? n : 0);
-  },0);
-}
 const currentMonth = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 };
-const dateBounds = (month: string) => {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Mes de informe inválido.');
-  const [year,number] = month.split('-').map(Number);
-  const next = new Date(Date.UTC(year,number,1)).toISOString().slice(0,10);
-  return { start:month+'-01',end:next };
-};
-const safeFilename = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+const safeFilename = (text: string) => text.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')
   .replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,40);
 
 export function MonthlyAccountingReport() {
@@ -65,7 +49,7 @@ export function MonthlyAccountingReport() {
     setLoading(true);
     void (async() => {
       try {
-        const {start,end} = dateBounds(month);
+        const {start,end} = monthlyDateBounds(month);
         const results: ReportSheet[] = [];
         for (const section of permitted) {
           const columns = section.cols.split(',');
@@ -94,14 +78,15 @@ export function MonthlyAccountingReport() {
 
   if (!allowed) return null;
   const find = (name:string) => sheets.find(s=>s.name===name)?.rows ?? [];
-  const billed = sheetFinancialTotal(find('Cánones'),'expected_amount');
-  const paid = sheetFinancialTotal(find('Cánones'),'paid_amount');
-  const ownerNet = sheetFinancialTotal(find('Liquidaciones'),'net_amount');
-  const ownerCommission = sheetFinancialTotal(find('Liquidaciones'),'commission_amount');
-  const ownerOther = sheetFinancialTotal(find('Liquidaciones'),'other_deductions');
+  const rent = rentPeriodTotals(find('Cánones'));
+  const billed = rent.expected;
+  const paid = rent.paid;
+  const ownerNet = financialTotal(find('Liquidaciones'),'net_amount');
+  const ownerCommission = financialTotal(find('Liquidaciones'),'commission_amount');
+  const ownerOther = financialTotal(find('Liquidaciones'),'other_deductions');
   const totals = [
     ['Canon esperado',billed],['Pago registrado',paid],
-    ['Saldo por recaudar (períodos registrados)',Math.max(0,billed-paid)],
+    ['Saldo por recaudar (períodos registrados)',rent.outstanding],
     ['Neto registrado para propietarios',ownerNet],
     ['Comisiones de administración en liquidaciones',ownerCommission],
     ['Otras deducciones de propietarios',ownerOther],
