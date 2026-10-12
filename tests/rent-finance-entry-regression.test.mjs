@@ -39,7 +39,8 @@ test('abonos use atomic audited server functions, no client-side aggregate edits
   assert.match(main,/\.rpc\('create_tenant_rent_period'/);
   assert.match(main,/\.rpc\('record_tenant_rent_receipt'/);
   assert.match(owner,/\.rpc\('create_owner_draft_statement'/);
-  assert.match(main,/request_key:crypto\.randomUUID\(\)/);
+  assert.match(main,/request_key:pendingReceiptKey\.current/);
+  assert.match(main,/if\(!pendingReceiptKey\.current\) pendingReceiptKey\.current=crypto\.randomUUID\(\)/);
   assert.doesNotMatch(main,/\.from\('rent_payments'\)\.update\(/);
   assert.doesNotMatch(main,/WOMPI_PRIVATE_KEY|wompi\./i);
   assert.match(migration,/idempotency_key uuid NOT NULL UNIQUE/);
