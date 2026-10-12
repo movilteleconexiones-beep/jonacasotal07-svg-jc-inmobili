@@ -29,6 +29,12 @@ CREATE TABLE public.deals(
  id uuid primary key,organization_id uuid not null,contact_id uuid not null,
  property_id uuid not null,operation_type text not null,stage text not null
 );
+CREATE TABLE public.contacts(
+ id uuid primary key,organization_id uuid not null,UNIQUE(organization_id,id)
+);
+CREATE TABLE public.properties(
+ id uuid primary key,organization_id uuid not null,UNIQUE(organization_id,id)
+);
 CREATE TABLE public.activities(
  id uuid primary key,deal_id uuid REFERENCES public.deals(id) ON DELETE CASCADE
 );
@@ -40,7 +46,7 @@ CREATE TABLE public.audit_log(
  organization_id uuid,actor_user_id uuid,action text,entity_type text,
  entity_id uuid,metadata jsonb,created_at timestamptz default now()
 );
-GRANT SELECT, DELETE ON public.deals TO anon,authenticated;
+GRANT SELECT, UPDATE, DELETE ON public.deals TO anon,authenticated;
 ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
 CREATE POLICY legacy_deal_access ON public.deals FOR ALL TO authenticated
   USING (true) WITH CHECK(true);
@@ -62,6 +68,8 @@ INSERT INTO public.deals VALUES
 ('d3333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111111','e3333333-3333-4333-8333-333333333333','f3333333-3333-4333-8333-333333333333','SALE','WON'),
 ('d4444444-4444-4444-8444-444444444444','22222222-2222-4222-8222-222222222222','e4444444-4444-4444-8444-444444444444','f4444444-4444-4444-8444-444444444444','RENT','INTEREST'),
 ('d5555555-5555-4555-8555-555555555555','11111111-1111-4111-8111-111111111111','e5555555-5555-4555-8555-555555555555','f5555555-5555-4555-8555-555555555555','SALE','NEGOTIATION');
+INSERT INTO public.contacts(id,organization_id) SELECT contact_id,organization_id FROM public.deals;
+INSERT INTO public.properties(id,organization_id) SELECT property_id,organization_id FROM public.deals;
 INSERT INTO public.activities VALUES
 ('a2222222-2222-4222-8222-222222222222','d2222222-2222-4222-8222-222222222222');
 INSERT INTO public.commissions VALUES
