@@ -18,10 +18,12 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   organizationId:string;mode?:RentalEntryMode;preferredPropertyId?:string;preferredTenantId?:string;preferredLeaseId?:string;
   onDraftCreated?:(id:string)=>void;onPdfUploaded?:(id:string)=>void;onActivated?:(id:string)=>void;
 }) {
-  const {can}=useAuth();
+  const {can,activeMembership}=useAuth();
   const contractAllowed=can(PERMISSIONS.LEASES_CREATE);
-  const activationAllowed=can(PERMISSIONS.LEASES_EDIT);
+  const activationAllowed=can(PERMISSIONS.LEASES_EDIT) &&
+    (activeMembership?.roles.some(role=>role.key==='ADMIN')??false);
   const paymentAllowed=can(PERMISSIONS.RENT_PAYMENTS_CREATE);
+  const canReadRent=can(PERMISSIONS.RENT_PAYMENTS_VIEW);
   const [properties,setProperties]=useState<Option[]>([]);
   const [tenants,setTenants]=useState<Option[]>([]);
   const [owners,setOwners]=useState<Option[]>([]);
@@ -47,7 +49,9 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
           supabase.from('contacts').select('id,first_name,last_name').eq('organization_id',organizationId).limit(501),
           supabase.from('property_owners').select('id,first_name,last_name').eq('organization_id',organizationId).limit(501),
           supabase.from('leases').select('id,contract_number,monthly_rent,status').eq('organization_id',organizationId).limit(501),
-          supabase.from('rent_payments').select('id,lease_id,period_month,expected_amount,paid_amount,status').eq('organization_id',organizationId).limit(501),
+          canReadRent ? supabase.from('rent_payments').select('id,lease_id,period_month,expected_amount,paid_amount,status')
+            .eq('organization_id',organizationId).limit(501)
+            : Promise.resolve({data:[] as Period[],error:null}),
         ]);
         if(cancelled)return;
         if(p.error||t.error||o.error||l.error||r.error||[p,t,o,l,r].some(x=>(x.data?.length??0)>500))
