@@ -33,7 +33,7 @@ test('contacts and deals ignore stale requests after changing organization', () 
 
 test('server errors are not presented as legitimate empty data', () => {
   assert.match(modules.contacts, /if \(error\) setMessage\('No se pudieron consultar los contactos/);
-  assert.match(modules.deals, /if \(dealResult\.error\) setMessage\('No se pudieron consultar los negocios/);
+  assert.match(modules.deals, /if \(dealResult\.error\) \{\s*setDealListState\('error'\);\s*setMessage\('No se pudieron consultar los negocios/);
   assert.match(modules.deals, /setContacts\(contactResult\.error \? \[\]/);
   assert.match(modules.deals, /setProperties\(propertyResult\.error \? \[\]/);
 });
