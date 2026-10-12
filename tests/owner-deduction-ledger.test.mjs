@@ -96,6 +96,9 @@ test('migration uses tenant-composite FK and keeps Wompi outside owner deduction
   assert.match(sql, /public\.has_org_permission\(organization_id, 'owner_statements\.view'\)/);
   assert.match(sql, /public\.has_org_permission\(organization_id, 'owner_statements\.create'\)/);
   assert.match(sql, /ON DELETE RESTRICT/);
+  assert.match(sql, /SECURITY DEFINER/);
+  assert.match(sql, /NOT public\.has_org_permission\(NEW\.organization_id, 'owner_statements\.create'\)/);
+  assert.match(sql, /FOR UPDATE;/);
   assert.match(sql, /status IN \('DRAFT','APPROVED','VOIDED'\)/);
   assert.match(sql, /NEW\.updated_at := now\(\)/);
   assert.doesNotMatch(sql,/WOMPI_PUBLIC_KEY|WOMPI_PRIVATE_KEY|payment_orders/);
