@@ -149,6 +149,8 @@ jobs:
         run: node --import tsx --test tests/signed-lease-pdf.test.mjs
       - name: Owner deduction pure accounting tests
         run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
+      - name: Owner deduction invoice and payment PDF security tests
+        run: node --import tsx --test tests/owner-deduction-pdf-evidence.test.mjs
       - name: Rent receipts and owner statements SQL checks
         env:
           PGPASSWORD: postgres
