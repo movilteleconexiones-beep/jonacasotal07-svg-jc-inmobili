@@ -30,6 +30,7 @@ import { DataImportCenter } from '../imports/DataImportCenter';
 import { PropertiesModule } from '../properties/PropertiesModule';
 import { PropertyConsignmentsModule } from '../consignments/PropertyConsignmentsModule';
 import { ContactsModule } from '../contacts/ContactsModule';
+import { RentalIntakeWizard } from '../rentals/RentalIntakeWizard';
 import { LeadsModule } from '../leads/LeadsModule';
 import { AppointmentsModule } from '../appointments/AppointmentsModule';
 import { DealsModule } from '../deals/DealsModule';
@@ -50,6 +51,7 @@ type DashboardView =
   | 'PROPERTIES'
   | 'CONSIGNMENTS'
   | 'CONTACTS'
+  | 'RENTAL_INTAKE'
   | 'LEADS'
   | 'APPOINTMENTS'
   | 'DEALS'
@@ -229,7 +231,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     () =>
       [
         { id: 'DASHBOARD', icon: LayoutDashboard }, { id: 'PROPERTIES', icon: Building2 },
-        { id: 'CONTACTS', icon: ContactRound }, { id: 'LEADS', icon: UsersRound },
+        { id: 'CONTACTS', icon: ContactRound }, { id: 'RENTAL_INTAKE', icon: ScrollText }, { id: 'LEADS', icon: UsersRound },
         { id: 'APPOINTMENTS', icon: CalendarDays }, { id: 'DEALS', icon: Handshake },
         { id: 'OWNERS', icon: UserRoundCog }, { id: 'DOCUMENTS', icon: FileText },
         { id: 'COMMISSIONS', icon: BadgeDollarSign }, { id: 'REPORTS', icon: BarChart3 },
@@ -385,6 +387,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             {view === 'PROPERTIES' ? <PropertiesModule /> : can(PERMISSIONS.CLIENTS_VIEW) && <PropertyConsignmentsModule key={organizationId} />}
           </>}
           {view === 'CONTACTS' && !termsRequired && can(PERMISSIONS.CLIENTS_VIEW) && <ContactsModule />}
+          {view === 'RENTAL_INTAKE' && !termsRequired && can(PERMISSIONS.LEASES_VIEW) && organizationId &&
+            <RentalIntakeWizard key={organizationId} organizationId={organizationId} />}
           {view === 'LEADS' && !termsRequired && can(PERMISSIONS.LEADS_VIEW) && <LeadsModule />}
           {view === 'APPOINTMENTS' && !termsRequired && can(PERMISSIONS.APPOINTMENTS_VIEW) && <AppointmentsModule />}
           {view === 'DEALS' && !termsRequired && can(PERMISSIONS.DEALS_VIEW) && <DealsModule />}
@@ -410,7 +414,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'REPORTS' && !termsRequired && can(PERMISSIONS.REPORTS_VIEW) && <ReportsModule />}
           {view === 'PORTAL' && !termsRequired && <PortalHub />}
 
-          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'BILLING' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && (
+          {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'RENTAL_INTAKE' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'BILLING' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && (
             <ModuleComingOnline
               title={menuItems.find((item) => item.id === view)?.label ?? 'Módulo'}
               onClose={() => setView('DASHBOARD')}
