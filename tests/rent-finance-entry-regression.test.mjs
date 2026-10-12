@@ -78,3 +78,26 @@ test('money precision and server row counts cannot create false financial confir
   assert.match(deductions,/\.select\('id'\)\.maybeSingle\(\)/);
   assert.match(owner,/can\(PERMISSIONS\.RENT_PAYMENTS_VIEW\)/);
 });
+
+test('financial network failures release buttons and retain receipt retry identity',()=>{
+  const receipt=main.slice(main.indexOf('async function recordReceipt'),main.indexOf('const active=leases.filter'));
+  const failure=receipt.match(/catch\s*\{([\s\S]*?)\}\s*finally\s*\{([\s\S]*?)\}/);
+  assert.ok(failure,'receipt must recover from thrown network errors');
+  assert.doesNotMatch(failure[1],/pendingReceiptKey\.current\s*=\s*null|setRevision\(/);
+  assert.match(failure[2],/setBusy\(false\)/);
+  assert.match(receipt,/request_key:pendingReceiptKey\.current/);
+  for(const method of ['createContract','activateContract','createPeriod']) {
+    const section=main.slice(main.indexOf('async function '+method), main.indexOf('async function '+({createContract:'activateContract',activateContract:'createPeriod',createPeriod:'recordReceipt'}[method])));
+    assert.match(section,/catch\s*\{/);
+    assert.match(section,/finally\s*\{\s*setBusy\(false\)/);
+  }
+  assert.match(owner,/Falló la conexión al consultar contratos y pagos/);
+  assert.match(owner,/finally\s*\{\s*if\(!cancelled\) setLoading\(false\)/);
+  assert.match(owner,/No se confirmó la creación de la liquidación/);
+  assert.match(owner,/finally\s*\{\s*setBusy\(false\)/);
+  for(const operation of ['submit','changeStatus','reconcileStatement']) {
+    const section=deductions.slice(deductions.indexOf('async function '+operation));
+    assert.match(section,/catch\s*\{/);
+    assert.match(section,/finally\s*\{\s*setSaving\(false\)/);
+  }
+});
