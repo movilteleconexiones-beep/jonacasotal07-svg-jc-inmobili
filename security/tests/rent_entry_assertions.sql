@@ -162,6 +162,47 @@ SELECT pg_temp.must_fail($$
   '33333333-3333-4333-8333-333333333333','2026-11-01',9999999,0)
 $$,'23514');
 
+-- Approved owner utilities update the net; TENANT expenses do not.
+INSERT INTO public.owner_statement_deductions
+  (id,organization_id,statement_id,charge_date,category,responsible_party,amount,description,support_reference)
+VALUES
+ ('98989898-9898-4898-8898-989898989898',
+ '11111111-1111-4111-8111-111111111111',current_setting('jco_test.owner_statement_id')::uuid,
+ '2026-10-01','WATER','OWNER',120000,'Agua a cargo del propietario','AGUA-PRUEBA-001'),
+ ('97979797-9797-4797-8797-979797979797',
+ '11111111-1111-4111-8111-111111111111',current_setting('jco_test.owner_statement_id')::uuid,
+ '2026-10-01','ELECTRICITY','TENANT',70000,'Energía a cargo del inquilino','ENERGIA-PRUEBA-001');
+
+SELECT pg_temp.must_fail($
+ SELECT public.reconcile_owner_draft_statement(
+   '11111111-1111-4111-8111-111111111111',
+   current_setting('jco_test.owner_statement_id')::uuid)
+$,'23514');
+
+UPDATE public.owner_statement_deductions SET status='APPROVED'
+WHERE id IN ('98989898-9898-4898-8898-989898989898',
+             '97979797-9797-4797-8797-979797979797');
+
+SELECT public.reconcile_owner_draft_statement(
+ '11111111-1111-4111-8111-111111111111',
+ current_setting('jco_test.owner_statement_id')::uuid);
+
+DO $checks$
+BEGIN
+ IF NOT EXISTS(
+ SELECT 1 FROM public.owner_statements WHERE
+ id=current_setting('jco_test.owner_statement_id')::uuid AND
+ gross_income=1600000 AND other_deductions=120000 AND net_amount=1290000
+ ) THEN RAISE EXCEPTION 'Owner net failed to exclude TENANT utility expense'; END IF;
+END
+$checks$;
+
+SELECT pg_temp.must_fail($
+ SELECT public.reconcile_owner_draft_statement(
+   '22222222-2222-4222-8222-222222222222',
+   current_setting('jco_test.owner_statement_id')::uuid)
+$,'42501');
+
 RESET ROLE;
 DO $checks$
 BEGIN
