@@ -68,28 +68,40 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
       setError('Verifica el inmueble, inquilino, canon y fechas.');return;
     }
     setBusy(true);setError('');
-    const {error:failure}=await supabase.from('leases').insert({
-      organization_id:organizationId,property_id:propertyId,tenant_id:tenantId,owner_id:ownerId||null,
-      monthly_rent:rent,start_date:start,end_date:end||null,
-      contract_number:String(f.get('contract_number')||'').trim().slice(0,100)||null,status:'DRAFT',
-    });
-    setBusy(false);
-    if(failure){setError('No se pudo guardar el contrato: '+failure.message);return;}
-    element.reset();setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
-    window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
+    try {
+      const {error:failure}=await supabase.from('leases').insert({
+        organization_id:organizationId,property_id:propertyId,tenant_id:tenantId,owner_id:ownerId||null,
+        monthly_rent:rent,start_date:start,end_date:end||null,
+        contract_number:String(f.get('contract_number')||'').trim().slice(0,100)||null,status:'DRAFT',
+      });
+      if(failure){setError('No se pudo guardar el contrato: '+failure.message);return;}
+      element.reset();setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
+      window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
+    } catch {
+      setError('No se confirmó la creación del contrato. Comprueba el listado antes de volver a guardarlo.');
+      setRevision(x=>x+1);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function activateContract(id:string) {
     if(!activationAllowed||busy||!organizationId||!leases.some(l=>l.id===id&&l.status==='DRAFT'))return;
     if(!window.confirm('¿Confirmas que revisaste el contrato y debe pasar a ACTIVO?'))return;
     setBusy(true);setError('');
-    const {data:changed,error:failure}=await supabase.from('leases').update({status:'ACTIVE'})
-      .eq('organization_id',organizationId).eq('id',id).eq('status','DRAFT')
-      .select('id').maybeSingle();
-    setBusy(false);
-    if(failure||!changed){setError('No se activó el contrato: '+(failure?.message??'No se encontró un borrador autorizado para actualizar.'));return;}
-    setNotice('Contrato activado. Ahora puedes crear su cobro mensual.');
-    setRevision(n=>n+1);
+    try {
+      const {data:changed,error:failure}=await supabase.from('leases').update({status:'ACTIVE'})
+        .eq('organization_id',organizationId).eq('id',id).eq('status','DRAFT')
+        .select('id').maybeSingle();
+      if(failure||!changed){setError('No se activó el contrato: '+(failure?.message??'No se encontró un borrador autorizado para actualizar.'));return;}
+      setNotice('Contrato activado. Ahora puedes crear su cobro mensual.');
+      setRevision(n=>n+1);
+    } catch {
+      setError('No se confirmó la activación. Consulta el estado del contrato antes de reintentar.');
+      setRevision(n=>n+1);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function createPeriod(event:FormEvent<HTMLFormElement>){
@@ -99,12 +111,19 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
       setError('Selecciona un contrato activo y un mes válido.');return;
     }
     setBusy(true);setError('');
-    const {error:failure}=await supabase.rpc('create_tenant_rent_period',{
-      target_org:organizationId,target_lease:id,target_period:month+'-01',
-    });
-    setBusy(false);
-    if(failure){setError('No se pudo crear el cobro: '+failure.message);return;}
-    setNotice('Cobro mensual creado, sin registrar dinero recibido.');window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
+    try {
+      const {error:failure}=await supabase.rpc('create_tenant_rent_period',{
+        target_org:organizationId,target_lease:id,target_period:month+'-01',
+      });
+      if(failure){setError('No se pudo crear el cobro: '+failure.message);return;}
+      setNotice('Cobro mensual creado, sin registrar dinero recibido.');
+      window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
+    } catch {
+      setError('No se confirmó el cobro mensual. Revisa si ya existe para evitar duplicados.');
+      setRevision(x=>x+1);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function recordReceipt(event:FormEvent<HTMLFormElement>){
@@ -119,16 +138,23 @@ export function TenantRentEntry({organizationId}:{organizationId:string}) {
     }
     setBusy(true);setError('');
     if(!pendingReceiptKey.current) pendingReceiptKey.current=crypto.randomUUID();
-    const {error:failure}=await supabase.rpc('record_tenant_rent_receipt',{
-      target_org:organizationId,target_payment:id,receipt_amount:amount,
-      receipt_method:method,receipt_reference:reference,request_key:pendingReceiptKey.current,
-    });
-    setBusy(false);
-    if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
-    pendingReceiptKey.current=null;
-    element.reset();
-    setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
-    window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
+    try {
+      const {error:failure}=await supabase.rpc('record_tenant_rent_receipt',{
+        target_org:organizationId,target_payment:id,receipt_amount:amount,
+        receipt_method:method,receipt_reference:reference,request_key:pendingReceiptKey.current,
+      });
+      if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
+      pendingReceiptKey.current=null;
+      element.reset();
+      setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
+      window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
+    } catch {
+      // Keep the idempotency key: retrying the unchanged request cannot double-credit.
+      setError('No se confirmó el abono. Verifica el saldo; si reintentas sin cambiar los datos, se conserva la misma clave de operación.');
+      setRevision(x=>x+1);
+    } finally {
+      setBusy(false);
+    }
   }
 
   const active=leases.filter(x=>x.status==='ACTIVE');
