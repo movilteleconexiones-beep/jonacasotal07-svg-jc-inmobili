@@ -26,7 +26,7 @@ interface PropertyOption {
   title: string;
 }
 
-export function OwnersModule() {
+export function OwnersModule({ownersOnly=false}: {ownersOnly?:boolean} = {}) {
   const { user, activeMembership, can } = useAuth();
   const organizationId = activeMembership?.organization.id;
   const [owners, setOwners] = useState<OwnerRow[]>([]);
@@ -204,9 +204,9 @@ export function OwnersModule() {
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
-      {organizationId && <OwnerSettlementEntry key={'settlement-'+organizationId} organizationId={organizationId} />}
-      {organizationId && <OwnerDeductionLedger key={'deductions-'+organizationId} organizationId={organizationId} />}
-      {organizationId && <OwnerNetStatementsSummary key={organizationId} organizationId={organizationId} />}
+      {!ownersOnly && organizationId && <OwnerSettlementEntry key={'settlement-'+organizationId} organizationId={organizationId} />}
+      {!ownersOnly && organizationId && <OwnerDeductionLedger key={'deductions-'+organizationId} organizationId={organizationId} />}
+      {!ownersOnly && organizationId && <OwnerNetStatementsSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">

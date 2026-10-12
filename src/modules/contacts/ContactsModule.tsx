@@ -17,7 +17,7 @@ interface ContactRow {
   created_at: string;
 }
 
-export function ContactsModule() {
+export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:boolean;onCreated?:(contactId:string)=>void} = {}) {
   const { user, activeMembership, can } = useAuth();
   const [rows, setRows] = useState<ContactRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,13 +96,14 @@ export function ContactsModule() {
       created_by: user.id,
     };
 
-    const { error } = await supabase.from('contacts').insert(payload);
+    const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
 
     if (error) {
       setMessage(error.message);
       return;
     }
 
+    if(created?.id) onCreated?.(created.id);
     setMessage('Cliente/contacto creado correctamente.');
     setShowCreate(false);
     formElement.reset();
@@ -162,8 +163,8 @@ export function ContactsModule() {
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
-      {organizationId && <TenantRentEntry key={'entry-'+organizationId} organizationId={organizationId} />}
-      {organizationId && <TenantRentBalanceSummary key={organizationId} organizationId={organizationId} />}
+      {!contactsOnly && organizationId && <TenantRentEntry key={'entry-'+organizationId} organizationId={organizationId} />}
+      {!contactsOnly && organizationId && <TenantRentBalanceSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">

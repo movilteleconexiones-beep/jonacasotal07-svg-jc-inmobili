@@ -19,12 +19,12 @@ const fieldClass = 'mt-1 block w-full rounded-lg border border-stone-300 bg-whit
 
 /** Lease PDFs remain private, separate from the rental ledger and payment status. */
 export function SignedLeaseDocuments({
-  organizationId, leases,
-}: { organizationId: string; leases: LeaseOption[] }) {
+  organizationId, leases, preferredLeaseId, onUploaded,
+}: { organizationId: string; leases: LeaseOption[]; preferredLeaseId?: string; onUploaded?: (leaseId:string)=>void }) {
   const { can, user } = useAuth();
   const mayRead = can(PERMISSIONS.LEASES_VIEW) && can(PERMISSIONS.DOCUMENTS_VIEW);
   const mayUpload = mayRead && can(PERMISSIONS.DOCUMENTS_UPLOAD);
-  const [leaseId, setLeaseId] = useState('');
+  const [leaseId, setLeaseId] = useState(preferredLeaseId??'');
   const [documents, setDocuments] = useState<SignedDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -121,6 +121,7 @@ export function SignedLeaseDocuments({
       setLeaseId(lease.id);
       setMessage('Contrato firmado guardado de forma privada y asociado al arrendamiento.');
       setRevision(value => value + 1);
+      onUploaded?.(lease.id);
     } catch {
       // A timeout may occur after server persistence: never claim an upload failed
       // definitively or delete a possibly committed document.
