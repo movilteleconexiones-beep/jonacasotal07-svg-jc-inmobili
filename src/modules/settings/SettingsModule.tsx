@@ -3,6 +3,7 @@ import { FileCheck2, Palette, Save } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { getCountryOption, LATAM_COUNTRIES } from '../../core/countries';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
 import { supabase } from '../../lib/supabase';
 
 interface ComplianceInfo {
@@ -21,6 +22,10 @@ export function SettingsModule() {
   const [companyName, setCompanyName] = useState('');
   const [softwareName, setSoftwareName] = useState('');
   const [website, setWebsite] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [primaryColor, setPrimaryColor] = useState(TENANT_DEFAULT_PRIMARY);
+  const [secondaryColor, setSecondaryColor] = useState(TENANT_DEFAULT_SECONDARY);
+  const [sampling, setSampling] = useState(false);
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState('');
@@ -39,6 +44,9 @@ export function SettingsModule() {
     setCompanyName(branding.companyName);
     setSoftwareName(branding.softwareName);
     setWebsite(branding.website ?? '');
+    setLogoUrl(branding.logoUrl ?? '');
+    setPrimaryColor(safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY));
+    setSecondaryColor(safeTenantColor(branding.secondaryColor, TENANT_DEFAULT_SECONDARY));
     setPhone(branding.phone ?? '');
     setWhatsapp(branding.whatsapp ?? '');
     setEmail(branding.email ?? '');
@@ -84,10 +92,31 @@ export function SettingsModule() {
     setTimezone(profile.timezone);
   }
 
+  async function adaptLogoColors() {
+    if (!can('settings.edit') || !logoUrl.trim() || sampling) return;
+    setSampling(true);
+    setMessage('');
+    try {
+      const palette = await paletteFromLogoUrl(logoUrl);
+      setPrimaryColor(palette.primary);
+      setSecondaryColor(palette.secondary);
+      setMessage('Colores detectados. Comprueba la vista previa y pulsa Guardar configuración.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No fue posible analizar el logo.');
+    } finally { setSampling(false); }
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!organizationId || !can('settings.edit')) return;
-
+    if (website.trim() && !safeBrandUrl(website)) {
+      setMessage('El sitio web debe empezar por https:// y ser una dirección válida.');
+      return;
+    }
+    if (logoUrl.trim() && !safeBrandUrl(logoUrl)) {
+      setMessage('El logo debe estar alojado en una dirección HTTPS válida.');
+      return;
+    }
     setSaving(true);
     setMessage('');
 
@@ -113,7 +142,10 @@ export function SettingsModule() {
           organization_id: organizationId,
           company_name: companyName.trim(),
           software_name: softwareName.trim(),
-          website: website.trim() || null,
+          website: website.trim() ? safeBrandUrl(website) : null,
+          logo_url: logoUrl.trim() ? safeBrandUrl(logoUrl) : null,
+          primary_color: safeTenantColor(primaryColor, TENANT_DEFAULT_PRIMARY),
+          secondary_color: safeTenantColor(secondaryColor, TENANT_DEFAULT_SECONDARY),
           phone: phone.trim() || null,
           whatsapp: whatsapp.trim() || null,
           email: email.trim() || null,
@@ -196,7 +228,41 @@ export function SettingsModule() {
               : `La modalidad ${licenseType} conserva la marca del software INMOJCO/JCO. La marca de tu inmobiliaria sí es personalizable.`}
           </span>
         </div>
-        <Field label="Sitio web" value={website} onChange={setWebsite} />
+        <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-4">
+          <div className="font-semibold">Sitio web y dominio propio</div>
+          <p className="mt-1 text-xs text-slate-600">Registra la dirección HTTPS pública de tu inmobiliaria. Aparecerá como enlace en la cabecera del panel. Conectar el dominio directamente a INMOJCO exige verificar su propiedad, DNS y certificado HTTPS en una etapa independiente.</p>
+          <div className="mt-3">
+            <Field label="Dirección de tu sitio web (https://...)" value={website} onChange={setWebsite} type="url" />
+          </div>
+        </div>
+        <div className="md:col-span-2 rounded-xl border border-stone-200 bg-white p-4">
+          <div className="font-semibold">Logo y colores de tu inmobiliaria</div>
+          <p className="mt-1 text-xs text-slate-600">Tu logo se mostrará en la cabecera del panel inmobiliario, sin cambiar la marca de INMOJCO ni la administración central.</p>
+          <div className="mt-3">
+            <Field label="Dirección HTTPS de la imagen del logo" value={logoUrl} onChange={setLogoUrl} type="url" />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            <div className="flex h-20 w-28 items-center justify-center overflow-hidden rounded-xl border bg-white">
+              {safeBrandUrl(logoUrl) ? <img src={safeBrandUrl(logoUrl) ?? ''} alt="Vista previa del logo" className="max-h-full max-w-full object-contain p-2" /> :
+                <span className="text-center text-xs text-slate-500">Sin logo</span>}
+            </div>
+            <button type="button" onClick={() => void adaptLogoColors()} disabled={sampling || saving || !can('settings.edit') || !safeBrandUrl(logoUrl)} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">
+              {sampling ? 'Analizando logo…' : 'Adaptar colores al logo'}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Si el servidor de la imagen impide leer sus colores, puedes elegirlos manualmente. El logo debe ser accesible públicamente mediante HTTPS.</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium">Color principal
+              <input aria-label="Color principal de la inmobiliaria" type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="mt-2 block h-11 w-full cursor-pointer rounded-lg border" />
+            </label>
+            <label className="text-sm font-medium">Color de fondo suave
+              <input aria-label="Color secundario de la inmobiliaria" type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="mt-2 block h-11 w-full cursor-pointer rounded-lg border" />
+            </label>
+          </div>
+          <div className="mt-4 rounded-xl p-4 text-sm font-semibold" style={{ backgroundColor: secondaryColor, color: primaryColor, borderLeft: '5px solid ' + primaryColor }}>
+            Vista previa de la identidad de tu inmobiliaria
+          </div>
+        </div>
         <Field label="Correo comercial" value={email} onChange={setEmail} type="email" />
         <Field label="Teléfono" value={phone} onChange={setPhone} />
         <Field label="WhatsApp" value={whatsapp} onChange={setWhatsapp} />
