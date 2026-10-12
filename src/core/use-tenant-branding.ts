@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './auth-context';
 import { supabase } from '../lib/supabase';
 
@@ -32,15 +32,19 @@ export function useTenantBranding() {
   const { activeMembership } = useAuth();
   const [branding, setBranding] = useState<TenantBrandingState>(DEFAULTS);
   const [loading, setLoading] = useState(false);
+  const loadVersion = useRef(0);
 
   const organizationId = activeMembership?.organization.id;
 
   const refresh = useCallback(async () => {
+    const version = ++loadVersion.current;
     if (!organizationId) {
       setBranding(DEFAULTS);
+      setLoading(false);
       return;
     }
 
+    setBranding({ ...DEFAULTS, companyName: activeMembership?.organization.name || DEFAULTS.companyName });
     setLoading(true);
     const [brandingResult, settingsResult] = await Promise.all([
       supabase
@@ -55,6 +59,7 @@ export function useTenantBranding() {
         .maybeSingle(),
     ]);
 
+    if (version !== loadVersion.current) return;
     setBranding({
       companyName:
         brandingResult.data?.company_name ||
@@ -86,6 +91,7 @@ export function useTenantBranding() {
     window.addEventListener('tenant-branding-updated', onBrandingUpdated);
 
     return () => {
+      ++loadVersion.current;
       window.removeEventListener('tenant-branding-updated', onBrandingUpdated);
     };
   }, [refresh]);
