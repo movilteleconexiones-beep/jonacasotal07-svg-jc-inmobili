@@ -75,6 +75,8 @@ jobs:
         run: node --test tests/deals-postgrest-ambiguous-joins.test.mjs
       - name: Deal editing and audited deletion UI checks
         run: node --test tests/deals-edit-safe-delete.test.mjs
+      - name: Deal date validation and stage persistence regression tests
+        run: node --import tsx --test tests/deals-edit-persistence-regression.test.mjs
       - name: Deal administrator deletion SQL integrity and tenant isolation tests
         env:
           PGPASSWORD: postgres
