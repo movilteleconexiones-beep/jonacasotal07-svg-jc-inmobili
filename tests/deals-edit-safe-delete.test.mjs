@@ -33,6 +33,8 @@ test('delete uses a permission-scoped RPC, confirmation and not a direct client 
   assert.match(ui, /target_org: organizationId, target_deal: row\.id/);
   assert.doesNotMatch(ui, /\.from\('deals'\)\.delete\(/);
   assert.match(sql, /REVOKE DELETE ON TABLE public\.deals FROM PUBLIC, anon, authenticated/);
+  assert.match(sql, /ADD CONSTRAINT deals_contact_same_org_fk/);
+  assert.match(sql, /ADD CONSTRAINT deals_property_same_org_fk/);
   assert.match(sql, /SECURITY DEFINER/);
   assert.match(sql, /has_org_permission\(target_org,'deals\.close'\)/);
   assert.match(sql, /role\.key = 'ADMIN'/);
