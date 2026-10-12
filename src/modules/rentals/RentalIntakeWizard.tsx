@@ -21,6 +21,9 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   const [step, setStep] = useState(0);
   const [propertyTab, setPropertyTab] = useState<'PROPERTY' | 'OWNER'>('PROPERTY');
   const [propertyId, setPropertyId] = useState<string>();
+  const [propertyName, setPropertyName] = useState('');
+  const [ownerId, setOwnerId] = useState<string>();
+  const [ownerName, setOwnerName] = useState('');
   const [tenantId, setTenantId] = useState<string>();
   const [leaseId, setLeaseId] = useState<string>();
   const canDraft = can(PERMISSIONS.LEASES_CREATE);
@@ -63,11 +66,32 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
           className={'rounded-lg border px-3 py-2 text-sm font-semibold ' +
             (propertyTab === 'OWNER' ? 'bg-slate-900 text-white' : 'bg-white')}>Registrar / vincular propietario</button>
       </div>
-      {propertyTab === 'PROPERTY' && <PropertiesModule onCreated={id => setPropertyId(id)} />}
-      {propertyTab === 'OWNER' && <OwnersModule ownersOnly />}
-      {propertyId && <p role="status" className="rounded-lg bg-white p-3 text-sm">
-        Vivienda recién guardada y preparada para el contrato: {propertyId.slice(0, 8)}.
-      </p>}
+      {propertyTab === 'PROPERTY' && <PropertiesModule
+        selectedPropertyId={propertyId}
+        onSelect={(id,name) => {
+          if (id !== propertyId) { setOwnerId(undefined); setOwnerName(''); }
+          setPropertyId(id); setPropertyName(name);
+        }}
+        onCreated={id => {
+          setPropertyId(id); setPropertyName('Nueva vivienda · '+id.slice(0,8));
+          setOwnerId(undefined); setOwnerName('');
+        }} />}
+      {propertyTab === 'OWNER' && <OwnersModule ownersOnly
+        selectedOwnerId={ownerId}
+        onSelect={(id,name) => { setOwnerId(id); setOwnerName(name); }}
+        onCreated={(id,name) => { setOwnerId(id); setOwnerName(name); }} />}
+      <div className="grid gap-2 sm:grid-cols-2" aria-label="Selección para el nuevo contrato">
+        <p role="status" className="rounded-lg border bg-white p-3 text-sm">
+          <strong>Vivienda elegida:</strong> {propertyId ? propertyName || propertyId.slice(0,8) : 'Pendiente de selección'}
+        </p>
+        <p role="status" className="rounded-lg border bg-white p-3 text-sm">
+          <strong>Propietario elegido:</strong> {ownerId ? ownerName || ownerId.slice(0,8) : 'Pendiente de selección'}
+        </p>
+      </div>
+      <p className="text-xs text-slate-600">
+        Elegir un propietario aquí lo prepara para el contrato; no modifica las escrituras,
+        la participación de propiedad ni las vinculaciones registradas del inmueble.
+      </p>
       <p className="text-sm text-slate-600">
         Si la vivienda ya figura en el inventario, no la dupliques. Se podrá elegir directamente al crear el contrato.
         Si tenía un arrendamiento anterior, el administrador debe confirmar su cierre antes de activar uno nuevo.
@@ -81,7 +105,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
         El administrador de la inmobiliaria debe habilitar «leases.create» para preparar borradores.
       </p>}
       <TenantRentEntry key={'draft-' + organizationId} organizationId={organizationId} mode="DRAFT"
-        preferredPropertyId={propertyId} preferredTenantId={tenantId}
+        preferredPropertyId={propertyId} preferredTenantId={tenantId} preferredOwnerId={ownerId}
         onDraftCreated={id => { setLeaseId(id); setStep(3); }} />
     </div>}
 

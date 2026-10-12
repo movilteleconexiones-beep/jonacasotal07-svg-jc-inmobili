@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Building2, Plus, RefreshCw } from 'lucide-react';
+import { Building2, CheckCircle2, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
@@ -20,7 +20,11 @@ interface PropertyRow {
   created_at: string;
 }
 
-export function PropertiesModule({onCreated}: {onCreated?: (propertyId:string)=>void} = {}) {
+export function PropertiesModule({onCreated,onSelect,selectedPropertyId}: {
+  onCreated?: (propertyId:string)=>void;
+  onSelect?: (propertyId:string,propertyName:string)=>void;
+  selectedPropertyId?: string;
+} = {}) {
   const { user, activeMembership, can } = useAuth();
   const { branding } = useTenantBranding();
   const [rows, setRows] = useState<PropertyRow[]>([]);
@@ -233,19 +237,20 @@ export function PropertiesModule({onCreated}: {onCreated?: (propertyId:string)=>
               <th className="px-4 py-3">Ubicación</th>
               <th className="px-4 py-3">Precio</th>
               <th className="px-4 py-3">Estado</th><th className="px-4 py-3">Fotos</th>
+               {onSelect&&<th className="px-4 py-3">Elegir</th>}
             </tr>
           </thead>
           <tbody>
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={onSelect?8:7} className="px-4 py-10 text-center text-slate-500">
                   <Building2 className="mx-auto mb-2 h-6 w-6" />
                   Aún no hay propiedades registradas.
                 </td>
               </tr>
             )}
             {rows.map((row) => (
-              <tr key={row.id} className="border-t border-stone-100">
+              <tr key={row.id} className={'border-t border-stone-100 '+(onSelect&&selectedPropertyId===row.id?'bg-slate-50':'')}>
                 <td className="px-4 py-3 font-mono text-xs">{row.code}</td>
                 <td className="px-4 py-3">
                   <div className="font-semibold">{row.title}</div>
@@ -258,6 +263,14 @@ export function PropertiesModule({onCreated}: {onCreated?: (propertyId:string)=>
                 </td>
                 <td className="px-4 py-3">{row.status}</td>
                 <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
+                {onSelect&&<td className="px-4 py-3">
+                  <button type="button" aria-pressed={selectedPropertyId===row.id}
+                    onClick={()=>onSelect(row.id,[row.code,row.title].filter(Boolean).join(' · '))}
+                    className={'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-slate-900 '+
+                      (selectedPropertyId===row.id?'border-slate-900 bg-slate-900 text-white':'hover:bg-slate-100')}>
+                    {selectedPropertyId===row.id?<><CheckCircle2 className="h-3.5 w-3.5"/> Seleccionada</>:'Seleccionar'}
+                  </button>
+                </td>}
               </tr>
             ))}
           </tbody>

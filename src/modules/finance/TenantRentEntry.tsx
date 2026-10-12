@@ -14,8 +14,8 @@ const validMoney = parseMoneyInput;
 const thisMonth=localMonthISO;
 const fieldClass='mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2';
 
-export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropertyId,preferredTenantId,preferredLeaseId,onDraftCreated,onPdfUploaded,onActivated}:{
-  organizationId:string;mode?:RentalEntryMode;preferredPropertyId?:string;preferredTenantId?:string;preferredLeaseId?:string;
+export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropertyId,preferredTenantId,preferredOwnerId,preferredLeaseId,onDraftCreated,onPdfUploaded,onActivated}:{
+  organizationId:string;mode?:RentalEntryMode;preferredPropertyId?:string;preferredTenantId?:string;preferredOwnerId?:string;preferredLeaseId?:string;
   onDraftCreated?:(id:string)=>void;onPdfUploaded?:(id:string)=>void;onActivated?:(id:string)=>void;
 }) {
   const {can,activeMembership}=useAuth();
@@ -187,7 +187,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
           {properties.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
         <label className="text-sm">Inquilino<select name="tenant_id" required defaultValue={preferredTenantId||''} className={fieldClass}><option value="">Seleccionar cliente</option>
           {tenants.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
-        <label className="text-sm">Propietario<select name="owner_id" className={fieldClass}><option value="">Sin vincular aún</option>
+        <label className="text-sm">Propietario<select name="owner_id" defaultValue={preferredOwnerId||''} className={fieldClass}><option value="">Sin vincular aún</option>
           {owners.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
         <label className="text-sm">Canon mensual (COP)<input type="number" name="monthly_rent" required min="0.01" step="0.01" className={fieldClass}/></label>
         <label className="text-sm">Número de contrato<input name="contract_number" maxLength={100} className={fieldClass}/></label>
