@@ -164,14 +164,22 @@ $$,'23514');
 
 -- Approved owner utilities update the net; TENANT expenses do not.
 INSERT INTO public.owner_statement_deductions
-  (id,organization_id,statement_id,charge_date,category,responsible_party,amount,description,support_reference)
+  (id,organization_id,statement_id,charge_date,category,responsible_party,amount,description,support_reference,created_at,updated_at)
 VALUES
  ('98989898-9898-4898-8898-989898989898',
  '11111111-1111-4111-8111-111111111111',current_setting('jco_test.owner_statement_id')::uuid,
- '2026-10-01','WATER','OWNER',120000,'Agua a cargo del propietario','AGUA-PRUEBA-001'),
+ '2026-10-01','WATER','OWNER',120000,'Agua a cargo del propietario','AGUA-PRUEBA-001','2001-01-01','2001-01-01'),
  ('97979797-9797-4797-8797-979797979797',
  '11111111-1111-4111-8111-111111111111',current_setting('jco_test.owner_statement_id')::uuid,
- '2026-10-01','ELECTRICITY','TENANT',70000,'Energía a cargo del inquilino','ENERGIA-PRUEBA-001');
+ '2026-10-01','ELECTRICITY','TENANT',70000,'Energía a cargo del inquilino','ENERGIA-PRUEBA-001','2001-01-01','2001-01-01');
+
+DO $audit$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.owner_statement_deductions
+  WHERE created_at < now()-interval '1 minute' OR updated_at < now()-interval '1 minute')
+ THEN RAISE EXCEPTION 'User-supplied audit creation timestamps were accepted'; END IF;
+END
+$audit$;
 
 SELECT pg_temp.must_fail($reject$
  SELECT public.reconcile_owner_draft_statement(
