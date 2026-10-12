@@ -135,6 +135,8 @@ jobs:
         run: node --test tests/commercial-workflow-reliability.test.mjs
       - name: Central Wompi merchant and non-resale policy checks
         run: node --import tsx --test tests/central-wompi-merchant-nonresale.test.mjs
+      - name: Per-tenant logo, palette and website regression
+        run: node --import tsx --test tests/tenant-logo-palette-site.test.mjs
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
