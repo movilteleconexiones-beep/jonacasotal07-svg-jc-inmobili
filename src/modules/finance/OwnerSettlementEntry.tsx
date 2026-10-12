@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
+import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
 
 interface Lease {id:string;owner_id:string|null;contract_number:string|null;status:string}
@@ -12,11 +13,11 @@ function nonNegative(value:FormDataEntryValue|null){
 }
 export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
   const {can}=useAuth();
-  const permitted=can(PERMISSIONS.OWNER_STATEMENTS_CREATE);
+  const permitted=can(PERMISSIONS.OWNER_STATEMENTS_CREATE) && can(PERMISSIONS.RENT_PAYMENTS_VIEW);
   const [leases,setLeases]=useState<Lease[]>([]);
   const [payments,setPayments]=useState<ReceiptPeriod[]>([]);
   const [leaseId,setLeaseId]=useState('');
-  const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
+  const [period,setPeriod]=useState(localMonthISO());
   const [commission,setCommission]=useState('0');
   const [taxes,setTaxes]=useState('0');
   const [loading,setLoading]=useState(true);
