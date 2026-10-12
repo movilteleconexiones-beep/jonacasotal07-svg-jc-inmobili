@@ -141,6 +141,10 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commercial_reference_test -f security/tests/commercial_tenant_fk_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commercial_reference_test -f supabase/migrations/20261011195000_commercial_tenant_reference_consistency.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commercial_reference_test -f security/tests/commercial_tenant_fk_assertions.sql
+      - name: Cross-tenant legacy-data rollback regression
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/commercial_tenant_fk_legacy_rollback.sh
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
