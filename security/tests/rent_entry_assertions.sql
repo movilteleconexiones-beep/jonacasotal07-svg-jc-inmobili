@@ -173,11 +173,11 @@ VALUES
  '11111111-1111-4111-8111-111111111111',current_setting('jco_test.owner_statement_id')::uuid,
  '2026-10-01','ELECTRICITY','TENANT',70000,'Energía a cargo del inquilino','ENERGIA-PRUEBA-001');
 
-SELECT pg_temp.must_fail($
+SELECT pg_temp.must_fail($reject$
  SELECT public.reconcile_owner_draft_statement(
    '11111111-1111-4111-8111-111111111111',
    current_setting('jco_test.owner_statement_id')::uuid)
-$,'23514');
+$reject$,'23514');
 
 UPDATE public.owner_statement_deductions SET status='APPROVED'
 WHERE id IN ('98989898-9898-4898-8898-989898989898',
@@ -197,11 +197,11 @@ BEGIN
 END
 $checks$;
 
-SELECT pg_temp.must_fail($
+SELECT pg_temp.must_fail($reject$
  SELECT public.reconcile_owner_draft_statement(
    '22222222-2222-4222-8222-222222222222',
    current_setting('jco_test.owner_statement_id')::uuid)
-$,'42501');
+$reject$,'42501');
 
 RESET ROLE;
 DO $checks$
