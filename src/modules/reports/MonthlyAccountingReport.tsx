@@ -4,7 +4,11 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
-import { excelSafeCell, monthlyDateBounds, financialTotal, rentPeriodTotals } from '../../core/accounting-export';
+import {
+  excelSafeCell, monthlyDateBounds, financialTotal, rentPeriodTotals,
+  selectedWorkbookContent, MONTHLY_METRICS,
+  type MonthlyReportSelection, type MonthlyMetricKey,
+} from '../../core/accounting-export';
 
 type DataRow = Record<string, unknown>;
 interface ReportSheet { name: string; columns: string[]; rows: DataRow[]; }
@@ -26,7 +30,16 @@ const currentMonth = () => {
 const safeFilename = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,40);
 
-export function MonthlyAccountingReport() {
+interface MonthlyAccountingReportProps {
+  selection: MonthlyReportSelection | null;
+  onSelect: (value: MonthlyReportSelection) => void;
+}
+const DISPLAYED_METRICS: MonthlyMetricKey[] = [
+  'EXPECTED_RENT','RECORDED_RENT','PENDING_RENT',
+  'OWNER_NET','OWNER_COMMISSION','OWNER_OTHER',
+];
+
+export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccountingReportProps) {
   const { activeMembership, can } = useAuth();
   const { branding } = useTenantBranding();
   const organizationId = activeMembership?.organization.id;
@@ -37,13 +50,17 @@ export function MonthlyAccountingReport() {
   const [error,setError] = useState('');
   const [revision,setRevision] = useState(0);
   const [exporting,setExporting] = useState(false);
+  const [loadedFor,setLoadedFor] = useState('');
   const permitted = MONTHLY_SECTIONS.filter(item => can(item.permission));
+  const permissionSignature = permitted.map(item=>item.name).join('|');
+  const loadKey = [organizationId,month,permissionSignature].join(':');
   const money = useMemo(() => (n:number) => new Intl.NumberFormat(branding.locale||'es-CO',
     {style:'currency',currency:branding.currency||'COP'}).format(n),[branding.locale,branding.currency]);
 
   useEffect(() => {
     let cancelled = false;
     setSheets([]);
+    setLoadedFor('');
     setError('');
     if (!allowed || !organizationId) { setLoading(false); return () => {cancelled=true;}; }
     setLoading(true);
@@ -69,7 +86,7 @@ export function MonthlyAccountingReport() {
             throw new Error('La sección '+section.name+' tiene más de 1000 registros o una consulta parcial. No se exportarán cifras incompletas.');
           results.push({name:section.name,columns,rows});
         }
-        if (!cancelled) setSheets(results);
+        if (!cancelled) { setSheets(results); setLoadedFor(loadKey); }
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'No fue posible elaborar el informe.');
       } finally {if (!cancelled) setLoading(false);}
@@ -77,7 +94,7 @@ export function MonthlyAccountingReport() {
     return ()=>{cancelled=true;};
   // permitted is intentionally derived from per-render permissions, but the stable signature
   // below avoids a network loop when the membership object reference changes.
-  },[allowed,organizationId,month,revision,permitted.map(item=>item.name).join('|')]);
+  },[allowed,organizationId,month,revision,permissionSignature]);
 
   if (!allowed) return null;
   const find = (name:string) => sheets.find(s=>s.name===name)?.rows ?? [];
@@ -97,41 +114,42 @@ export function MonthlyAccountingReport() {
     ['Otras deducciones de propietarios',canSeeStatements?ownerOther:null],
   ] as const;
 
+  const ready=!loading&&!error&&loadedFor===loadKey&&Boolean(organizationId);
+  const selectedLabel=selection
+    ? selection.kind==='module'?selection.name:MONTHLY_METRICS[selection.key].label
+    : '';
+  const selectionAvailable=selection !== null && sheets.some(sheet=>
+    sheet.name===(selection.kind==='module'?selection.name:MONTHLY_METRICS[selection.key].source));
+
   async function exportXlsx() {
-    if (loading || error || exporting || sheets.length===0 || !organizationId) return;
+    if (!ready || exporting || !selection || !selectionAvailable) return;
     setExporting(true);
     try {
+      // The selected item is the only source of data for the workbook.
+      const chosen = selectedWorkbookContent(selection,sheets);
       const XLSX = await import('xlsx');
       const book = XLSX.utils.book_new();
-      const summary: (string|number)[][] = [
-        ['INMOJCO · Reporte mensual de inmobiliaria'],
+      const grid: (string|number)[][] = [
+        ['INMOJCO · Exportación individual mensual'],
         ['Inmobiliaria',excelSafeCell(branding.companyName)],
         ['Período',month],
-        ['Tipo','Exportación interna para revisión contable, NO factura electrónica DIAN'],
-        ['Alcance','Solo módulos autorizados y registros correspondientes al período'],
-        ['Precisión','Registros comerciales filtrados por fecha de creación; arriendos y liquidaciones por período'],
-        [],['Indicador','Valor'],
-        ...totals.map(([label,total])=>[label,total===null?'Sin autorización':total]),
-        [],['Módulo','Registros exportados'],
-        ...sheets.map(item=>[item.name,item.rows.length]),
+        ['Ítem seleccionado',excelSafeCell(chosen.title)],
+        ['Documento','Informe interno para revisión contable, NO factura electrónica DIAN'],
+        ['Criterio','Se incluyen solo los registros del mes y de la inmobiliaria activa para el ítem seleccionado.'],
+        ['Precisión','Registros comerciales por fecha de creación; cánones y liquidaciones por período.'],
+        ...(chosen.total!==null ? [['Total del indicador',chosen.total]] as (string|number)[][] : []),
+        [],chosen.columns.map(column=>excelSafeCell(column)),
+        ...chosen.rows.map(row=>chosen.columns.map(column=>excelSafeCell(row[column]))),
       ];
-      const first=XLSX.utils.aoa_to_sheet(summary);
-      first['!cols']=[{wch:55},{wch:36}];
-      XLSX.utils.book_append_sheet(book,first,'Resumen');
-      for(const section of sheets){
-        const grid: (string|number)[][] = [
-          [section.name+' · '+month+' · '+branding.companyName],
-          section.columns.map(c=>excelSafeCell(c)),
-          ...section.rows.map(row=>section.columns.map(col=>excelSafeCell(row[col]))),
-        ];
-        const sheet=XLSX.utils.aoa_to_sheet(grid);
-        sheet['!cols']=section.columns.map(col=>({wch: Math.min(36,Math.max(15,col.length+5))}));
-        XLSX.utils.book_append_sheet(book,sheet,section.name.slice(0,31));
-      }
-      XLSX.writeFile(book,'INMOJCO_'+safeFilename(branding.companyName)+'_'+month+'.xlsx',{compression:true});
-    }catch(cause){
+      const sheet=XLSX.utils.aoa_to_sheet(grid);
+      sheet['!cols']=chosen.columns.map(col=>({wch:Math.min(45,Math.max(22,col.length+8))}));
+      XLSX.utils.book_append_sheet(book,sheet,chosen.sheetName);
+      XLSX.writeFile(book,
+        'INMOJCO_'+safeFilename(branding.companyName)+'_'+month+'_'+safeFilename(chosen.title)+'.xlsx',
+        {compression:true});
+    } catch (cause) {
       setError(cause instanceof Error?'Error al generar Excel: '+cause.message:'No fue posible generar el Excel.');
-    }finally{setExporting(false);}
+    } finally { setExporting(false); }
   }
 
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5" aria-label="Informes contables mensuales">
@@ -150,26 +168,47 @@ export function MonthlyAccountingReport() {
           <RefreshCw className="h-4 w-4"/>Actualizar
         </button>
         <button type="button" onClick={()=>void exportXlsx()}
-          disabled={loading||Boolean(error)||exporting||sheets.length===0}
+          disabled={!ready||exporting||!selectionAvailable}
           className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-          <Download className="h-4 w-4"/>{exporting?'Generando…':'Exportar Excel (.xlsx)'}
+          <Download className="h-4 w-4"/>{exporting?'Generando…':'Exportar seleccionado (.xlsx)'}
         </button>
       </div>
     </div>
-    <p className="text-xs text-slate-500">Datos comerciales por fecha de creación; cánones y liquidaciones por mes contable. Los saldos representan registros del sistema, no movimientos bancarios certificados. El Excel puede contener datos personales: almacénalo de forma segura.</p>
-    {loading ? <p role="status">Preparando informe…</p> :
+    <p className="text-xs text-slate-500">Selecciona un solo cuadro o módulo con un clic. Se exportará exclusivamente ese ítem y sus registros del mes, no todos los cuadros. Los indicadores superiores son totales generales; su exportación corresponde al mes elegido. El Excel puede contener datos personales: guárdalo de forma segura.</p>
+    {!selection && <p className="text-sm font-medium text-slate-600">Selecciona un ítem para habilitar la exportación individual.</p>}
+    {selection && <p role="status" className="text-sm font-semibold text-slate-800">
+      Seleccionado: {selectedLabel} · Mes {month}. El Excel incluirá únicamente este ítem.
+    </p>}
+    {!ready && !error ? <p role="status">Preparando informe…</p> :
       error ? <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{error}</p> :
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {totals.map(([label,total])=><div key={label} className="rounded-xl border border-stone-200 p-3">
-            <div className="text-sm text-slate-500">{label}</div>
-            <div className="mt-1 text-lg font-bold">{total===null?'Sin autorización':money(total)}</div>
-          </div>)}
+          {totals.map(([label,total],index)=>{
+            const key=DISPLAYED_METRICS[index];
+            const isSelected=selection?.kind==='metric' && selection.key===key;
+            return <button key={key} type="button" aria-pressed={isSelected}
+              onClick={()=>onSelect({kind:'metric',key})} disabled={total===null}
+              title={'Seleccionar '+label+' para exportar solo ese indicador'}
+              className={'rounded-xl border border-stone-200 p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 '+
+                (isSelected?'bg-slate-50 ring-2 ring-slate-900':'hover:border-slate-400')}>
+              <div className="text-sm text-slate-500">{label}</div>
+              <div className="mt-1 text-lg font-bold">{total===null?'Sin autorización':money(total)}</div>
+            </button>;
+          })}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {sheets.map(s=><span key={s.name} className="rounded-full bg-stone-100 px-3 py-1 text-xs">{s.name}: {s.rows.length}</span>)}
+        <div className="flex flex-wrap gap-2" aria-label="Seleccionar módulo para exportar">
+          {sheets.map(sheet=>{
+            const isSelected=selection?.kind==='module' && selection.name===sheet.name;
+            return <button key={sheet.name} type="button" aria-pressed={isSelected}
+              onClick={()=>onSelect({kind:'module',name:sheet.name as Extract<MonthlyReportSelection,{kind:'module'}>['name']})}
+              title={'Exportar únicamente '+sheet.name+' de '+month}
+              className={'rounded-full px-3 py-1 text-xs transition-colors '+
+                (isSelected?'bg-slate-900 font-semibold text-white':'bg-stone-100 hover:bg-stone-200')}>
+              {sheet.name}: {sheet.rows.length}
+            </button>;
+          })}
         </div>
-        <p className="text-xs text-slate-500">El archivo incluye «Resumen» y una hoja independiente por sección autorizada. No se exportan registros de otras inmobiliarias.</p>
+        <p className="text-xs text-slate-500">El Excel tendrá una sola hoja, correspondiente al indicador o módulo elegido. No se exportan registros de otras inmobiliarias.</p>
       </div>}
   </section>;
 }

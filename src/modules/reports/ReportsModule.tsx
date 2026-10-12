@@ -4,6 +4,7 @@ import { useAuth } from '../../core/auth-context';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
 import { MonthlyAccountingReport } from './MonthlyAccountingReport';
+import type { MonthlyReportSelection } from '../../core/accounting-export';
 
 interface ReportState {
   properties: number;
@@ -32,6 +33,9 @@ export function ReportsModule() {
   const [state, setState] = useState<ReportState>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedReport, setSelectedReport] = useState<MonthlyReportSelection | null>(null);
+
+  useEffect(() => { setSelectedReport(null); }, [organizationId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,10 +116,10 @@ export function ReportsModule() {
   );
 
   const cards = [
-    { label: 'Propiedades', value: state.properties, icon: Building2 },
-    { label: 'Clientes', value: state.contacts, icon: UsersRound },
-    { label: 'Leads', value: state.leads, icon: BarChart3 },
-    { label: 'Negocios ganados', value: state.wonDeals, icon: Handshake },
+    { label: 'Propiedades', value: state.properties, icon: Building2, selection: {kind:'module',name:'Propiedades'} as MonthlyReportSelection },
+    { label: 'Clientes', value: state.contacts, icon: UsersRound, selection: {kind:'module',name:'Clientes'} as MonthlyReportSelection },
+    { label: 'Leads', value: state.leads, icon: BarChart3, selection: {kind:'module',name:'CRM'} as MonthlyReportSelection },
+    { label: 'Negocios ganados', value: state.wonDeals, icon: Handshake, selection: {kind:'metric',key:'WON_DEALS'} as MonthlyReportSelection },
   ];
 
   return (
@@ -127,16 +131,24 @@ export function ReportsModule() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-2xl border border-stone-200 bg-white p-5">
+        {cards.map(({ label, value, icon: Icon, selection }) => {
+          const chosen=selectedReport?.kind===selection.kind &&
+            (selection.kind==='module'
+              ? selectedReport?.kind==='module'&&selectedReport.name===selection.name
+              : selectedReport?.kind==='metric'&&selectedReport.key===selection.key);
+          return <button type="button" key={label} onClick={() => setSelectedReport(selection)}
+            aria-pressed={chosen} disabled={loading||Boolean(error)}
+            title={'Seleccionar '+label+' para exportar el detalle del mes elegido'}
+            className={'rounded-2xl border border-stone-200 bg-white p-5 text-left transition-colors disabled:opacity-60 ' +
+              (chosen?'ring-2 ring-slate-900 bg-slate-50':'hover:border-slate-400')}>
             <Icon className="h-5 w-5 text-slate-500" />
             <div className="mt-4 text-3xl font-bold">{loading || error ? '—' : value}</div>
             <div className="mt-1 text-sm text-slate-600">{label}</div>
-          </div>
-        ))}
+          </button>;
+        })}
       </div>
 
-      <MonthlyAccountingReport key={organizationId ?? 'no-organization'} />
+      <MonthlyAccountingReport key={organizationId ?? 'no-organization'} selection={selectedReport} onSelect={setSelectedReport} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Metric title="Valor de cierres ganados" value={loading || error ? '—' : money(state.totalDealValue)} />
