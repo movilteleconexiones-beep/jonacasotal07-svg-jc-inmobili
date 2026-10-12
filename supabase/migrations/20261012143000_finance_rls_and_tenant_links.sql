@@ -21,6 +21,14 @@ BEGIN
     RAISE EXCEPTION 'Existing cross-organization lease relations require manual review'
       USING ERRCODE='23514';
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.owner_statements s
+    JOIN public.property_owners o ON o.id=s.owner_id
+    WHERE o.organization_id<>s.organization_id
+  ) THEN
+    RAISE EXCEPTION 'Existing cross-organization settlement owner relations require manual review'
+      USING ERRCODE='23514';
+  END IF;
 END
 $preflight$;
 
@@ -32,6 +40,14 @@ ALTER TABLE public.contacts
   ADD CONSTRAINT financial_contacts_tenant_id_unique UNIQUE (organization_id,id);
 ALTER TABLE public.property_owners
   ADD CONSTRAINT financial_property_owners_tenant_id_unique UNIQUE (organization_id,id);
+
+-- A settlement must not reference an owner from a different organization.
+-- Replace the legacy single-column FK to preserve unambiguous PostgREST joins.
+ALTER TABLE public.owner_statements DROP CONSTRAINT owner_statements_owner_id_fkey;
+ALTER TABLE public.owner_statements
+  ADD CONSTRAINT owner_statement_owner_same_tenant_fk
+    FOREIGN KEY (organization_id,owner_id)
+    REFERENCES public.property_owners(organization_id,id) ON DELETE RESTRICT;
 
 -- Replace (do not duplicate) old single-column FKs to avoid ambiguous
 -- PostgREST joins against the same destination table.
