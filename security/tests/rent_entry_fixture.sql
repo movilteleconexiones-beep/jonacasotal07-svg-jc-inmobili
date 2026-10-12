@@ -63,6 +63,11 @@ CREATE TABLE public.owner_statements (
  status text NOT NULL DEFAULT 'DRAFT'
 );
 
+ALTER TABLE public.leases
+  ADD CONSTRAINT leases_property_id_fkey FOREIGN KEY(property_id) REFERENCES public.properties(id) ON DELETE RESTRICT,
+  ADD CONSTRAINT leases_tenant_id_fkey FOREIGN KEY(tenant_id) REFERENCES public.contacts(id) ON DELETE RESTRICT,
+  ADD CONSTRAINT leases_owner_id_fkey FOREIGN KEY(owner_id) REFERENCES public.property_owners(id) ON DELETE RESTRICT;
+
 ALTER TABLE public.leases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rent_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.owner_statements ENABLE ROW LEVEL SECURITY;
