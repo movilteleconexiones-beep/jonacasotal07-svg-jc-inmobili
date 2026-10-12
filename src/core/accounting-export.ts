@@ -20,7 +20,7 @@ export function financialTotal(rows: WorkbookDataRow[], column: string): number 
   },0);
 }
 export function rentPeriodTotals(rows: WorkbookDataRow[]) {
-  return rows.reduce((result,row) => {
+  return rows.reduce<{expected:number;paid:number;outstanding:number}>((result,row) => {
     if (row.status === 'CANCELLED') return result;
     const due=Number(row.expected_amount),paid=Number(row.paid_amount);
     if (!Number.isFinite(due)||due<0||!Number.isFinite(paid)||paid<0)
