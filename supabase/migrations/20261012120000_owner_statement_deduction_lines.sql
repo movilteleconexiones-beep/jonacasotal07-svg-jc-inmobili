@@ -47,7 +47,7 @@ CREATE INDEX owner_deductions_statement_created_idx
 CREATE FUNCTION public.guard_owner_statement_deduction_change()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = pg_catalog, public, auth
 AS $$
 DECLARE
@@ -57,6 +57,12 @@ BEGIN
   actor := auth.uid();
   IF actor IS NULL THEN
     RAISE EXCEPTION 'An authenticated user is required' USING ERRCODE='42501';
+  END IF;
+  -- SECURITY DEFINER is used only to lock the parent statement without
+  -- granting every accounting user UPDATE rights on all statements.
+  -- Perform the same tenant/permission check inside this privileged boundary.
+  IF TG_OP <> 'DELETE' AND NOT public.has_org_permission(NEW.organization_id, 'owner_statements.create') THEN
+    RAISE EXCEPTION 'Not authorized to alter this organization statement' USING ERRCODE='42501';
   END IF;
 
   IF TG_OP = 'DELETE' THEN
@@ -94,7 +100,7 @@ BEGIN
   SELECT s.status INTO parent_status
   FROM public.owner_statements s
   WHERE s.organization_id = NEW.organization_id AND s.id = NEW.statement_id
-  FOR SHARE;
+  FOR UPDATE;
   IF parent_status IS DISTINCT FROM 'DRAFT' THEN
     RAISE EXCEPTION 'Only draft owner statements accept deductions' USING ERRCODE='23514';
   END IF;
