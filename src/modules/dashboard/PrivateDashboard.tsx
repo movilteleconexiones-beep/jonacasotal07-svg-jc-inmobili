@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Building2,
+  ArrowUpRight,
   CalendarDays,
   ContactRound,
   FileSpreadsheet,
@@ -25,6 +26,7 @@ import {
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { tenantMenu } from '../../core/tenant-menu';
+import { permittedDashboardShortcuts } from '../../core/dashboard-shortcuts';
 import { supabase } from '../../lib/supabase';
 import { DataImportCenter } from '../imports/DataImportCenter';
 import { PropertiesModule } from '../properties/PropertiesModule';
@@ -182,6 +184,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       setStats(EMPTY_STATS);
       return;
     }
+    // Refresh the counters whenever a user returns from an operational panel.
+    if (view !== 'DASHBOARD') return;
 
     let cancelled = false;
 
@@ -225,7 +229,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, can]);
+  }, [organizationId, can, view]);
 
   const menuItems = useMemo(
     () =>
@@ -240,6 +244,13 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       ].flatMap(icon => tenantMenu(can, billingOwner, termsRequired).filter(item => item.id === icon.id).map(item => ({ ...item, icon: icon.icon }))),
     [can, billingOwner, termsRequired],
   );
+
+  // Cards and sidebar must go through the same permission-checked navigation.
+  function navigateToOperationalPanel(target: DashboardView) {
+    const destination = menuItems.find(item => item.id === target);
+    if (!destination?.available) return;
+    setView(target);
+  }
 
   if (!user) return null;
   if (!activeMembership) {
@@ -337,7 +348,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
                   type="button"
                   disabled={!item.available}
                   title={!item.available ? termsRequired ? 'Acepta la licencia para continuar' : 'Módulo fuera de tus permisos actuales' : undefined}
-                  onClick={() => setView(item.id)}
+                  onClick={() => navigateToOperationalPanel(item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                     active
                       ? 'bg-slate-900 text-white'
@@ -374,7 +385,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               tenantPrimary={tenantPrimary}
               tenantSecondary={tenantSecondary}
               themed={Boolean(branding.primaryColor)}
-              onNavigate={setView}
+              onNavigate={navigateToOperationalPanel}
               can={can}
             />
           )}
@@ -449,43 +460,18 @@ function DashboardHome({
   onNavigate,
   can,
 }: DashboardHomeProps) {
-  const cards = [
-    {
-      label: 'Propiedades',
-      value: stats.properties,
-      icon: Building2,
-      target: 'PROPERTIES' as const,
-      visible: can(PERMISSIONS.PROPERTIES_VIEW),
-    },
-    {
-      label: 'Clientes',
-      value: stats.contacts,
-      icon: ContactRound,
-      target: 'CONTACTS' as const,
-      visible: can(PERMISSIONS.CLIENTS_VIEW),
-    },
-    {
-      label: 'Leads',
-      value: stats.leads,
-      icon: UsersRound,
-      target: 'LEADS' as const,
-      visible: can(PERMISSIONS.LEADS_VIEW),
-    },
-    {
-      label: 'Citas y visitas',
-      value: stats.appointments,
-      icon: CalendarDays,
-      target: 'APPOINTMENTS' as const,
-      visible: can(PERMISSIONS.APPOINTMENTS_VIEW),
-    },
-    {
-      label: 'Negocios',
-      value: stats.deals,
-      icon: Handshake,
-      target: 'DEALS' as const,
-      visible: can(PERMISSIONS.DEALS_VIEW),
-    },
-  ].filter((card) => card.visible);
+  const shortcutIcons = {
+    PROPERTIES: Building2,
+    CONTACTS: ContactRound,
+    LEADS: UsersRound,
+    APPOINTMENTS: CalendarDays,
+    DEALS: Handshake,
+  } as const;
+  const cards = permittedDashboardShortcuts(can).map(shortcut => ({
+    ...shortcut,
+    value: stats[shortcut.metric],
+    icon: shortcutIcons[shortcut.target],
+  }));
 
   return (
     <div className="space-y-5">
@@ -515,13 +501,18 @@ function DashboardHome({
               key={card.label}
               type="button"
               onClick={() => onNavigate(card.target)}
-              className="rounded-2xl border border-stone-200 bg-white p-4 text-left hover:border-slate-400"
+              aria-label={`Abrir panel de ${card.label}`}
+              title={`Ir a ${card.label}`}
+              className="group cursor-pointer rounded-2xl border border-stone-200 bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-slate-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
               <div className="mb-5 flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100" style={themed ? { backgroundColor: tenantSecondary, color: tenantPrimary } : undefined}>
                 <Icon className="h-4 w-4" />
               </div>
               <div className="text-3xl font-bold tabular-nums" style={themed ? { color: tenantPrimary } : undefined}>{loading ? '—' : card.value}</div>
               <div className="mt-1 text-sm text-slate-600">{card.label}</div>
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-slate-700 group-hover:underline">
+                Abrir panel <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
             </button>
           );
         })}
