@@ -105,15 +105,21 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       return;
     }
     setSaving(true);setMessage('');
-    const {error}=await supabase.from('owner_statement_deductions').insert({
-      organization_id:organizationId,statement_id:statementId,charge_date:date,
-      category,responsible_party:responsible,amount:value,description,
-      support_reference:support||null,
-    });
-    setSaving(false);
-    if(error){setMessage('No se pudo guardar el descuento: '+error.message);return;}
-    target.reset();setShowForm(false);setRevision(v=>v+1);
-    setMessage('Movimiento creado en borrador. Debe aprobarse antes de conciliación.');
+    try {
+      const {error}=await supabase.from('owner_statement_deductions').insert({
+        organization_id:organizationId,statement_id:statementId,charge_date:date,
+        category,responsible_party:responsible,amount:value,description,
+        support_reference:support||null,
+      });
+      if(error){setMessage('No se pudo guardar el descuento: '+error.message);return;}
+      target.reset();setShowForm(false);setRevision(v=>v+1);
+      setMessage('Movimiento creado en borrador. Debe aprobarse antes de conciliación.');
+    } catch {
+      setMessage('No se confirmó la deducción. Revisa el libro antes de volver a crearla para evitar duplicados.');
+      setRevision(v=>v+1);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function changeStatus(line:Line,status:'APPROVED'|'VOIDED'){
@@ -127,26 +133,38 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       if(reason.length<6||reason.length>500)return;
     }else if(!window.confirm('¿Confirmas aprobar el concepto y su responsable? No constituye un pago bancario.'))return;
     setSaving(true);setMessage('');
-    const {data:changed,error}=await supabase.from('owner_statement_deductions')
-      .update(status==='VOIDED'?{status,void_reason:reason}:{status})
-      .eq('id',line.id).eq('organization_id',organizationId).eq('statement_id',line.statement_id)
-      .select('id').maybeSingle();
-    setSaving(false);
-    if(error||!changed)setMessage('No se actualizó la deducción: '+(error?.message??'Sin filas autorizadas o el estado ya cambió.'));
-    else{setRevision(v=>v+1);setMessage('Deducción actualizada. Vuelve a conciliar la liquidación para recalcular el neto.');}
+    try {
+      const {data:changed,error}=await supabase.from('owner_statement_deductions')
+        .update(status==='VOIDED'?{status,void_reason:reason}:{status})
+        .eq('id',line.id).eq('organization_id',organizationId).eq('statement_id',line.statement_id)
+        .select('id').maybeSingle();
+      if(error||!changed)setMessage('No se actualizó la deducción: '+(error?.message??'Sin filas autorizadas o el estado ya cambió.'));
+      else{setRevision(v=>v+1);setMessage('Deducción actualizada. Vuelve a conciliar la liquidación para recalcular el neto.');}
+    } catch {
+      setMessage('No se confirmó el estado de la deducción. Consulta el movimiento antes de reintentar.');
+      setRevision(v=>v+1);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function reconcileStatement(statement:Statement) {
     if(!writable||saving||!organizationId||statement.status!=='DRAFT')return;
     if(!window.confirm('¿Actualizar el neto con los abonos y deducciones aprobadas? Esto no realiza transferencias.'))return;
     setSaving(true);setMessage('');
-    const {error}=await supabase.rpc('reconcile_owner_draft_statement',{
-      target_org:organizationId,target_statement:statement.id,
-    });
-    setSaving(false);
-    if(error){setMessage('No se pudo conciliar: '+error.message);return;}
-    setMessage('Neto actualizado según los ingresos registrados y descuentos aprobados.');
-    window.dispatchEvent(new Event('owner-statement-updated'));
+    try {
+      const {error}=await supabase.rpc('reconcile_owner_draft_statement',{
+        target_org:organizationId,target_statement:statement.id,
+      });
+      if(error){setMessage('No se pudo conciliar: '+error.message);return;}
+      setMessage('Neto actualizado según los ingresos registrados y descuentos aprobados.');
+      window.dispatchEvent(new Event('owner-statement-updated'));
+    } catch {
+      setMessage('No se pudo confirmar la conciliación. Verifica el neto actual antes de reintentar.');
+      setRevision(v=>v+1);
+    } finally {
+      setSaving(false);
+    }
   }
 
   const approvedOwnerOther=lines.filter(x=>x.status==='APPROVED'&&x.responsible_party==='OWNER'
