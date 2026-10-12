@@ -16,7 +16,7 @@ CREATE FUNCTION public.has_org_permission(org uuid, permission text)
 RETURNS boolean LANGUAGE sql STABLE
 AS $$
   SELECT org=nullif(current_setting('jco_test.organization',true),'')::uuid AND
-    permission IN ('rent_payments.view','rent_payments.create',
+    permission IN ('leases.view','leases.create','leases.edit','rent_payments.view','rent_payments.create',
                    'owner_statements.view','owner_statements.create')
 $$;
 GRANT USAGE ON SCHEMA auth,public TO authenticated;
