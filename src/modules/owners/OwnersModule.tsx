@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, RefreshCw, UserRoundCog } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
+import { OwnerNetStatementsSummary } from '../finance/RentOwnerBalances';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 
@@ -62,7 +63,9 @@ export function OwnersModule() {
     event.preventDefault();
     if (!organizationId || !user) return;
 
-    const form = new FormData(event.currentTarget);
+    if (!can(PERMISSIONS.OWNERS_CREATE)) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const propertyId = String(form.get('property_id') ?? '').trim();
     const ownershipPctRaw = String(form.get('ownership_percentage') ?? '').trim();
     const ownershipPct = ownershipPctRaw ? Number(ownershipPctRaw) : 100;
@@ -108,7 +111,7 @@ export function OwnersModule() {
 
     setMessage('Propietario registrado correctamente.');
     setShowCreate(false);
-    event.currentTarget.reset();
+    formElement.reset();
     await load();
   }
 
@@ -198,6 +201,8 @@ export function OwnersModule() {
       )}
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
+
+      {organizationId && <OwnerNetStatementsSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">

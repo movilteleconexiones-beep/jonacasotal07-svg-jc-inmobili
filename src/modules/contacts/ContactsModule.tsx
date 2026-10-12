@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ContactRound, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
+import { TenantRentBalanceSummary } from '../finance/RentOwnerBalances';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 
@@ -159,6 +160,8 @@ export function ContactsModule() {
       )}
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
+
+      {organizationId && <TenantRentBalanceSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">
