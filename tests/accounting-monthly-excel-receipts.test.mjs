@@ -55,7 +55,7 @@ test('Excel reporting is filtered by active tenant, date, permissions and full c
   assert.match(reports,/PERMISSIONS\.REPORTS_VIEW/);
   assert.match(reports,/MONTHLY_SECTIONS\.filter\(item => can\(item\.permission\)\)/);
   assert.match(reports,/\.eq\('organization_id', organizationId\)/);
-  assert.match(reports,/\.gte\(section\.date,start\)\.lt\(section\.date,end\)/);
+  assert.match(reports,/\.gte\(dateColumn,start\)\.lt\(dateColumn,end\)/);
   assert.match(reports,/query\.count == null \|\| query\.count > rows\.length/);
   assert.match(reports,/XLSX\.utils\.book_append_sheet\(book,first,'Resumen'\)/);
   assert.match(reports,/XLSX\.writeFile\(book/);
