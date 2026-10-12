@@ -3,6 +3,7 @@ import { BarChart3, Building2, Handshake, UsersRound, WalletCards } from 'lucide
 import { useAuth } from '../../core/auth-context';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
+import { MonthlyAccountingReport } from './MonthlyAccountingReport';
 
 interface ReportState {
   properties: number;
@@ -134,6 +135,8 @@ export function ReportsModule() {
           </div>
         ))}
       </div>
+
+      <MonthlyAccountingReport key={organizationId ?? 'no-organization'} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Metric title="Valor de cierres ganados" value={loading || error ? '—' : money(state.totalDealValue)} />
