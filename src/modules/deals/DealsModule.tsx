@@ -48,7 +48,7 @@ export function DealsModule() {
       const [dealResult, contactResult, propertyResult] = await Promise.all([
         supabase
           .from('deals')
-          .select('id, contact_id, property_id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, contacts(first_name,last_name), properties(code,title,currency)')
+          .select('id, contact_id, property_id, stage, operation_type, asking_price, offered_price, final_price, commission_percentage, expected_close_date, contacts!deals_contact_id_fkey(first_name,last_name), properties!deals_property_id_fkey(code,title,currency)')
           .eq('organization_id', organizationId)
           .order('created_at', { ascending: false }),
         supabase.from('contacts').select('id, first_name, last_name').eq('organization_id', organizationId).order('first_name'),
