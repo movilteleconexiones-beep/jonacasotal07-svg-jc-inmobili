@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { useTenantBranding } from '../../core/use-tenant-branding';
+import { printInternalDocument } from '../../core/financial-documents';
 import { financialAmount as amount, rentalBalance, ownerNetFromDeductions } from '../../core/rent-owner-money';
 
 interface Lease {
@@ -41,6 +43,7 @@ const fullName = (person: Identity | undefined) =>
 /** Read-only tenant obligations. An unregistered payment period is NOT a confirmed debt. */
 export function TenantRentBalanceSummary({ organizationId }: { organizationId: string }) {
   const { can } = useAuth();
+  const { branding } = useTenantBranding();
   const allowed = can(PERMISSIONS.RENT_PAYMENTS_VIEW) && can(PERMISSIONS.LEASES_VIEW);
   const [leases, setLeases] = useState<Lease[]>([]);
   const [payments, setPayments] = useState<RentPayment[]>([]);
@@ -98,7 +101,7 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
         <h3 className="mt-5 font-semibold">Obligaciones mensuales registradas</h3>
         {payments.length === 0 ? <p className="mt-2 text-sm text-slate-500">Todavía no hay períodos de pago registrados; no se puede calcular cartera vencida.</p> :
           <div className="mt-2 overflow-x-auto"><table className="min-w-full text-left text-sm">
-            <thead><tr className="border-b text-slate-600"><th className="py-2">Inquilino / Período</th><th className="py-2 text-right">A pagar</th><th className="py-2 text-right">Registrado como pagado</th><th className="py-2 text-right">Saldo pendiente</th><th className="py-2">Estado</th></tr></thead>
+            <thead><tr className="border-b text-slate-600"><th className="py-2">Inquilino / Período</th><th className="py-2 text-right">A pagar</th><th className="py-2 text-right">Registrado como pagado</th><th className="py-2 text-right">Saldo pendiente</th><th className="py-2">Estado</th><th className="py-2">Comprobante</th></tr></thead>
             <tbody>{payments.map(payment => {
               const lease = byLease.get(payment.lease_id);
               const valid = lease && Number.isFinite(rentalBalance(payment.expected_amount, payment.paid_amount));
@@ -108,6 +111,24 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
                 <td className="py-2 text-right">{cop(amount(payment.paid_amount))}</td>
                 <td className="py-2 text-right font-semibold">{valid ? cop(rentalBalance(payment.expected_amount, payment.paid_amount)) : 'Por verificar'}</td>
                 <td className="py-2">{payment.status}</td>
+                <td className="py-2"><button type="button" disabled={!valid} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold disabled:opacity-40" onClick={() => {
+                  try {
+                    printInternalDocument({
+                      kind:'TENANT_ACCOUNT',
+                      issuer:branding.companyName, logoUrl:branding.logoUrl,
+                      recipient:lease?.tenant_id ? fullName(byContact.get(lease.tenant_id)) : 'Inquilino no identificado',
+                      reference:lease?.contract_number || payment.lease_id,
+                      period:payment.period_month,currency:branding.currency||'COP',
+                      recordedStatus:payment.status,
+                      lines:[
+                        {concept:'Valor registrado a pagar',amount:amount(payment.expected_amount)},
+                        {concept:'Abonos registrados',amount:-amount(payment.paid_amount)},
+                        {concept:'Saldo pendiente',amount:rentalBalance(payment.expected_amount,payment.paid_amount)},
+                      ],
+                      note:'Estado de cuenta informativo. No incluye servicios públicos no registrados ni reemplaza recibos de recaudo.',
+                    });
+                  } catch (cause) {setError(cause instanceof Error?cause.message:'No fue posible emitir el comprobante.');}
+                }}>Emitir estado de cuenta</button></td>
               </tr>;
             })}</tbody>
           </table></div>}
@@ -119,6 +140,7 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
 /** Read-only owner liquidation. Statement status is NOT proof of a bank transfer. */
 export function OwnerNetStatementsSummary({ organizationId }: { organizationId: string }) {
   const { can } = useAuth();
+  const { branding } = useTenantBranding();
   const allowed = can(PERMISSIONS.OWNER_STATEMENTS_VIEW);
   const [statements, setStatements] = useState<OwnerStatement[]>([]);
   const [owners, setOwners] = useState<Identity[]>([]);
@@ -166,7 +188,7 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
             <th className="py-2">Propietario / Mes</th>
             <th className="py-2 text-right">Bruto</th><th className="py-2 text-right">Comisión</th>
             <th className="py-2 text-right">Impuestos</th><th className="py-2 text-right">Otras deducciones</th>
-            <th className="py-2 text-right">Neto a entregar</th><th className="py-2">Estado</th>
+            <th className="py-2 text-right">Neto a entregar</th><th className="py-2">Estado</th><th className="py-2">Comprobante</th>
           </tr></thead>
           <tbody>{statements.map(statement => {
             const calculated = ownerNetFromDeductions(statement);
@@ -179,6 +201,26 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
               <td className="py-2 text-right">{cop(amount(statement.other_deductions))}</td>
               <td className="py-2 text-right font-semibold">{reconciled ? cop(amount(statement.net_amount)) : 'Por conciliar'}</td>
               <td className="py-2">{statement.status}{!reconciled && <div className="text-xs text-amber-800">Diferencia en liquidación</div>}</td>
+              <td className="py-2"><button type="button" disabled={!reconciled}
+                className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                onClick={() => {
+                  try {
+                    printInternalDocument({
+                      kind:'OWNER_SETTLEMENT', issuer:branding.companyName, logoUrl:branding.logoUrl,
+                      recipient:statement.owner_id ? fullName(byOwner.get(statement.owner_id)) : 'Propietario no identificado',
+                      reference:statement.lease_id,period:statement.period_month,
+                      currency:branding.currency||'COP', recordedStatus:statement.status,
+                      lines:[
+                        {concept:'Ingreso bruto registrado',amount:amount(statement.gross_income)},
+                        {concept:'Comisión inmobiliaria',amount:-amount(statement.commission_amount)},
+                        {concept:'Impuestos y retenciones registrados',amount:-amount(statement.tax_amount)},
+                        {concept:'Otras deducciones registradas (sin desglose)',amount:-amount(statement.other_deductions)},
+                        {concept:'Neto a entregar según liquidación',amount:amount(statement.net_amount)},
+                      ],
+                      note:'Las deducciones individuales y los comprobantes de pago deben ser conciliados por la inmobiliaria. No acredita transferencia al propietario.',
+                    });
+                  } catch (cause) {setError(cause instanceof Error?cause.message:'No fue posible emitir el comprobante.');}
+                }}>Emitir liquidación</button></td>
             </tr>;
           })}</tbody>
         </table>
