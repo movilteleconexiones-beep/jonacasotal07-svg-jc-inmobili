@@ -143,6 +143,33 @@ jobs:
         run: node --import tsx --test tests/accounting-monthly-excel-receipts.test.mjs
       - name: Safe tenant, user and role retirement regression
         run: node --test tests/safe-retirement-tenant-users-roles.test.mjs
+      - name: Financial form and permission gate regressions
+        run: node --test tests/rent-finance-entry-regression.test.mjs
+      - name: Owner deduction pure accounting tests
+        run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
+      - name: Rent receipts and owner statements SQL checks
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_rent_entries_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_isolation_assertions.sql
+          bash security/tests/rent_receipts_concurrency.sh
+      - name: Itemized owner ledger SQL and concurrency checks
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_deductions_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_assertions.sql
+          bash security/tests/owner_deductions_concurrency.sh
       - name: Production build
         run: npm run build
       - name: Cross-tenant RLS regression tests (isolated PostgreSQL)

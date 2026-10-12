@@ -50,6 +50,12 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
   const [contacts, setContacts] = useState<Identity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const refresh=()=>setRevision(x=>x+1);
+    window.addEventListener('tenant-rent-updated',refresh);
+    return()=>window.removeEventListener('tenant-rent-updated',refresh);
+  },[]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +82,7 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
       } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [organizationId, allowed]);
+  }, [organizationId, allowed, revision]);
 
   if (!allowed) return null;
   const byLease = new Map(leases.map(item => [item.id, item]));
@@ -146,6 +152,12 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
   const [owners, setOwners] = useState<Identity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const refresh=()=>setRevision(x=>x+1);
+    window.addEventListener('owner-statement-updated',refresh);
+    return()=>window.removeEventListener('owner-statement-updated',refresh);
+  },[]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,7 +184,7 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
       } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [organizationId, allowed]);
+  }, [organizationId, allowed, revision]);
 
   if (!allowed) return null;
   const byOwner = new Map(owners.map(item => [item.id, item]));
