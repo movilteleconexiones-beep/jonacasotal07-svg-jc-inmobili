@@ -6,6 +6,17 @@ BEGIN;
 -- Keep service_role permissions for approved backend maintenance.
 REVOKE DELETE ON TABLE public.deals FROM PUBLIC, anon, authenticated;
 
+-- Editing a client/property must never link records belonging to another agency.
+-- Both parent tables already have tenant-composite UNIQUE constraints in production.
+ALTER TABLE public.deals
+  ADD CONSTRAINT deals_contact_same_org_fk
+  FOREIGN KEY (organization_id, contact_id)
+  REFERENCES public.contacts(organization_id, id) ON DELETE RESTRICT;
+ALTER TABLE public.deals
+  ADD CONSTRAINT deals_property_same_org_fk
+  FOREIGN KEY (organization_id, property_id)
+  REFERENCES public.properties(organization_id, id) ON DELETE RESTRICT;
+
 CREATE FUNCTION public.delete_unlinked_deal(
   target_org uuid, target_deal uuid
 ) RETURNS boolean
