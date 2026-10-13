@@ -190,6 +190,25 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     }
   }
 
+  async function restoreVoidedDeduction(line:Line) {
+    if(!canVoid||saving||!organizationId||line.status!=='VOIDED'
+      ||!statements.some(s=>s.id===line.statement_id&&s.status==='DRAFT'))return;
+    const reason=window.prompt('Motivo de recuperación de la deducción (mínimo 15 caracteres):')?.trim();
+    if(!reason)return;
+    if(reason.length<15||reason.length>500){setMessage('El motivo debe tener de 15 a 500 caracteres.');return;}
+    if(!window.confirm('Se creará una NUEVA deducción en borrador para revisión. La deducción anulada permanecerá en el historial. ¿Continuar?'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {data,error}=await supabase.rpc('restore_voided_owner_deduction',{
+        target_org:organizationId,target_deduction:line.id,restore_reason:reason
+      });
+      if(error){setMessage('No se pudo recuperar la deducción: '+error.message);return;}
+      setMessage('Deducción recuperada como nuevo borrador ('+String(data)+'). Apruébala y concilia la liquidación cuando corresponda.');
+      setRevision(v=>v+1);
+    }catch{setMessage('No se confirmó la recuperación. Actualiza antes de repetir.');}
+    finally{setSaving(false);}
+  }
+
   async function reconcileStatement(statement:Statement) {
     if(!canReconcile||saving||!organizationId||statement.status!=='DRAFT')return;
     if(!window.confirm('¿Actualizar la conciliación con los abonos y deducciones aprobadas actuales? Se registrará una revisión auditada. No transfiere fondos.'))return;
@@ -350,6 +369,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
             <td className="p-2">{etiquetaES(line.status)}</td>
             <td className="flex gap-2 p-2">
               {editable&&line.status==='DRAFT'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'APPROVED')} className="text-xs underline">Aprobar</button>}
+              {editable&&canVoid&&line.status==='VOIDED'&&<button type="button" disabled={saving} onClick={()=>void restoreVoidedDeduction(line)} className="text-xs underline text-emerald-700">Recuperar como borrador</button>}
               {editable&&canVoid&&line.status!=='VOIDED'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'VOIDED')} className="text-xs underline">Anular</button>}
             </td>
           </tr>;
