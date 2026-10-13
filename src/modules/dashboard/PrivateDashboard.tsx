@@ -259,7 +259,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         <h1 className="text-2xl font-bold">Panel inmobiliario</h1>
         <p className="mt-3 text-slate-700">Tu cuenta tiene acceso a la administración central, pero todavía no dispone de una membresía activa en una inmobiliaria. Para ver propiedades, clientes, CRM y demás módulos necesitas que una inmobiliaria te asigne un perfil autorizado.</p>
         <div className="mt-6 flex flex-wrap gap-3">
-          {isPlatformAdmin && <a href="/super-admin" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Administración central · SuperAdmin</a>}
+          {isPlatformAdmin && <a href="/super-admin" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Administración central · Superadministrador</a>}
           <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 font-semibold">Volver al inicio</button>
         </div>
       </div>
@@ -298,7 +298,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             {can(PERMISSIONS.SETTINGS_EDIT) && logoUrl && <button type="button" onClick={() => void applyLogoPalette()} disabled={applyingLogoPalette} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold disabled:opacity-50" title="Guardar únicamente los colores de esta inmobiliaria">
               <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
             </button>}
-            {isPlatformAdmin && <a href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><ShieldCheck className="h-4 w-4" />SuperAdmin</a>}
+            {isPlatformAdmin && <a href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><ShieldCheck className="h-4 w-4" />Superadministrador</a>}
             {memberships.length > 1 && (
               <select
                 value={activeMembership.organization.id}
