@@ -3,6 +3,7 @@ import { Handshake, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { DEAL_STAGE_OPTIONS, isAllowedDealStage, isValidDealCloseDate } from '../../core/deal-edit-validation';
+import { parseCommissionPercentage } from '../../core/commission-percentage';
 import { supabase } from '../../lib/supabase';
 
 interface DealRow {
@@ -105,6 +106,11 @@ export function DealsModule() {
     const asking = String(form.get('asking_price') ?? '').trim();
     const offered = String(form.get('offered_price') ?? '').trim();
     const commission = String(form.get('commission_percentage') ?? '').trim();
+    const commissionRate=commission?parseCommissionPercentage(commission):null;
+    if (commission && !Number.isFinite(commissionRate)) {
+      setMessage('La comisión debe ser un porcentaje entre 0 % y 100 % (máximo dos decimales).');
+      return;
+    }
     const closeDate = String(form.get('expected_close_date') ?? '').trim();
 
     if (busy) return;
@@ -120,7 +126,7 @@ export function DealsModule() {
       stage: 'INTEREST',
       asking_price: asking ? Number(asking) : null,
       offered_price: offered ? Number(offered) : null,
-      commission_percentage: commission ? Number(commission) : null,
+      commission_percentage: commissionRate,
       expected_close_date: closeDate || null,
       created_by: user.id,
     });
@@ -310,7 +316,7 @@ export function DealsModule() {
           <Field name="expected_close_date" label="Cierre esperado" type="date" />
           <Field name="asking_price" label="Precio solicitado" type="number" min="0" />
           <Field name="offered_price" label="Oferta inicial" type="number" min="0" />
-          <Field name="commission_percentage" label="Comisión %" type="number" min="0" step="0.01" />
+          <Field name="commission_percentage" label="Comisión inmobiliaria (%)" type="number" min="0" max="100" step="0.01" />
           <div className="md:col-span-2 flex justify-end gap-2">
             <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
             <button type="submit" disabled={!hasRequiredOptions || loadingOptions || busy} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Guardar negocio</button>
@@ -403,7 +409,7 @@ export function DealsModule() {
                       defaultValue={row.offered_price ?? ''} />
                     <Field name="final_price" label="Precio final acordado (si aplica)" type="number" min="0" step="0.01"
                       defaultValue={row.final_price ?? ''} />
-                    <Field name="commission_percentage" label="Comisión %" type="number"
+                    <Field name="commission_percentage" label="Comisión inmobiliaria (%)" type="number"
                       min="0" max="100" step="0.01" defaultValue={row.commission_percentage ?? ''} />
                     <p className="md:col-span-2 text-xs text-slate-600">
                       Solicitado: valor anunciado por el propietario. Oferta inicial: lo que propone el cliente.
