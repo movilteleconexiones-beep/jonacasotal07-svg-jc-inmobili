@@ -28,8 +28,7 @@ BEGIN
       'original_amount',c.amount,'original_percentage',c.percentage));
  RETURN target_commission;
 END;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.request_paid_commission_review(target_org uuid, target_commission uuid, kind text, reason text, proposed_percentage numeric DEFAULT NULL::numeric, proposed_basis numeric DEFAULT NULL::numeric)
  RETURNS uuid
@@ -76,5 +75,4 @@ BEGIN
      'proposal',proposal,'original_amount',c.amount));
  RETURN new_id;
 END;
-$function$
-
+$function$;
