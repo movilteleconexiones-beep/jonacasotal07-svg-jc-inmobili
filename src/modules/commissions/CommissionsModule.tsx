@@ -67,6 +67,7 @@ export function CommissionsModule() {
   const [reviewRate,setReviewRate] = useState('');
   const [reviewBasis,setReviewBasis] = useState('');
   const [reviews,setReviews] = useState<CommissionReview[]>([]);
+  const [corrections,setCorrections] = useState<Record<string,{corrected_amount:number;original_amount:number;difference_amount:number}>>({});
   const [saving,setSaving] = useState(false);
   const [commissionRate,setCommissionRate] = useState('');
   const [commissionBasis,setCommissionBasis] = useState('');
@@ -81,13 +82,13 @@ export function CommissionsModule() {
   async function load() {
     const version = ++loadVersion.current;
     if (!organizationId) {
-      setRows([]); setDeals([]); setMembers([]); setReviews([]); setProfileNames({}); setLoadingOptions(false);
+      setRows([]); setDeals([]); setMembers([]); setReviews([]); setCorrections({}); setProfileNames({}); setLoadingOptions(false);
       return;
     }
     setLoadingOptions(true);
-    setRows([]); setDeals([]); setMembers([]); setReviews([]); setProfileNames({});
+    setRows([]); setDeals([]); setMembers([]); setReviews([]); setCorrections({}); setProfileNames({});
 
-    const [commissionsResult, dealsResult, membersResult, reviewResult] = await Promise.all([
+    const [commissionsResult, dealsResult, membersResult, reviewResult, correctionResult] = await Promise.all([
       supabase
         .from('commissions')
         .select('id,deal_id,beneficiary_user_id,commission_type,percentage,calculation_basis,amount,currency,status,due_date,paid_at,notes,deals(properties!deals_property_id_fkey(code,title),contacts!deals_contact_id_fkey(first_name,last_name))')
@@ -105,10 +106,13 @@ export function CommissionsModule() {
         .eq('status', 'ACTIVE'),
       supabase.from('commission_review_requests').select('id,commission_id,requested_by,request_type,reason,proposed_values,status,review_reason,created_at')
         .eq('organization_id',organizationId).order('created_at',{ascending:false}).limit(100),
+      supabase.from('commission_accounting_corrections').select('commission_id,original_amount,corrected_amount,difference_amount').eq('organization_id',organizationId),
     ]);
 
     if (version !== loadVersion.current) return;
     setReviews(reviewResult.error?[]:((reviewResult.data??[]) as CommissionReview[]));
+    if(correctionResult.error) setMessage('No se pudieron consultar las rectificaciones de comisiones.');
+    setCorrections(Object.fromEntries((correctionResult.data??[]).map(item=>[item.commission_id,item])));
     if (commissionsResult.error) setMessage(commissionsResult.error.message);
     else setRows((commissionsResult.data ?? []) as unknown as CommissionRow[]);
 
@@ -473,7 +477,7 @@ export function CommissionsModule() {
                 </td>
                 <td className="px-4 py-3">{etiquetaES(row.commission_type)}</td>
                 <td className="px-4 py-3">{row.percentage==null?'—':`${Number(row.percentage).toLocaleString('es-CO',{maximumFractionDigits:2})} %`}</td>
-                <td className="px-4 py-3">{formatMoney(row.amount, row.currency)}</td>
+                <td className="px-4 py-3">{corrections[row.id] ? <div><strong>{formatMoney(corrections[row.id].corrected_amount,row.currency)}</strong><div className="text-xs text-amber-800">Rectificada · Original {formatMoney(corrections[row.id].original_amount,row.currency)} · Diferencia {formatMoney(corrections[row.id].difference_amount,row.currency)}</div></div> : formatMoney(row.amount, row.currency)}</td>
                 <td className="px-4 py-3">
                   {can(PERMISSIONS.COMMISSIONS_EDIT) && row.status !== 'PAID' && row.status !== 'CANCELLED' ? (
                     <select
@@ -489,7 +493,7 @@ export function CommissionsModule() {
 
                     </select>
                   ) : (
-                    etiquetaES(row.status)
+                    corrections[row.id] ? 'Rectificada (pago registrado por error)' : etiquetaES(row.status)
                   )}
                 </td>
                 <td className="px-4 py-3">
@@ -616,9 +620,10 @@ export function CommissionsModule() {
           <div><strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
             <span className="ml-2">{etiquetaES(review.status)}</span>
             <div className="text-xs text-slate-600">{review.reason}</div>
+            {corrections[review.commission_id]&&<div className="text-xs text-green-800">Rectificación contable registrada: {formatMoney(corrections[review.commission_id].corrected_amount,'COP')} (sin desembolso real).</div>}
             {review.review_reason&&<div className="text-xs text-slate-600">Decisión: {review.review_reason}</div>}
           </div>
-          {isCommissionAdministrator && review.status==='PENDING' && review.requested_by!==user?.id&&
+          {isCommissionAdministrator && review.status==='PENDING' && !corrections[review.commission_id] && review.requested_by!==user?.id&&
             <div className="flex gap-2">
               <button type="button" disabled={saving} onClick={()=>void decideReview(review,'APPROVED')}
                 className="rounded-lg border px-3 py-2">Autorizar revisión</button>
