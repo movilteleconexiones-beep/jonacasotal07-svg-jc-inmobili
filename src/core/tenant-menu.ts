@@ -5,7 +5,7 @@ export const TENANT_MENU = [
   { id: 'PROPERTIES', label: 'Propiedades', permissions: [P.PROPERTIES_VIEW] },
   { id: 'CONTACTS', label: 'Clientes', permissions: [P.CLIENTS_VIEW] },
   { id: 'RENTAL_INTAKE', label: 'Nueva vinculación', permissions: [P.LEASES_VIEW] },
-  { id: 'LEADS', label: 'Leads / CRM', permissions: [P.LEADS_VIEW] },
+  { id: 'LEADS', label: 'Prospectos / CRM', permissions: [P.LEADS_VIEW] },
   { id: 'APPOINTMENTS', label: 'Agenda', permissions: [P.APPOINTMENTS_VIEW] },
   { id: 'DEALS', label: 'Negocios', permissions: [P.DEALS_VIEW] },
   { id: 'OWNERS', label: 'Propietarios', permissions: [P.OWNERS_VIEW] },
