@@ -40,6 +40,20 @@ export function startWompiServer() {
   const app = express();
   app.disable('x-powered-by');
   app.get('/healthz', (_req, res) => res.status(200).json({ status: 'ok' }));
+  // Readiness is separate from liveness: a running process is not necessarily
+  // able to persist authenticated payment events. Never return credentials.
+  app.get('/readyz', async (_req, res) => {
+    try {
+      const { error } = await client.from('payment_orders').select('id').limit(0);
+      if (error) {
+        res.status(503).json({ status: 'unavailable' });
+        return;
+      }
+      res.status(200).json({ status: 'ready' });
+    } catch {
+      res.status(503).json({ status: 'unavailable' });
+    }
+  });
   app.use(createWompiWebhookRouter({
     eventsSecret,
     environment,
