@@ -237,6 +237,8 @@ jobs:
         run: node --test tests/effective-commission-reports.test.mjs
       - name: Archived commission recover-as-new regression
         run: node --test tests/archived-commission-replacement.test.mjs
+      - name: Finance lookup index regression
+        run: node --test tests/finance-lookup-indexes.test.mjs
       - name: Commission duplicate guard regression
         run: node --test tests/commission-duplicate-guard.test.mjs
       - name: Paid commission administrative action selector regression
