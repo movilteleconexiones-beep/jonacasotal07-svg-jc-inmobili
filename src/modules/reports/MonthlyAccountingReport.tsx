@@ -69,6 +69,18 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
       try {
         const {start,end} = monthlyDateBounds(month);
         const results: ReportSheet[] = [];
+        // Report approved owner deductions by their actual ledger state, not stale statement totals.
+        // The displayed deduction figure is a live breakdown; owner statement net stays as last reconciled.
+        const deductionQuery=can(PERMISSIONS.OWNER_STATEMENTS_VIEW)
+          ? await supabase.from('owner_statement_deductions')
+              .select('id,statement_id,amount,responsible_party,status,category,charge_date',{count:'exact'})
+              .eq('organization_id',organizationId)
+              .gte('charge_date',start).lt('charge_date',end).limit(1000)
+          : null;
+        if(deductionQuery?.error)throw new Error('No se pudieron consultar las deducciones: '+deductionQuery.error.message);
+        const deductionRows=deductionQuery?.data??[];
+        if(deductionQuery&&(deductionQuery.count==null||deductionQuery.count>deductionRows.length))
+          throw new Error('La consulta de deducciones está incompleta.');
         let rectifications: {commission_id:string;archived_from_active:boolean}[] = [];
         if (permitted.some(item=>item.name==='Comisiones')) {
           const correctionQuery=await supabase.from('commission_accounting_corrections')
@@ -100,7 +112,13 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
             : rows;
           results.push({name:section.name,columns,rows:effectiveRows});
         }
-        if (!cancelled) { setSheets(results); setLoadedFor(loadKey); }
+        if (deductionQuery) results.push({
+          name:'Deducciones',
+          columns:['id','statement_id','amount','responsible_party','status','category','charge_date'],
+          rows:deductionRows.filter(item=>item.status==='APPROVED'&&item.responsible_party==='OWNER'
+            &&item.category!=='TAX'&&item.category!=='COMMISSION'),
+        });
+                if (!cancelled) { setSheets(results); setLoadedFor(loadKey); }
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'No fue posible elaborar el informe.');
       } finally {if (!cancelled) setLoading(false);}
@@ -117,7 +135,9 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const paid = rent.paid;
   const ownerNet = financialTotal(find('Liquidaciones'),'net_amount');
   const ownerCommission = financialTotal(find('Liquidaciones'),'commission_amount');
-  const ownerOther = financialTotal(find('Liquidaciones'),'other_deductions');
+  const ownerOther = sheets.some(item=>item.name==='Deducciones')
+    ? financialTotal(find('Deducciones'),'amount')
+    : financialTotal(find('Liquidaciones'),'other_deductions');
   const canSeeRents = sheets.some(item=>item.name==='Cánones');
   const canSeeStatements = sheets.some(item=>item.name==='Liquidaciones');
   const totals = [
