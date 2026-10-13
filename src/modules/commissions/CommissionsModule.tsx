@@ -241,9 +241,13 @@ export function CommissionsModule() {
     if(status==='PAID'&&!window.confirm('¿Confirmas con soporte que la comisión ya fue efectivamente pagada? Esta marca será inmutable y requerirá revisión administrativa para cualquier corrección.'))return;
     setSaving(true);setMessage('');
     try {
-      const {error}=await supabase.rpc('set_commission_status_audited',{
-        target_org:organizationId,target_commission:row.id,new_status:status,reason:reason.trim()
-      });
+      const {error}=status==='PAID'
+        ? await supabase.rpc('admin_record_commission_paid',{
+            target_org:organizationId,target_commission:row.id,payment_reference:reason.trim()
+          })
+        : await supabase.rpc('set_commission_status_audited',{
+            target_org:organizationId,target_commission:row.id,new_status:status,reason:reason.trim()
+          });
       if(error){setMessage('No se pudo actualizar el estado: '+error.message);return;}
       if(await verifyCommissionStatus(row.id,status)) {
         await load();
