@@ -87,7 +87,7 @@ export function CommissionsModule() {
       return;
     }
     setLoadingOptions(true);
-    setRows([]); setDeals([]); setMembers([]); setReviews([]); setCorrections({}); setProfileNames({});
+    // Keep the current table visible during refresh to avoid a false impression of lost records.
 
     const [commissionsResult, dealsResult, membersResult, reviewResult, correctionResult] = await Promise.all([
       supabase
@@ -201,6 +201,19 @@ export function CommissionsModule() {
     await load();
   }
 
+  async function verifyCommissionStatus(id:string,expected:string):Promise<boolean> {
+    if(!organizationId)return false;
+    const {data,error}=await supabase.from('commissions').select('status')
+      .eq('organization_id',organizationId).eq('id',id).maybeSingle();
+    if(error||!data||data.status!==expected) {
+      setMessage('El servidor no confirmó el estado esperado. Pulsa Actualizar y revisa el historial antes de intentar de nuevo.');
+      await load();
+      return false;
+    }
+    setRows(previous=>previous.map(item=>item.id===id?{...item,status:expected}:item));
+    return true;
+  }
+
   async function updateStatus(row: CommissionRow, status: string) {
     if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status || saving) return;
     if (status==='CANCELLED') {
@@ -232,8 +245,10 @@ export function CommissionsModule() {
         target_org:organizationId,target_commission:row.id,new_status:status,reason:reason.trim()
       });
       if(error){setMessage('No se pudo actualizar el estado: '+error.message);return;}
-      setMessage('Estado actualizado con registro de auditoría. No se ejecutó ninguna transferencia bancaria.');
-      await load();
+      if(await verifyCommissionStatus(row.id,status)) {
+        await load();
+        setMessage('Confirmado en Supabase: comisión '+etiquetaES(status)+'. Se registró la auditoría.');
+      }
     }finally{setSaving(false);}
   }
 
@@ -283,8 +298,10 @@ export function CommissionsModule() {
         target_org:organizationId,target_commission:row.id,reason:reason.trim()
       });
       if(error){setMessage('No se pudo anular: '+error.message);return;}
-      setMessage('Comisión anulada sin eliminación física. Se conservó la auditoría.');
-      setEditingId(null);await load();
+      if(await verifyCommissionStatus(row.id,'CANCELLED')) {
+        setEditingId(null);await load();
+        setMessage('Confirmado en Supabase: comisión cancelada. Puedes recuperarla con el botón Recuperar.');
+      }
     }finally{setSaving(false);}
   }
 
@@ -366,8 +383,10 @@ export function CommissionsModule() {
         target_org:organizationId,target_commission:row.id,correction_reason:reason.trim()
       });
       if(error){setMessage('No se pudo restaurar: '+error.message);return;}
-      setMessage('Comisión recuperada en estado pendiente, con auditoría.');
-      await load();
+      if(await verifyCommissionStatus(row.id,'PENDING')) {
+        await load();
+        setMessage('Confirmado en Supabase: comisión recuperada en estado Pendiente, con auditoría.');
+      }
     }catch{setMessage('No se confirmó la recuperación. Actualiza y revisa el estado.');}
     finally{setSaving(false);}
   }
