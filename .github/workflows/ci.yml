@@ -221,6 +221,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261013020000_owner_statement_percentage_commission.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/commission_percentage_owner_statements_assertions.sql
+      - name: Owner commission percentage correction regression
+        run: node --test tests/owner-commission-percentage-correction.test.mjs
       - name: Owner report one-click reconciliation regression
         run: node --test tests/owner-report-reconcile-action.test.mjs
       - name: Owner net preview reporting regression
