@@ -221,6 +221,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261013020000_owner_statement_percentage_commission.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/commission_percentage_owner_statements_assertions.sql
+      - name: Owner draft reconciliation warning regression
+        run: node --test tests/owner-stale-reconciliation-warning.test.mjs
       - name: Owner deduction reporting and recovery regression
         run: node --test tests/owner-deduction-report-recovery.test.mjs
       - name: Owner deduction administrator void regression

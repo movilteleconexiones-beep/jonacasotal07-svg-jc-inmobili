@@ -5,6 +5,7 @@ import { PERMISSIONS } from '../../core/permissions';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
 import { effectiveCommissionRows } from '../../core/effective-commissions';
+import { reconciliationAlerts } from '../../core/owner-reconciliation-alerts';
 import {
   excelSafeCell, monthlyDateBounds, financialTotal, rentPeriodTotals,
   selectedWorkbookContent, MONTHLY_METRICS,
@@ -22,7 +23,7 @@ const MONTHLY_SECTIONS = [
   { name:'Comisiones', table:'commissions', permission:PERMISSIONS.COMMISSIONS_VIEW, date:'created_at', cols:'id,status,amount,deal_id,beneficiary_user_id,created_at' },
   { name:'Contratos', table:'leases', permission:PERMISSIONS.LEASES_VIEW, date:'start_date', cols:'contract_number,tenant_id,owner_id,property_id,monthly_rent,status,start_date,end_date' },
   { name:'Cánones', table:'rent_payments', permission:PERMISSIONS.RENT_PAYMENTS_VIEW, date:'period_month', cols:'lease_id,period_month,expected_amount,paid_amount,status,paid_at' },
-  { name:'Liquidaciones', table:'owner_statements', permission:PERMISSIONS.OWNER_STATEMENTS_VIEW, date:'period_month', cols:'lease_id,owner_id,period_month,gross_income,commission_amount,tax_amount,other_deductions,net_amount,status' },
+  { name:'Liquidaciones', table:'owner_statements', permission:PERMISSIONS.OWNER_STATEMENTS_VIEW, date:'period_month', cols:'id,lease_id,owner_id,period_month,gross_income,commission_amount,tax_amount,other_deductions,net_amount,status' },
 ] as const;
 const currentMonth = () => {
   const now = new Date();
@@ -47,6 +48,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const allowed = can(PERMISSIONS.REPORTS_VIEW);
   const [month,setMonth] = useState(currentMonth);
   const [sheets,setSheets] = useState<ReportSheet[]>([]);
+  const [staleCount,setStaleCount] = useState(0);
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [revision,setRevision] = useState(0);
@@ -61,6 +63,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   useEffect(() => {
     let cancelled = false;
     setSheets([]);
+    setStaleCount(0);
     setLoadedFor('');
     setError('');
     if (!allowed || !organizationId) { setLoading(false); return () => {cancelled=true;}; }
@@ -118,7 +121,12 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
           rows:deductionRows.filter(item=>item.status==='APPROVED'&&item.responsible_party==='OWNER'
             &&item.category!=='TAX'&&item.category!=='COMMISSION'),
         });
-                if (!cancelled) { setSheets(results); setLoadedFor(loadKey); }
+                const statementRows=results.find(section=>section.name==='Liquidaciones')?.rows??[];
+        const stale=reconciliationAlerts(
+          statementRows.map(row=>({id:String(row.id),status:String(row.status),other_deductions:Number(row.other_deductions??0)})),
+          deductionRows.map(row=>({statement_id:row.statement_id,status:row.status,responsible_party:row.responsible_party,category:row.category,amount:row.amount}))
+        );
+        if (!cancelled) { setSheets(results);setStaleCount(stale.length);setLoadedFor(loadKey); }
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'No fue posible elaborar el informe.');
       } finally {if (!cancelled) setLoading(false);}
@@ -187,7 +195,8 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   }
 
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5" aria-label="Informes contables mensuales">
-    <div className="flex flex-wrap items-end justify-between gap-3">
+    {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto registrado corresponde al último cálculo guardado y puede no incluir las deducciones aprobadas recientes. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.</div>}
+        <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 className="text-lg font-bold">Informes mensuales y exportación contable</h2>
         <p className="text-sm text-slate-600">Conecta Propiedades, Clientes, Propietarios, CRM, Negocios, Comisiones, Contratos, Cánones y Liquidaciones. Solo módulos autorizados.</p>
