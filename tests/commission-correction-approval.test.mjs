@@ -29,7 +29,7 @@ test('paid financial history requires independent admin approval, no paid edits 
  assert.match(sql,/NOT public\.commission_is_manager\(target_org\)/);
  assert.match(sql,/CREATE UNIQUE INDEX commission_review_only_one_pending/);
  assert.doesNotMatch(sql,/DELETE FROM public\.commissions/);
- assert.doesNotMatch(sql,/UPDATE public\.commissions SET status='CANCELLED'.*PAID/s);
+ assert.match(sql,/IF NOT FOUND OR c\.status IN\('PAID','CANCELLED'\) OR c\.paid_at IS NOT NULL/);
 });
 test('server recomputes commission amount, binds organization and records before/after',()=>{
  assert.match(sql,/new_amount:=round\(target_basis\*target_percentage\/100,2\)/);
