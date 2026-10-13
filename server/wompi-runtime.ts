@@ -19,6 +19,11 @@ export function startWompiServer() {
   if (environment !== 'sandbox' && environment !== 'production') {
     throw new Error('WOMPI_ENV must be sandbox or production');
   }
+  // Production payment webhooks require a separate, explicit go-live approval.
+  // The sandbox runtime remains available for safe integration tests.
+  if (environment === 'production' && process.env.WOMPI_PRODUCTION_APPROVED !== '1') {
+    throw new Error('Production Wompi requires WOMPI_PRODUCTION_APPROVED=1 after payment certification');
+  }
   const supabaseUrl = required('SUPABASE_URL');
   if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(supabaseUrl)) {
     throw new Error('SUPABASE_URL must be an HTTPS Supabase project URL');
