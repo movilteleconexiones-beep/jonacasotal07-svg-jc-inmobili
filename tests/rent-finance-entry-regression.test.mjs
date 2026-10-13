@@ -41,8 +41,8 @@ test('abonos use atomic audited server functions, no client-side aggregate edits
   assert.match(main,/\.rpc\('create_tenant_rent_period'/);
   assert.match(main,/\.rpc\('record_tenant_rent_receipt'/);
   assert.match(owner,/\.rpc\('create_owner_draft_statement_by_percentage'/);
-  assert.match(main,/request_key:pendingReceiptKey\.current/);
-  assert.match(main,/if\(!pendingReceiptKey\.current\) pendingReceiptKey\.current=crypto\.randomUUID\(\)/);
+  assert.match(main,/request_key:pendingReceiptRequest\.current\.key/);
+  assert.match(main,/pendingReceiptRequest\.current\?\.fingerprint!==fingerprint/);
   assert.doesNotMatch(main,/\.from\('rent_payments'\)\.update\(/);
   assert.doesNotMatch(main,/WOMPI_PRIVATE_KEY|wompi\./i);
   assert.match(migration,/idempotency_key uuid NOT NULL UNIQUE/);
@@ -83,9 +83,9 @@ test('financial network failures release buttons and retain receipt retry identi
   const receipt=main.slice(main.indexOf('async function recordReceipt'),main.indexOf('const active=leases.filter'));
   const failure=receipt.match(/catch\s*\{([\s\S]*?)\}\s*finally\s*\{([\s\S]*?)\}/);
   assert.ok(failure,'receipt must recover from thrown network errors');
-  assert.doesNotMatch(failure[1],/pendingReceiptKey\.current\s*=\s*null|setRevision\(/);
+  assert.doesNotMatch(failure[1],/pendingReceiptRequest\.current\s*=\s*null|setRevision\(/);
   assert.match(failure[2],/setBusy\(false\)/);
-  assert.match(receipt,/request_key:pendingReceiptKey\.current/);
+  assert.match(receipt,/request_key:pendingReceiptRequest\.current\.key/);
   for(const method of ['createContract','activateContract','createPeriod']) {
     const section=main.slice(main.indexOf('async function '+method), main.indexOf('async function '+({createContract:'activateContract',activateContract:'createPeriod',createPeriod:'recordReceipt'}[method])));
     assert.match(section,/catch\s*\{/);

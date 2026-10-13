@@ -36,7 +36,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [revision,setRevision]=useState(0);
-  const pendingReceiptKey=useRef<string|null>(null);
+  const pendingReceiptRequest=useRef<{ fingerprint:string; key:string }|null>(null);
 
   useEffect(()=>{
     let cancelled=false;
@@ -149,14 +149,18 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       setError('Verifica el cobro, el abono y la referencia del soporte.');return;
     }
     setBusy(true);setError('');
-    if(!pendingReceiptKey.current) pendingReceiptKey.current=crypto.randomUUID();
+    // Retain the idempotency key only while retrying the exact same receipt.
+    // A new amount, payment, method, reference or tenant must use a new key.
+    const fingerprint=JSON.stringify([organizationId,id,amount,method,reference]);
+    if(pendingReceiptRequest.current?.fingerprint!==fingerprint)
+      pendingReceiptRequest.current={fingerprint,key:crypto.randomUUID()};
     try {
       const {error:failure}=await supabase.rpc('record_tenant_rent_receipt',{
         target_org:organizationId,target_payment:id,receipt_amount:amount,
-        receipt_method:method,receipt_reference:reference,request_key:pendingReceiptKey.current,
+        receipt_method:method,receipt_reference:reference,request_key:pendingReceiptRequest.current.key,
       });
       if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
-      pendingReceiptKey.current=null;
+      pendingReceiptRequest.current=null;
       element.reset();
       setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
       window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
@@ -234,7 +238,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       </form>}
       {action==='SIGNED_PDF'&&<SignedLeaseDocuments organizationId={organizationId} leases={leases}
         preferredLeaseId={preferredLeaseId} onUploaded={onPdfUploaded} />}
-      {action==='RECEIPT'&&<form onSubmit={e=>void recordReceipt(e)} onChange={()=>{pendingReceiptKey.current=null;}} className="grid gap-3 md:grid-cols-2">
+      {action==='RECEIPT'&&<form onSubmit={e=>void recordReceipt(e)} onChange={()=>{pendingReceiptRequest.current=null;}} className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">Mes con saldo pendiente<select name="period_id" required className={fieldClass}><option value="">Seleccionar cobro</option>
           {owing.map(x=><option key={x.id} value={x.id}>{String(x.period_month).slice(0,7)} · {leases.find(l=>l.id===x.lease_id)?.contract_number||x.lease_id} · saldo {(Number(x.expected_amount)-Number(x.paid_amount)).toLocaleString('es-CO')} COP</option>)}</select></label>
         <label className="text-sm">Importe recibido (COP)<input type="number" name="amount" min="0.01" step="0.01" required className={fieldClass}/></label>
