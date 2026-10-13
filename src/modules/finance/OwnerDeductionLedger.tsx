@@ -278,7 +278,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       </label>
       <label className="text-sm">Concepto
         <select required name="category" className="mt-1 block w-full rounded-lg border p-2">
-          {CONCEPTS.map(([code,name])=><option key={code} value={code}>{name}</option>)}
+          {CONCEPTS.filter(([code])=>code!=='COMMISSION').map(([code,name])=><option key={code} value={code}>{name}</option>)}
         </select>
       </label>
       <label className="text-sm">Quién asume el gasto
@@ -308,6 +308,10 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
         Tu perfil puede registrar la deducción, pero necesita los permisos «documentos: ver y cargar» para adjuntar PDF.
       </p>}
       <p className="text-xs text-slate-600 md:col-span-2">
+         La comisión inmobiliaria se configura como porcentaje al crear la liquidación.
+         El importe calculado en COP no debe repetirse como deducción, para evitar descuentos duplicados.
+       </p>
+       <p className="text-xs text-slate-600 md:col-span-2">
         Puedes adjuntar uno o ambos PDF de máximo 10 MB cada uno. El comprobante se conserva
         para revisión; subirlo no marca el gasto como pagado ni autoriza un giro.
       </p>
