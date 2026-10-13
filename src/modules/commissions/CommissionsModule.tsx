@@ -255,7 +255,7 @@ export function CommissionsModule() {
   }
 
   async function cancelCommission(row:CommissionRow) {
-    if(!organizationId||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving)return;
+    if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving)return;
     const reason=window.prompt('Indica el motivo de anulación (10 a 500 caracteres):');
     if(reason===null)return;
     if(reason.trim().length<10||reason.trim().length>500){
@@ -275,7 +275,7 @@ export function CommissionsModule() {
 
   async function requestPaidReview(event:FormEvent<HTMLFormElement>,row:CommissionRow,kind:'EDIT'|'VOID') {
     event.preventDefault();
-    if(!organizationId||saving)return;
+    if(!organizationId||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||(kind==='VOID'&&!isCommissionAdministrator))return;
     const f=new FormData(event.currentTarget);
     const reason=String(f.get('reason')??'').trim();
     if(reason.length<15||reason.length>500){setMessage('Describe el error en 15 a 500 caracteres.');return;}
@@ -509,7 +509,7 @@ export function CommissionsModule() {
                       className="inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold">
                       <Pencil className="h-3.5 w-3.5"/> {row.status==='PAID'?'Solicitar edición':'Editar'}
                     </button>}
-                    {row.status !== 'CANCELLED'&&<button type="button" disabled={saving}
+                    {isCommissionAdministrator && row.status !== 'CANCELLED'&&<button type="button" disabled={saving}
                       onClick={()=>{
                         if(row.status==='PAID'){setReviewTarget({id:row.id,kind:'VOID'});setEditingId(null);setMessage('');}
                         else void cancelCommission(row);
