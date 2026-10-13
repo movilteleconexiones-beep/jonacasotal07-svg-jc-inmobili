@@ -281,7 +281,7 @@ export function CommissionsModule() {
     if(reason.length<15||reason.length>500){setMessage('Describe el error en 15 a 500 caracteres.');return;}
     const rate=kind==='EDIT'?parseCommissionPercentage(reviewRate):null;
     const basis=kind==='EDIT'?parseMoneyInput(reviewBasis):null;
-    if(kind==='EDIT'&&(!Number.isFinite(rate)||!Number.isFinite(basis)||basis<=0)){
+    if(kind==='EDIT'&&(!Number.isFinite(rate)||basis===null||!Number.isFinite(basis)||basis<=0)){
       setMessage('Introduce el porcentaje y la base propuestos para la corrección.');return;
     }
     if(!window.confirm('¿Enviar solicitud para autorización administrativa? La comisión pagada no se modificará.'))return;
