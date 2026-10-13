@@ -91,3 +91,17 @@ export const ETAPAS_NEGOCIO = [
 export function tieneTraduccionES(code: string): boolean {
   return Object.prototype.hasOwnProperty.call(ETIQUETAS,code.toUpperCase());
 }
+
+/** Presenta un día de fecha ISO como DD/MM/AAAA sin alterar el valor persistido. */
+export function fechaES(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const date=iso.slice(0,10);
+  const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : iso;
+}
+
+/** Presenta números sin alterar la precisión contable guardada. */
+export function dineroES(value: number | null | undefined, currency='COP'): string {
+  if (value==null || !Number.isFinite(Number(value))) return '—';
+  return new Intl.NumberFormat('es-CO',{style:'currency',currency,maximumFractionDigits:2}).format(Number(value));
+}
