@@ -216,6 +216,10 @@ export function CommissionsModule() {
 
   async function updateStatus(row: CommissionRow, status: string) {
     if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status || saving) return;
+    if (row.status==='PAID' && status!=='CANCELLED') {
+      setMessage('Los pagos registrados no se pueden sobrescribir. Usa la rectificación administrativa o retira del listado el registro ya rectificado.');
+      return;
+    }
     if (status==='CANCELLED') {
       if (!isCommissionAdministrator) {setMessage('Solo el administrador puede anular comisiones.');return;}
       if (corrections[row.id]) await archiveRectifiedCommission(row);
@@ -573,9 +577,9 @@ export function CommissionsModule() {
                       disabled={saving || !isCommissionAdministrator}
                       className="rounded-lg border border-stone-300 px-2 py-1.5 text-xs"
                     >
-                      <option value="PENDING">Pendiente</option>
-                      <option value="APPROVED">Aprobada</option>
-                      <option value="PAYABLE">Por pagar</option>
+                      {row.status!=='PAID'&&<option value="PENDING">Pendiente</option>}
+                      {row.status!=='PAID'&&<option value="APPROVED">Aprobada</option>}
+                      {row.status!=='PAID'&&<option value="PAYABLE">Por pagar</option>}
                       <option value="PAID">Pagada</option>
                       {isCommissionAdministrator&&<option value="CANCELLED">Anular {corrections[row.id] ? "(retirar del listado)" : ""}</option>}
 
