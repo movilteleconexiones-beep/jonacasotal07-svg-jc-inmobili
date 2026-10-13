@@ -36,7 +36,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [revision,setRevision]=useState(0);
-  const pendingReceiptKey=useRef<string|null>(null);
+  const pendingReceiptRequest=useRef<{ fingerprint:string; key:string }|null>(null);
 
   useEffect(()=>{
     let cancelled=false;
@@ -149,14 +149,18 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       setError('Verifica el cobro, el abono y la referencia del soporte.');return;
     }
     setBusy(true);setError('');
-    if(!pendingReceiptKey.current) pendingReceiptKey.current=crypto.randomUUID();
+    // Retain the idempotency key only while retrying the exact same receipt.
+    // A new amount, payment, method, reference or tenant must use a new key.
+    const fingerprint=JSON.stringify([organizationId,id,amount,method,reference]);
+    if(pendingReceiptRequest.current?.fingerprint!==fingerprint)
+      pendingReceiptRequest.current={fingerprint,key:crypto.randomUUID()};
     try {
       const {error:failure}=await supabase.rpc('record_tenant_rent_receipt',{
         target_org:organizationId,target_payment:id,receipt_amount:amount,
-        receipt_method:method,receipt_reference:reference,request_key:pendingReceiptKey.current,
+        receipt_method:method,receipt_reference:reference,request_key:pendingReceiptRequest.current.key,
       });
       if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
-      pendingReceiptKey.current=null;
+      pendingReceiptRequest.current=null;
       element.reset();
       setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
       window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
