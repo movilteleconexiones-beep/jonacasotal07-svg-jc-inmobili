@@ -37,7 +37,8 @@ test('owner net amounts subtract agency commission, taxes and other property ded
 test('financial queries never read another organization and never write financial transfers', () => {
   assert.match(source, /can\(PERMISSIONS\.RENT_PAYMENTS_VIEW\) && can\(PERMISSIONS\.LEASES_VIEW\)/);
   assert.match(source, /can\(PERMISSIONS\.OWNER_STATEMENTS_VIEW\)/);
-  assert.equal((source.match(/\.eq\('organization_id', organizationId\)/g) || []).length,5);
+  assert.equal((source.match(/\.eq\('organization_id', organizationId\)/g) || []).length,6);
+  assert.match(source, /lease_rent_amendments/);
   assert.doesNotMatch(source, /\.insert\(|\.update\(|\.upsert\(|\.delete\(/);
   assert.match(source, /if \(cancelled\) return/);
   assert.match(source, /El estado registrado no confirma por sí solo una transferencia bancaria/);
