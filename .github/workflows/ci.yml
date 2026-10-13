@@ -183,6 +183,21 @@ jobs:
         run: node --import tsx --test tests/accounting-monthly-excel-receipts.test.mjs
       - name: Safe tenant, user and role retirement regression
         run: node --test tests/safe-retirement-tenant-users-roles.test.mjs
+      - name: Commission percentage consistency and exact COP preview
+        run: node --import tsx --test tests/commission-percentage-consistency.test.mjs
+      - name: Owner percentage commission SQL security and accuracy
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_commission_pct_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261013020000_owner_statement_percentage_commission.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/commission_percentage_owner_statements_assertions.sql
       - name: Financial form and permission gate regressions
         run: node --test tests/rent-finance-entry-regression.test.mjs
       - name: Signed lease PDF private storage and tenant isolation tests
