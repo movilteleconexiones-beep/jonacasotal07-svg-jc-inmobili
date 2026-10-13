@@ -174,7 +174,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const selectedLabel=selection
     ? selection.kind==='module'?selection.name:MONTHLY_METRICS[selection.key].label
     : '';
-  const selectionAvailable=selection !== null && sheets.some(sheet=>
+  const selectionAvailable=selection !== null && !(staleCount>0&&selection.kind==='metric'&&selection.key==='OWNER_NET') && sheets.some(sheet=>
     sheet.name===(selection.kind==='module'?selection.name:MONTHLY_METRICS[selection.key].source));
 
   async function exportXlsx() {
@@ -209,7 +209,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   }
 
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5" aria-label="Informes contables mensuales">
-    {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto registrado corresponde al último cálculo guardado y puede no incluir las deducciones aprobadas recientes. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.</div>}
+    {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto mostrado es una estimación con deducciones aprobadas; el neto oficialmente registrado sigue pendiente de conciliación. La exportación del neto estará disponible después de conciliar. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.</div>}
         <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 className="text-lg font-bold">Informes mensuales y exportación contable</h2>
