@@ -205,7 +205,12 @@ export function CommissionsModule() {
     if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status || saving) return;
     if (status==='CANCELLED') {
       if (!isCommissionAdministrator) {setMessage('Solo el administrador puede anular comisiones.');return;}
-      await cancelCommission(row);
+      if (corrections[row.id]) await archiveRectifiedCommission(row);
+      else if (row.status==='PAID') {
+        setReviewTarget({id:row.id,kind:'VOID'});
+        setEditingId(null);
+        setMessage('Para una comisión pagada, solicita revisión y confirma si hubo desembolso real.');
+      } else await cancelCommission(row);
       return;
     }
     if (!['PENDING','APPROVED','PAYABLE','PAID'].includes(status)) return;
@@ -353,7 +358,7 @@ export function CommissionsModule() {
     if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||!corrections[row.id]||corrections[row.id].archived_from_active)return;
     const reason=window.prompt('Motivo para retirar esta comisión rectificada del listado activo (15 a 500 caracteres):');
     if(reason===null)return;
-    if(reason.trim().length<10||reason.trim().length>500){setMessage('Explica el motivo en 10 a 500 caracteres.');return;}
+    if(reason.trim().length<15||reason.trim().length>500){setMessage('Explica el motivo en 15 a 500 caracteres; indica el error y por qué se retira.');return;}
     if(!window.confirm('¿Retirar esta comisión del listado operativo? El registro original y su rectificación seguirán disponibles en el historial y auditoría.'))return;
     setSaving(true);setMessage('');
     try {
@@ -520,7 +525,7 @@ export function CommissionsModule() {
                 <td className="px-4 py-3">{row.percentage==null?'—':`${Number(row.percentage).toLocaleString('es-CO',{maximumFractionDigits:2})} %`}</td>
                 <td className="px-4 py-3">{corrections[row.id] ? <div><strong>{formatMoney(corrections[row.id].corrected_amount,row.currency)}</strong><div className="text-xs text-amber-800">Rectificada · Original {formatMoney(corrections[row.id].original_amount,row.currency)} · Diferencia {formatMoney(corrections[row.id].difference_amount,row.currency)}</div></div> : formatMoney(row.amount, row.currency)}</td>
                 <td className="px-4 py-3">
-                  {can(PERMISSIONS.COMMISSIONS_EDIT) && row.status !== 'PAID' && row.status !== 'CANCELLED' ? (
+                  {can(PERMISSIONS.COMMISSIONS_EDIT) && row.status !== 'CANCELLED' && (row.status !== 'PAID' || (isCommissionAdministrator && !!corrections[row.id] && !corrections[row.id].archived_from_active)) ? (
                     <select
                       value={row.status}
                       onChange={(event) => void updateStatus(row, event.target.value)}
@@ -531,7 +536,7 @@ export function CommissionsModule() {
                       <option value="APPROVED">Aprobada</option>
                       <option value="PAYABLE">Por pagar</option>
                       <option value="PAID">Pagada</option>
-                      {isCommissionAdministrator&&<option value="CANCELLED">Anular</option>}
+                      {isCommissionAdministrator&&<option value="CANCELLED">Anular {corrections[row.id] ? "(retirar del listado)" : ""}</option>}
 
                     </select>
                   ) : (
