@@ -33,11 +33,11 @@ const ETIQUETAS: Record<string,string> = {
   NEW:'Nuevo', CONTACTED:'Contactado', QUALIFIED:'Calificado',
   // Operaciones y propiedades
   SALE:'Venta', RENT:'Arriendo', INVESTMENT:'Inversión',
-  HOUSE:'Casa', APARTMENT:'Apartamento', APARTAESTUDIO:'Apartaestudio',
-  STUDIO:'Apartaestudio', OFFICE:'Oficina', COMMERCIAL:'Comercial',
+  HOUSE:'Casa', CASA:'Casa', APARTMENT:'Apartamento', APARTAMENTO:'Apartamento', APARTAESTUDIO:'Apartaestudio', APARTA_ESTUDIO:'Apartaestudio',
+  STUDIO:'Apartaestudio', OFFICE:'Oficina', OFICINA:'Oficina', COMMERCIAL:'Comercial',
   COMMERCIAL_SPACE:'Local comercial', RETAIL:'Local comercial',
-  LAND:'Lote', LOT:'Lote', WAREHOUSE:'Bodega',
-  BUILDING:'Edificio', FARM:'Finca', RURAL:'Rural', OTHER:'Otro',
+  LAND:'Lote', LOT:'Lote', LOTE:'Lote', WAREHOUSE:'Bodega', BODEGA:'Bodega', LOCAL:'Local comercial',
+  BUILDING:'Edificio', EDIFICIO:'Edificio', FARM:'Finca', FINCA:'Finca', RURAL:'Rural', OTHER:'Otro', OTRO:'Otro',
   // Citas y prioridades
   MEETING:'Reunión', CALL:'Llamada', FOLLOW_UP:'Seguimiento',
   LOW:'Baja', MEDIUM:'Media', HIGH:'Alta', URGENT:'Urgente',
@@ -69,9 +69,8 @@ function formatCode(value: string | null | undefined): string {
   if (value == null || value.trim()==='') return 'Sin especificar';
   const code=value.trim().toUpperCase().replace(/[\s-]+/g,'_');
   if (ETIQUETAS[code]) return ETIQUETAS[code];
-  // No presentar códigos técnicos crudos como ACTIVE o WON al usuario.
-  // Un código desconocido requiere actualización del catálogo de traducciones.
-  if (/^[A-Z][A-Z0-9_]*$/.test(code)) return 'Pendiente de traducir';
+  // Conservar los valores personalizados y nombres de tipos de inmueble
+  // en lugar de ocultarlos; el catálogo cubre los códigos conocidos.
   return value;
 }
 
