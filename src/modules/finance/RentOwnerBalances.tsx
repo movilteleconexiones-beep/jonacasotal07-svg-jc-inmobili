@@ -119,7 +119,7 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
     const reason=String(form.get('reason')??'').trim();
     const reference=String(form.get('document_reference')??'').trim();
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month<nextMonth||
-        rent===null||rent<=0||rent>999999999999.99||
+        !Number.isFinite(rent)||rent<=0||rent>999999999999.99||
         reason.length<10||reason.length>500||
         reference.length<3||reference.length>140) {
       setFeedback('Revisa el mes futuro, importe, motivo (10-500 caracteres) y referencia del otrosí firmado.');
@@ -147,7 +147,7 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
     const form=new FormData(event.currentTarget);
     const expected=parseMoneyInput(String(form.get('expected_amount')??''));
     const reason=String(form.get('reason')??'').trim();
-    if(expected===null||expected<=0||expected>999999999999.99||
+    if(!Number.isFinite(expected)||expected<=0||expected>999999999999.99||
        reason.length<10||reason.length>500){
       setFeedback('Ingresa un canon válido y un motivo de corrección de 10 a 500 caracteres.');return;
     }
