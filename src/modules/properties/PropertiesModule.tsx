@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { Building2, CheckCircle2, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -254,14 +255,14 @@ export function PropertiesModule({onCreated,onSelect,selectedPropertyId}: {
                 <td className="px-4 py-3 font-mono text-xs">{row.code}</td>
                 <td className="px-4 py-3">
                   <div className="font-semibold">{row.title}</div>
-                  <div className="text-xs text-slate-500">{row.property_type}</div>
+                  <div className="text-xs text-slate-500">{etiquetaES(row.property_type)}</div>
                 </td>
                 <td className="px-4 py-3">{operationLabel(row.operation_type)}</td>
                 <td className="px-4 py-3">{[row.neighborhood, row.city].filter(Boolean).join(', ') || '—'}</td>
                 <td className="px-4 py-3 font-semibold">
                   {row.price == null ? '—' : new Intl.NumberFormat(branding.locale || 'es-CO', { style: 'currency', currency: row.currency || branding.currency || 'COP', maximumFractionDigits: 0 }).format(row.price)}
                 </td>
-                <td className="px-4 py-3">{row.status}</td>
+                <td className="px-4 py-3">{etiquetaES(row.status)}</td>
                 <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
                 {onSelect&&<td className="px-4 py-3">
                   <button type="button" aria-pressed={selectedPropertyId===row.id}
