@@ -5,6 +5,7 @@ import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
 import { localDateISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
+import { reconciliationAlerts } from '../../core/owner-reconciliation-alerts';
 import { validateSignedLeasePdf } from '../../core/signed-lease-pdf';
 import { OwnerDeductionEvidence, uploadDeductionEvidence, type DeductionEvidenceFile } from './OwnerDeductionEvidence';
 
@@ -88,6 +89,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
   },[organizationId,readable,revision]);
   if(!readable)return null;
   const active=statements.filter(s=>s.status==='DRAFT');
+  const staleStatements=reconciliationAlerts(statements,lines);
   const ownerName=(id:string|null)=> {
     const o=owners.find(p=>p.id===id);
     return o?[o.first_name,o.last_name].filter(Boolean).join(' '):'Sin propietario';
@@ -344,6 +346,10 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
         {saving?'Guardando…':'Guardar deducción en borrador'}
       </button>
     </form>}
+    {!loading&&staleStatements.length>0&&<div role="alert" className="rounded-xl border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+      <strong>Liquidación pendiente de conciliar.</strong> {staleStatements.length} borrador(es) tienen deducciones aprobadas diferentes de las guardadas.
+      Pulsa «Actualizar conciliación» en el borrador correspondiente para recalcular el neto. No se realizan transferencias.
+    </div>}
     {loading?<p>Cargando movimientos…</p>:
       lines.length===0?<p className="text-sm text-slate-500">Aún no hay deducciones registradas. Los importes de extractos existentes no se modifican automáticamente.</p>:
       <>
