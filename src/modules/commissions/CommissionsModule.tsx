@@ -498,7 +498,7 @@ export function CommissionsModule() {
                 </td>
                 <td className="px-4 py-3">
                   {can(PERMISSIONS.COMMISSIONS_EDIT) && <div className="flex flex-wrap gap-2">
-                    {row.status !== 'CANCELLED' && <button type="button" disabled={saving}
+                    {row.status !== 'CANCELLED' && !corrections[row.id] && <button type="button" disabled={saving}
                       onClick={()=>{
                         if(row.status==='PAID'){
                           setReviewTarget({id:row.id,kind:'EDIT'});
@@ -513,7 +513,7 @@ export function CommissionsModule() {
                       className="inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold">
                       <Pencil className="h-3.5 w-3.5"/> {row.status==='PAID'?'Solicitar edición':'Editar'}
                     </button>}
-                    {isCommissionAdministrator && row.status !== 'CANCELLED'&&<button type="button" disabled={saving}
+                    {isCommissionAdministrator && row.status !== 'CANCELLED' && !corrections[row.id]&&<button type="button" disabled={saving}
                       onClick={()=>{
                         if(row.status==='PAID'){setReviewTarget({id:row.id,kind:'VOID'});setEditingId(null);setMessage('');}
                         else void cancelCommission(row);
@@ -618,7 +618,7 @@ export function CommissionsModule() {
         <p className="mb-3 text-xs text-slate-600">La aprobación autoriza la revisión contable, no modifica ni borra el pago original.</p>
         <div className="space-y-2">{reviews.map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
           <div><strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
-            <span className="ml-2">{etiquetaES(review.status)}</span>
+            <span className="ml-2">{corrections[review.commission_id] ? 'Rectificada contablemente' : etiquetaES(review.status)}</span>
             <div className="text-xs text-slate-600">{review.reason}</div>
             {corrections[review.commission_id]&&<div className="text-xs text-green-800">Rectificación contable registrada: {formatMoney(corrections[review.commission_id].corrected_amount,'COP')} (sin desembolso real).</div>}
             {review.review_reason&&<div className="text-xs text-slate-600">Decisión: {review.review_reason}</div>}
