@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
@@ -345,7 +346,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
                 deductionId={line.id} category={line.category} userId={user?.id}
                 canRead={canReadDocs} canUpload={canUploadDocs&&writable&&editable&&line.status!=='VOIDED'} />
             </td>
-            <td className="p-2">{line.status}</td>
+            <td className="p-2">{etiquetaES(line.status)}</td>
             <td className="flex gap-2 p-2">
               {editable&&line.status==='DRAFT'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'APPROVED')} className="text-xs underline">Aprobar</button>}
               {editable&&line.status!=='VOIDED'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'VOIDED')} className="text-xs underline">Anular</button>}
