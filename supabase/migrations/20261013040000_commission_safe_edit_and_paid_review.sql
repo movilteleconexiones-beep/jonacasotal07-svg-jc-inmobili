@@ -279,7 +279,7 @@ BEGIN
     RAISE EXCEPTION 'Original paid entry must remain intact during review' USING ERRCODE='23514';
  END IF;
  UPDATE public.commission_review_requests
- SET status=decision,reviewed_by=actor,reviewed_at=statement_timestamp(),review_reason=btrim(reason)
+ SET status=decision,reviewed_by=actor,reviewed_at=statement_timestamp(),review_reason=btrim(decide_paid_commission_review.reason)
  WHERE id=target_request AND organization_id=target_org;
  INSERT INTO public.audit_log(organization_id,actor_user_id,action,entity_type,entity_id,metadata)
  VALUES(target_org,actor,'commissions.review_decided','COMMISSION',review.commission_id,
