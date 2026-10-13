@@ -44,7 +44,7 @@ export const MONTHLY_METRICS = {
   PENDING_RENT: { label:'Saldo por recaudar (períodos registrados)', source:'Cánones' },
   OWNER_NET: { label:'Neto registrado para propietarios', source:'Liquidaciones' },
   OWNER_COMMISSION: { label:'Comisiones de administración en liquidaciones', source:'Liquidaciones' },
-  OWNER_OTHER: { label:'Otras deducciones de propietarios', source:'Liquidaciones' },
+  OWNER_OTHER: { label:'Otras deducciones de propietarios', source:'Deducciones' },
   WON_DEALS: { label:'Negocios ganados', source:'Negocios' },
 } as const;
 export type MonthlyMetricKey = keyof typeof MONTHLY_METRICS;
@@ -91,13 +91,14 @@ export function selectedWorkbookContent(
       if(key==='RECORDED_RENT')return paid;
       return Math.max(0,due-paid);
     }
-    const field=key==='OWNER_NET'?'net_amount':key==='OWNER_COMMISSION'?'commission_amount':'other_deductions';
+    const field=key==='OWNER_NET'?'net_amount':key==='OWNER_COMMISSION'?'commission_amount':key==='OWNER_OTHER'?'amount':'other_deductions';
     const amount=Number(row[field]);
     if(!Number.isFinite(amount)||amount<0)
       throw new Error('Una liquidación tiene valores inválidos; revisa los importes antes de exportar.');
     return amount;
   };
-  const columns=isRent?['lease_id','period_month','status','valor']:
+  const columns=key==='OWNER_OTHER'?['statement_id','charge_date','category','responsible_party','status','valor']:
+    isRent?['lease_id','period_month','status','valor']:
     isDeal?['created_at','operation_type','stage','valor']:
     ['lease_id','owner_id','period_month','status','valor'];
   const rows=relevant.map(row=>({
