@@ -4,6 +4,7 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
+import { effectiveCommissionRows } from '../../core/effective-commissions';
 import {
   excelSafeCell, monthlyDateBounds, financialTotal, rentPeriodTotals,
   selectedWorkbookContent, MONTHLY_METRICS,
@@ -18,7 +19,7 @@ const MONTHLY_SECTIONS = [
   { name:'Propietarios', table:'property_owners', permission:PERMISSIONS.OWNERS_VIEW, date:'created_at', cols:'first_name,last_name,document_type,document_number,created_at' },
   { name:'CRM', table:'leads', permission:PERMISSIONS.LEADS_VIEW, date:'created_at', cols:'status,contact_id,property_id,created_at' },
   { name:'Negocios', table:'deals', permission:PERMISSIONS.DEALS_VIEW, date:'created_at', cols:'stage,operation_type,asking_price,offered_price,final_price,created_at' },
-  { name:'Comisiones', table:'commissions', permission:PERMISSIONS.COMMISSIONS_VIEW, date:'created_at', cols:'status,amount,deal_id,beneficiary_user_id,created_at' },
+  { name:'Comisiones', table:'commissions', permission:PERMISSIONS.COMMISSIONS_VIEW, date:'created_at', cols:'id,status,amount,deal_id,beneficiary_user_id,created_at' },
   { name:'Contratos', table:'leases', permission:PERMISSIONS.LEASES_VIEW, date:'start_date', cols:'contract_number,tenant_id,owner_id,property_id,monthly_rent,status,start_date,end_date' },
   { name:'Cánones', table:'rent_payments', permission:PERMISSIONS.RENT_PAYMENTS_VIEW, date:'period_month', cols:'lease_id,period_month,expected_amount,paid_amount,status,paid_at' },
   { name:'Liquidaciones', table:'owner_statements', permission:PERMISSIONS.OWNER_STATEMENTS_VIEW, date:'period_month', cols:'lease_id,owner_id,period_month,gross_income,commission_amount,tax_amount,other_deductions,net_amount,status' },
@@ -68,6 +69,16 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
       try {
         const {start,end} = monthlyDateBounds(month);
         const results: ReportSheet[] = [];
+        let rectifications: {commission_id:string;archived_from_active:boolean}[] = [];
+        if (permitted.some(item=>item.name==='Comisiones')) {
+          const correctionQuery=await supabase.from('commission_accounting_corrections')
+            .select('commission_id,archived_from_active',{count:'exact'})
+            .eq('organization_id',organizationId).limit(1000);
+          if(correctionQuery.error)throw new Error('No se pudieron conciliar las comisiones rectificadas: '+correctionQuery.error.message);
+          rectifications=correctionQuery.data??[];
+          if(correctionQuery.count==null||correctionQuery.count>rectifications.length)
+            throw new Error('Existen más rectificaciones que las consultadas: no se mostrarán cifras incompletas.');
+        }
         for (const section of permitted) {
           const columns = section.cols.split(',');
           const tableName: string = section.table;
@@ -84,7 +95,10 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
           const rows = (query.data ?? []) as unknown as DataRow[];
           if (query.count == null || query.count > rows.length)
             throw new Error('La sección '+section.name+' tiene más de 1000 registros o una consulta parcial. No se exportarán cifras incompletas.');
-          results.push({name:section.name,columns,rows});
+          const effectiveRows=section.name==='Comisiones'
+            ? effectiveCommissionRows(rows as ({id:string;status:string;amount:number|null}&DataRow)[],rectifications)
+            : rows;
+          results.push({name:section.name,columns,rows:effectiveRows});
         }
         if (!cancelled) { setSheets(results); setLoadedFor(loadKey); }
       } catch (cause) {
