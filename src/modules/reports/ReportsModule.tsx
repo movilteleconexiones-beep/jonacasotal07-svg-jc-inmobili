@@ -3,6 +3,7 @@ import { BarChart3, Building2, Handshake, UsersRound, WalletCards } from 'lucide
 import { useAuth } from '../../core/auth-context';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
+import { effectiveCommissionTotals } from '../../core/effective-commissions';
 import { MonthlyAccountingReport } from './MonthlyAccountingReport';
 import type { MonthlyReportSelection } from '../../core/accounting-export';
 
@@ -51,7 +52,7 @@ export function ReportsModule() {
       setError('');
       setState(EMPTY);
       try {
-        const [properties, contacts, leads, deals, commissions] = await Promise.all([
+        const [properties, contacts, leads, deals, commissions, corrections] = await Promise.all([
           supabase.from('properties').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
           supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
           supabase.from('leads').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
@@ -59,11 +60,12 @@ export function ReportsModule() {
             .select('stage,final_price,offered_price,asking_price', { count: 'exact' })
             .eq('organization_id', organizationId),
           supabase.from('commissions')
-            .select('status,amount', { count: 'exact' })
+            .select('id,status,amount', { count: 'exact' })
             .eq('organization_id', organizationId),
+          supabase.from('commission_accounting_corrections').select('commission_id,archived_from_active',{count:'exact'}).eq('organization_id',organizationId),
         ]);
         if (cancelled) return;
-        if (properties.error || contacts.error || leads.error || deals.error || commissions.error) {
+        if (properties.error || contacts.error || leads.error || deals.error || commissions.error || corrections.error) {
           setError('No se pudieron consultar todos los indicadores. Revisa los permisos y actualiza la página.');
           setLoading(false);
           return;
@@ -71,7 +73,9 @@ export function ReportsModule() {
 
         const dealRows = deals.data ?? [];
         const commissionRows = commissions.data ?? [];
-        if ((deals.count ?? 0) > dealRows.length || (commissions.count ?? 0) > commissionRows.length) {
+        const correctionRows = corrections.data ?? [];
+        const commissionTotals=effectiveCommissionTotals(commissionRows,correctionRows);
+        if ((deals.count ?? 0) > dealRows.length || (commissions.count ?? 0) > commissionRows.length || (corrections.count ?? 0) > correctionRows.length) {
           setError('Hay más registros de los que esta consulta puede mostrar. No se presentan totales parciales como si fueran completos.');
           setLoading(false);
           return;
@@ -85,12 +89,8 @@ export function ReportsModule() {
           totalDealValue: dealRows
             .filter((deal) => deal.stage === 'WON')
             .reduce((sum, deal) => sum + Number(deal.final_price ?? deal.offered_price ?? deal.asking_price ?? 0), 0),
-          pendingCommissions: commissionRows
-            .filter((item) => item.status !== 'PAID' && item.status !== 'CANCELLED')
-            .reduce((sum, item) => sum + Number(item.amount ?? 0), 0),
-          paidCommissions: commissionRows
-            .filter((item) => item.status === 'PAID')
-            .reduce((sum, item) => sum + Number(item.amount ?? 0), 0),
+          pendingCommissions: commissionTotals.pending,
+          paidCommissions: commissionTotals.paid,
         };
         setState(next);
         setLoading(false);
