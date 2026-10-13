@@ -203,6 +203,11 @@ export function CommissionsModule() {
 
   async function updateStatus(row: CommissionRow, status: string) {
     if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status || saving) return;
+    if (status==='CANCELLED') {
+      if (!isCommissionAdministrator) {setMessage('Solo el administrador puede anular comisiones.');return;}
+      await cancelCommission(row);
+      return;
+    }
     if (!['PENDING','APPROVED','PAYABLE','PAID'].includes(status)) return;
     if (status === 'PAID' && !isCommissionAdministrator) {
       setMessage('Solo un administrador puede registrar una comisión como pagada.');
@@ -348,7 +353,7 @@ export function CommissionsModule() {
     if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||!corrections[row.id]||corrections[row.id].archived_from_active)return;
     const reason=window.prompt('Motivo para retirar esta comisión rectificada del listado activo (15 a 500 caracteres):');
     if(reason===null)return;
-    if(reason.trim().length<15||reason.trim().length>500){setMessage('Explica el motivo en 15 a 500 caracteres.');return;}
+    if(reason.trim().length<10||reason.trim().length>500){setMessage('Explica el motivo en 10 a 500 caracteres.');return;}
     if(!window.confirm('¿Retirar esta comisión del listado operativo? El registro original y su rectificación seguirán disponibles en el historial y auditoría.'))return;
     setSaving(true);setMessage('');
     try {
@@ -526,6 +531,7 @@ export function CommissionsModule() {
                       <option value="APPROVED">Aprobada</option>
                       <option value="PAYABLE">Por pagar</option>
                       <option value="PAID">Pagada</option>
+                      {isCommissionAdministrator&&<option value="CANCELLED">Anular</option>}
 
                     </select>
                   ) : (
