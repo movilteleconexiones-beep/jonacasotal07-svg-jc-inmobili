@@ -223,6 +223,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/commission_percentage_owner_statements_assertions.sql
       - name: Owner deduction administrator void regression
         run: node --test tests/owner-deduction-admin-void.test.mjs
+      - name: Effective commission dashboard and Excel regression
+        run: node --test tests/effective-commission-reports.test.mjs
       - name: Archived commission recover-as-new regression
         run: node --test tests/archived-commission-replacement.test.mjs
       - name: Paid commission dropdown status regression
