@@ -223,6 +223,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/commission_percentage_owner_statements_assertions.sql
       - name: Owner deduction administrator void regression
         run: node --test tests/owner-deduction-admin-void.test.mjs
+      - name: Commission administrator cancel selector regression
+        run: node --test tests/commission-cancel-status-option.test.mjs
       - name: Commission archive and history regression
         run: node --test tests/commission-archive.test.mjs
       - name: Commission administrator no-disbursement review tests
