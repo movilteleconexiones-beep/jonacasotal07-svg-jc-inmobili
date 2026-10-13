@@ -1,3 +1,4 @@
+import { etiquetaES } from '../../core/etiquetas-es';
 import { useEffect, useMemo, useState } from 'react';
 import { Building2, CalendarDays, FileText, Handshake, UserRound } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
@@ -174,7 +175,7 @@ export function PortalHub() {
             <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div>
                 <div className="font-semibold">{property.code} · {property.title}</div>
-                <div className="mt-1 text-xs text-slate-500">{property.city || '—'} · {property.status}</div>
+                <div className="mt-1 text-xs text-slate-500">{property.city || '—'} · {etiquetaES(property.status)}</div>
               </div>
               <div className="text-sm font-semibold">{money(property.price, property.currency)}</div>
             </div>
@@ -189,7 +190,7 @@ export function PortalHub() {
           <div className="divide-y divide-stone-100">
             {appointments.map((item) => (
               <div key={item.id} className="p-4">
-                <div className="font-semibold">{item.appointment_type}</div>
+                <div className="font-semibold">{etiquetaES(item.appointment_type)}</div>
                 <div className="mt-1 text-sm text-slate-600">
                   {new Intl.DateTimeFormat(branding.locale || 'es-CO', {
                     dateStyle: 'medium',
@@ -211,7 +212,7 @@ export function PortalHub() {
           <div className="divide-y divide-stone-100">
             {deals.map((deal) => (
               <div key={deal.id} className="p-4">
-                <div className="font-semibold">{deal.properties?.code || 'Negocio'} · {deal.stage}</div>
+                <div className="font-semibold">{deal.properties?.code || 'Negocio'} · {etiquetaES(deal.stage)}</div>
                 <div className="mt-1 text-sm text-slate-600">
                   {money(deal.final_price ?? deal.offered_price, deal.properties?.currency)}
                 </div>
@@ -234,7 +235,7 @@ export function PortalHub() {
             >
               <div>
                 <div className="font-semibold">{document.title}</div>
-                <div className="mt-1 text-xs text-slate-500">{document.document_type}</div>
+                <div className="mt-1 text-xs text-slate-500">{etiquetaES(document.document_type)}</div>
               </div>
               <span className="text-xs font-semibold">Abrir</span>
             </button>
