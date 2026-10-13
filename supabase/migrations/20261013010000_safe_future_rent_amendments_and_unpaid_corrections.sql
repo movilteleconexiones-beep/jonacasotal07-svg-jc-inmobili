@@ -75,7 +75,7 @@ BEGIN
     RAISE EXCEPTION 'Only active leases with an effective month inside contract dates may be amended'
       USING ERRCODE='23514';
   END IF;
-  SELECT * INTO existing FROM public.lease_rent_amendments WHERE request_key=request_key;
+  SELECT * INTO existing FROM public.lease_rent_amendments a WHERE a.request_key=schedule_lease_rent_amendment.request_key;
   IF FOUND THEN
     IF existing.organization_id=target_org AND existing.lease_id=target_lease AND
        existing.effective_month=target_month AND existing.new_monthly_rent=new_amount AND
