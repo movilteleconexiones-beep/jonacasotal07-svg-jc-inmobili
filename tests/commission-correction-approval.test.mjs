@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {readFileSync} from 'node:fs';
+const ui=readFileSync(new URL('../src/modules/commissions/CommissionsModule.tsx',import.meta.url),'utf8');
+const sql=readFileSync(new URL('../supabase/migrations/20261013040000_commission_safe_edit_and_paid_review.sql',import.meta.url),'utf8');
+test('commission cards expose edit and soft cancellation, paid rows use approval requests',()=>{
+ assert.match(ui,/Solicitar edición/);
+ assert.match(ui,/Solicitar anulación/);
+ assert.match(ui,/Guardar corrección/);
+ assert.match(ui,/Anular/);
+ assert.match(ui,/edit_unpaid_commission/);
+ assert.match(ui,/cancel_unpaid_commission/);
+ assert.match(ui,/request_paid_commission_review/);
+ assert.match(ui,/decide_paid_commission_review/);
+ assert.match(ui,/set_commission_status_audited/);
+ assert.match(ui,/commission_review_requests/);
+ assert.match(ui,/review\.requested_by!==user\?\.id/);
+ assert.match(ui,/calculation_basis: basis/);
+ assert.match(ui,/etiquetaES\(row\.status\)/);
+ assert.doesNotMatch(ui,/\.from\('commissions'\)\.update\(/);
+});
+test('paid financial history requires independent admin approval, no paid edits or physical deletion',()=>{
+ assert.match(sql,/REVOKE UPDATE, DELETE ON public\.commissions/);
+ assert.match(sql,/IF OLD\.status='PAID' OR OLD\.paid_at IS NOT NULL/);
+ assert.match(sql,/IF TG_OP='DELETE' THEN/);
+ assert.match(sql,/CREATE TABLE public\.commission_review_requests/);
+ assert.match(sql,/review\.requested_by=actor/);
+ assert.match(sql,/requires_compensating_entry/);
+ assert.match(sql,/NOT public\.commission_is_manager\(target_org\)/);
+ assert.match(sql,/CREATE UNIQUE INDEX commission_review_only_one_pending/);
+ assert.doesNotMatch(sql,/DELETE FROM public\.commissions/);
+ assert.doesNotMatch(sql,/UPDATE public\.commissions SET status='CANCELLED'.*PAID/s);
+});
+test('server recomputes commission amount, binds organization and records before/after',()=>{
+ assert.match(sql,/new_amount:=round\(target_basis\*target_percentage\/100,2\)/);
+ assert.match(sql,/c\.status IN\('PAID','CANCELLED'\)/);
+ assert.match(sql,/c\.status IN\('APPROVED','PAYABLE'\)/);
+ assert.match(sql,/commission_is_manager/);
+ assert.match(sql,/organization_id=target_org AND id=target_commission FOR UPDATE/);
+ assert.match(sql,/commissions\.corrected/);
+ assert.match(sql,/jsonb_build_object\('reason',btrim\(correction_reason\)/);
+ assert.match(sql,/commission_review_decision_integrity/);
+});
