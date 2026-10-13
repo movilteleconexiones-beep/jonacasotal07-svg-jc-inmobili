@@ -49,6 +49,9 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const [month,setMonth] = useState(currentMonth);
   const [sheets,setSheets] = useState<ReportSheet[]>([]);
   const [staleCount,setStaleCount] = useState(0);
+  const [staleStatementIds,setStaleStatementIds] = useState<string[]>([]);
+  const [reconciling,setReconciling] = useState(false);
+  const [reconcileFeedback,setReconcileFeedback] = useState('');
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [revision,setRevision] = useState(0);
@@ -64,6 +67,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
     let cancelled = false;
     setSheets([]);
     setStaleCount(0);
+    setStaleStatementIds([]);
     setLoadedFor('');
     setError('');
     if (!allowed || !organizationId) { setLoading(false); return () => {cancelled=true;}; }
@@ -126,7 +130,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
           statementRows.map(row=>({id:String(row.id),status:String(row.status),other_deductions:Number(row.other_deductions??0)})),
           deductionRows.map(row=>({statement_id:row.statement_id,status:row.status,responsible_party:row.responsible_party,category:row.category,amount:row.amount}))
         );
-        if (!cancelled) { setSheets(results);setStaleCount(stale.length);setLoadedFor(loadKey); }
+        if (!cancelled) { setSheets(results);setStaleCount(stale.length);setStaleStatementIds(stale.map(item=>item.id));setLoadedFor(loadKey); }
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'No fue posible elaborar el informe.');
       } finally {if (!cancelled) setLoading(false);}
@@ -135,6 +139,33 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   // permitted is intentionally derived from per-render permissions, but the stable signature
   // below avoids a network loop when the membership object reference changes.
   },[allowed,organizationId,month,revision,permissionSignature]);
+
+  async function reconcileFirstPendingStatement(){
+    if(!organizationId||!staleStatementIds.length||reconciling||
+      !can(PERMISSIONS.OWNER_STATEMENTS_CREATE)||!can(PERMISSIONS.RENT_PAYMENTS_VIEW))return;
+    const statementId=staleStatementIds[0];
+    if(!window.confirm('¿Actualizar la conciliación auditada de la liquidación pendiente? Se recalculará el neto registrado con las deducciones aprobadas. No se transfiere dinero.'))return;
+    setReconciling(true);setReconcileFeedback('');
+    try {
+      const {error:rpcError}=await supabase.rpc('reconcile_owner_draft_statement_audited',{
+        target_org:organizationId,target_statement:statementId
+      });
+      if(rpcError){setReconcileFeedback('No se pudo conciliar: '+rpcError.message);return;}
+      const {data, error:readError}=await supabase.from('owner_statements')
+        .select('id,net_amount,other_deductions').eq('organization_id',organizationId)
+        .eq('id',statementId).maybeSingle();
+      if(readError||!data){
+        setReconcileFeedback('Conciliación ejecutada, pero la verificación del neto no fue posible. Actualiza antes de reintentar.');
+      }else{
+        setReconcileFeedback('Conciliación verificada en Supabase. Neto registrado: '+money(Number(data.net_amount??0))+'.');
+      }
+      setRevision(v=>v+1);
+      window.dispatchEvent(new Event('owner-statement-updated'));
+    }catch{
+      setReconcileFeedback('No se pudo confirmar el resultado; consulta el neto actual antes de reintentar.');
+      setRevision(v=>v+1);
+    }finally{setReconciling(false);}
+  }
 
   if (!allowed) return null;
   const find = (name:string) => sheets.find(s=>s.name===name)?.rows ?? [];
@@ -209,7 +240,13 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   }
 
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5" aria-label="Informes contables mensuales">
-    {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto mostrado es una estimación con deducciones aprobadas; el neto oficialmente registrado sigue pendiente de conciliación. La exportación del neto estará disponible después de conciliar. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.</div>}
+    {reconcileFeedback&&<p role="status" className="rounded-lg border p-3 text-sm">{reconcileFeedback}</p>}
+    {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto mostrado es una estimación con deducciones aprobadas; el neto oficialmente registrado sigue pendiente de conciliación. La exportación del neto estará disponible después de conciliar. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.
+    {can(PERMISSIONS.OWNER_STATEMENTS_CREATE)&&can(PERMISSIONS.RENT_PAYMENTS_VIEW)&&<button type="button"
+      disabled={reconciling||!staleStatementIds.length} onClick={()=>void reconcileFirstPendingStatement()}
+      className="ml-2 rounded-lg border border-amber-700 px-3 py-1.5 font-semibold disabled:opacity-50">
+      {reconciling?'Conciliando…':'Actualizar conciliación ahora'}
+    </button>}</div>}
         <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 className="text-lg font-bold">Informes mensuales y exportación contable</h2>
