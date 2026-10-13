@@ -161,6 +161,22 @@ jobs:
         run: node --import tsx --test tests/central-wompi-merchant-nonresale.test.mjs
       - name: Per-tenant logo, palette and website regression
         run: node --import tsx --test tests/tenant-logo-palette-site.test.mjs
+      - name: Tenant rent editing and paid payment safety UI regression
+        run: node --test tests/safe-tenant-rent-edit.test.mjs
+      - name: Future rent amendment and unpaid correction financial SQL regression
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_rent_edit_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/owner_reconciliation_undo_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/safe_tenant_rent_edits_assertions.sql
       - name: Tenant rent and owner liquidation balances regression
         run: node --import tsx --test tests/rent-owner-financial-balances.test.mjs
       - name: Monthly accounting XLSX and internal receipt tests
