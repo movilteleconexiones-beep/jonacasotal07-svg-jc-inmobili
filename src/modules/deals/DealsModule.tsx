@@ -3,6 +3,7 @@ import { Handshake, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { DEAL_STAGE_OPTIONS, isAllowedDealStage, isValidDealCloseDate } from '../../core/deal-edit-validation';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { parseCommissionPercentage } from '../../core/commission-percentage';
 import { supabase } from '../../lib/supabase';
 
@@ -347,9 +348,9 @@ export function DealsModule() {
                 <td className="px-4 py-3">
                   {can(PERMISSIONS.DEALS_EDIT) ? (
                     <select value={row.stage} disabled={busy} onChange={(event) => void updateStage(row.id, event.target.value)} className="rounded-lg border border-stone-300 px-2 py-1.5 text-xs">
-                      {['INTEREST','VISIT','OFFER','NEGOTIATION','DOCUMENTATION','CLOSING','WON','LOST'].map((stage) => <option key={stage} value={stage}>{stage}</option>)}
+                      {DEAL_STAGE_OPTIONS.map(([code, texto]) => <option key={code} value={code}>{texto}</option>)}
                     </select>
-                  ) : row.stage}
+                  ) : etiquetaES(row.stage)}
                 </td>
                 <td className="px-4 py-3">{row.offered_price ?? '—'}</td>
                 <td className="px-4 py-3">{row.expected_close_date || '—'}</td>
