@@ -3,7 +3,7 @@ import { Handshake, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { DEAL_STAGE_OPTIONS, isAllowedDealStage, isValidDealCloseDate } from '../../core/deal-edit-validation';
-import { etiquetaES } from '../../core/etiquetas-es';
+import { etiquetaES, fechaES, dineroES } from '../../core/etiquetas-es';
 import { parseCommissionPercentage } from '../../core/commission-percentage';
 import { supabase } from '../../lib/supabase';
 
@@ -352,8 +352,8 @@ export function DealsModule() {
                     </select>
                   ) : etiquetaES(row.stage)}
                 </td>
-                <td className="px-4 py-3">{row.offered_price ?? '—'}</td>
-                <td className="px-4 py-3">{row.expected_close_date || '—'}</td>
+                <td className="px-4 py-3">{dineroES(row.offered_price,row.properties?.currency||'COP')}</td>
+                <td className="px-4 py-3">{fechaES(row.expected_close_date)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     {can(PERMISSIONS.DEALS_EDIT) && <button type="button" disabled={busy}
