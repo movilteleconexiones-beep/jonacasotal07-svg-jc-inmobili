@@ -118,7 +118,7 @@ export function ReportsModule() {
   const cards = [
     { label: 'Propiedades', value: state.properties, icon: Building2, selection: {kind:'module',name:'Propiedades'} as MonthlyReportSelection },
     { label: 'Clientes', value: state.contacts, icon: UsersRound, selection: {kind:'module',name:'Clientes'} as MonthlyReportSelection },
-    { label: 'Leads', value: state.leads, icon: BarChart3, selection: {kind:'module',name:'CRM'} as MonthlyReportSelection },
+    { label: 'Prospectos', value: state.leads, icon: BarChart3, selection: {kind:'module',name:'CRM'} as MonthlyReportSelection },
     { label: 'Negocios ganados', value: state.wonDeals, icon: Handshake, selection: {kind:'metric',key:'WON_DEALS'} as MonthlyReportSelection },
   ];
 
