@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
@@ -207,7 +208,7 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
                   Desde {a.effective_month.slice(0,7)}: {cop(amount(a.new_monthly_rent))}
                 </div>)}
               </td>
-              <td className="py-2">{lease.status}</td>
+              <td className="py-2">{etiquetaES(lease.status)}</td>
               <td className="py-2">
                 {canAmend&&['ACTIVE','RENEWAL'].includes(lease.status)&&<button type="button" disabled={busy}
                   onClick={()=>{setEditLease(editLease===lease.id?null:lease.id);setEditPayment(null);setFeedback('');}}
@@ -260,7 +261,7 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
                 <td className="py-2 text-right">{cop(amount(payment.expected_amount))}</td>
                 <td className="py-2 text-right">{cop(amount(payment.paid_amount))}</td>
                 <td className="py-2 text-right font-semibold">{valid ? cop(rentalBalance(payment.expected_amount, payment.paid_amount)) : 'Por verificar'}</td>
-                <td className="py-2">{payment.status}</td>
+                <td className="py-2">{etiquetaES(payment.status)}</td>
                 <td className="py-2"><button type="button" disabled={!valid} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold disabled:opacity-40" onClick={() => {
                   try {
                     printInternalDocument({
@@ -391,7 +392,7 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
               <td className="py-2 text-right">{cop(amount(statement.tax_amount))}</td>
               <td className="py-2 text-right">{cop(amount(statement.other_deductions))}</td>
               <td className="py-2 text-right font-semibold">{reconciled ? cop(amount(statement.net_amount)) : 'Por conciliar'}</td>
-              <td className="py-2">{statement.status}{!reconciled && <div className="text-xs text-amber-800">Diferencia en liquidación</div>}</td>
+              <td className="py-2">{etiquetaES(statement.status)}{!reconciled && <div className="text-xs text-amber-800">Diferencia en liquidación</div>}</td>
               <td className="py-2"><button type="button" disabled={!reconciled}
                 className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                 onClick={() => {

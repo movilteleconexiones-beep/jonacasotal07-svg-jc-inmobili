@@ -450,7 +450,7 @@ export default function App() {
                   <option value="featured">Orden: Destacadas</option>
                   <option value="price-desc">Precio: Mayor a Menor</option>
                   <option value="price-asc">Precio: Menor a Mayor</option>
-                  <option value="yield-desc">Mayor Rentabilidad (CAP Rate)</option>
+                  <option value="yield-desc">Mayor rentabilidad (tasa de capitalización)</option>
                 </select>
               </div>
             </div>

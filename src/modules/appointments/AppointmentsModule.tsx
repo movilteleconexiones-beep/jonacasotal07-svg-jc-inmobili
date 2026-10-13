@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { CalendarDays, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -165,7 +166,7 @@ export function AppointmentsModule() {
         {rows.map((row) => (
           <article key={row.id} className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 md:grid-cols-[180px_1fr_180px] md:items-center">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{row.appointment_type}</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{etiquetaES(row.appointment_type)}</div>
               <div className="mt-1 font-bold">{new Intl.DateTimeFormat(branding.locale || 'es-CO', { dateStyle: 'medium', timeStyle: 'short', timeZone: branding.timezone || 'America/Bogota' }).format(new Date(row.starts_at))}</div>
             </div>
             <div>
@@ -180,7 +181,7 @@ export function AppointmentsModule() {
                 <option value="CANCELLED">Cancelada</option>
                 <option value="NO_SHOW">No asistió</option>
               </select>
-            ) : <div className="text-sm font-medium">{row.status}</div>}
+            ) : <div className="text-sm font-medium">{etiquetaES(row.status)}</div>}
           </article>
         ))}
         {rows.length === 0 && (

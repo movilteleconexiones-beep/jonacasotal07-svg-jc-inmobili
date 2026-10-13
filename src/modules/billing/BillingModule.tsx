@@ -69,7 +69,7 @@ export function BillingModule() {
     </div>
     <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-700">Los pagos por Wompi corresponden exclusivamente a las licencias y suscripciones de INMOJCO, cobradas por el comercio central del propietario del software. La inmobiliaria contrata el derecho de uso para su propia operación; no puede revender, sublicenciar ni redistribuir INMOJCO, ni operar como distribuidora del sistema.</p>
     {billing.can_manage_billing ? <>
-      {billing.is_test && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Inmobiliaria de prueba · Sandbox. Los pagos de esta cuenta no habilitan otras inmobiliarias.</p>}
+      {billing.is_test && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Inmobiliaria de prueba · Entorno de pruebas. Los pagos de esta cuenta no habilitan otras inmobiliarias.</p>}
       <p className="rounded-xl border bg-white p-4 text-sm">{settings?.activation_mode === 'MANUAL'
         ? 'Los pagos confirmados requieren revisión del superadministrador.'
         : 'La confirmación del pago habilita automáticamente los módulos de tu plan. El regreso desde Wompi no confirma el pago.'}</p>
@@ -81,7 +81,7 @@ export function BillingModule() {
         <p className="mt-3 text-sm">{plan.max_users ? `${plan.max_users} usuarios` : 'Usuarios según contrato'} · {plan.max_properties ? `${plan.max_properties} inmuebles` : 'Inmuebles según contrato'}</p>
         <button type="button" disabled={busy || !available || !billing.terms_accepted || ['SUSPENDED','INACTIVE'].includes(billing.status)}
           onClick={() => void checkout(plan.id)} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
-          {billing.is_test ? 'Probar pago en Sandbox' : 'Elegir plan y pagar'}</button>
+          {billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
       </article>)}</div>
       <div className="rounded-2xl border bg-white p-5"><div className="flex items-center justify-between gap-3"><h2 className="font-bold">Historial de pagos</h2>
         <button type="button" disabled={busy} onClick={() => void refresh()} className="rounded-lg border px-4 py-2 text-sm">Comprobar estado</button></div>

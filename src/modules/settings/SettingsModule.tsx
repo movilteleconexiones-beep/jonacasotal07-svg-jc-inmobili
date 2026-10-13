@@ -1,3 +1,4 @@
+import { etiquetaES } from '../../core/etiquetas-es';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { FileCheck2, Palette, Save } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
@@ -325,7 +326,7 @@ export function SettingsModule() {
             <div className="min-w-0">
               <div className="font-semibold">Perfil normativo</div>
               <div className="mt-1 text-sm text-slate-600">
-                Estado: <strong>{compliance.status}</strong>
+                Estado: <strong>{etiquetaES(compliance.status)}</strong>
                 {compliance.version ? ' · versión ' + compliance.version : ''}
               </div>
               {compliance.title && <div className="mt-2 text-sm font-medium">{compliance.title}</div>}

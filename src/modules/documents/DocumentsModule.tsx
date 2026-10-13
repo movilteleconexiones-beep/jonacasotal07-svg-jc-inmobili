@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { Download, FileText, Trash2, Upload } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -171,7 +172,7 @@ export function DocumentsModule() {
               <option value="PROPERTY">Propiedad</option>
               <option value="OWNER">Propietario</option>
               <option value="CONTACT">Cliente / contacto</option>
-              <option value="LEAD">Lead</option>
+              <option value="LEAD">Prospecto</option>
               <option value="DEAL">Negocio</option>
               <option value="USER">Usuario</option>
             </select>
@@ -220,7 +221,7 @@ export function DocumentsModule() {
                   <div className="truncate font-semibold">{row.title}</div>
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
-                  {row.document_type} · {row.entity_type}
+                  {etiquetaES(row.document_type)} · {etiquetaES(row.entity_type)}
                   {row.expires_at ? ' · vence ' + row.expires_at : ''}
                 </div>
                 {row.size_bytes != null && (

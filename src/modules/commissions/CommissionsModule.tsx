@@ -1,3 +1,4 @@
+import { etiquetaES } from '../../core/etiquetas-es';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { BadgeDollarSign, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
@@ -329,7 +330,7 @@ export function CommissionsModule() {
                   {row.deals?.properties?.code || '—'}
                   {row.deals?.contacts?.first_name ? ' · ' + row.deals.contacts.first_name : ''}
                 </td>
-                <td className="px-4 py-3">{row.commission_type}</td>
+                <td className="px-4 py-3">{etiquetaES(row.commission_type)}</td>
                 <td className="px-4 py-3">{row.percentage==null?'—':`${Number(row.percentage).toLocaleString('es-CO',{maximumFractionDigits:2})} %`}</td>
                 <td className="px-4 py-3">{formatMoney(row.amount, row.currency)}</td>
                 <td className="px-4 py-3">

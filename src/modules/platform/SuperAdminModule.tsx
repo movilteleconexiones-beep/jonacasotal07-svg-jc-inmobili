@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../core/auth-context';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { supabase } from '../../lib/supabase';
 import { monthLabel, organizationStatusLabel, parsePlatformOverview, type OrganizationSummary, type PlatformOverview } from '../../core/platform-overview';
 import { BillingAdminControls } from './BillingAdminControls';
@@ -73,7 +74,7 @@ export function SuperAdminModule() {
       setSelectedOrganization(current => current ? next.organizations.find(org => org.organization_id === current.organization_id) ?? null : null);
     } catch {
       setOverview(null); setSelectedOrganization(null);
-      setError('No se pudo consultar el resumen. Verifica tu acceso de SuperAdmin y vuelve a intentar.');
+      setError('No se pudo consultar el resumen. Verifica tu acceso de superadministrador y vuelve a intentar.');
     } finally { setLoading(false); }
   }, [user, isPlatformAdmin, monthLimit]);
   useEffect(() => { if (user && isPlatformAdmin) void refresh(); else { setOverview(null); setSelectedOrganization(null); } }, [user, isPlatformAdmin, refresh]);
@@ -94,7 +95,7 @@ export function SuperAdminModule() {
     </div><div className="flex gap-3"><button type="button" onClick={() => void refresh()} disabled={loading} className="rounded-lg border bg-white px-4 py-2 font-semibold disabled:opacity-50">Actualizar</button>
       {activeMembership && <a href="/?billing=return" className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-900" aria-label="Abrir portal de la inmobiliaria activa">Portal</a>}
       <a href="/" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Volver al inicio</a></div></header>
-    <nav aria-label="Menú de SuperAdmin" className="mb-6 flex flex-wrap gap-2">
+    <nav aria-label="Menú de superadministración" className="mb-6 flex flex-wrap gap-2">
       <a href="#resumen-inmobiliarias" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Resumen</a>
       <a href="#todas-inmobiliarias" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Inmobiliarias</a>
       <a href="#resumen-mensual" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Resumen mensual</a>
@@ -128,7 +129,7 @@ export function SuperAdminModule() {
             </button>
           )}</td>
         <td className="p-4"><span className={org.access_status === 'ACTIVE' ? 'font-semibold text-emerald-700' : 'font-semibold text-slate-600'}>{organizationStatusLabel(org.access_status)}</span>{org.is_test && <p className="mt-1 text-xs text-amber-800">Cuenta de prueba</p>}</td>
-        <td className="p-4">{org.plan_name ?? 'Sin plan'}</td><td className="p-4">{org.billing_mode ?? 'Sin contrato'}<p className="mt-1 text-xs text-slate-500">{org.subscription_status === 'TRIAL' ? 'Prueba autorizada' : org.subscription_status ?? 'Sin suscripción'}</p></td>
+        <td className="p-4">{org.plan_name ?? 'Sin plan'}</td><td className="p-4">{org.billing_mode ? etiquetaES(org.billing_mode) : 'Sin contrato'}<p className="mt-1 text-xs text-slate-500">{org.subscription_status === 'TRIAL' ? 'Prueba autorizada' : org.subscription_status ? etiquetaES(org.subscription_status) : 'Sin suscripción'}</p></td>
         <td className="p-4">{org.access_until ? new Date(org.access_until).toLocaleDateString('es-CO',{timeZone:'America/Bogota'}) : '—'}</td><td className="p-4">{org.member_count}</td><td className="p-4">{org.property_count}</td>
         <td className="p-4">{new Date(org.created_at).toLocaleDateString('es-CO',{timeZone:'America/Bogota'})}</td>
       </tr>)}{!loading && !filteredOrganizations.length && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No hay inmobiliarias que coincidan con estos filtros.</td></tr>}

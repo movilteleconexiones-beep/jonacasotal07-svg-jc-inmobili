@@ -53,7 +53,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
     {tenant && <div className="mt-5 border-t pt-5"><h3 className="font-semibold">Gestionar {tenant.organization_name}</h3>
       <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm">Acción
         <select aria-label="Acción administrativa" value={action} onChange={e=>{setAction(e.target.value);setPlan('');}} className="mt-1 w-full rounded-lg border p-3">
-          <option value="APPROVE">Autorizar acceso por un período del plan</option><option value="TRIAL" disabled={!tenant.owner_user_id}>Autorizar prueba completa por 30 días</option><option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para Sandbox</option>
+          <option value="APPROVE">Autorizar acceso por un período del plan</option><option value="TRIAL" disabled={!tenant.owner_user_id}>Autorizar prueba completa por 30 días</option><option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para entorno de pruebas</option>
         </select></label>
         {(action==='APPROVE' || action==='TRIAL') && <label className="text-sm">Plan
           <select aria-label="Plan para autorización" value={plan} onChange={e=>setPlan(e.target.value)} className="mt-1 w-full rounded-lg border p-3">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { etiquetaES } from '../../core/etiquetas-es';
 import { Plus, RefreshCw, UsersRound } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -138,7 +139,7 @@ export function LeadsModule() {
       return;
     }
 
-    setMessage('Lead creado correctamente.');
+    setMessage('Prospecto creado correctamente.');
     setShowCreate(false);
     formElement.reset();
     await load();
@@ -159,7 +160,7 @@ export function LeadsModule() {
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Leads / CRM</h1>
+          <h1 className="text-2xl font-bold">Prospectos / CRM</h1>
           <p className="mt-1 text-sm text-slate-600">Seguimiento comercial desde el primer contacto hasta el cierre.</p>
         </div>
         <div className="flex gap-2">
@@ -250,7 +251,7 @@ export function LeadsModule() {
                       <div className="mt-1 text-xs text-slate-500">
                         {lead.properties ? lead.properties.code + ' · ' + lead.properties.title : 'Sin propiedad específica'}
                       </div>
-                      <div className="mt-2 text-xs font-medium">Prioridad: {lead.priority}</div>
+                      <div className="mt-2 text-xs font-medium">Prioridad: {etiquetaES(lead.priority)}</div>
                       {can(PERMISSIONS.LEADS_EDIT) && (
                         <select
                           value={lead.status}
