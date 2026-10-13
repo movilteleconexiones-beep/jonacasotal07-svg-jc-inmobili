@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { tenantMenu } from '../src/core/tenant-menu.ts';
 import { parsePlatformOverview, monthLabel } from '../src/core/platform-overview.ts';
 
-const labels = ['Inicio','Propiedades','Clientes','Nueva vinculación','Leads / CRM','Agenda','Negocios','Propietarios','Documentos','Comisiones','Reportes','Mi Portal','Usuarios','Importar datos','Configuración','Licencia'];
+const labels = ['Inicio','Propiedades','Clientes','Nueva vinculación','Prospectos / CRM','Agenda','Negocios','Propietarios','Documentos','Comisiones','Reportes','Mi Portal','Usuarios','Importar datos','Configuración','Licencia'];
 test('a complete owner keeps the menu order with guided rental intake', () => {
   const menu = tenantMenu(() => true,true,false);
   assert.deepEqual(menu.map(item => item.label),labels);
