@@ -141,7 +141,21 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const rent = rentPeriodTotals(find('Cánones'));
   const billed = rent.expected;
   const paid = rent.paid;
-  const ownerNet = financialTotal(find('Liquidaciones'),'net_amount');
+  const deductionRows=find('Deducciones');
+  const ownerStatements=find('Liquidaciones');
+  const deductedByStatement=new Map<string,number>();
+  for(const entry of deductionRows) {
+    const id=String(entry.statement_id);
+    deductedByStatement.set(id,(deductedByStatement.get(id)??0)+Number(entry.amount??0));
+  }
+  const ownerNet=ownerStatements.reduce((sum,entry)=>{
+    const saved=Number(entry.net_amount??0);
+    if(entry.status!=='DRAFT'||!sheets.some(section=>section.name==='Deducciones'))return sum+saved;
+    const approved=deductedByStatement.get(String(entry.id))??0;
+    const alreadyIncluded=Number(entry.other_deductions??0);
+    return sum+saved-(approved-alreadyIncluded);
+  },0);
+
   const ownerCommission = financialTotal(find('Liquidaciones'),'commission_amount');
   const ownerOther = sheets.some(item=>item.name==='Deducciones')
     ? financialTotal(find('Deducciones'),'amount')
@@ -151,7 +165,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const totals = [
     ['Canon esperado',canSeeRents?billed:null],['Pago registrado',canSeeRents?paid:null],
     ['Saldo por recaudar (períodos registrados)',canSeeRents?rent.outstanding:null],
-    ['Neto registrado para propietarios',canSeeStatements?ownerNet:null],
+    [staleCount>0?'Neto estimado con deducciones aprobadas':'Neto registrado para propietarios',canSeeStatements?ownerNet:null],
     ['Comisiones de administración en liquidaciones',canSeeStatements?ownerCommission:null],
     ['Otras deducciones de propietarios',canSeeStatements?ownerOther:null],
   ] as const;
@@ -160,7 +174,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const selectedLabel=selection
     ? selection.kind==='module'?selection.name:MONTHLY_METRICS[selection.key].label
     : '';
-  const selectionAvailable=selection !== null && sheets.some(sheet=>
+  const selectionAvailable=selection !== null && !(staleCount>0&&selection.kind==='metric'&&selection.key==='OWNER_NET') && sheets.some(sheet=>
     sheet.name===(selection.kind==='module'?selection.name:MONTHLY_METRICS[selection.key].source));
 
   async function exportXlsx() {
@@ -195,7 +209,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   }
 
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5" aria-label="Informes contables mensuales">
-    {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto registrado corresponde al último cálculo guardado y puede no incluir las deducciones aprobadas recientes. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.</div>}
+    {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto mostrado es una estimación con deducciones aprobadas; el neto oficialmente registrado sigue pendiente de conciliación. La exportación del neto estará disponible después de conciliar. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.</div>}
         <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 className="text-lg font-bold">Informes mensuales y exportación contable</h2>
