@@ -40,7 +40,7 @@ test('organization and permission gates apply to every input and receipt route',
 test('abonos use atomic audited server functions, no client-side aggregate edits or Wompi',()=>{
   assert.match(main,/\.rpc\('create_tenant_rent_period'/);
   assert.match(main,/\.rpc\('record_tenant_rent_receipt'/);
-  assert.match(owner,/\.rpc\('create_owner_draft_statement'/);
+  assert.match(owner,/\.rpc\('create_owner_draft_statement_by_percentage'/);
   assert.match(main,/request_key:pendingReceiptKey\.current/);
   assert.match(main,/if\(!pendingReceiptKey\.current\) pendingReceiptKey\.current=crypto\.randomUUID\(\)/);
   assert.doesNotMatch(main,/\.from\('rent_payments'\)\.update\(/);

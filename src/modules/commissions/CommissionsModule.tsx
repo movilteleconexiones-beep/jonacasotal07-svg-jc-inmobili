@@ -4,6 +4,8 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
+import { parseMoneyInput } from '../../core/rent-owner-money';
+import { commissionValueFromRate, parseCommissionPercentage } from '../../core/commission-percentage';
 
 interface DealOption {
   id: string;
@@ -42,6 +44,11 @@ export function CommissionsModule() {
   const [deals, setDeals] = useState<DealOption[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [commissionRate,setCommissionRate] = useState('');
+  const [commissionBasis,setCommissionBasis] = useState('');
+  const ratePreview=parseCommissionPercentage(commissionRate);
+  const basisPreview=parseMoneyInput(commissionBasis);
+  const computedPreview=commissionValueFromRate(basisPreview,ratePreview);
   const [message, setMessage] = useState('');
   const [loadingOptions, setLoadingOptions] = useState(true);
   const loadVersion = useRef(0);
@@ -126,16 +133,22 @@ export function CommissionsModule() {
       setMessage('El negocio o beneficiario seleccionado no está disponible. Actualiza y vuelve a intentarlo.');
       return;
     }
-    const percentage = String(form.get('percentage') ?? '').trim();
-    const amount = String(form.get('amount') ?? '').trim();
+    const rate=parseCommissionPercentage(String(form.get('percentage') ?? ''));
+    const basis=parseMoneyInput(String(form.get('calculation_basis') ?? ''));
+    const amount=commissionValueFromRate(basis,rate);
+    if (!Number.isFinite(rate)||!Number.isFinite(basis)||basis<=0||
+        !Number.isFinite(amount)) {
+      setMessage('Ingresa un porcentaje válido (0-100 %) y una base de cálculo positiva en COP. El importe de comisión se calcula automáticamente.');
+      return;
+    }
 
     const { error } = await supabase.from('commissions').insert({
       organization_id: organizationId,
       deal_id: selectedDealId,
       beneficiary_user_id: beneficiaryId || null,
       commission_type: String(form.get('commission_type') ?? 'AGENT'),
-      percentage: percentage ? Number(percentage) : null,
-      amount: amount ? Number(amount) : null,
+      percentage: rate,
+      amount,
       currency: branding.currency || 'COP',
       status: 'PENDING',
       due_date: String(form.get('due_date') ?? '').trim() || null,
@@ -150,6 +163,7 @@ export function CommissionsModule() {
 
     setMessage('Comisión creada correctamente.');
     setShowCreate(false);
+    setCommissionRate('');setCommissionBasis('');
     formElement.reset();
     await load();
   }
@@ -248,8 +262,26 @@ export function CommissionsModule() {
             </select>
           </label>
 
-          <Field name="percentage" label="Porcentaje %" type="number" min="0" step="0.01" />
-          <Field name="amount" label={'Monto (' + (branding.currency || 'COP') + ')'} type="number" min="0" step="0.01" />
+          <label>
+            <span className="mb-1 block text-sm font-medium">Porcentaje de comisión (%) *</span>
+            <input name="percentage" type="number" min="0" max="100" step="0.01" required
+              value={commissionRate} onChange={event=>setCommissionRate(event.target.value)}
+              className="w-full rounded-xl border border-stone-300 px-3 py-2.5" />
+          </label>
+          <label>
+            <span className="mb-1 block text-sm font-medium">
+              Base sobre la que se aplica el porcentaje ({branding.currency || 'COP'}) *
+            </span>
+            <input name="calculation_basis" type="number" min="0.01" step="0.01" required
+              value={commissionBasis} onChange={event=>setCommissionBasis(event.target.value)}
+              className="w-full rounded-xl border border-stone-300 px-3 py-2.5" />
+          </label>
+          <p className="md:col-span-2 text-sm text-slate-700">
+            Comisión calculada: <strong>{Number.isFinite(computedPreview)
+              ?formatMoney(computedPreview,branding.currency || 'COP'):'Ingresa el porcentaje y la base'}</strong>.
+            La base puede ser el canon mensual, precio pactado o comisión inmobiliaria,
+            según el acuerdo con el beneficiario. No se introduce el importe de comisión manualmente.
+          </p>
           <Field name="due_date" label="Fecha de pago esperada" type="date" />
 
           <label className="md:col-span-2">
@@ -281,7 +313,8 @@ export function CommissionsModule() {
               <th className="px-4 py-3">Beneficiario</th>
               <th className="px-4 py-3">Negocio</th>
               <th className="px-4 py-3">Tipo</th>
-              <th className="px-4 py-3">Monto</th>
+              <th className="px-4 py-3">Porcentaje</th>
+              <th className="px-4 py-3">Monto calculado (COP)</th>
               <th className="px-4 py-3">Estado</th>
             </tr>
           </thead>
@@ -297,6 +330,7 @@ export function CommissionsModule() {
                   {row.deals?.contacts?.first_name ? ' · ' + row.deals.contacts.first_name : ''}
                 </td>
                 <td className="px-4 py-3">{row.commission_type}</td>
+                <td className="px-4 py-3">{row.percentage==null?'—':`${Number(row.percentage).toLocaleString('es-CO',{maximumFractionDigits:2})} %`}</td>
                 <td className="px-4 py-3">{formatMoney(row.amount, row.currency)}</td>
                 <td className="px-4 py-3">
                   {can(PERMISSIONS.COMMISSIONS_EDIT) ? (
@@ -320,7 +354,7 @@ export function CommissionsModule() {
 
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                   <BadgeDollarSign className="mx-auto mb-2 h-6 w-6" />
                   No hay comisiones registradas.
                 </td>
