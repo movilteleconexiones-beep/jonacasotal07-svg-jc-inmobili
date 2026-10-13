@@ -140,6 +140,35 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   // below avoids a network loop when the membership object reference changes.
   },[allowed,organizationId,month,revision,permissionSignature]);
 
+  async function correctCommissionPercentage(){
+    if(!organizationId||reconciling||!can(PERMISSIONS.OWNER_STATEMENTS_CREATE)
+      ||!can(PERMISSIONS.RENT_PAYMENTS_VIEW))return;
+    const draft=sheets.find(sheet=>sheet.name==='Liquidaciones')?.rows.find(row=>row.status==='DRAFT');
+    if(!draft){setReconcileFeedback('No existe una liquidación en borrador disponible para corregir.');return;}
+    const raw=window.prompt('Porcentaje de comisión de administración sobre el canon cobrado (por ejemplo, 10):');
+    if(raw===null)return;
+    const percentage=Number(raw.trim().replace(',','.'));
+    if(!Number.isFinite(percentage)||percentage<0||percentage>100||Math.round(percentage*100)!==percentage*100){
+      setReconcileFeedback('Indica un porcentaje entre 0 y 100 con máximo dos decimales.');return;
+    }
+    const reason=window.prompt('Motivo de corrección (entre 15 y 500 caracteres):');
+    if(reason===null)return;
+    if(reason.trim().length<15||reason.trim().length>500){
+      setReconcileFeedback('Debes justificar la corrección con 15 a 500 caracteres.');return;
+    }
+    if(!window.confirm('¿Confirmas corregir la comisión de administración del borrador al '+percentage+' % del canon recaudado? El registro se auditará y NO se realizará ningún pago.'))return;
+    setReconciling(true);setReconcileFeedback('');
+    try {
+      const {data,error:rpcError}=await supabase.rpc('correct_owner_draft_commission_percentage',{
+        target_org:organizationId,target_statement:String(draft.id),new_percentage:percentage,correction_reason:reason.trim()
+      });
+      if(rpcError){setReconcileFeedback('No se pudo corregir la comisión: '+rpcError.message);return;}
+      setReconcileFeedback('Comisión de administración ajustada con auditoría a '+money(Number(data??0))+' ('+percentage+' %). Actualiza conciliación para aplicar las deducciones aprobadas.');
+      setRevision(value=>value+1);
+    }catch{setReconcileFeedback('No se pudo verificar la corrección. Actualiza antes de intentarlo nuevamente.');}
+    finally{setReconciling(false);}
+  }
+
   async function reconcileFirstPendingStatement(){
     if(!organizationId||!staleStatementIds.length||reconciling||
       !can(PERMISSIONS.OWNER_STATEMENTS_CREATE)||!can(PERMISSIONS.RENT_PAYMENTS_VIEW))return;
@@ -240,7 +269,13 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   }
 
   return <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5" aria-label="Informes contables mensuales">
-    {reconcileFeedback&&<p role="status" className="rounded-lg border p-3 text-sm">{reconcileFeedback}</p>}
+    {ready&&can(PERMISSIONS.OWNER_STATEMENTS_CREATE)&&can(PERMISSIONS.RENT_PAYMENTS_VIEW)&&
+      sheets.find(section=>section.name==='Liquidaciones')?.rows.some(item=>item.status==='DRAFT')&&
+      <button type="button" disabled={reconciling} onClick={()=>void correctCommissionPercentage()}
+      className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold">
+      Corregir comisión de administración (%) del borrador
+      </button>}
+        {reconcileFeedback&&<p role="status" className="rounded-lg border p-3 text-sm">{reconcileFeedback}</p>}
     {ready&&staleCount>0&&<div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"><strong>Liquidación pendiente de conciliar.</strong> El neto mostrado es una estimación con deducciones aprobadas; el neto oficialmente registrado sigue pendiente de conciliación. La exportación del neto estará disponible después de conciliar. Abre Liquidaciones → Deducciones y pulsa «Actualizar conciliación» antes de tomar este neto como definitivo.
     {can(PERMISSIONS.OWNER_STATEMENTS_CREATE)&&can(PERMISSIONS.RENT_PAYMENTS_VIEW)&&<button type="button"
       disabled={reconciling||!staleStatementIds.length} onClick={()=>void reconcileFirstPendingStatement()}
