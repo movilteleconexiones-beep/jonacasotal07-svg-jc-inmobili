@@ -14,3 +14,11 @@ test('paid operations remain audited and disallow self-approval',()=>{
   assert.match(module,/decide_paid_commission_review/);
   assert.match(module,/cancel_unpaid_commission/);
 });
+
+const migration=readFileSync(new URL('../supabase/migrations/20261013034500_commission_admin_void_only.sql',import.meta.url),'utf8');
+test('server-side RPCs require the organizational manager role before voiding',()=>{
+  assert.match(migration,/OR NOT public\.commission_is_manager\(target_org\) THEN/);
+  assert.match(migration,/IF kind='VOID' AND NOT public\.commission_is_manager\(target_org\) THEN/);
+  assert.match(migration,/c\.status IN\('PAID','CANCELLED'\)/);
+  assert.match(migration,/commissions\.cancelled/);
+});
