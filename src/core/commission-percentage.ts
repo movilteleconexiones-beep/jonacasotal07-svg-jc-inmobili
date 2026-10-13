@@ -13,7 +13,7 @@ export function parseCommissionPercentage(value: string): number {
 export function commissionValueFromRate(basis: number, percentage: number): number {
   if (!Number.isFinite(basis)||basis<0||basis>999999999999.99||
       !Number.isFinite(percentage)||percentage<0||percentage>100||
-      Math.round(percentage*100)!==percentage*100) return NaN;
+      Math.abs(percentage-Number(percentage.toFixed(2)))>1e-9) return NaN;
   const cents=BigInt(basis.toFixed(2).replace('.',''));
   const rateHundredths=BigInt(percentage.toFixed(2).replace('.',''));
   return Number((cents*rateHundredths+5000n)/10000n)/100;
