@@ -231,7 +231,7 @@ export function CommissionsModule() {
     const dealId=String(f.get('deal_id')??'');
     const beneficiary=String(f.get('beneficiary_user_id')??'')||null;
     const reason=String(f.get('reason')??'').trim();
-    if(!Number.isFinite(rate)||!Number.isFinite(basis)||basis<=0||
+    if(!Number.isFinite(rate)||basis===null||!Number.isFinite(basis)||basis<=0||
        reason.length<10||reason.length>500 ||
        !deals.some(d=>d.id===dealId) ||
        (beneficiary!==null&&!members.some(m=>m.user_id===beneficiary))){
