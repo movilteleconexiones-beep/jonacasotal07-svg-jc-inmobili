@@ -53,3 +53,38 @@ test('rejects invalid JSON', async () => {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{broken' });
   assert.equal(r.status, 400);
 });
+
+test('rejects manipulated payment amount despite previously valid signature', async () => {
+  const before = calls.length;
+  const payload = signedEvent();
+  payload.data.transaction.amount_in_cents += 100;
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','X-Event-Checksum':payload.signature.checksum}, body:JSON.stringify(payload) });
+  assert.equal(r.status,401);
+  assert.equal(calls.length,before);
+});
+
+test('rejects a production-labeled event against sandbox runtime', async () => {
+  const before = calls.length;
+  const payload = signedEvent();
+  payload.environment = 'prod';
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'},body:JSON.stringify(payload) });
+  assert.equal(r.status,401);
+  assert.equal(calls.length,before);
+});
+
+test('pending signed event never touches financial store', async () => {
+  const before = calls.length;
+  const payload = signedEvent('PENDING');
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'},body:JSON.stringify(payload) });
+  assert.equal(r.status,200);
+  assert.equal((await r.json()).result,'pending');
+  assert.equal(calls.length,before);
+});
+
+test('rejects a forged checksum header before accessing financial store', async () => {
+  const before = calls.length;
+  const payload = signedEvent();
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','X-Event-Checksum':'a'.repeat(64)},body:JSON.stringify(payload) });
+  assert.equal(r.status,401);
+  assert.equal(calls.length,before);
+});
