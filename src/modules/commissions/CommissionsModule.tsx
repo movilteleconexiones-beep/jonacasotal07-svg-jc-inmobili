@@ -354,6 +354,24 @@ export function CommissionsModule() {
     finally{setSaving(false);}
   }
 
+  async function restoreCancelledCommission(row:CommissionRow) {
+    if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||row.status!=='CANCELLED')return;
+    const reason=window.prompt('Motivo de recuperación (mínimo 15 caracteres):');
+    if(reason===null)return;
+    if(reason.trim().length<15||reason.trim().length>500){setMessage('El motivo debe tener entre 15 y 500 caracteres.');return;}
+    if(!window.confirm('¿Restaurar esta comisión anulada al estado PENDIENTE? La anulación permanecerá en la auditoría.'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {error}=await supabase.rpc('restore_cancelled_commission',{
+        target_org:organizationId,target_commission:row.id,correction_reason:reason.trim()
+      });
+      if(error){setMessage('No se pudo restaurar: '+error.message);return;}
+      setMessage('Comisión recuperada en estado pendiente, con auditoría.');
+      await load();
+    }catch{setMessage('No se confirmó la recuperación. Actualiza y revisa el estado.');}
+    finally{setSaving(false);}
+  }
+
   async function archiveRectifiedCommission(row:CommissionRow) {
     if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||!corrections[row.id]||corrections[row.id].archived_from_active)return;
     const reason=window.prompt('Motivo para retirar esta comisión rectificada del listado activo (15 a 500 caracteres):');
@@ -544,6 +562,9 @@ export function CommissionsModule() {
                   )}
                 </td>
                 <td className="px-4 py-3">
+                  {isCommissionAdministrator && row.status==='CANCELLED' &&
+                    <button type="button" disabled={saving} onClick={()=>void restoreCancelledCommission(row)}
+                    className="rounded-lg border border-emerald-300 px-2 py-1.5 text-xs text-emerald-800">Recuperar</button>}
                   {isCommissionAdministrator && corrections[row.id] && !corrections[row.id].archived_from_active &&
                     <button type="button" disabled={saving} onClick={()=>void archiveRectifiedCommission(row)}
                     className="rounded-lg border border-red-300 px-2 py-1.5 text-xs text-red-700">Retirar del listado</button>}
