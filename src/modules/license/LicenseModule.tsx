@@ -1,3 +1,4 @@
+import { etiquetaES } from '../../core/etiquetas-es';
 import { useEffect, useState } from 'react';
 import { Copyright, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
@@ -118,7 +119,7 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
             <div>
               <div className="font-bold">Derechos operativos</div>
               <div className="text-sm text-slate-500">
-                {license ? license.license_type : 'Pendiente de asignación comercial'}
+                {license ? etiquetaES(license.license_type) : 'Pendiente de asignación comercial'}
               </div>
             </div>
           </div>
