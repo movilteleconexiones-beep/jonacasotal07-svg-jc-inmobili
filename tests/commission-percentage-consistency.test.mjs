@@ -45,7 +45,7 @@ test('deal and staff commission forms validate the rate rather than manual commi
   assert.match(commissions,/commissionValueFromRate\(basis,rate\)/);
   assert.match(commissions,/name="calculation_basis"/);
   assert.doesNotMatch(commissions,/name="amount" label=/);
-  assert.match(commissions,/percentage: rate,\s*amount,/);
+  assert.match(commissions,/percentage: rate,\s*calculation_basis: basis,\s*amount,/);
   assert.match(ledger,/CONCEPTS\.filter\(\(\[code\]\)=>code!=='COMMISSION'\)/);
   assert.match(ledger,/evitar descuentos duplicados/);
 });

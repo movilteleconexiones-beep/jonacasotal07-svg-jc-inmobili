@@ -1,6 +1,6 @@
 import { etiquetaES } from '../../core/etiquetas-es';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { BadgeDollarSign, Plus, RefreshCw } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { BadgeDollarSign, Plus, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { useTenantBranding } from '../../core/use-tenant-branding';
@@ -19,9 +19,23 @@ interface MemberOption {
   user_id: string;
 }
 
+interface CommissionReview {
+  id: string;
+  commission_id: string;
+  requested_by: string;
+  request_type: 'EDIT' | 'VOID';
+  reason: string;
+  proposed_values: Record<string, unknown>;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  review_reason: string | null;
+  created_at: string;
+}
+
 interface CommissionRow {
   id: string;
   beneficiary_user_id: string | null;
+  deal_id: string;
+  calculation_basis: number | null;
   commission_type: string;
   percentage: number | null;
   amount: number | null;
@@ -39,12 +53,21 @@ interface CommissionRow {
 export function CommissionsModule() {
   const { activeMembership, can, user } = useAuth();
   const { branding } = useTenantBranding();
+  const isCommissionAdministrator = activeMembership?.roles?.some(
+    role => role.key === 'ADMIN' || role.key === 'ORGANIZATION_OWNER'
+  ) ?? false;
   const organizationId = activeMembership?.organization.id;
 
   const [rows, setRows] = useState<CommissionRow[]>([]);
   const [deals, setDeals] = useState<DealOption[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingId,setEditingId] = useState<string | null>(null);
+  const [reviewTarget,setReviewTarget] = useState<{id:string;kind:'EDIT'|'VOID'} | null>(null);
+  const [reviewRate,setReviewRate] = useState('');
+  const [reviewBasis,setReviewBasis] = useState('');
+  const [reviews,setReviews] = useState<CommissionReview[]>([]);
+  const [saving,setSaving] = useState(false);
   const [commissionRate,setCommissionRate] = useState('');
   const [commissionBasis,setCommissionBasis] = useState('');
   const ratePreview=parseCommissionPercentage(commissionRate);
@@ -58,16 +81,16 @@ export function CommissionsModule() {
   async function load() {
     const version = ++loadVersion.current;
     if (!organizationId) {
-      setRows([]); setDeals([]); setMembers([]); setProfileNames({}); setLoadingOptions(false);
+      setRows([]); setDeals([]); setMembers([]); setReviews([]); setProfileNames({}); setLoadingOptions(false);
       return;
     }
     setLoadingOptions(true);
-    setRows([]); setDeals([]); setMembers([]); setProfileNames({});
+    setRows([]); setDeals([]); setMembers([]); setReviews([]); setProfileNames({});
 
-    const [commissionsResult, dealsResult, membersResult] = await Promise.all([
+    const [commissionsResult, dealsResult, membersResult, reviewResult] = await Promise.all([
       supabase
         .from('commissions')
-        .select('id,beneficiary_user_id,commission_type,percentage,amount,currency,status,due_date,paid_at,notes,deals(properties!deals_property_id_fkey(code,title),contacts!deals_contact_id_fkey(first_name,last_name))')
+        .select('id,deal_id,beneficiary_user_id,commission_type,percentage,calculation_basis,amount,currency,status,due_date,paid_at,notes,deals(properties!deals_property_id_fkey(code,title),contacts!deals_contact_id_fkey(first_name,last_name))')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false }),
       supabase
@@ -80,9 +103,12 @@ export function CommissionsModule() {
         .select('user_id')
         .eq('organization_id', organizationId)
         .eq('status', 'ACTIVE'),
+      supabase.from('commission_review_requests').select('id,commission_id,requested_by,request_type,reason,proposed_values,status,review_reason,created_at')
+        .eq('organization_id',organizationId).order('created_at',{ascending:false}).limit(100),
     ]);
 
     if (version !== loadVersion.current) return;
+    setReviews(reviewResult.error?[]:((reviewResult.data??[]) as CommissionReview[]));
     if (commissionsResult.error) setMessage(commissionsResult.error.message);
     else setRows((commissionsResult.data ?? []) as unknown as CommissionRow[]);
 
@@ -149,6 +175,7 @@ export function CommissionsModule() {
       beneficiary_user_id: beneficiaryId || null,
       commission_type: String(form.get('commission_type') ?? 'AGENT'),
       percentage: rate,
+      calculation_basis: basis,
       amount,
       currency: branding.currency || 'COP',
       status: 'PENDING',
@@ -170,15 +197,128 @@ export function CommissionsModule() {
   }
 
   async function updateStatus(row: CommissionRow, status: string) {
-    if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status) return;
-    if (!['PENDING','APPROVED','PAYABLE','PAID','CANCELLED'].includes(status)) return;
-    if (status === 'PAID' && !window.confirm('¿Confirmas que esta comisión ya fue pagada? Cambiar el estado no realiza un pago bancario.')) return;
-    const patch: Record<string, unknown> = { status };
-    patch.paid_at = status === 'PAID' ? new Date().toISOString() : null;
+    if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status || saving) return;
+    if (!['PENDING','APPROVED','PAYABLE','PAID'].includes(status)) return;
+    if (status === 'PAID' && !isCommissionAdministrator) {
+      setMessage('Solo un administrador puede registrar una comisión como pagada.');
+      return;
+    }
+    const reason=window.prompt(status==='PAID'
+      ?'Esta acción no realiza una transferencia bancaria. Indica referencia del comprobante o motivo (10 caracteres mínimo):'
+      :'Indica el motivo del cambio de estado (10 caracteres mínimo):');
+    if(reason===null) return;
+    if(reason.trim().length<10 || reason.trim().length>500){
+      setMessage('Es obligatorio justificar la operación con 10 a 500 caracteres.');return;
+    }
+    if(status==='PAID'&&!window.confirm('¿Confirmas con soporte que la comisión ya fue efectivamente pagada? Esta marca será inmutable y requerirá revisión administrativa para cualquier corrección.'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {error}=await supabase.rpc('set_commission_status_audited',{
+        target_org:organizationId,target_commission:row.id,new_status:status,reason:reason.trim()
+      });
+      if(error){setMessage('No se pudo actualizar el estado: '+error.message);return;}
+      setMessage('Estado actualizado con registro de auditoría. No se ejecutó ninguna transferencia bancaria.');
+      await load();
+    }finally{setSaving(false);}
+  }
 
-    const { error } = await supabase.from('commissions').update(patch).eq('id', row.id).eq('organization_id', organizationId);
-    if (error) setMessage(error.message);
-    else await load();
+  async function editCommission(event: FormEvent<HTMLFormElement>, row: CommissionRow) {
+    event.preventDefault();
+    if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || saving) return;
+    const f=new FormData(event.currentTarget);
+    const rate=parseCommissionPercentage(String(f.get('percentage')??''));
+    const basis=parseMoneyInput(String(f.get('calculation_basis')??''));
+    const dealId=String(f.get('deal_id')??'');
+    const beneficiary=String(f.get('beneficiary_user_id')??'')||null;
+    const reason=String(f.get('reason')??'').trim();
+    if(!Number.isFinite(rate)||basis===null||!Number.isFinite(basis)||basis<=0||
+       reason.length<10||reason.length>500 ||
+       !deals.some(d=>d.id===dealId) ||
+       (beneficiary!==null&&!members.some(m=>m.user_id===beneficiary))){
+      setMessage('Verifica la base, porcentaje, negocio y beneficiario; el motivo debe tener 10 a 500 caracteres.');
+      return;
+    }
+    if(!window.confirm('¿Guardar la corrección auditada de esta comisión no pagada?'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {error}=await supabase.rpc('edit_unpaid_commission',{
+        target_org:organizationId,target_commission:row.id,target_deal:dealId,
+        target_beneficiary:beneficiary,target_type:String(f.get('commission_type')??'AGENT'),
+        target_percentage:rate,target_basis:basis,
+        target_due_date:String(f.get('due_date')??'')||null,
+        target_notes:String(f.get('notes')??''),correction_reason:reason,
+      });
+      if(error){setMessage('No se pudo editar la comisión: '+error.message);return;}
+      setEditingId(null);setMessage('Comisión corregida con auditoría de valores anteriores y nuevos.');
+      await load();
+    }finally{setSaving(false);}
+  }
+
+  async function cancelCommission(row:CommissionRow) {
+    if(!organizationId||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving)return;
+    const reason=window.prompt('Indica el motivo de anulación (10 a 500 caracteres):');
+    if(reason===null)return;
+    if(reason.trim().length<10||reason.trim().length>500){
+      setMessage('Describe el error y la razón de anulación (10 a 500 caracteres).');return;
+    }
+    if(!window.confirm('La comisión se marcará ANULADA sin borrar su historial. ¿Confirmas?'))return;
+    setSaving(true);setMessage('');
+    try{
+      const {error}=await supabase.rpc('cancel_unpaid_commission',{
+        target_org:organizationId,target_commission:row.id,reason:reason.trim()
+      });
+      if(error){setMessage('No se pudo anular: '+error.message);return;}
+      setMessage('Comisión anulada sin eliminación física. Se conservó la auditoría.');
+      setEditingId(null);await load();
+    }finally{setSaving(false);}
+  }
+
+  async function requestPaidReview(event:FormEvent<HTMLFormElement>,row:CommissionRow,kind:'EDIT'|'VOID') {
+    event.preventDefault();
+    if(!organizationId||saving)return;
+    const f=new FormData(event.currentTarget);
+    const reason=String(f.get('reason')??'').trim();
+    if(reason.length<15||reason.length>500){setMessage('Describe el error en 15 a 500 caracteres.');return;}
+    const rate=kind==='EDIT'?parseCommissionPercentage(reviewRate):null;
+    const basis=kind==='EDIT'?parseMoneyInput(reviewBasis):null;
+    if(kind==='EDIT'&&(!Number.isFinite(rate)||basis===null||!Number.isFinite(basis)||basis<=0)){
+      setMessage('Introduce el porcentaje y la base propuestos para la corrección.');return;
+    }
+    if(!window.confirm('¿Enviar solicitud para autorización administrativa? La comisión pagada no se modificará.'))return;
+    setSaving(true);setMessage('');
+    try{
+      const {error}=await supabase.rpc('request_paid_commission_review',{
+        target_org:organizationId,target_commission:row.id,kind,reason,
+        proposed_percentage:rate,proposed_basis:basis
+      });
+      if(error){setMessage('No se pudo registrar la solicitud: '+error.message);return;}
+      setReviewTarget(null);
+      setMessage('Solicitud registrada y pendiente de autorización por otro administrador. El pago histórico permanece intacto.');
+      await load();
+    }finally{setSaving(false);}
+  }
+
+  async function decideReview(review:CommissionReview,decision:'APPROVED'|'REJECTED') {
+    if(!organizationId||!isCommissionAdministrator||saving)return;
+    const reason=window.prompt(decision==='APPROVED'
+      ?'Indica la autorización y cómo se documentará el ajuste compensatorio (mínimo 10 caracteres):'
+      :'Indica el motivo del rechazo (mínimo 10 caracteres):');
+    if(reason===null)return;
+    if(reason.trim().length<10||reason.trim().length>500){
+      setMessage('La decisión requiere una justificación de 10 a 500 caracteres.');return;
+    }
+    if(!window.confirm('¿Confirmar decisión? La autorización NO altera el pago original: requiere un ajuste contable separado.'))return;
+    setSaving(true);setMessage('');
+    try{
+      const {error}=await supabase.rpc('decide_paid_commission_review',{
+        target_org:organizationId,target_request:review.id,decision,reason:reason.trim()
+      });
+      if(error){setMessage('No fue posible resolver la solicitud: '+error.message);return;}
+      setMessage(decision==='APPROVED'
+        ?'Revisión autorizada. Debe registrarse un ajuste compensatorio; la comisión pagada original permanece sin cambios.'
+        :'Solicitud rechazada con auditoría.');
+      await load();
+    }finally{setSaving(false);}
   }
 
   const formatMoney = (amount: number | null, currency: string) =>
@@ -317,12 +457,13 @@ export function CommissionsModule() {
               <th className="px-4 py-3">Porcentaje</th>
               <th className="px-4 py-3">Monto calculado (COP)</th>
               <th className="px-4 py-3">Estado</th>
+              <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-t border-stone-100">
+              <Fragment key={row.id}><tr className="border-t border-stone-100">
                 <td className="px-4 py-3 font-semibold">
                   {row.beneficiary_user_id ? (profileNames[row.beneficiary_user_id] || row.beneficiary_user_id) : '—'}
                 </td>
@@ -334,28 +475,132 @@ export function CommissionsModule() {
                 <td className="px-4 py-3">{row.percentage==null?'—':`${Number(row.percentage).toLocaleString('es-CO',{maximumFractionDigits:2})} %`}</td>
                 <td className="px-4 py-3">{formatMoney(row.amount, row.currency)}</td>
                 <td className="px-4 py-3">
-                  {can(PERMISSIONS.COMMISSIONS_EDIT) ? (
+                  {can(PERMISSIONS.COMMISSIONS_EDIT) && row.status !== 'PAID' && row.status !== 'CANCELLED' ? (
                     <select
                       value={row.status}
                       onChange={(event) => void updateStatus(row, event.target.value)}
+                      disabled={saving || !isCommissionAdministrator}
                       className="rounded-lg border border-stone-300 px-2 py-1.5 text-xs"
                     >
                       <option value="PENDING">Pendiente</option>
                       <option value="APPROVED">Aprobada</option>
                       <option value="PAYABLE">Por pagar</option>
                       <option value="PAID">Pagada</option>
-                      <option value="CANCELLED">Cancelada</option>
+
                     </select>
                   ) : (
-                    row.status
+                    etiquetaES(row.status)
                   )}
                 </td>
+                <td className="px-4 py-3">
+                  {can(PERMISSIONS.COMMISSIONS_EDIT) && <div className="flex flex-wrap gap-2">
+                    {row.status !== 'CANCELLED' && <button type="button" disabled={saving}
+                      onClick={()=>{
+                        if(row.status==='PAID'){
+                          setReviewTarget({id:row.id,kind:'EDIT'});
+                          setReviewRate(row.percentage==null?'':String(row.percentage));
+                          setReviewBasis(row.calculation_basis==null?'':String(row.calculation_basis));
+                          setEditingId(null);
+                        }else{
+                          setEditingId(editingId===row.id?null:row.id);setReviewTarget(null);
+                        }
+                        setMessage('');
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold">
+                      <Pencil className="h-3.5 w-3.5"/> {row.status==='PAID'?'Solicitar edición':'Editar'}
+                    </button>}
+                    {row.status !== 'CANCELLED'&&<button type="button" disabled={saving}
+                      onClick={()=>{
+                        if(row.status==='PAID'){setReviewTarget({id:row.id,kind:'VOID'});setEditingId(null);setMessage('');}
+                        else void cancelCommission(row);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2 py-1.5 text-xs font-semibold text-red-700">
+                      <Trash2 className="h-3.5 w-3.5"/> {row.status==='PAID'?'Solicitar anulación':'Anular'}
+                    </button>}
+                  </div>}
+                </td>
               </tr>
+              {editingId===row.id&&row.status!=='PAID'&&row.status!=='CANCELLED'&&<tr>
+                <td colSpan={7} className="border-t bg-slate-50 p-4">
+                  <form onSubmit={event=>void editCommission(event,row)} className="grid gap-3 md:grid-cols-2">
+                    <h3 className="md:col-span-2 font-semibold">Editar comisión no pagada</h3>
+                    <label className="text-sm">Negocio
+                      <select name="deal_id" required defaultValue={row.deal_id} className="mt-1 block w-full rounded-lg border p-2">
+                        {deals.map(d=><option key={d.id} value={d.id}>{d.properties?.code||'Negocio'} · {d.contacts?.first_name||'Cliente'}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-sm">Beneficiario
+                      <select name="beneficiary_user_id" defaultValue={row.beneficiary_user_id||''} className="mt-1 block w-full rounded-lg border p-2">
+                        <option value="">Sin usuario específico</option>
+                        {members.map(m=><option key={m.user_id} value={m.user_id}>{profileNames[m.user_id]||m.user_id}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-sm">Tipo de comisión
+                      <select name="commission_type" defaultValue={row.commission_type} className="mt-1 block w-full rounded-lg border p-2">
+                        {['AGENT','CAPTOR','COORDINATOR','REFERRAL','COMPANY','OTHER'].map(code=>
+                          <option value={code} key={code}>{etiquetaES(code)}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-sm">Porcentaje (%)
+                      <input name="percentage" type="number" min="0" max="100" step="0.01" required
+                        defaultValue={row.percentage??''} className="mt-1 block w-full rounded-lg border p-2"/>
+                    </label>
+                    <label className="text-sm">Base de cálculo (COP)
+                      <input name="calculation_basis" type="number" min="0.01" step="0.01" required
+                        defaultValue={row.calculation_basis??''}
+                        placeholder={row.calculation_basis==null?'Registrar base original no documentada':undefined}
+                        className="mt-1 block w-full rounded-lg border p-2"/>
+                    </label>
+                    <label className="text-sm">Fecha de pago esperada
+                      <input type="date" name="due_date" defaultValue={row.due_date??''} className="mt-1 block w-full rounded-lg border p-2"/>
+                    </label>
+                    <label className="text-sm md:col-span-2">Notas
+                      <textarea name="notes" defaultValue={row.notes??''} maxLength={2000} className="mt-1 block w-full rounded-lg border p-2"/>
+                    </label>
+                    <label className="text-sm md:col-span-2">Motivo de la corrección (obligatorio)
+                      <textarea name="reason" minLength={10} maxLength={500} required className="mt-1 block w-full rounded-lg border p-2"/>
+                    </label>
+                    <div className="md:col-span-2 flex justify-end gap-2">
+                      <button type="button" disabled={saving} onClick={()=>setEditingId(null)} className="rounded-lg border px-3 py-2">Cancelar</button>
+                      <button type="submit" disabled={saving} className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">Guardar corrección</button>
+                    </div>
+                  </form>
+                </td>
+              </tr>}
+              {reviewTarget?.id===row.id && row.status==='PAID'&&<tr>
+                <td colSpan={7} className="border-t bg-amber-50 p-4">
+                  <form onSubmit={event=>void requestPaidReview(event,row,reviewTarget.kind)} className="grid gap-3 md:grid-cols-2">
+                    <h3 className="md:col-span-2 font-semibold">Solicitud de {reviewTarget.kind==='EDIT'?'corrección':'anulación'} de comisión pagada</h3>
+                    <p className="md:col-span-2 text-sm">
+                      Por seguridad, se conserva el pago histórico; la solicitud requiere aprobación
+                      de un administrador distinto del solicitante y un ajuste contable posterior.
+                    </p>
+                    {reviewTarget.kind==='EDIT'&&<>
+                      <label className="text-sm">Nuevo porcentaje (%)
+                        <input required type="number" min="0" max="100" step="0.01" value={reviewRate}
+                          onChange={e=>setReviewRate(e.target.value)} className="mt-1 block w-full rounded-lg border p-2"/>
+                      </label>
+                      <label className="text-sm">Nueva base de cálculo (COP)
+                        <input required type="number" min="0.01" step="0.01" value={reviewBasis}
+                          onChange={e=>setReviewBasis(e.target.value)} className="mt-1 block w-full rounded-lg border p-2"/>
+                      </label>
+                    </>}
+                    <label className="md:col-span-2 text-sm">Motivo y soporte para revisión administrativa
+                      <textarea name="reason" minLength={15} maxLength={500} required className="mt-1 block w-full rounded-lg border p-2"/>
+                    </label>
+                    <div className="md:col-span-2 flex justify-end gap-2">
+                      <button type="button" disabled={saving} onClick={()=>setReviewTarget(null)} className="rounded-lg border px-3 py-2">Cancelar</button>
+                      <button type="submit" disabled={saving} className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">Enviar solicitud</button>
+                    </div>
+                  </form>
+                </td>
+              </tr>}
+              </Fragment>
             ))}
 
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                   <BadgeDollarSign className="mx-auto mb-2 h-6 w-6" />
                   No hay comisiones registradas.
                 </td>
@@ -364,6 +609,24 @@ export function CommissionsModule() {
           </tbody>
         </table>
       </div>
+      {reviews.length>0&&<section className="rounded-2xl border bg-white p-4">
+        <h2 className="font-semibold">Solicitudes de corrección sobre comisiones pagadas</h2>
+        <p className="mb-3 text-xs text-slate-600">La aprobación autoriza la revisión contable, no modifica ni borra el pago original.</p>
+        <div className="space-y-2">{reviews.map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+          <div><strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
+            <span className="ml-2">{etiquetaES(review.status)}</span>
+            <div className="text-xs text-slate-600">{review.reason}</div>
+            {review.review_reason&&<div className="text-xs text-slate-600">Decisión: {review.review_reason}</div>}
+          </div>
+          {isCommissionAdministrator && review.status==='PENDING' && review.requested_by!==user?.id&&
+            <div className="flex gap-2">
+              <button type="button" disabled={saving} onClick={()=>void decideReview(review,'APPROVED')}
+                className="rounded-lg border px-3 py-2">Autorizar revisión</button>
+              <button type="button" disabled={saving} onClick={()=>void decideReview(review,'REJECTED')}
+                className="rounded-lg border border-red-300 px-3 py-2 text-red-700">Rechazar</button>
+            </div>}
+          </div>)}</div>
+      </section>}
     </section>
   );
 }

@@ -19,11 +19,13 @@ test('tenant switch and query failures clear old commission choices', () => {
   assert.match(source, /if \(membersResult\.error\) \{ setMembers\(\[\]\);/);
 });
 
-test('paid status requires confirmation and corrects payment timestamp on reopening', () => {
+test('paid status requires server audited admin confirmation and cannot be reopened', () => {
   assert.match(source, /!can\(PERMISSIONS\.COMMISSIONS_EDIT\)/);
-  assert.match(source, /status === 'PAID' && !window\.confirm/);
-  assert.match(source, /patch\.paid_at = status === 'PAID' \? new Date\(\)\.toISOString\(\) : null/);
-  assert.match(source, /\.update\(patch\)\.eq\('id', row\.id\)\.eq\('organization_id', organizationId\)/);
+  assert.match(source, /status === 'PAID' && !isCommissionAdministrator/);
+  assert.match(source, /status==='PAID'&&!window\.confirm/);
+  assert.match(source, /\.rpc\('set_commission_status_audited'/);
+  assert.match(source, /request_paid_commission_review/);
+  assert.doesNotMatch(source, /\.update\(patch\)\.eq\('id', row\.id\)/);
 });
 
 test('stale requests cannot replace rows when switching organizations', () => {
