@@ -165,6 +165,15 @@ export function CommissionsModule() {
       setMessage('El negocio o beneficiario seleccionado no está disponible. Actualiza y vuelve a intentarlo.');
       return;
     }
+    const requestedType=String(form.get('commission_type')??'AGENT');
+    const existing=rows.find(row=>row.deal_id===selectedDealId
+      &&row.commission_type===requestedType
+      &&row.beneficiary_user_id===(beneficiaryId||null)
+      &&row.status!=='CANCELLED'&&!corrections[row.id]);
+    if(existing) {
+      setMessage('Ya existe una comisión activa del mismo tipo y beneficiario para este negocio. Anula o retira la anterior antes de crear otra.');
+      return;
+    }
     const rate=parseCommissionPercentage(String(form.get('percentage') ?? ''));
     const basis=parseMoneyInput(String(form.get('calculation_basis') ?? ''));
     const amount=commissionValueFromRate(basis,rate);
