@@ -49,6 +49,8 @@ jobs:
         run: node --import tsx --test tests/supabase-payment-store.test.mjs
       - name: Payment migration static safety checks
         run: node --test tests/payment-migration-gates.test.mjs
+      - name: Platform-only billing access regression
+        run: node --test tests/platform-billing-access-review.test.mjs
       - name: Wompi release readiness preflight checks
         run: node --test tests/wompi-release-readiness.test.mjs
       - name: Wompi HTTP endpoint tests
