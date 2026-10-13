@@ -325,6 +325,24 @@ export function CommissionsModule() {
     }finally{setSaving(false);}
   }
 
+  async function acceptErroneousPaidCommission(review:CommissionReview) {
+    if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving)return;
+    const reason=window.prompt('Motivo de aceptación/anulación (20-500 caracteres). Confirma que el importe se marcó como pagado por error y que NO hubo entrega de dinero:');
+    if(reason===null)return;
+    if(reason.trim().length<20||reason.trim().length>500){setMessage('Debes justificar la decisión en 20 a 500 caracteres.');return;}
+    if(!window.confirm('CONFIRMO QUE NO HUBO DESEMBOLSO REAL. ¿Aceptar la solicitud y realizar la anulación/rectificación contable, conservando el movimiento original en auditoría?'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {error}=await supabase.rpc('accept_erroneous_paid_commission_review',{
+        target_org:organizationId,target_request:review.id,confirmation_no_disbursement:true,approval_reason:reason.trim()
+      });
+      if(error){setMessage('No se pudo aceptar la solicitud: '+error.message);return;}
+      setMessage('Solicitud autorizada y resuelta con auditoría. Se conserva el histórico y se muestra la rectificación.');
+      await load();
+    }catch{setMessage('No se confirmó la autorización. Actualiza la lista antes de volver a intentarlo.');}
+    finally{setSaving(false);}
+  }
+
   const formatMoney = (amount: number | null, currency: string) =>
     amount == null
       ? '—'
@@ -623,6 +641,11 @@ export function CommissionsModule() {
             {corrections[review.commission_id]&&<div className="text-xs text-green-800">Rectificación contable registrada: {formatMoney(corrections[review.commission_id].corrected_amount,'COP')} (sin desembolso real).</div>}
             {review.review_reason&&<div className="text-xs text-slate-600">Decisión: {review.review_reason}</div>}
           </div>
+          {isCommissionAdministrator && review.status==='PENDING' &&
+            <button type="button" disabled={saving} onClick={()=>void acceptErroneousPaidCommission(review)}
+              className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-amber-900">
+              {corrections[review.commission_id] ? 'Aceptar y cerrar rectificación' : 'Aceptar y anular comisión (sin desembolso)'}
+            </button>}
           {isCommissionAdministrator && review.status==='PENDING' && !corrections[review.commission_id] && review.requested_by!==user?.id&&
             <div className="flex gap-2">
               <button type="button" disabled={saving} onClick={()=>void decideReview(review,'APPROVED')}
