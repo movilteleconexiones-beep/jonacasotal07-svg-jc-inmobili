@@ -399,6 +399,24 @@ export function CommissionsModule() {
     finally{setSaving(false);}
   }
 
+  async function replaceArchivedCommission(row:CommissionRow) {
+    if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||!corrections[row.id]?.archived_from_active)return;
+    const reason=window.prompt('Motivo para recuperar esta comisión como nuevo registro editable (15 a 500 caracteres):');
+    if(reason===null)return;
+    if(reason.trim().length<15||reason.trim().length>500){setMessage('Describe la recuperación en 15 a 500 caracteres.');return;}
+    if(!window.confirm('Se creará una NUEVA comisión PENDIENTE usando los valores rectificados; podrás editarla y cambiar su estado. El pago histórico permanecerá archivado. ¿Continuar?'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {data,error}=await supabase.rpc('replace_archived_commission',{
+        target_org:organizationId,target_commission:row.id,correction_reason:reason.trim()
+      });
+      if(error){setMessage('No se pudo crear el reemplazo: '+error.message);return;}
+      await load();
+      setMessage('Nueva comisión creada en estado Pendiente ('+String(data)+'). Ya puedes editarla o cambiar su estado. El registro original permanece en auditoría.');
+    }catch{setMessage('No se pudo confirmar el reemplazo. Actualiza antes de repetirlo.');}
+    finally{setSaving(false);}
+  }
+
   async function archiveRectifiedCommission(row:CommissionRow) {
     if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||!corrections[row.id]||corrections[row.id].archived_from_active)return;
     const reason=window.prompt('Motivo para retirar esta comisión rectificada del listado activo (15 a 500 caracteres):');
@@ -595,7 +613,12 @@ export function CommissionsModule() {
                   {isCommissionAdministrator && corrections[row.id] && !corrections[row.id].archived_from_active &&
                     <button type="button" disabled={saving} onClick={()=>void archiveRectifiedCommission(row)}
                     className="rounded-lg border border-red-300 px-2 py-1.5 text-xs text-red-700">Retirar del listado</button>}
-                  {corrections[row.id]?.archived_from_active && <span className="text-xs text-slate-500">Retirada · historial conservado</span>}
+                  {corrections[row.id]?.archived_from_active && <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-500">Retirada · historial conservado</span>
+                    {isCommissionAdministrator && <button type="button" disabled={saving}
+                      onClick={()=>void replaceArchivedCommission(row)}
+                      className="rounded-lg border border-emerald-300 px-2 py-1.5 text-xs text-emerald-800">Recuperar como nueva editable</button>}
+                  </div>}
                    {can(PERMISSIONS.COMMISSIONS_EDIT) && <div className="flex flex-wrap gap-2">
                     {row.status !== 'CANCELLED' && !corrections[row.id] && <button type="button" disabled={saving}
                       onClick={()=>{
