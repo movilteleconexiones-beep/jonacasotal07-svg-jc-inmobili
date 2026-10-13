@@ -149,6 +149,8 @@ jobs:
         run: node --test tests/consignment-photo-retry.test.mjs
       - name: Deals form prerequisites and tenant write safety
         run: node --test tests/deals-prerequisites.test.mjs
+      - name: Financial UI audited RPC release gate
+        run: node --test tests/finance-rpc-release-gate.test.mjs
       - name: Commission edit, cancellation and paid-approval UI regression
         run: node --test tests/commission-correction-approval.test.mjs
       - name: Commission tenant and beneficiary insert security tests
