@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.commission_accounting_corrections (
  reason text NOT NULL CHECK (length(btrim(reason)) BETWEEN 20 AND 500),
  confirmed_by uuid NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(),
- FOREIGN KEY (organization_id,commission_id) REFERENCES public.commissions(organization_id,id)
+ CONSTRAINT commission_correction_positive_difference CHECK (original_amount>=corrected_amount)
 );
 ALTER TABLE public.commission_accounting_corrections ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.commission_accounting_corrections FROM PUBLIC,anon,authenticated;
