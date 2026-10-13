@@ -216,7 +216,20 @@ export function CommissionsModule() {
 
   async function updateStatus(row: CommissionRow, status: string) {
     if (!organizationId || !can(PERMISSIONS.COMMISSIONS_EDIT) || row.status === status || saving) return;
-    if (row.status==='PAID' && status!=='CANCELLED') {
+    if (status==='REQUEST_CORRECTION' && row.status==='PAID') {
+      if(!isCommissionAdministrator){setMessage('Se requiere autorización de administrador.');return;}
+      setReviewTarget({id:row.id,kind:'EDIT'});
+      setReviewRate(row.percentage==null?'':String(row.percentage));
+      setReviewBasis(row.calculation_basis==null?'':String(row.calculation_basis));
+      setEditingId(null);
+      setMessage('Indica la rectificación del pago histórico; después podrás retirar el registro y recuperar una nueva comisión editable.');
+      return;
+    }
+    if (status==='RESTORE_REPLACEMENT' && corrections[row.id]?.archived_from_active) {
+      await replaceArchivedCommission(row);
+      return;
+    }
+        if (row.status==='PAID' && status!=='CANCELLED') {
       setMessage('Los pagos registrados no se pueden sobrescribir. Usa la rectificación administrativa o retira del listado el registro ya rectificado.');
       return;
     }
@@ -600,6 +613,8 @@ export function CommissionsModule() {
                       {row.status!=='PAID'&&<option value="PAYABLE">Por pagar</option>}
                       <option value="PAID">Pagada</option>
                       {isCommissionAdministrator&&<option value="CANCELLED">Anular {corrections[row.id] ? "(retirar del listado)" : ""}</option>}
+                      {isCommissionAdministrator&&row.status==='PAID'&&!corrections[row.id]&&<option value="REQUEST_CORRECTION">Solicitar rectificación administrativa</option>}
+                      {isCommissionAdministrator&&corrections[row.id]?.archived_from_active&&<option value="RESTORE_REPLACEMENT">Recuperar como nueva editable</option>}
 
                     </select>
                   ) : (

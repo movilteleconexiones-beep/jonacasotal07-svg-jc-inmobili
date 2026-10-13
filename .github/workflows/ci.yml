@@ -235,6 +235,8 @@ jobs:
         run: node --test tests/effective-commission-reports.test.mjs
       - name: Archived commission recover-as-new regression
         run: node --test tests/archived-commission-replacement.test.mjs
+      - name: Paid commission administrative action selector regression
+        run: node --test tests/commission-paid-admin-actions.test.mjs
       - name: Paid commission dropdown status regression
         run: node --test tests/paid-commission-dropdown.test.mjs
       - name: Direct administrator commission payment regression
