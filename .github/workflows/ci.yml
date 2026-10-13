@@ -149,6 +149,16 @@ jobs:
         run: node --test tests/consignment-photo-retry.test.mjs
       - name: Deals form prerequisites and tenant write safety
         run: node --test tests/deals-prerequisites.test.mjs
+      - name: Commission edit, cancellation and paid-approval UI regression
+        run: node --test tests/commission-correction-approval.test.mjs
+      - name: Commission financial correction and approval SQL isolation tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_commission_corrections_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_corrections_test -f security/tests/commission_correction_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_corrections_test -f supabase/migrations/20261013040000_commission_safe_edit_and_paid_review.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_corrections_test -f security/tests/commission_correction_assertions.sql
       - name: Commission prerequisites and safe paid status
         run: node --test tests/commissions-prerequisites.test.mjs
       - name: Active member and organization owner UI safety
