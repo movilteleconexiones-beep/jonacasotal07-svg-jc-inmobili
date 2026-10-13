@@ -19,3 +19,6 @@ test('only administrators can restore voided owner deduction into a new draft wi
  assert.match(migration,/owner_deductions.restored_as_draft/);
  assert.doesNotMatch(migration,/DELETE FROM public.owner_statement_deductions/);
 });
+
+const exportSource=readFileSync(new URL('../src/core/accounting-export.ts',import.meta.url),'utf8');
+test('deduction Excel matches approved owner charges rather than stale liquidation snapshot',()=>{assert.match(exportSource,/OWNER_OTHER: \{ label:'Otras deducciones de propietarios', source:'Deducciones' \}/);assert.match(exportSource,/key==='OWNER_OTHER'\?'amount'/);});
