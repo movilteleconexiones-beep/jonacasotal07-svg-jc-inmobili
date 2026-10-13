@@ -141,7 +141,21 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const rent = rentPeriodTotals(find('Cánones'));
   const billed = rent.expected;
   const paid = rent.paid;
-  const ownerNet = financialTotal(find('Liquidaciones'),'net_amount');
+  const deductionRows=find('Deducciones');
+  const ownerStatements=find('Liquidaciones');
+  const deductedByStatement=new Map<string,number>();
+  for(const entry of deductionRows) {
+    const id=String(entry.statement_id);
+    deductedByStatement.set(id,(deductedByStatement.get(id)??0)+Number(entry.amount??0));
+  }
+  const ownerNet=ownerStatements.reduce((sum,entry)=>{
+    const saved=Number(entry.net_amount??0);
+    if(entry.status!=='DRAFT'||!sheets.some(section=>section.name==='Deducciones'))return sum+saved;
+    const approved=deductedByStatement.get(String(entry.id))??0;
+    const alreadyIncluded=Number(entry.other_deductions??0);
+    return sum+saved-(approved-alreadyIncluded);
+  },0);
+
   const ownerCommission = financialTotal(find('Liquidaciones'),'commission_amount');
   const ownerOther = sheets.some(item=>item.name==='Deducciones')
     ? financialTotal(find('Deducciones'),'amount')
@@ -151,7 +165,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
   const totals = [
     ['Canon esperado',canSeeRents?billed:null],['Pago registrado',canSeeRents?paid:null],
     ['Saldo por recaudar (períodos registrados)',canSeeRents?rent.outstanding:null],
-    ['Neto registrado para propietarios',canSeeStatements?ownerNet:null],
+    [staleCount>0?'Neto estimado con deducciones aprobadas':'Neto registrado para propietarios',canSeeStatements?ownerNet:null],
     ['Comisiones de administración en liquidaciones',canSeeStatements?ownerCommission:null],
     ['Otras deducciones de propietarios',canSeeStatements?ownerOther:null],
   ] as const;
