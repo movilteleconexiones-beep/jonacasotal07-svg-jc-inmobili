@@ -1,3 +1,4 @@
+import { etiquetaES } from './etiquetas-es';
 export interface OrganizationSummary {
   organization_id: string; organization_name: string; organization_slug: string;
   organization_status: string; access_status: string; created_at: string; registration_month: string;
@@ -27,5 +28,5 @@ export function parsePlatformOverview(data: unknown): PlatformOverview {
   }
   return value;
 }
-export const organizationStatusLabel = (status: string) => ({ ACTIVE: 'Activa', INACTIVE: 'Inactiva', TRIAL: 'Pendiente', SUSPENDED: 'Suspendida', EXPIRED: 'Vencida' }[status] ?? status);
+export const organizationStatusLabel = (status: string) => ({ ACTIVE: 'Activa', INACTIVE: 'Inactiva', TRIAL: 'Pendiente', SUSPENDED: 'Suspendida', EXPIRED: 'Vencida' }[status] ?? etiquetaES(status));
 export const monthLabel = (month: string) => new Intl.DateTimeFormat('es-CO', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
