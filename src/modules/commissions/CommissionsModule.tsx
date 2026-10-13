@@ -67,7 +67,8 @@ export function CommissionsModule() {
   const [reviewRate,setReviewRate] = useState('');
   const [reviewBasis,setReviewBasis] = useState('');
   const [reviews,setReviews] = useState<CommissionReview[]>([]);
-  const [corrections,setCorrections] = useState<Record<string,{corrected_amount:number;original_amount:number;difference_amount:number}>>({});
+  const [corrections,setCorrections] = useState<Record<string,{corrected_amount:number;original_amount:number;difference_amount:number;archived_from_active:boolean}>>({});
+  const [showArchived,setShowArchived] = useState(false);
   const [saving,setSaving] = useState(false);
   const [commissionRate,setCommissionRate] = useState('');
   const [commissionBasis,setCommissionBasis] = useState('');
@@ -106,7 +107,7 @@ export function CommissionsModule() {
         .eq('status', 'ACTIVE'),
       supabase.from('commission_review_requests').select('id,commission_id,requested_by,request_type,reason,proposed_values,status,review_reason,created_at')
         .eq('organization_id',organizationId).order('created_at',{ascending:false}).limit(100),
-      supabase.from('commission_accounting_corrections').select('commission_id,original_amount,corrected_amount,difference_amount').eq('organization_id',organizationId),
+      supabase.from('commission_accounting_corrections').select('commission_id,original_amount,corrected_amount,difference_amount,archived_from_active').eq('organization_id',organizationId),
     ]);
 
     if (version !== loadVersion.current) return;
@@ -343,6 +344,22 @@ export function CommissionsModule() {
     finally{setSaving(false);}
   }
 
+  async function archiveRectifiedCommission(row:CommissionRow) {
+    if(!organizationId||!isCommissionAdministrator||!can(PERMISSIONS.COMMISSIONS_EDIT)||saving||!corrections[row.id]||corrections[row.id].archived_from_active)return;
+    const reason=window.prompt('Motivo para retirar esta comisión rectificada del listado activo (15 a 500 caracteres):');
+    if(reason===null)return;
+    if(reason.trim().length<15||reason.trim().length>500){setMessage('Explica el motivo en 15 a 500 caracteres.');return;}
+    if(!window.confirm('¿Retirar esta comisión del listado operativo? El registro original y su rectificación seguirán disponibles en el historial y auditoría.'))return;
+    setSaving(true);setMessage('');
+    try {
+      const {error}=await supabase.rpc('archive_rectified_commission',{target_org:organizationId,target_commission:row.id,reason:reason.trim()});
+      if(error){setMessage('No se pudo retirar la comisión: '+error.message);return;}
+      setMessage('Comisión retirada del listado activo. Puedes registrar una nueva; el historial se conserva.');
+      await load();
+    }catch{setMessage('No se confirmó el archivo. Actualiza la lista antes de reintentar.');}
+    finally{setSaving(false);}
+  }
+
   const formatMoney = (amount: number | null, currency: string) =>
     amount == null
       ? '—'
@@ -469,6 +486,7 @@ export function CommissionsModule() {
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
+      <div className="flex items-center justify-end"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/> Mostrar comisiones retiradas (historial)</label></div>
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">
           <thead className="bg-stone-50 text-left">
@@ -484,7 +502,7 @@ export function CommissionsModule() {
           </thead>
 
           <tbody>
-            {rows.map((row) => (
+            {rows.filter(row=>showArchived||!corrections[row.id]?.archived_from_active).map((row) => (
               <Fragment key={row.id}><tr className="border-t border-stone-100">
                 <td className="px-4 py-3 font-semibold">
                   {row.beneficiary_user_id ? (profileNames[row.beneficiary_user_id] || row.beneficiary_user_id) : '—'}
@@ -515,7 +533,11 @@ export function CommissionsModule() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {can(PERMISSIONS.COMMISSIONS_EDIT) && <div className="flex flex-wrap gap-2">
+                  {isCommissionAdministrator && corrections[row.id] && !corrections[row.id].archived_from_active &&
+                    <button type="button" disabled={saving} onClick={()=>void archiveRectifiedCommission(row)}
+                    className="rounded-lg border border-red-300 px-2 py-1.5 text-xs text-red-700">Retirar del listado</button>}
+                  {corrections[row.id]?.archived_from_active && <span className="text-xs text-slate-500">Retirada · historial conservado</span>}
+                   {can(PERMISSIONS.COMMISSIONS_EDIT) && <div className="flex flex-wrap gap-2">
                     {row.status !== 'CANCELLED' && !corrections[row.id] && <button type="button" disabled={saving}
                       onClick={()=>{
                         if(row.status==='PAID'){
