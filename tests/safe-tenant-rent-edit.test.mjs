@@ -15,7 +15,7 @@ test('each lease shows a controlled future rent editor and versioned rates',()=>
   assert.match(sql,/target_month<=\(date_trunc\('month',now\(\) AT TIME ZONE 'America\/Bogota'\)\)::date/);
   assert.match(sql,/target_month>date_trunc\('month',lease_row\.end_date\)::date/);
   assert.match(sql,/period_month>=target_month/);
-  assert.match(sql,/request_key=request_key/);
+  assert.match(sql,/a\.request_key=schedule_lease_rent_amendment\.request_key/);
   assert.match(sql,/effective_month<=target_period/);
   assert.match(sql,/VALUES \(target_org,target_lease,target_period,period_rent,0,'PENDING'\)/);
 });
