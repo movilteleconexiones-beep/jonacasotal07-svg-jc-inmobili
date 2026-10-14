@@ -325,9 +325,11 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
 
 /** Read-only owner liquidation. Statement status is NOT proof of a bank transfer. */
 export function OwnerNetStatementsSummary({ organizationId }: { organizationId: string }) {
-  const { can } = useAuth();
+  const { can,activeMembership } = useAuth();
   const { branding } = useTenantBranding();
   const allowed = can(PERMISSIONS.OWNER_STATEMENTS_VIEW);
+  const mayIssue = can(PERMISSIONS.OWNER_STATEMENTS_CREATE) && (activeMembership?.roles.some(role=>role.key==='ADMIN'||role.key==='ORGANIZATION_OWNER')??false);
+  const [issuing,setIssuing] = useState(false);
   const [statements, setStatements] = useState<OwnerStatement[]>([]);
   const [owners, setOwners] = useState<Identity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -365,6 +367,18 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
     })();
     return () => { cancelled = true; };
   }, [organizationId, allowed, revision]);
+
+  async function confirmIssue(statement:OwnerStatement) {
+    if(!mayIssue||issuing||statement.status!=='DRAFT')return;
+    if(!window.confirm('¿Confirmar emisión administrativa? Este acto no registra pago ni transferencia al propietario.'))return;
+    setIssuing(true);setError('');
+    try{
+      const {error:issueError}=await supabase.rpc('admin_issue_owner_statement',{p_statement_id:statement.id,p_organization_id:organizationId});
+      if(issueError)throw issueError;
+      setRevision(value=>value+1);
+    }catch(cause){setError(cause instanceof Error?cause.message:'No se pudo confirmar la emisión.');}
+    finally{setIssuing(false);}
+  }
 
   if (!allowed) return null;
   const byOwner = new Map(owners.map(item => [item.id, item]));
@@ -412,7 +426,12 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
                       note:'Las deducciones individuales y los comprobantes de pago deben ser conciliados por la inmobiliaria. No acredita transferencia al propietario.',
                     });
                   } catch (cause) {setError(cause instanceof Error?cause.message:'No fue posible emitir el comprobante.');}
-                }}>Generar comprobante</button></td>
+                }}>Generar comprobante</button>
+                {mayIssue&&statement.status==='DRAFT'&&<button type="button" disabled={issuing||!reconciled}
+                  onClick={()=>void confirmIssue(statement)}
+                  className="ml-2 rounded-lg border border-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-800 disabled:opacity-40">
+                  Confirmar emisión
+                </button>}</td>
             </tr>;
           })}</tbody>
         </table>
