@@ -31,6 +31,8 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
   const { branding } = useTenantBranding();
   const [rows, setRows] = useState<PropertyRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [occupiedPropertyIds,setOccupiedPropertyIds]=useState<Set<string>>(new Set());
+  const [occupancyError,setOccupancyError]=useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
@@ -45,19 +47,36 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
   async function load() {
     if (!organizationId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('properties')
-      .select('id, code, title, operation_type, property_type, status, price, currency, city, neighborhood, created_at')
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false });
-
-    if (error) setMessage(error.message);
-    else setRows((data ?? []) as PropertyRow[]);
+    const [propertyResult,leaseResult]=await Promise.all([
+      supabase.from('properties')
+        .select('id,code,title,operation_type,property_type,status,price,currency,city,neighborhood,created_at')
+        .eq('organization_id',organizationId).order('created_at',{ascending:false}),
+      supabase.from('leases').select('property_id',{count:'exact'})
+        .eq('organization_id',organizationId).in('status',['ACTIVE','RENEWAL']).limit(501),
+    ]);
+    const incomplete=leaseResult.count==null||(leaseResult.data??[]).length<leaseResult.count;
+    if(propertyResult.error||leaseResult.error||incomplete){
+      setOccupancyError(true);
+      setOccupiedPropertyIds(new Set());
+      setRows([]);
+      setMessage('No se puede verificar inventario y contratos activos. Actualiza antes de asignar inmuebles.');
+    }else{
+      setOccupancyError(false);
+      setRows((propertyResult.data??[]) as PropertyRow[]);
+      setOccupiedPropertyIds(new Set((leaseResult.data??[]).map(x=>x.property_id)));
+    }
     setLoading(false);
   }
 
   useEffect(() => {
     void load();
+    const reload=()=>{void load();};
+    window.addEventListener('lease-finished',reload);
+    window.addEventListener('owner-agency-retired',reload);
+    return()=>{
+      window.removeEventListener('lease-finished',reload);
+      window.removeEventListener('owner-agency-retired',reload);
+    };
   }, [organizationId]);
 
   async function createProperty(event: FormEvent<HTMLFormElement>) {
@@ -263,10 +282,11 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
                 <td className="px-4 py-3 font-semibold">
                   {row.price == null ? '—' : new Intl.NumberFormat(branding.locale || 'es-CO', { style: 'currency', currency: row.currency || branding.currency || 'COP', maximumFractionDigits: 0 }).format(row.price)}
                 </td>
-                <td className="px-4 py-3">{etiquetaES(row.status)}</td>
+                <td className="px-4 py-3">{occupiedPropertyIds.has(row.id)?'Ocupado · contrato activo':etiquetaES(row.status)}</td>
                 <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
                 {onSelect&&<td className="px-4 py-3">
                   <button type="button" aria-pressed={selectedPropertyId===row.id}
+                    disabled={occupancyError}
                     onClick={()=>selectedPropertyId===row.id&&onClearSelection
                        ? onClearSelection()
                        : onSelect(row.id,[row.code,row.title].filter(Boolean).join(' · '))}
