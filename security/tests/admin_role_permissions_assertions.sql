@@ -165,14 +165,14 @@ BEGIN
 END
 $check$;
 -- Protected profiles remain immutable even through a direct API-level update.
-SELECT pg_temp.expect_rejection($
+SELECT pg_temp.expect_rejection($$
  UPDATE public.roles SET name='Alterado'
  WHERE id='10000000-0000-4000-9000-000000000001'
-$,'42501');
-SELECT pg_temp.expect_rejection($
+$$,'42501');
+SELECT pg_temp.expect_rejection($$
  UPDATE public.roles SET key='ADMIN'
  WHERE name='Captador' AND organization_id='11111111-1111-4111-8111-111111111111'
-$,'42501');
+$$,'42501');
 UPDATE public.roles SET active=false
  WHERE name='Captador' AND organization_id='11111111-1111-4111-8111-111111111111';
 DO $check$
