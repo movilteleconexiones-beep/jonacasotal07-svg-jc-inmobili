@@ -6,6 +6,10 @@ import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
 import { SignedLeaseDocuments } from './SignedLeaseDocuments';
 import { canPrepareRental } from '../../core/rental-owner-selection';
+import {
+  RENT_RECEIPT_EVIDENCE_BUCKET, receiptEvidencePath, validateRentReceiptEvidence,
+} from '../../core/rent-receipt-evidence';
+import { RentReceiptEvidenceHistory } from './RentReceiptEvidenceHistory';
 
 export type RentalEntryMode='STANDARD'|'DRAFT'|'SIGNED_PDF'|'APPROVAL'|'BILLING';
 type Option={id:string;label:string};
@@ -37,7 +41,9 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [revision,setRevision]=useState(0);
-  const pendingReceiptRequest=useRef<{ fingerprint:string; key:string }|null>(null);
+  const pendingReceiptRequest=useRef<{
+    fingerprint:string; key:string; uploadedPath?:string;
+  }|null>(null);
 
   useEffect(()=>{
     let cancelled=false;
@@ -172,30 +178,73 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     const element=event.currentTarget;
     const f=new FormData(element),id=String(f.get('period_id')||'');
     const amount=validMoney(f.get('amount')),method=String(f.get('method')||''),reference=String(f.get('reference')||'').trim();
+    const proofInput=element.elements.namedItem('evidence') as HTMLInputElement|null;
+    const file=proofInput?.files?.[0]??null;
     const payment=periods.find(p=>p.id===id&&p.status!=='CANCELLED');
     if(!payment||!Number.isFinite(amount)||amount>Number(payment.expected_amount)-Number(payment.paid_amount)+0.001||
       !['CASH','BANK_TRANSFER','OTHER'].includes(method)||reference.length<3||reference.length>140){
       setError('Verifica el cobro, el abono y la referencia del soporte.');return;
     }
-    setBusy(true);setError('');
-    // Retain the idempotency key only while retrying the exact same receipt.
-    // A new amount, payment, method, reference or tenant must use a new key.
-    const fingerprint=JSON.stringify([organizationId,id,amount,method,reference]);
+    const actor=activeMembership?.user_id;
+    if(file&&!actor){setError('No se pudo verificar el usuario responsable del comprobante.');return;}
+    // Keep idempotency and the uploaded path for exact retries (including
+    // the file), preventing credit duplication if the network disconnects.
+    const fileFingerprint=file?[file.name,file.size,file.lastModified,file.type]:null;
+    const fingerprint=JSON.stringify([organizationId,id,amount,method,reference,fileFingerprint]);
     if(pendingReceiptRequest.current?.fingerprint!==fingerprint)
       pendingReceiptRequest.current={fingerprint,key:crypto.randomUUID()};
+    const request=pendingReceiptRequest.current;
+    setBusy(true);setError('');
     try {
-      const {error:failure}=await supabase.rpc('record_tenant_rent_receipt',{
-        target_org:organizationId,target_payment:id,receipt_amount:amount,
-        receipt_method:method,receipt_reference:reference,request_key:pendingReceiptRequest.current.key,
-      });
-      if(failure){setError('No se pudo registrar el abono: '+failure.message);return;}
+      let evidencePath:string|null=null;
+      if(file){
+        const checked=await validateRentReceiptEvidence(file);
+        if(checked.error||!checked.mime){
+          setError(checked.error||'No se pudo validar el archivo del abono.');return;
+        }
+        const path=receiptEvidencePath(organizationId,id,actor!,request.key,checked.mime);
+        evidencePath=path;
+        if(request.uploadedPath!==path){
+          const {error:uploadError}=await supabase.storage.from(RENT_RECEIPT_EVIDENCE_BUCKET)
+            .upload(path,file,{upsert:false,contentType:checked.mime,cacheControl:'0'});
+          if(uploadError){
+            // An unknown network error may occur after storage committed. Do
+            // not record money with missing evidence or fabricate upload success.
+            setError('No se confirmó la carga del comprobante: '+uploadError.message+
+              '. Comprueba el archivo antes de reintentar.');
+            return;
+          }
+          request.uploadedPath=path;
+        }
+      }
+
+      const {data:receiptId,error:failure}=file
+        ? await supabase.rpc('record_tenant_rent_receipt_with_evidence',{
+          target_org:organizationId,target_payment:id,receipt_amount:amount,
+          receipt_method:method,receipt_reference:reference,request_key:request.key,
+          evidence_path:evidencePath,
+        })
+        : await supabase.rpc('record_tenant_rent_receipt',{
+          target_org:organizationId,target_payment:id,receipt_amount:amount,
+          receipt_method:method,receipt_reference:reference,request_key:request.key,
+        });
+      if(failure||!receiptId){
+        // Preserve the object and idempotency key on failure. This avoids
+        // destroying evidence if the ledger RPC completed but its response
+        // was lost. Unlinked uploads have a restricted cleanup policy.
+        setError('No se pudo confirmar el abono: '+(failure?.message??'Sin confirmación del recibo.')+
+          '. El comprobante no se perderá al reintentar sin modificar los datos.');
+        return;
+      }
+
       pendingReceiptRequest.current=null;
       element.reset();
-      setNotice('Abono registrado en libro auditable. No se ejecutó transferencia bancaria.');
+      setNotice(file
+        ? 'Abono registrado y comprobante privado asociado al recibo. No se ejecutó transferencia bancaria.'
+        : 'Abono registrado en libro auditable, sin archivo adjunto. No se ejecutó transferencia bancaria.');
       window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
     } catch {
-      // Keep the idempotency key: retrying the unchanged request cannot double-credit.
-      setError('No se confirmó el abono. Antes de reintentar, comprueba el saldo. Si no cambias el formulario, se conservará la clave de la operación.');
+      setError('No se confirmó el abono o su comprobante. Antes de reintentar, comprueba el historial; la clave de la operación se conservará mientras no cambies los datos.');
     } finally {
       setBusy(false);
     }
@@ -267,17 +316,27 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       </form>}
       {action==='SIGNED_PDF'&&<SignedLeaseDocuments organizationId={organizationId} leases={leases}
         preferredLeaseId={preferredLeaseId} onUploaded={onPdfUploaded} />}
-      {action==='RECEIPT'&&<form onSubmit={e=>void recordReceipt(e)} onChange={()=>{pendingReceiptRequest.current=null;}} className="grid gap-3 md:grid-cols-2">
+      {action==='RECEIPT'&&<div>
+        <form onSubmit={e=>void recordReceipt(e)}
+          onChange={()=>{if(!busy)pendingReceiptRequest.current=null;}}
+          className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">Mes con saldo pendiente<select name="period_id" required className={fieldClass}><option value="">Seleccionar cobro</option>
           {owing.map(x=><option key={x.id} value={x.id}>{String(x.period_month).slice(0,7)} · {leases.find(l=>l.id===x.lease_id)?.contract_number||x.lease_id} · saldo {(Number(x.expected_amount)-Number(x.paid_amount)).toLocaleString('es-CO')} COP</option>)}</select></label>
         <label className="text-sm">Importe recibido (COP)<input type="number" name="amount" min="0.01" step="0.01" required className={fieldClass}/></label>
         <label className="text-sm">Medio<select name="method" className={fieldClass}>
           <option value="BANK_TRANSFER">Transferencia</option><option value="CASH">Efectivo</option><option value="OTHER">Otro</option></select></label>
         <label className="text-sm">Número de recibo o referencia<input name="reference" required minLength={3} maxLength={140} className={fieldClass}/></label>
+        <label className="text-sm md:col-span-2">Adjuntar comprobante del abono (foto o PDF · máximo 10 MB)
+          <input name="evidence" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+            disabled={busy||!paymentAllowed} className={fieldClass}/>
+          <span className="mt-1 block text-xs text-slate-600">El archivo es privado y quedará asociado al abono guardado. No sustituye el número de referencia.</span>
+        </label>
         {!owing.length&&<p className="md:col-span-2 text-sm text-amber-800">Primero crea un cobro mensual para habilitar el registro de abonos.</p>}
         <div className="md:col-span-2"><button type="submit" disabled={busy||!paymentAllowed||!owing.length}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-40">Guardar abono</button></div>
-      </form>}
+        </form>
+        <RentReceiptEvidenceHistory organizationId={organizationId} revision={revision}/>
+      </div>}
     </>}
     {error&&<p role="alert" className="text-sm text-red-800">{error}</p>}
     {notice&&<p role="status" className="text-sm text-emerald-800">{notice}</p>}
