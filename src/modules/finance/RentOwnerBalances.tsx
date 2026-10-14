@@ -393,31 +393,65 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
     if(readError){setPayoutError('No fue posible consultar los abonos.');return;}
     setPayouts(data??[]);setPayoutError('');
   }
+  async function openPayoutEvidence(statementId:string, reference:string){
+    const prefix=organizationId+'/owner-payouts/'+statementId+'/';
+    if(!reference.startsWith(prefix))return;
+    const {data,error:linkError}=await supabase.storage.from('organization-documents').createSignedUrl(reference,60);
+    if(linkError||!data?.signedUrl){setPayoutError('No se pudo abrir el soporte privado. Verifica el permiso de documentos.');return;}
+    window.open(data.signedUrl,'_blank','noopener,noreferrer');
+  }
+
   async function recordPayout(event:FormEvent<HTMLFormElement>, statement:OwnerStatement){
     event.preventDefault();
     if(!mayIssue||payoutBusy||statement.status!=='GENERATED')return;
-    const form=new FormData(event.currentTarget);
+    const formElement=event.currentTarget;
+    const form=new FormData(formElement);
     const paidAmount=parseMoneyInput(String(form.get('amount')??''));
     const paidOn=String(form.get('paid_on')??'');
     const method=String(form.get('payment_method')??'');
     const reference=String(form.get('payment_reference')??'').trim();
-    const evidence=String(form.get('evidence_reference')??'').trim();
-    if(!Number.isFinite(paidAmount)||paidAmount<=0||!/^\d{4}-\d{2}-\d{2}$/.test(paidOn)||
-       !['TRANSFER','CASH','CHECK','OTHER'].includes(method)||reference.length<5||evidence.length<5){
-      setPayoutError('Completa un importe válido, fecha, medio, referencia y soporte.');return;
+    const input=formElement.elements.namedItem('evidence_file') as HTMLInputElement|null;
+    const file=input?.files?.[0];
+    if(!Number.isFinite(paidAmount)||paidAmount<=0||!/^\\d{4}-\\d{2}-\\d{2}$/.test(paidOn)||
+       !['TRANSFER','CASH','CHECK','OTHER'].includes(method)||reference.length<5||!file){
+      setPayoutError('Completa el importe, fecha, medio, referencia y adjunta un comprobante.');return;
     }
-    if(!window.confirm('Confirma que este dinero YA fue entregado al propietario y que tienes el comprobante. Este registro no realiza transferencias.'))return;
+    const extension=file.type==='application/pdf'?'pdf':file.type==='image/jpeg'?'jpg':file.type==='image/png'?'png':null;
+    if(!extension||file.size===0||file.size>5*1024*1024){
+      setPayoutError('Adjunta un archivo JPG, PNG o PDF de hasta 5 MB.');return;
+    }
+    const bytes=new Uint8Array(await file.slice(0,8).arrayBuffer());
+    const valid=extension==='pdf'?[37,80,68,70,45].every((v,i)=>bytes[i]===v):
+      extension==='png'?[137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v):
+      bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+    if(!valid){setPayoutError('El contenido no coincide con el formato JPG, PNG o PDF seleccionado.');return;}
+    if(!window.confirm('Confirma que este dinero YA fue entregado al propietario. Se guardará el comprobante de forma privada. Este registro no realiza transferencias.'))return;
     setPayoutBusy(true);setPayoutError('');
+    const path=organizationId+'/owner-payouts/'+statement.id+'/'+crypto.randomUUID()+'.'+extension;
+    let uploaded=false;
     try{
+      const {error:uploadError}=await supabase.storage.from('organization-documents').upload(path,file,{
+        upsert:false,contentType:file.type,cacheControl:'0',
+      });
+      if(uploadError)throw new Error('No se pudo subir el comprobante: '+uploadError.message);
+      uploaded=true;
       const {error:recordError}=await supabase.rpc('admin_record_owner_payout',{
         p_statement_id:statement.id,p_organization_id:organizationId,p_amount:paidAmount,
-        p_paid_on:paidOn,p_payment_method:method,p_payment_reference:reference,p_evidence_reference:evidence,
+        p_paid_on:paidOn,p_payment_method:method,p_payment_reference:reference,p_evidence_reference:path,
       });
       if(recordError)throw recordError;
+      uploaded=false; // Financial record now owns the private evidence file.
+      formElement.reset();
       await loadPayouts(statement.id);
       setRevision(value=>value+1);
-    }catch(cause){setPayoutError(cause instanceof Error?cause.message:'No se pudo registrar el abono.');}
-    finally{setPayoutBusy(false);}
+    }catch(cause){
+      let cleanupNotice='';
+      if(uploaded){
+        const {error:cleanupError}=await supabase.storage.from('organization-documents').remove([path]);
+        if(cleanupError)cleanupNotice=' Revisa con el administrador un archivo privado pendiente de limpieza.';
+      }
+      setPayoutError((cause instanceof Error?cause.message:'No se pudo registrar el abono.')+cleanupNotice);
+    }finally{setPayoutBusy(false);}
   }
 
   if (!allowed) return null;
@@ -488,7 +522,9 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
             <p className="text-sm text-slate-600">Registrado: {cop(paid)} · Saldo: {cop(balance)}. El registro no envía dinero.</p>
             {payoutError&&<p role="alert" className="my-2 text-sm text-red-700">{payoutError}</p>}
             {payouts.length>0&&<ul className="mt-2 space-y-1 text-sm">{payouts.map(p=><li key={p.id}>
-              {p.paid_on} · {cop(Number(p.amount))} · {p.payment_method} · Referencia: {p.payment_reference} · Soporte: {p.evidence_reference}
+              {p.paid_on} · {cop(Number(p.amount))} · {p.payment_method} · Referencia: {p.payment_reference} · {p.evidence_reference.startsWith(organizationId+'/owner-payouts/'+selected.id+'/')?
+              <button type="button" className="underline text-blue-700" onClick={()=>void openPayoutEvidence(selected.id,p.evidence_reference)}>Ver comprobante adjunto</button>:
+              <span>Soporte: {p.evidence_reference}</span>}
             </li>)}</ul>}
             {mayIssue&&selected.status==='GENERATED'&&<form onSubmit={event=>void recordPayout(event,selected)} className="mt-3 grid gap-2 md:grid-cols-2">
               <p className="md:col-span-2 text-sm font-semibold">Registrar dinero ya entregado (no inicia pago)</p>
@@ -498,7 +534,10 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
                 <option value="TRANSFER">Transferencia</option><option value="CASH">Efectivo</option><option value="CHECK">Cheque</option><option value="OTHER">Otro</option>
               </select></label>
               <label className="text-sm">Referencia del pago<input name="payment_reference" minLength={5} maxLength={140} required className="block w-full rounded-lg border p-2"/></label>
-              <label className="text-sm md:col-span-2">Referencia del soporte (comprobante verificable)<input name="evidence_reference" minLength={5} maxLength={500} required className="block w-full rounded-lg border p-2"/></label>
+              <label className="text-sm md:col-span-2">Adjuntar foto o PDF del comprobante (máximo 5 MB)
+                <input name="evidence_file" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" required className="block w-full rounded-lg border p-2"/>
+                <span className="block text-xs text-slate-600">Archivo privado asociado al abono. Solo usuarios autorizados podrán consultarlo.</span>
+              </label>
               <button disabled={payoutBusy||balance<=0} type="submit" className="rounded-lg border border-emerald-500 p-2 font-semibold text-emerald-800 disabled:opacity-40">Confirmar registro del abono</button>
             </form>}
           </section>;
