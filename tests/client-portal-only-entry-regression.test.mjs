@@ -29,8 +29,8 @@ test('client-only account opens a separate portal without internal tenant naviga
  assert.match(dashboard,/No se puede gestionar facturación desde una cuenta de Cliente/);
  assert.match(dashboard,/NO reduce los privilegios de tu sesión/);
  assert.match(dashboard,/únicamente el rol CLIENT/);
- assert.match(dashboard,/mode\.hasOperationalRole&&<button/);
- assert.match(dashboard,/roleNames=\{activeMembership\.roles\.map\(displayTenantRole\)\}/);
+ assert.match(dashboard,/mode\.hasOperationalRole&&!previewAsTenant&&<button/);
+ assert.match(dashboard,/activeMembership\.roles\.map\(displayTenantRole\)/);
  assert.match(dashboard,/if \(mode\.clientLinkedRole && clientPortalMode\) return/);
 });
 
