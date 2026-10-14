@@ -47,7 +47,7 @@ interface DocumentRow {
 }
 
 export function PortalHub() {
-  const { activeMembership } = useAuth();
+  const { activeMembership,user } = useAuth();
   const { branding } = useTenantBranding();
   const organizationId = activeMembership?.organization.id;
 
@@ -58,54 +58,105 @@ export function PortalHub() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [portalError,setPortalError]=useState('');
+
   useEffect(() => {
-    if (!organizationId) return;
-
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-
-      const [linksResult, propertyResult, appointmentResult, dealResult, documentResult] = await Promise.all([
-        supabase
+    let cancelled=false;
+    setLoading(true);setPortalError('');
+    setLinks([]);setProperties([]);setAppointments([]);setDeals([]);setDocuments([]);
+    if(!organizationId||!user?.id){setLoading(false);return;}
+    // Privileged users can also enter this portal, so tenant RLS alone is
+    // insufficient: always fetch by explicit links to the current user.
+    void (async()=>{
+      try {
+        const {data:linksData,error:linkError,count:linkCount}=await supabase
           .from('portal_access_links')
-          .select('contact_id,owner_id')
-          .eq('organization_id', organizationId),
-        supabase
-          .from('properties')
-          .select('id,code,title,status,price,currency,city')
-          .eq('organization_id', organizationId)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('appointments')
-          .select('id,appointment_type,status,starts_at,location,properties(code,title)')
-          .eq('organization_id', organizationId)
-          .order('starts_at', { ascending: true }),
-        supabase
-          .from('deals')
-          .select('id,stage,offered_price,final_price,properties(code,title,currency)')
-          .eq('organization_id', organizationId)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('documents')
-          .select('id,title,storage_bucket,storage_path,document_type,created_at')
-          .eq('organization_id', organizationId)
-          .order('created_at', { ascending: false }),
-      ]);
+          .select('contact_id,owner_id',{count:'exact'})
+          .eq('organization_id',organizationId).eq('user_id',user.id).limit(501);
+        if(linkError||linkCount==null||linkCount>500)
+          throw new Error('No se pudieron verificar todos los vínculos de tu portal.');
+        if(cancelled)return;
+        const privateLinks=(linksData??[]) as PortalLink[];
+        setLinks(privateLinks);
+        if(!privateLinks.length){setLoading(false);return;}
 
-      if (cancelled) return;
+        const ownerIds=[...new Set(privateLinks.map(x=>x.owner_id).filter((x):x is string=>!!x))];
+        const contactIds=[...new Set(privateLinks.map(x=>x.contact_id).filter((x):x is string=>!!x))];
 
-      setLinks((linksResult.data ?? []) as PortalLink[]);
-      setProperties((propertyResult.data ?? []) as PropertyRow[]);
-      setAppointments((appointmentResult.data ?? []) as unknown as AppointmentRow[]);
-      setDeals((dealResult.data ?? []) as unknown as DealRow[]);
-      setDocuments((documentResult.data ?? []) as DocumentRow[]);
-      setLoading(false);
-    }
+        const checked=async<T,>(promise:PromiseLike<{data:T[]|null;error:{message:string}|null;count:number|null}>):Promise<T[]>=>{
+          const response=await promise;
+          if(response.error||response.count==null||response.count>500||response.data==null)
+            throw new Error('No fue posible comprobar la información relacionada de forma segura.');
+          return response.data;
+        };
 
-    void load();
-    return () => { cancelled = true; };
-  }, [organizationId]);
+        const ownershipRows=ownerIds.length?await checked(
+          supabase.from('property_ownerships').select('property_id',{count:'exact'})
+            .in('owner_id',ownerIds).limit(501)
+        ):[];
+
+        const linkedAppointments=contactIds.length?await checked(
+          supabase.from('appointments')
+            .select('id,appointment_type,status,starts_at,location,property_id,properties(code,title)',{count:'exact'})
+            .eq('organization_id',organizationId).in('contact_id',contactIds)
+            .order('starts_at',{ascending:true}).limit(501)
+        ):[];
+
+        const linkedDeals=contactIds.length?await checked(
+          supabase.from('deals')
+            .select('id,stage,offered_price,final_price,property_id,properties(code,title,currency)',{count:'exact'})
+            .eq('organization_id',organizationId).in('contact_id',contactIds)
+            .order('created_at',{ascending:false}).limit(501)
+        ):[];
+
+        const linkedLeads=contactIds.length?await checked(
+          supabase.from('leads').select('property_id',{count:'exact'})
+            .eq('organization_id',organizationId).in('contact_id',contactIds).limit(501)
+        ):[];
+
+        const propertyIds=[...new Set([
+          ...ownershipRows.map(r=>r.property_id),
+          ...linkedAppointments.map(r=>r.property_id),
+          ...linkedDeals.map(r=>r.property_id),
+          ...linkedLeads.map(r=>r.property_id),
+        ].filter((id):id is string=>!!id))];
+        const linkedProperties=propertyIds.length?await checked(
+          supabase.from('properties')
+            .select('id,code,title,status,price,currency,city',{count:'exact'})
+            .eq('organization_id',organizationId).in('id',propertyIds)
+            .order('created_at',{ascending:false}).limit(501)
+        ):[];
+
+        // Never retrieve unrelated contracts or private documents through
+        // the broader privileges a mixed organization-owner account retains.
+        const docs=await Promise.all([
+          ...ownerIds.length?[checked(supabase.from('documents')
+            .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
+            .eq('organization_id',organizationId).eq('entity_type','OWNER')
+            .in('entity_id',ownerIds).limit(501))]:[],
+          ...contactIds.length?[checked(supabase.from('documents')
+            .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
+            .eq('organization_id',organizationId).eq('entity_type','CONTACT')
+            .in('entity_id',contactIds).limit(501))]:[],
+          ...propertyIds.length?[checked(supabase.from('documents')
+            .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
+            .eq('organization_id',organizationId).eq('entity_type','PROPERTY')
+            .in('entity_id',propertyIds).limit(501))]:[],
+        ]);
+        if(cancelled)return;
+        setProperties(linkedProperties as PropertyRow[]);
+        setAppointments(linkedAppointments as unknown as AppointmentRow[]);
+        setDeals(linkedDeals as unknown as DealRow[]);
+        setDocuments([...new Map(docs.flat().map(d=>[d.id,d])).values()] as DocumentRow[]);
+      }catch{
+        if(!cancelled){
+          setPortalError('No se pudo comprobar el acceso privado. No mostraremos información sin verificar tus vínculos.');
+          setLinks([]);setProperties([]);setAppointments([]);setDeals([]);setDocuments([]);
+        }
+      }finally{if(!cancelled)setLoading(false);}
+    })();
+    return()=>{cancelled=true;};
+  },[organizationId,user?.id]);
 
   const isClient = links.some((link) => Boolean(link.contact_id));
   const isOwner = links.some((link) => Boolean(link.owner_id));
@@ -134,6 +185,12 @@ export function PortalHub() {
 
   if (loading) {
     return <div className="rounded-2xl border border-stone-200 bg-white p-8 text-sm text-slate-500">Cargando portal…</div>;
+  }
+
+  if(portalError){
+    return <section role="alert" className="rounded-xl border border-amber-300 bg-white p-6 text-amber-900">
+      {portalError}
+    </section>;
   }
 
   if (!isClient && !isOwner) {
