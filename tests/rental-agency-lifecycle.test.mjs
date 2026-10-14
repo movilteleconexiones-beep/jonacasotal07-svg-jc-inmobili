@@ -36,7 +36,7 @@ test('owner withdrawal is an admin action; source and financial records remain i
 });
 
 test('inventory reflects a live active contract, never merely a stale property AVAILABLE flag',()=>{
-  assert.match(inventory,/occupiedPropertyIds\.has\(row\.id\)\?'Ocupado · contrato activo'/);
+  assert.match(inventory,/occupiedPropertyIds\.has\(row\.id\)\?'Arrendado · contrato activo'/);
   assert.match(inventory,/\.in\('status',\['ACTIVE','RENEWAL'\]\)/);
   assert.match(inventory,/lease-finished/);
   assert.match(inventory,/owner-agency-retired/);
