@@ -45,7 +45,12 @@ export const MONTHLY_METRICS = {
   OWNER_NET: { label:'Neto registrado para propietarios', source:'Liquidaciones' },
   OWNER_COMMISSION: { label:'Comisiones de administración en liquidaciones', source:'Liquidaciones' },
   OWNER_OTHER: { label:'Otras deducciones de propietarios', source:'Deducciones' },
-  WON_DEALS: { label:'Negocios ganados', source:'Negocios' },
+  WON_DEALS: { label:'Negocios ganados', source:'Cierres' },
+  SALES_CLOSED: { label:'Ventas cerradas · valor de compraventa', source:'Cierres' },
+  RENTALS_CLOSED: { label:'Arriendos cerrados · canon mensual', source:'Cierres' },
+  COMMERCIAL_FEES: { label:'Honorarios comerciales pactados (no recaudados)', source:'Cierres' },
+  ADMIN_CONSIGNMENTS: { label:'Consignaciones de administración aceptadas', source:'Administraciones' },
+  ADMIN_FEES: { label:'Comisiones de administración emitidas (no necesariamente cobradas)', source:'Liquidaciones' },
 } as const;
 export type MonthlyMetricKey = keyof typeof MONTHLY_METRICS;
 export type MonthlyReportSelection =
@@ -79,10 +84,29 @@ export function selectedWorkbookContent(
   };
   const key=selection.key;
   const isRent=key==='EXPECTED_RENT'||key==='RECORDED_RENT'||key==='PENDING_RENT';
-  const isDeal=key==='WON_DEALS';
-  const relevant=sheet.rows.filter(row=>isRent ? row.status!=='CANCELLED' : isDeal ? row.stage==='WON' : true);
+  const isDeal=['WON_DEALS','SALES_CLOSED','RENTALS_CLOSED','COMMERCIAL_FEES'].includes(key);
+  const isAdminConsignment=key==='ADMIN_CONSIGNMENTS';
+  const isAdminFee=key==='ADMIN_FEES';
+  const relevant=sheet.rows.filter(row=>{
+    if(isRent)return row.status!=='CANCELLED';
+    if(isDeal)return row.stage==='WON' &&
+      (key==='SALES_CLOSED'?row.operation_type==='SALE':
+        key==='RENTALS_CLOSED'?row.operation_type==='RENT':
+        key==='COMMERCIAL_FEES'?['SALE','RENT'].includes(String(row.operation_type)):
+        true);
+    if(isAdminConsignment)return row.status==='ACCEPTED'&&row.operation_type==='ADMINISTRATION';
+    if(isAdminFee)return row.status==='ISSUED';
+    return true;
+  });
   const valueFromRow=(row:WorkbookDataRow):number=>{
-    if(isDeal)return 1;
+    if(key==='WON_DEALS'||isAdminConsignment)return 1;
+    if(isDeal){
+      const amount=key==='COMMERCIAL_FEES'
+        ? row.commission_amount : (row.final_price??row.offered_price??row.asking_price);
+      const value=Number(amount??0);
+      if(!Number.isFinite(value)||value<0)throw new Error('Un cierre tiene importes inválidos.');
+      return value;
+    }
     if(isRent){
       const due=Number(row.expected_amount),paid=Number(row.paid_amount);
       if(!Number.isFinite(due)||due<0||!Number.isFinite(paid)||paid<0)
@@ -91,15 +115,18 @@ export function selectedWorkbookContent(
       if(key==='RECORDED_RENT')return paid;
       return Math.max(0,due-paid);
     }
-    const field=key==='OWNER_NET'?'net_amount':key==='OWNER_COMMISSION'?'commission_amount':key==='OWNER_OTHER'?'amount':'other_deductions';
-    const amount=Number(row[field]);
+    const field=key==='OWNER_NET'?'net_amount':
+      key==='OWNER_COMMISSION'||isAdminFee?'commission_amount':
+      key==='OWNER_OTHER'?'amount':'other_deductions';
+    const amount=Number(row[field]??0);
     if(!Number.isFinite(amount)||amount<0)
       throw new Error('Una liquidación tiene valores inválidos; revisa los importes antes de exportar.');
     return amount;
   };
-  const columns=key==='OWNER_OTHER'?['statement_id','charge_date','category','responsible_party','status','valor']:
+  const columns=isAdminConsignment?['reference','reviewed_at','operation_type','status','valor']:
+    isDeal?['id','closed_at','operation_type','stage','valor']:
+    key==='OWNER_OTHER'?['statement_id','charge_date','category','responsible_party','status','valor']:
     isRent?['lease_id','period_month','status','valor']:
-    isDeal?['created_at','operation_type','stage','valor']:
     ['lease_id','owner_id','period_month','status','valor'];
   const rows=relevant.map(row=>({
     ...Object.fromEntries(columns.filter(col=>col!=='valor').map(col=>[col,row[col]])),
