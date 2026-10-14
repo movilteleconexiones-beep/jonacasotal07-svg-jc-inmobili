@@ -261,6 +261,8 @@ jobs:
         run: node --test tests/commission-restore.test.mjs
       - name: Commission administrator cancel selector regression
         run: node --test tests/commission-cancel-status-option.test.mjs
+      - name: Commission closed review archival regression
+        run: node --test tests/commission-review-archive.test.mjs
       - name: Commission archive and history regression
         run: node --test tests/commission-archive.test.mjs
       - name: Commission administrator no-disbursement review tests
