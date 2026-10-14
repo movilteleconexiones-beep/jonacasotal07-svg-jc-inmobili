@@ -3,7 +3,7 @@ const ui=readFileSync(new URL('../src/modules/finance/OwnerDeductionLedger.tsx',
 const sql=readFileSync(new URL('../supabase/migrations/20261013043000_owner_deduction_admin_only_void.sql',import.meta.url),'utf8');
 test('non-admin profiles cannot void an owner deduction',()=>{
  assert.match(ui,/const canVoid=writable&&/);
- assert.match(ui,/status==='VOIDED'&&!canVoid/);
+ assert.match(ui,/if\(!canVoid\)\{setMessage\('No tienes permiso para autorizar esta corrección/);
  assert.match(ui,/editable&&canVoid&&line.status!=='VOIDED'/);
  assert.match(sql,/NOT public\.commission_is_manager\(OLD.organization_id\)/);
  assert.match(sql,/BEFORE UPDATE ON public.owner_statement_deductions/);
