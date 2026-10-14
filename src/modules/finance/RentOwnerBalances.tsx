@@ -333,9 +333,11 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
   const [payoutStatementId,setPayoutStatementId] = useState<string|null>(null);
   const [payouts,setPayouts] = useState<Array<{id:string;amount:number;paid_on:string;payment_method:string;payment_reference:string;evidence_reference:string;recorded_by:string;recorded_at:string}>>([]);
   const [payoutBusy,setPayoutBusy] = useState(false);
-  const [payoutReviews,setPayoutReviews]=useState<Array<{id:string;payout_id:string;status:string;reason:string;created_at:string}>>([]);
+  const [payoutReviews,setPayoutReviews]=useState<Array<{id:string;payout_id:string;status:string;reason:string;created_at:string;review_note:string|null}>>([]);
   const [reviewPayoutId,setReviewPayoutId]=useState<string|null>(null);
   const [reviewReason,setReviewReason]=useState('');
+  const [adminReviewId,setAdminReviewId]=useState<string|null>(null);
+  const [adminNote,setAdminNote]=useState('');
 
   const [payoutError,setPayoutError] = useState('');
 
@@ -397,11 +399,26 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
     if(readError){setPayoutError('No fue posible consultar los abonos.');return;}
     setPayouts(data??[]);
     const {data:reviewData,error:reviewError}=await supabase.from('owner_payout_review_requests')
-      .select('id,payout_id,status,reason,created_at')
+      .select('id,payout_id,status,reason,created_at,review_note')
       .eq('organization_id',organizationId).in('payout_id',(data??[]).map(item=>item.id));
     setPayoutReviews(reviewError?[]:reviewData??[]);
     setPayoutError(reviewError?'No fue posible consultar las solicitudes de revisión.':'');
   }
+  async function decidePayoutReview(id:string,decision:'RESOLVED'|'REJECTED'){
+    if(!mayIssue||payoutBusy||adminNote.trim().length<15)return;
+    if(!window.confirm('Esta decisión no altera el desembolso registrado. ¿Continuar?'))return;
+    setPayoutBusy(true);setPayoutError('');
+    try{
+      const {error}=await supabase.rpc('admin_decide_owner_payout_review',{
+        p_organization_id:organizationId,p_review_id:id,p_decision:decision,p_note:adminNote.trim(),
+      });
+      if(error)throw error;
+      setAdminReviewId(null);setAdminNote('');
+      if(payoutStatementId)await loadPayouts(payoutStatementId);
+    }catch(cause){setPayoutError(cause instanceof Error?cause.message:'Error al resolver solicitud.');}
+    finally{setPayoutBusy(false);}
+  }
+
   async function requestPayoutReview(payoutId:string){
     if(payoutBusy||reviewReason.trim().length<15)return;
     setPayoutBusy(true);setPayoutError('');
@@ -547,7 +564,16 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
             {payouts.length>0&&<ul className="mt-2 space-y-1 text-sm">{payouts.map(p=><li key={p.id}>
               {p.paid_on} · {cop(Number(p.amount))} · {p.payment_method} · Referencia: {p.payment_reference}
               <span className="block text-xs text-slate-500">Registrado por: {p.recorded_by} · {new Date(p.recorded_at).toLocaleString('es-CO')}</span>
-              {payoutReviews.filter(r=>r.payout_id===p.id).map(r=><span key={r.id} className="block text-xs text-amber-800">Revisión: {etiquetaES(r.status)} · {r.reason}</span>)}
+              {payoutReviews.filter(r=>r.payout_id===p.id).map(r=><div key={r.id} className="border-l-2 border-amber-300 pl-2 text-xs">
+  Revisión: {etiquetaES(r.status)} · {r.reason}
+  {r.review_note&&<p>Decisión: {r.review_note}</p>}
+  {mayIssue&&r.status==='PENDING'&&(adminReviewId===r.id?
+    <div><textarea aria-label="Justificación administrativa" value={adminNote} onChange={event=>setAdminNote(event.target.value)} minLength={15} maxLength={500} className="w-full border p-2"/>
+      <button type="button" disabled={payoutBusy||adminNote.trim().length<15} onClick={()=>void decidePayoutReview(r.id,'RESOLVED')}>Aprobar revisión</button>
+      <button type="button" disabled={payoutBusy||adminNote.trim().length<15} onClick={()=>void decidePayoutReview(r.id,'REJECTED')} className="ml-3">Rechazar</button>
+      <button type="button" onClick={()=>setAdminReviewId(null)} className="ml-3">Cancelar</button>
+    </div>:<button type="button" onClick={()=>{setAdminReviewId(r.id);setAdminNote('');}} className="underline">Resolver solicitud</button>)}
+</div>)}
               {!payoutReviews.some(r=>r.payout_id===p.id&&r.status==='PENDING')&&
                 <button type="button" className="mr-2 text-xs underline" onClick={()=>{setReviewPayoutId(p.id);setReviewReason('');}}>Solicitar corrección</button>}
               {reviewPayoutId===p.id&&<div className="my-2 space-y-1">
