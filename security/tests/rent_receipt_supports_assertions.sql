@@ -128,10 +128,11 @@ SELECT public.record_tenant_rent_receipt_with_evidence(
  150000,'BANK_TRANSFER','TR-ABONO-001',
  current_setting('jco_test.evidence_key')::uuid,
  current_setting('jco_test.evidence_path')) AS evidence_retry_id \gset
+SELECT set_config('jco_test.evidence_retry',:'evidence_retry_id',false);
 
 DO $check$
 BEGIN
- IF current_setting('jco_test.evidence_receipt')<>:'evidence_retry_id' THEN
+ IF current_setting('jco_test.evidence_receipt')<>current_setting('jco_test.evidence_retry') THEN
    RAISE EXCEPTION 'Evidence retry created another receipt';
  END IF;
  IF (SELECT count(*) FROM public.rent_receipts)<>1
