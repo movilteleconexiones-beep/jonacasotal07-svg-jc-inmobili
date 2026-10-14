@@ -21,9 +21,10 @@ interface PropertyRow {
   created_at: string;
 }
 
-export function PropertiesModule({onCreated,onSelect,selectedPropertyId}: {
+export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPropertyId}: {
   onCreated?: (propertyId:string)=>void;
   onSelect?: (propertyId:string,propertyName:string)=>void;
+  onClearSelection?: () => void;
   selectedPropertyId?: string;
 } = {}) {
   const { user, activeMembership, can } = useAuth();
@@ -266,10 +267,12 @@ export function PropertiesModule({onCreated,onSelect,selectedPropertyId}: {
                 <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
                 {onSelect&&<td className="px-4 py-3">
                   <button type="button" aria-pressed={selectedPropertyId===row.id}
-                    onClick={()=>onSelect(row.id,[row.code,row.title].filter(Boolean).join(' · '))}
+                    onClick={()=>selectedPropertyId===row.id&&onClearSelection
+                       ? onClearSelection()
+                       : onSelect(row.id,[row.code,row.title].filter(Boolean).join(' · '))}
                     className={'inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-slate-900 '+
                       (selectedPropertyId===row.id?'border-slate-900 bg-slate-900 text-white':'hover:bg-slate-100')}>
-                    {selectedPropertyId===row.id?<><CheckCircle2 className="h-3.5 w-3.5"/> Seleccionada</>:'Seleccionar'}
+                    {selectedPropertyId===row.id?<><CheckCircle2 className="h-3.5 w-3.5"/> {onClearSelection?'Quitar selección':'Seleccionada'}</>:'Seleccionar'}
                   </button>
                 </td>}
               </tr>

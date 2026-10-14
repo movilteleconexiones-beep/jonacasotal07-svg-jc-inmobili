@@ -26,6 +26,26 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   const [ownerName, setOwnerName] = useState('');
   const [tenantId, setTenantId] = useState<string>();
   const [leaseId, setLeaseId] = useState<string>();
+  const [selectionNotice, setSelectionNotice] = useState('');
+
+  // Only the wizard's choices are cleared; persisted properties, owners and contracts remain unchanged.
+  const resetDraftPreference = () => {
+    if (leaseId) setSelectionNotice('La vinculación anterior permanece guardada. Solo se cambió la selección de este asistente.');
+    else setSelectionNotice('');
+    setLeaseId(undefined);
+  };
+  const clearOwnerSelection = () => {
+    setOwnerId(undefined);
+    setOwnerName('');
+    resetDraftPreference();
+  };
+  const clearPropertySelection = () => {
+    setPropertyId(undefined);
+    setPropertyName('');
+    setOwnerId(undefined);
+    setOwnerName('');
+    resetDraftPreference();
+  };
   const canDraft = can(PERMISSIONS.LEASES_CREATE);
   const canActivate = can(PERMISSIONS.LEASES_EDIT);
   const canCollect = can(PERMISSIONS.RENT_PAYMENTS_CREATE);
@@ -68,26 +88,46 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </div>
       {propertyTab === 'PROPERTY' && <PropertiesModule
         selectedPropertyId={propertyId}
+        onClearSelection={clearPropertySelection}
         onSelect={(id,name) => {
-          if (id !== propertyId) { setOwnerId(undefined); setOwnerName(''); }
+          if (id !== propertyId) {
+            setOwnerId(undefined);
+            setOwnerName('');
+            resetDraftPreference();
+          }
           setPropertyId(id); setPropertyName(name);
         }}
         onCreated={id => {
+          resetDraftPreference();
           setPropertyId(id); setPropertyName('Nueva vivienda · '+id.slice(0,8));
           setOwnerId(undefined); setOwnerName('');
         }} />}
       {propertyTab === 'OWNER' && <OwnersModule ownersOnly
         selectedOwnerId={ownerId}
-        onSelect={(id,name) => { setOwnerId(id); setOwnerName(name); }}
-        onCreated={(id,name) => { setOwnerId(id); setOwnerName(name); }} />}
+        onClearSelection={clearOwnerSelection}
+        onSelect={(id,name) => {
+          if (id !== ownerId) resetDraftPreference();
+          setOwnerId(id); setOwnerName(name);
+        }}
+        onCreated={(id,name) => {
+          resetDraftPreference();
+          setOwnerId(id); setOwnerName(name);
+        }} />}
       <div className="grid gap-2 sm:grid-cols-2" aria-label="Selección para el nuevo contrato">
-        <p role="status" className="rounded-lg border bg-white p-3 text-sm">
-          <strong>Vivienda elegida:</strong> {propertyId ? propertyName || propertyId.slice(0,8) : 'Pendiente de selección'}
-        </p>
-        <p role="status" className="rounded-lg border bg-white p-3 text-sm">
-          <strong>Propietario elegido:</strong> {ownerId ? ownerName || ownerId.slice(0,8) : 'Pendiente de selección'}
-        </p>
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-sm">
+          <span><strong>Vivienda elegida:</strong> {propertyId ? propertyName || propertyId.slice(0,8) : 'Pendiente de selección'}</span>
+          {propertyId && <button type="button" onClick={clearPropertySelection}
+            aria-label="Quitar selección de vivienda"
+            className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-stone-100">Quitar selección</button>}
+        </div>
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-sm">
+          <span><strong>Propietario elegido:</strong> {ownerId ? ownerName || ownerId.slice(0,8) : 'Pendiente de selección'}</span>
+          {ownerId && <button type="button" onClick={clearOwnerSelection}
+            aria-label="Quitar selección de propietario"
+            className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-stone-100">Quitar selección</button>}
+        </div>
       </div>
+      {selectionNotice && <p role="status" className="text-xs text-slate-600">{selectionNotice}</p>}
       <p className="text-xs text-slate-600">
         Elegir un propietario aquí lo prepara para el contrato; no modifica las escrituras,
         la participación de propiedad ni las vinculaciones registradas del inmueble.
