@@ -41,7 +41,7 @@ test('financial queries never read another organization and never write financia
   assert.match(source, /lease_rent_amendments/);
   assert.doesNotMatch(source, /\.insert\(|\.update\(|\.upsert\(|\.delete\(/);
   assert.match(source, /if \(cancelled\) return/);
-  assert.match(source, /El estado registrado no confirma por sí solo una transferencia bancaria/);
+  assert.match(source, /Generar comprobante crea el documento para consulta; no cambia el estado de la liquidación/);
 });
 
 test('financial summaries appear only inside corresponding tenant modules and keep dual access', () => {
