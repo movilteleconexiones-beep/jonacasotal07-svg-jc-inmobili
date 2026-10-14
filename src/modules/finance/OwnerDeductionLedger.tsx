@@ -167,7 +167,8 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
   }
 
   async function changeStatus(line:Line,status:'APPROVED'|'VOIDED'){
-    if(!writable||saving||!organizationId||(status==='VOIDED'&&!canVoid))return;
+    if(!writable||saving||!organizationId)return;
+    if(!canVoid){setMessage('No tienes permiso para autorizar esta corrección. Solicita la aprobación de un administrador de tu inmobiliaria.');return;}
     if(!statements.some(s=>s.id===line.statement_id&&s.status==='DRAFT'))return;
     if(status==='APPROVED'&&line.status!=='DRAFT')return;
     if(status==='VOIDED'&&line.status==='VOIDED')return;
@@ -374,7 +375,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
             </td>
             <td className="p-2">{etiquetaES(line.status)}</td>
             <td className="flex gap-2 p-2">
-              {editable&&line.status==='DRAFT'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'APPROVED')} className="text-xs underline">Aprobar</button>}
+              {editable&&line.status==='DRAFT'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'APPROVED')} className="text-xs underline">{canVoid?'Aprobar':'Solicitar autorización'}</button>}
               {editable&&canVoid&&line.status==='VOIDED'&&<button type="button" disabled={saving} onClick={()=>void restoreVoidedDeduction(line)} className="text-xs underline text-emerald-700">Recuperar como borrador</button>}
               {editable&&canVoid&&line.status!=='VOIDED'&&<button type="button" disabled={saving} onClick={()=>void changeStatus(line,'VOIDED')} className="text-xs underline">Anular</button>}
             </td>
