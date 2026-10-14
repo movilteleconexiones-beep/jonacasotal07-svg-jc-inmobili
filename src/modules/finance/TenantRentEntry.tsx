@@ -131,7 +131,10 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         .eq('organization_id',organizationId).eq('id',id).eq('status','DRAFT')
         .select('id').maybeSingle();
       if(failure||!changed){setError('No se activó el contrato: '+(failure?.message??'No se encontró un borrador autorizado para actualizar.'));return;}
-      setNotice('Contrato aprobado y activado. Ahora puedes crear su cobro mensual.');
+      // The database marks the property RENTED in the approval transaction.
+      setNotice('Contrato aprobado y activado. El inmueble figura ahora como arrendado.');
+      window.dispatchEvent(new Event('lease-activated'));
+      window.dispatchEvent(new Event('tenant-rent-updated'));
       setRevision(n=>n+1);
       onActivated?.(id);
     } catch {
