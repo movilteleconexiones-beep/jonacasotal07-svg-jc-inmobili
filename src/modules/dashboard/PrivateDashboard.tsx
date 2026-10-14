@@ -390,7 +390,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium">
               Abrir mi portal privado
             </button>}
-            {isPlatformAdmin&&!previewAsTenant && <a href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><ShieldCheck className="h-4 w-4" />Superadministrador</a>}
+            {isPlatformAdmin && <a href="/super-admin" className={'inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 '+(previewAsTenant?'hidden':'')}><ShieldCheck className="h-4 w-4" />Superadministrador</a>}
             {memberships.length > 1 && (
               <select
                 value={activeMembership.organization.id}
