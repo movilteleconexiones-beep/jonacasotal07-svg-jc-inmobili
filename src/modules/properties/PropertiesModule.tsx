@@ -71,11 +71,20 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
   useEffect(() => {
     void load();
     const reload=()=>{void load();};
+    const reloadWhenVisible=()=>{if(document.visibilityState==='visible')void load();};
     window.addEventListener('lease-finished',reload);
+    window.addEventListener('lease-activated',reload);
+    window.addEventListener('tenant-rent-updated',reload);
     window.addEventListener('owner-agency-retired',reload);
+    window.addEventListener('focus',reload);
+    document.addEventListener('visibilitychange',reloadWhenVisible);
     return()=>{
       window.removeEventListener('lease-finished',reload);
+      window.removeEventListener('lease-activated',reload);
+      window.removeEventListener('tenant-rent-updated',reload);
       window.removeEventListener('owner-agency-retired',reload);
+      window.removeEventListener('focus',reload);
+      document.removeEventListener('visibilitychange',reloadWhenVisible);
     };
   }, [organizationId]);
 
@@ -282,7 +291,7 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
                 <td className="px-4 py-3 font-semibold">
                   {row.price == null ? '—' : new Intl.NumberFormat(branding.locale || 'es-CO', { style: 'currency', currency: row.currency || branding.currency || 'COP', maximumFractionDigits: 0 }).format(row.price)}
                 </td>
-                <td className="px-4 py-3">{occupiedPropertyIds.has(row.id)?'Ocupado · contrato activo':etiquetaES(row.status)}</td>
+                <td className="px-4 py-3">{occupiedPropertyIds.has(row.id)?'Arrendado · contrato activo':etiquetaES(row.status)}</td>
                 <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
                 {onSelect&&<td className="px-4 py-3">
                   <button type="button" aria-pressed={selectedPropertyId===row.id}
