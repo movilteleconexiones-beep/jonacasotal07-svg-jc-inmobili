@@ -51,6 +51,7 @@ $$;
 GRANT USAGE ON SCHEMA auth,public TO authenticated;
 GRANT EXECUTE ON FUNCTION auth.uid(),public.has_org_permission(uuid,text) TO authenticated;
 GRANT SELECT ON public.organization_members,public.member_roles,public.roles,public.permissions TO authenticated;
+GRANT UPDATE ON public.roles TO authenticated;
 GRANT ALL ON public.role_permissions TO authenticated,anon;
 GRANT SELECT ON public.audit_log TO authenticated;
 ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
