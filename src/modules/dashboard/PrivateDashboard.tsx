@@ -194,7 +194,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       return;
     }
     // Refresh the counters whenever a user returns from an operational panel.
-    if (view !== 'DASHBOARD' || mode.clientLinkedRole && clientPortalMode) return;
+    if (view !== 'DASHBOARD') return;
+    if (mode.clientLinkedRole && clientPortalMode) return;
 
     let cancelled = false;
 
