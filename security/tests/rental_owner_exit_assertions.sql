@@ -69,11 +69,11 @@ $$;
 SELECT set_config('jco_test.organization','11111111-1111-4111-8111-111111111111',false);
 SELECT set_config('jco_test.actor','d1000000-0000-4000-8000-000000000002',false);
 SET ROLE authenticated;
-SELECT pg_temp.expect_state($
+SELECT pg_temp.expect_state($$
  UPDATE public.properties SET status='AVAILABLE'
  WHERE id='11111111-2222-4333-8444-555555555555'
-$,'23514');
-SELECT pg_temp.expect_state($
+$$,'23514');
+SELECT pg_temp.expect_state($$
  SELECT public.admin_finish_lease_and_release(
  '11111111-1111-4111-8111-111111111111',
  '33333333-3333-4333-8333-333333333333',
