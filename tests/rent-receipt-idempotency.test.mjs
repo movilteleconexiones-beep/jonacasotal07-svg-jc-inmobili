@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 const source=readFileSync(new URL('../src/modules/finance/TenantRentEntry.tsx',import.meta.url),'utf8');
 
 test('receipt retries reuse their key only for the exact same tenant and payment details',()=>{
-  assert.match(source,/const fingerprint=JSON\.stringify\(\[organizationId,id,amount,method,reference\]\)/);
+  assert.match(source,/const fingerprint=JSON\.stringify\(\[organizationId,id,amount,method,reference,fileFingerprint\]\)/);
   assert.match(source,/pendingReceiptRequest\.current\?\.fingerprint!==fingerprint/);
   assert.match(source,/pendingReceiptRequest\.current=\{fingerprint,key:crypto\.randomUUID\(\)\}/);
-  assert.match(source,/request_key:pendingReceiptRequest\.current\.key/);
+  assert.match(source,/request_key:request\.key/);
   assert.match(source,/pendingReceiptRequest\.current=null/);
   assert.doesNotMatch(source,/pendingReceiptKey/);
 });

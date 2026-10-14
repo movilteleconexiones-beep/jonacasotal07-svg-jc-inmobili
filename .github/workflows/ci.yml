@@ -37,6 +37,18 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Private rent receipt evidence SQL tenant isolation and atomicity
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_rent_proofs_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f security/tests/rent_receipt_supports_assertions.sql
       - name: Supabase configuration regression tests
         run: node --test tests/supabase-config.test.mjs
       - name: Platform admin access regression tests
@@ -283,6 +295,8 @@ jobs:
         run: node --test tests/commission-admin-void.test.mjs
       - name: Receipt retry idempotency regression
         run: node --test tests/rent-receipt-idempotency.test.mjs
+      - name: Private rent receipt image and PDF validation
+        run: node --import tsx --test tests/rent-receipt-private-evidence.test.mjs
       - name: Financial form and permission gate regressions
         run: node --test tests/rent-finance-entry-regression.test.mjs
       - name: Signed lease PDF private storage and tenant isolation tests
