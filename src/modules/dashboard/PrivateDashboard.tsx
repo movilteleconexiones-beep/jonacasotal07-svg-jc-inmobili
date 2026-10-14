@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { tenantMenu } from '../../core/tenant-menu';
+import { displayTenantRole, tenantAccessMode } from '../../core/portal-access-mode';
 import { permittedDashboardShortcuts } from '../../core/dashboard-shortcuts';
 import { supabase } from '../../lib/supabase';
 import { DataImportCenter } from '../imports/DataImportCenter';
@@ -108,6 +109,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const tenantSecondary = safeTenantColor(branding.secondaryColor, TENANT_DEFAULT_SECONDARY);
   const [view, setView] = useState<DashboardView>('DASHBOARD');
+  const [clientPortalMode,setClientPortalMode]=useState(false);
+  const mode=tenantAccessMode(activeMembership?.roles??[]);
+  useEffect(()=>{
+    // Start in the private portal when CLIENT is one of the assigned roles.
+    // Mixed-role accounts may explicitly choose administration, but do not
+    // represent a valid restricted-client security test.
+    setClientPortalMode(mode.clientLinkedRole);
+  },[activeMembership?.member.id,activeMembership?.organization.id,mode.clientLinkedRole]);
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -266,12 +275,54 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     </main>;
   }
 
+  if (!activeMembership.billing.operational && mode.portalOnly) {
+    return <main className="min-h-screen bg-stone-100 p-6 text-slate-900">
+      <section className="mx-auto max-w-2xl rounded-xl border bg-white p-6">
+        <h1 className="text-xl font-bold">Portal privado temporalmente no disponible</h1>
+        <p className="mt-2 text-sm">La inmobiliaria debe regularizar el estado de su servicio.
+          No se puede gestionar facturación desde una cuenta de Cliente.</p>
+        <button type="button" onClick={()=>void signOut()} className="mt-4 rounded-lg border px-4 py-2">
+          Cerrar sesión
+        </button>
+      </section>
+    </main>;
+  }
   if (!activeMembership.billing.operational) {
     return <main className="min-h-screen bg-stone-100 p-5 text-slate-900"><div className="mx-auto max-w-6xl">
       <header className="mb-6 flex justify-between gap-3"><h1 className="font-bold">{activeMembership.organization.name}</h1>
         <button type="button" onClick={onClose} className="rounded-lg border bg-white px-4 py-2">Volver al inicio</button></header>
       <BillingModule key={organizationId} />
     </div></main>;
+  }
+
+  if (mode.portalOnly || (mode.clientLinkedRole&&clientPortalMode)) {
+    return <div className="min-h-screen bg-stone-100 text-slate-900">
+      <header className="border-b border-stone-200 bg-white px-6 py-4">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold">INMOJCO · Portal privado</h1>
+            <p className="text-sm text-slate-600">{branding.companyName} · Cliente / propietario de inmueble</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {mode.hasOperationalRole&&<button type="button" onClick={()=>{setClientPortalMode(false);setView('DASHBOARD');}}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
+              Cambiar a administración
+            </button>}
+            <button type="button" onClick={onClose} className="rounded-lg border px-3 py-2 text-sm">Volver</button>
+            <button type="button" onClick={()=>void signOut()} className="rounded-lg border px-3 py-2 text-sm">Salir</button>
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto max-w-5xl space-y-4 p-5">
+        {mode.mixedElevated&&<div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          Esta misma cuenta también tiene permisos administrativos. La vista privada oculta
+          los módulos internos, pero NO reduce los privilegios de tu sesión.
+          Para verificar la seguridad real de Cliente, utiliza otra cuenta que tenga
+          únicamente el rol CLIENT y su vínculo de portal.
+        </div>}
+        <PortalHub/>
+      </main>
+    </div>;
   }
 
   return (
@@ -297,6 +348,10 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           <div className="flex flex-wrap items-center justify-end gap-2">
             {can(PERMISSIONS.SETTINGS_EDIT) && logoUrl && <button type="button" onClick={() => void applyLogoPalette()} disabled={applyingLogoPalette} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold disabled:opacity-50" title="Guardar únicamente los colores de esta inmobiliaria">
               <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
+            </button>}
+            {mode.clientLinkedRole&&<button type="button" onClick={()=>setClientPortalMode(true)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium">
+              Abrir mi portal privado
             </button>}
             {isPlatformAdmin && <a href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><ShieldCheck className="h-4 w-4" />Superadministrador</a>}
             {memberships.length > 1 && (
@@ -381,7 +436,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               stats={stats}
               loading={loadingStats}
               organizationName={activeMembership.organization.name}
-              roleNames={activeMembership.roles.map((role) => role.name)}
+              roleNames={activeMembership.roles.map(displayTenantRole)}
               tenantPrimary={tenantPrimary}
               tenantSecondary={tenantSecondary}
               themed={Boolean(branding.primaryColor)}
