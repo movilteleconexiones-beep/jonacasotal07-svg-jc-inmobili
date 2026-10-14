@@ -1,14 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { PropertiesModule } from '../properties/PropertiesModule';
 import { OwnersModule } from '../owners/OwnersModule';
 import { ContactsModule } from '../contacts/ContactsModule';
 import { TenantRentEntry } from '../finance/TenantRentEntry';
+import { supabase } from '../../lib/supabase';
+import {
+  automaticOwnerId, canPrepareRental, rentalAvailability,
+  type LinkedRentalProperty,
+} from '../../core/rental-owner-selection';
+
+type OwnerChoice = { id: string; name: string; is_primary: boolean; ownership_percentage: number };
 
 const STEPS = ['Vivienda', 'Cliente', 'Contrato', 'PDF firmado', 'Aprobación', 'Cobros'] as const;
 const HINTS = [
-  'Registra una vivienda nueva o usa una que ya está en el inventario. Si el propietario aún no existe, regístralo aquí.',
+  'Elige un inmueble y se buscará su propietario vinculado. Un mismo propietario puede tener varios inmuebles; elige el disponible para este contrato.',
   'Registra al arrendatario una sola vez. Si ya existe, selecciónalo en el paso Contrato.',
   'El asesor puede preparar un borrador; este paso no habilita cobros ni ocupa el inmueble.',
   'Adjunta el PDF firmado de las partes en el depósito privado de la inmobiliaria.',
@@ -27,6 +34,122 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   const [tenantId, setTenantId] = useState<string>();
   const [leaseId, setLeaseId] = useState<string>();
   const [selectionNotice, setSelectionNotice] = useState('');
+  const [ownerChoices, setOwnerChoices] = useState<OwnerChoice[]>([]);
+  const [ownerLookup, setOwnerLookup] = useState<'idle'|'loading'|'loaded'|'error'>('idle');
+  const [ownerLookupMessage, setOwnerLookupMessage] = useState('');
+  const [linkedProperties, setLinkedProperties] = useState<LinkedRentalProperty[]>([]);
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [linksError, setLinksError] = useState('');
+  const lookupVersion = useRef(0);
+  const canViewOwners = can(PERMISSIONS.OWNERS_VIEW);
+
+  // Ignore responses from a previously selected property, changed membership or unmounted wizard.
+  useEffect(() => () => { lookupVersion.current += 1; }, [organizationId]);
+
+  async function resolvePropertyOwner(selectedId: string) {
+    const version = ++lookupVersion.current;
+    setOwnerChoices([]);
+    setOwnerLookupMessage('');
+    setOwnerLookup('loading');
+    if (!canViewOwners) {
+      setOwnerLookup('error');
+      setOwnerLookupMessage('Tu perfil no tiene permiso para consultar los propietarios vinculados.');
+      return;
+    }
+    try {
+      const links = await supabase.from('property_ownerships')
+        .select('owner_id,is_primary,ownership_percentage',{count:'exact'})
+        .eq('property_id',selectedId).limit(501);
+      if (version !== lookupVersion.current) return;
+      if (links.error || links.count == null || links.count > (links.data??[]).length ||
+          (links.data??[]).length > 500)
+        throw new Error('No fue posible consultar todas las vinculaciones del inmueble.');
+      const rows = links.data??[];
+      if (!rows.length) {
+        setOwnerLookupMessage('Este inmueble no tiene propietario vinculado. Regístralo o vincúlalo antes del contrato.');
+        setOwnerLookup('loaded');
+        return;
+      }
+      const ids = [...new Set(rows.map(row=>row.owner_id))];
+      const owners = await supabase.from('property_owners')
+        .select('id,first_name,last_name').eq('organization_id',organizationId).in('id',ids).limit(501);
+      if (version !== lookupVersion.current) return;
+      if (owners.error || (owners.data??[]).length !== ids.length)
+        throw new Error('Hay vínculos cuyos propietarios no pueden verificarse en esta inmobiliaria.');
+      const choices: OwnerChoice[] = rows.map(link=>{
+        const owner=owners.data!.find(item=>item.id===link.owner_id)!;
+        return {
+          id:owner.id, name:[owner.first_name,owner.last_name].filter(Boolean).join(' '),
+          is_primary:link.is_primary,ownership_percentage:Number(link.ownership_percentage),
+        };
+      });
+      const preferred=automaticOwnerId(rows);
+      setOwnerChoices(choices);
+      setOwnerLookup('loaded');
+      if (preferred) {
+        const owner=choices.find(choice=>choice.id===preferred)!;
+        setOwnerId(owner.id);setOwnerName(owner.name);
+        setOwnerLookupMessage('Propietario vinculado seleccionado automáticamente. Puedes cambiarlo si hay copropietarios.');
+      } else {
+        setOwnerLookupMessage('Hay varios propietarios sin un principal único. Elige quién figurará en el borrador.');
+      }
+    } catch (cause) {
+      if (version !== lookupVersion.current) return;
+      setOwnerLookup('error');
+      setOwnerLookupMessage(cause instanceof Error?cause.message:'Error al consultar el propietario.');
+    }
+  }
+
+  // A selected owner may be linked to many properties; never infer ownership from the visible code.
+  useEffect(() => {
+    let cancelled=false;
+    setLinkedProperties([]);setLinksError('');setLinksLoading(Boolean(ownerId&&canViewOwners));
+    if (!ownerId || !canViewOwners) return () => {cancelled=true;};
+    void (async()=>{
+      try {
+        const links=await supabase.from('property_ownerships')
+          .select('property_id',{count:'exact'}).eq('owner_id',ownerId).limit(501);
+        if (cancelled)return;
+        if(links.error||links.count==null||links.count>(links.data??[]).length||(links.data??[]).length>500)
+          throw new Error('No se pudo consultar la totalidad de inmuebles del propietario.');
+        const ids=[...new Set((links.data??[]).map(link=>link.property_id))];
+        if(!ids.length){
+          if(propertyId){
+            setPropertyId(undefined);setPropertyName('');
+            setSelectionNotice('El propietario seleccionado todavía no está vinculado al inmueble anterior.');
+          }
+          return;
+        }
+        const [p,l]=await Promise.all([
+          supabase.from('properties').select('id,code,title,status,operation_type')
+            .eq('organization_id',organizationId).in('id',ids).limit(501),
+          supabase.from('leases').select('property_id',{count:'exact'})
+            .eq('organization_id',organizationId).in('property_id',ids)
+            .in('status',['ACTIVE','RENEWAL']).limit(501),
+        ]);
+        if(cancelled)return;
+        if(p.error||l.error||(p.data??[]).length!==ids.length||l.count==null||
+           l.count>(l.data??[]).length||(l.data??[]).length>500)
+          throw new Error('No se pudo comprobar el inventario o los contratos activos del propietario.');
+        const occupied=new Set((l.data??[]).map(row=>row.property_id));
+        const options:LinkedRentalProperty[]=(p.data??[]).map(item=>({
+          ...item,has_active_lease:occupied.has(item.id),
+        })).sort((a,b)=>a.code.localeCompare(b.code,'es'));
+        setLinkedProperties(options);
+        if(propertyId&&!options.some(option=>option.id===propertyId)){
+          setPropertyId(undefined);setPropertyName('');
+          setLeaseId(undefined);
+          setSelectionNotice('La vivienda anterior no corresponde al propietario seleccionado. Elige una de sus propiedades vinculadas.');
+        }
+      }catch(cause){
+        if(!cancelled)setLinksError(cause instanceof Error?cause.message:'Error consultando inmuebles vinculados.');
+      }finally{
+        if(!cancelled)setLinksLoading(false);
+      }
+    })();
+    return()=>{cancelled=true;};
+  },[ownerId,organizationId,canViewOwners]);
+
 
   // Only the wizard's choices are cleared; persisted properties, owners and contracts remain unchanged.
   const resetDraftPreference = () => {
@@ -35,11 +158,14 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
     setLeaseId(undefined);
   };
   const clearOwnerSelection = () => {
+    lookupVersion.current += 1;
     setOwnerId(undefined);
     setOwnerName('');
     resetDraftPreference();
   };
   const clearPropertySelection = () => {
+    lookupVersion.current += 1;
+    setOwnerChoices([]);setOwnerLookup('idle');setOwnerLookupMessage('');
     setPropertyId(undefined);
     setPropertyName('');
     setOwnerId(undefined);
@@ -96,23 +222,79 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
             resetDraftPreference();
           }
           setPropertyId(id); setPropertyName(name);
+          void resolvePropertyOwner(id);
         }}
         onCreated={id => {
           resetDraftPreference();
           setPropertyId(id); setPropertyName('Nueva vivienda · '+id.slice(0,8));
           setOwnerId(undefined); setOwnerName('');
+          void resolvePropertyOwner(id);
         }} />}
       {propertyTab === 'OWNER' && <OwnersModule ownersOnly
         selectedOwnerId={ownerId}
         onClearSelection={clearOwnerSelection}
         onSelect={(id,name) => {
           if (id !== ownerId) resetDraftPreference();
+          lookupVersion.current += 1;
+          setOwnerChoices([]);setOwnerLookup('idle');setOwnerLookupMessage('');
           setOwnerId(id); setOwnerName(name);
         }}
         onCreated={(id,name) => {
           resetDraftPreference();
+          lookupVersion.current += 1;
+          setOwnerChoices([]);setOwnerLookup('idle');setOwnerLookupMessage('');
           setOwnerId(id); setOwnerName(name);
         }} />}
+      {propertyId && ownerLookup==='loading' && <p role="status" className="rounded-lg border bg-white p-3 text-sm">
+        Buscando el propietario vinculado al inmueble…
+      </p>}
+      {propertyId && ownerLookupMessage && <p role={ownerLookup==='error'?'alert':'status'}
+        className={'rounded-lg border p-3 text-sm '+(ownerLookup==='error'?'border-amber-400 text-amber-900':'bg-white text-slate-700')}>
+        {ownerLookupMessage}
+      </p>}
+      {propertyId && ownerChoices.length>1 && <div className="space-y-2 rounded-xl border bg-white p-3">
+        <p className="text-sm font-semibold">Copropietarios registrados · seleccionar para el borrador</p>
+        <div className="flex flex-wrap gap-2">
+          {ownerChoices.map(choice=><button type="button" key={choice.id} aria-pressed={ownerId===choice.id}
+            onClick={()=>{
+              lookupVersion.current+=1;
+              resetDraftPreference();setOwnerId(choice.id);setOwnerName(choice.name);
+            }}
+            className={'rounded-lg border px-3 py-2 text-sm '+(ownerId===choice.id?'bg-slate-900 text-white':'hover:bg-stone-100')}>
+            {choice.name} · {choice.ownership_percentage}%{choice.is_primary?' · Principal':''}
+          </button>)}
+        </div>
+      </div>}
+      {ownerId && canViewOwners && <div className="space-y-2 rounded-xl border bg-white p-3"
+        aria-label="Inmuebles vinculados al propietario">
+        <p className="font-semibold text-sm">Inmuebles de {ownerName}</p>
+        <p className="text-xs text-slate-600">Un propietario puede tener varios inmuebles. Selecciona el disponible o el que corresponda al trámite; los ocupados o no aptos no se habilitan para un nuevo arriendo.</p>
+        {linksLoading && <p role="status" className="text-sm">Comprobando inmuebles y contratos activos…</p>}
+        {linksError && <p role="alert" className="text-sm text-red-800">{linksError}</p>}
+        {!linksLoading&&!linksError&&linkedProperties.length===0&&<p className="text-sm text-amber-900">
+          No hay inmuebles vinculados a este propietario. Primero registra la vinculación en Propietarios.
+        </p>}
+        {!linksLoading&&!linksError&&linkedProperties.map(item=>{
+          const available=canPrepareRental(item);
+          return <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+            <div>
+              <p className="font-semibold">{item.code} · {item.title}</p>
+              <p className={available?'text-slate-600':'text-amber-800'}>{rentalAvailability(item)}</p>
+            </div>
+            <button type="button" disabled={!available} aria-pressed={propertyId===item.id}
+              onClick={()=>{
+                if(!canPrepareRental(item))return;
+                lookupVersion.current+=1;
+                resetDraftPreference();setOwnerChoices([]);setOwnerLookup('idle');setOwnerLookupMessage('');
+                setPropertyId(item.id);setPropertyName(item.code+' · '+item.title);
+              }}
+              className={'rounded-lg border px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-50 '+
+                (propertyId===item.id?'bg-slate-900 text-white':'hover:bg-stone-100')}>
+              {propertyId===item.id?'Inmueble elegido':'Elegir inmueble'}
+            </button>
+          </div>;
+        })}
+      </div>}
       <div className="grid gap-2 sm:grid-cols-2" aria-label="Selección para el nuevo contrato">
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-sm">
           <span><strong>Vivienda elegida:</strong> {propertyId ? propertyName || propertyId.slice(0,8) : 'Pendiente de selección'}</span>
