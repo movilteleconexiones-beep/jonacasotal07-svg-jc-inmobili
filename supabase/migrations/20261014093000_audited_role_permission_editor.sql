@@ -2,6 +2,29 @@
 -- Base role identity is protected; operational permissions are editable and audited.
 BEGIN;
 
+-- A system role is a protected identity, not a mutable ad-hoc role. Retain
+-- updates of custom role name/description/active already used by the UI.
+REVOKE INSERT,DELETE ON public.roles FROM PUBLIC,anon,authenticated;
+CREATE OR REPLACE FUNCTION public.guard_base_role_identity()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog
+AS $
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN NEW; END IF;
+  IF OLD.is_system_role OR NEW.organization_id IS DISTINCT FROM OLD.organization_id
+     OR NEW.key IS DISTINCT FROM OLD.key
+     OR NEW.is_system_role IS DISTINCT FROM OLD.is_system_role
+     OR NEW.id IS DISTINCT FROM OLD.id THEN
+    RAISE EXCEPTION 'System role identities and tenant scope cannot be changed'
+      USING ERRCODE='42501';
+  END IF;
+  RETURN NEW;
+END;
+$;
+REVOKE ALL ON FUNCTION public.guard_base_role_identity() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER roles_base_identity_guard
+ BEFORE UPDATE ON public.roles FOR EACH ROW
+ EXECUTE FUNCTION public.guard_base_role_identity();
+
 -- Disallow direct changes to the grants table from any client, regardless of
 -- permissive legacy RLS policies. All changes must pass the validated RPC.
 REVOKE INSERT,UPDATE,DELETE ON public.role_permissions FROM PUBLIC,anon,authenticated;
