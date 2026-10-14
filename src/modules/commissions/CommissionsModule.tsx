@@ -67,6 +67,7 @@ export function CommissionsModule() {
   const [reviewRate,setReviewRate] = useState('');
   const [reviewBasis,setReviewBasis] = useState('');
   const [reviews,setReviews] = useState<CommissionReview[]>([]);
+  const [showCompletedReviews,setShowCompletedReviews] = useState(false);
   const [corrections,setCorrections] = useState<Record<string,{corrected_amount:number;original_amount:number;difference_amount:number;archived_from_active:boolean}>>({});
   const [showArchived,setShowArchived] = useState(false);
   const [saving,setSaving] = useState(false);
@@ -762,7 +763,8 @@ export function CommissionsModule() {
       {reviews.length>0&&<section className="rounded-2xl border bg-white p-4">
         <h2 className="font-semibold">Solicitudes de corrección sobre comisiones pagadas</h2>
         <p className="mb-3 text-xs text-slate-600">La aprobación autoriza la revisión contable, no modifica ni borra el pago original.</p>
-        <div className="space-y-2">{reviews.map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+        {reviews.some(review=>review.status==='PENDING'&&!corrections[review.commission_id]) ?
+          <div className="space-y-2">{reviews.filter(review=>review.status==='PENDING'&&!corrections[review.commission_id]).map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
           <div><strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
             <span className="ml-2">{corrections[review.commission_id] ? 'Rectificada contablemente' : etiquetaES(review.status)}</span>
             <div className="text-xs text-slate-600">{review.reason}</div>
@@ -781,7 +783,37 @@ export function CommissionsModule() {
               <button type="button" disabled={saving} onClick={()=>void decideReview(review,'REJECTED')}
                 className="rounded-lg border border-red-300 px-3 py-2 text-red-700">Rechazar</button>
             </div>}
-          </div>)}</div>
+          </div>)}</div> :
+          <p className="mb-3 text-sm text-slate-500">No hay solicitudes pendientes de autorización.</p>}
+        {reviews.some(review=>review.status!=='PENDING'||!!corrections[review.commission_id])&&
+          <div className="mt-4 rounded-xl border bg-slate-50 p-3">
+            <button type="button" aria-expanded={showCompletedReviews} onClick={()=>setShowCompletedReviews(value=>!value)}
+              className="flex w-full items-center justify-between gap-2 text-left text-sm font-semibold text-slate-800">
+              <span>Historial de correcciones y autorizaciones ({reviews.filter(review=>review.status!=='PENDING'||!!corrections[review.commission_id]).length})</span>
+              <span>{showCompletedReviews?'Ocultar historial':'Ver historial'}</span>
+            </button>
+            <p className="mt-1 text-xs text-slate-600">Los movimientos contabilizados permanecen conservados para auditoría, aunque el ajuste sea de $0.</p>
+            {showCompletedReviews&&<div className="mt-3 max-h-80 space-y-2 overflow-y-auto"><div className="space-y-2">{reviews.filter(review=>review.status!=='PENDING'||!!corrections[review.commission_id]).map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+          <div><strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
+            <span className="ml-2">{corrections[review.commission_id] ? 'Rectificada contablemente' : etiquetaES(review.status)}</span>
+            <div className="text-xs text-slate-600">{review.reason}</div>
+            {corrections[review.commission_id]&&<div className="text-xs text-green-800">Rectificación contable registrada: {formatMoney(corrections[review.commission_id].corrected_amount,'COP')} (sin desembolso real).</div>}
+            {review.review_reason&&<div className="text-xs text-slate-600">Decisión: {review.review_reason}</div>}
+          </div>
+          {isCommissionAdministrator && review.status==='PENDING' &&
+            <button type="button" disabled={saving} onClick={()=>void acceptErroneousPaidCommission(review)}
+              className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-amber-900">
+              {corrections[review.commission_id] ? 'Aceptar y cerrar rectificación' : 'Aceptar y anular comisión (sin desembolso)'}
+            </button>}
+          {isCommissionAdministrator && review.status==='PENDING' && !corrections[review.commission_id] && review.requested_by!==user?.id&&
+            <div className="flex gap-2">
+              <button type="button" disabled={saving} onClick={()=>void decideReview(review,'APPROVED')}
+                className="rounded-lg border px-3 py-2">Autorizar revisión</button>
+              <button type="button" disabled={saving} onClick={()=>void decideReview(review,'REJECTED')}
+                className="rounded-lg border border-red-300 px-3 py-2 text-red-700">Rechazar</button>
+            </div>}
+          </div>)}</div></div>}
+          </div>}
       </section>}
     </section>
   );
