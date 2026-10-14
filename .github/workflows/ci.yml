@@ -51,6 +51,8 @@ jobs:
         run: node --test tests/tenant-role-portal-permissions.test.mjs
       - name: Client portal and administrator role entry regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
+      - name: Platform administrator tenant role preview regression
+        run: node --test tests/primary-account-tenant-preview.test.mjs
       - name: Organization invitation visibility and history regression
         run: node --import tsx --test tests/organization-invitation-history.test.mjs
       - name: Private rent receipt evidence SQL tenant isolation and atomicity

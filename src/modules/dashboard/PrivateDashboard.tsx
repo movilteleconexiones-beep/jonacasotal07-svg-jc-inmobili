@@ -110,6 +110,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const tenantSecondary = safeTenantColor(branding.secondaryColor, TENANT_DEFAULT_SECONDARY);
   const [view, setView] = useState<DashboardView>('DASHBOARD');
   const [clientPortalMode,setClientPortalMode]=useState(true);
+  // Presentation-only: never changes the Supabase token, SQL RLS or user
+  // grants. This role preview is not a substitute for a security test.
+  const [tenantPreviewRole,setTenantPreviewRole]=useState<'OWNER'|'ADMIN'>('OWNER');
   const mode=tenantAccessMode(activeMembership?.roles??[]);
   useEffect(()=>{
     // Start in the private portal when CLIENT is one of the assigned roles.
@@ -125,6 +128,37 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
   const organizationId = activeMembership?.organization.id;
   const billingOwner = activeMembership?.billing.can_manage_billing ?? false;
+  const previewAsTenant=isPlatformAdmin&&Boolean(activeMembership);
+  const selectedPreviewMode=clientPortalMode&&mode.clientLinkedRole?'CLIENT':tenantPreviewRole;
+  function changePreviewMode(next:string){
+    if(!previewAsTenant)return;
+    if(next==='PLATFORM'){
+      window.location.assign('/super-admin');
+      return;
+    }
+    if(next==='CLIENT'){
+      if(!mode.clientLinkedRole)return;
+      setClientPortalMode(true);
+      setView('PORTAL');
+      return;
+    }
+    if(next==='OWNER'||next==='ADMIN'){
+      setTenantPreviewRole(next);
+      setClientPortalMode(false);
+      setView('DASHBOARD');
+    }
+  }
+  const previewSelector=previewAsTenant?<label className="inline-flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
+    Vista de prueba
+    <select aria-label="Elegir vista de prueba de la inmobiliaria"
+      value={selectedPreviewMode} onChange={event=>changePreviewMode(event.target.value)}
+      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium">
+      <option value="OWNER">Titular de la inmobiliaria</option>
+      <option value="ADMIN">Administrador de inmobiliaria</option>
+      {mode.clientLinkedRole&&<option value="CLIENT">Cliente · Mi portal privado</option>}
+      <option value="PLATFORM">Salir de prueba · Superadministrador</option>
+    </select>
+  </label>:null;
 
   async function applyLogoPalette() {
     if (!organizationId || !can(PERMISSIONS.SETTINGS_EDIT) || !logoUrl || applyingLogoPalette) return;
@@ -305,7 +339,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             <p className="text-sm text-slate-600">{branding.companyName} · Cliente / propietario de inmueble</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {mode.hasOperationalRole&&<button type="button" onClick={()=>{setClientPortalMode(false);setView('DASHBOARD');}}
+            {previewSelector}
+            {mode.hasOperationalRole&&!previewAsTenant&&<button type="button" onClick={()=>{setClientPortalMode(false);setView('DASHBOARD');}}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
               Cambiar a administración
             </button>}
@@ -350,11 +385,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             {can(PERMISSIONS.SETTINGS_EDIT) && logoUrl && <button type="button" onClick={() => void applyLogoPalette()} disabled={applyingLogoPalette} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold disabled:opacity-50" title="Guardar únicamente los colores de esta inmobiliaria">
               <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
             </button>}
-            {mode.clientLinkedRole&&<button type="button" onClick={()=>setClientPortalMode(true)}
+            {previewSelector}
+            {mode.clientLinkedRole&&!previewAsTenant&&<button type="button" onClick={()=>setClientPortalMode(true)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium">
               Abrir mi portal privado
             </button>}
-            {isPlatformAdmin && <a href="/super-admin" className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"><ShieldCheck className="h-4 w-4" />Superadministrador</a>}
+            {isPlatformAdmin && <a href="/super-admin" className={'inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 '+(previewAsTenant?'hidden':'')}><ShieldCheck className="h-4 w-4" />Superadministrador</a>}
             {memberships.length > 1 && (
               <select
                 value={activeMembership.organization.id}
@@ -391,6 +427,10 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         </div>
       </header>
 
+      {previewAsTenant&&<div role="status" className="mx-auto max-w-[1500px] px-4 pt-3 text-xs text-amber-900 md:px-6">
+        Vista de prueba como {tenantPreviewRole==='ADMIN'?'administrador':'titular de inmobiliaria'}.
+        Los permisos reales de superadministrador no cambian; para comprobar el aislamiento de seguridad se necesita otra cuenta sin esos privilegios.
+      </div>}
       {brandingNotice && <p role="status" className="mx-auto max-w-[1500px] px-4 pt-3 text-sm text-slate-700 md:px-6">{brandingNotice}</p>}
       <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-2">
@@ -437,7 +477,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               stats={stats}
               loading={loadingStats}
               organizationName={activeMembership.organization.name}
-              roleNames={activeMembership.roles.map(displayTenantRole)}
+              roleNames={previewAsTenant?
+                [tenantPreviewRole==='ADMIN'?'Administrador de inmobiliaria (simulación)':'Titular de la inmobiliaria (simulación)']:
+                activeMembership.roles.map(displayTenantRole)}
               tenantPrimary={tenantPrimary}
               tenantSecondary={tenantSecondary}
               themed={Boolean(branding.primaryColor)}
