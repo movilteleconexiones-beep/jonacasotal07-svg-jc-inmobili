@@ -15,7 +15,7 @@ CREATE TABLE public.organization_members(
  user_id uuid NOT NULL,status text NOT NULL
 );
 CREATE TABLE public.roles(
- id uuid PRIMARY KEY,organization_id uuid REFERENCES public.organizations(id),
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid REFERENCES public.organizations(id),
  key text,name text NOT NULL,description text,is_system_role boolean NOT NULL,active boolean NOT NULL DEFAULT true,
  created_at timestamptz NOT NULL DEFAULT now()
 );
