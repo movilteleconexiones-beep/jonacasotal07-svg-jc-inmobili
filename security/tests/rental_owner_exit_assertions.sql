@@ -25,6 +25,13 @@ VALUES ('11111111-2222-4333-8444-555555555555','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa
 
 \i supabase/migrations/20261014061000_audited_rental_end_owner_retirement.sql
 
+-- Seed a bookkeeping review as test database owner, not an authenticated API user.
+INSERT INTO public.owner_statements(organization_id,lease_id,owner_id,period_month,status,
+ gross_income,commission_amount,tax_amount,other_deductions,net_amount)
+VALUES('11111111-1111-4111-8111-111111111111',
+'33333333-3333-4333-8333-333333333333',
+'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-01','DRAFT',0,0,0,0,0);
+
 CREATE FUNCTION pg_temp.expect_state(command text, expected text)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE actual text;
@@ -68,11 +75,7 @@ SELECT pg_temp.expect_state($$
 $$,'23514');
 
 -- A pending owner statement is not settled by terminating a contract.
-INSERT INTO public.owner_statements(organization_id,lease_id,owner_id,period_month,status,
- gross_income,commission_amount,tax_amount,other_deductions,net_amount)
-VALUES('11111111-1111-4111-8111-111111111111',
-'33333333-3333-4333-8333-333333333333',
-'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-01','DRAFT',0,0,0,0,0);
+
 
 SELECT pg_temp.expect_state($$
  SELECT public.admin_finish_lease_and_release(
@@ -109,7 +112,9 @@ SELECT pg_temp.expect_state($$
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Retiro formal de la inmobiliaria')
 $$,'23514');
 UPDATE public.leases SET status='CANCELLED' WHERE id='55555555-5555-4555-8555-555555555555';
+RESET ROLE;
 UPDATE public.owner_statements SET status='PAID' WHERE owner_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+SET ROLE authenticated;
 SELECT public.admin_retire_owner_agency(
  '11111111-1111-4111-8111-111111111111',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Retiro formal de la inmobiliaria');
