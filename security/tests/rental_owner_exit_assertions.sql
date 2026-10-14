@@ -43,6 +43,9 @@ BEGIN
 END
 $check$;
 GRANT SELECT,UPDATE ON public.properties TO authenticated;
+-- Match real Supabase metadata read grants used by the signed-document activation guard.
+GRANT USAGE ON SCHEMA storage TO authenticated;
+GRANT SELECT ON storage.objects,public.documents TO authenticated;
 
 -- Seed a bookkeeping review as test database owner, not an authenticated API user.
 INSERT INTO public.owner_statements(organization_id,lease_id,owner_id,period_month,status,
