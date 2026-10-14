@@ -48,7 +48,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         const [p,t,o,l,r]=await Promise.all([
           supabase.from('properties').select('id,code,title').eq('organization_id',organizationId).limit(501),
           supabase.from('contacts').select('id,first_name,last_name').eq('organization_id',organizationId).limit(501),
-          supabase.from('property_owners').select('id,first_name,last_name').eq('organization_id',organizationId).limit(501),
+          supabase.from('property_owners').select('id,first_name,last_name').eq('organization_id',organizationId).eq('agency_status','ACTIVE').limit(501),
           supabase.from('leases').select('id,contract_number,monthly_rent,status').eq('organization_id',organizationId).limit(501),
           canReadRent ? supabase.from('rent_payments').select('id,lease_id,period_month,expected_amount,paid_amount,status')
             .eq('organization_id',organizationId).limit(501)

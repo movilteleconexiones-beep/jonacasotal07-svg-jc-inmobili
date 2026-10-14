@@ -5,6 +5,7 @@ import { PropertiesModule } from '../properties/PropertiesModule';
 import { OwnersModule } from '../owners/OwnersModule';
 import { ContactsModule } from '../contacts/ContactsModule';
 import { TenantRentEntry } from '../finance/TenantRentEntry';
+import { RentalContractClosure } from './RentalContractClosure';
 import { supabase } from '../../lib/supabase';
 import {
   automaticOwnerId, canPrepareRental, rentalAvailability,
@@ -26,7 +27,7 @@ const HINTS = [
 export function RentalIntakeWizard({ organizationId }: { organizationId: string }) {
   const { can } = useAuth();
   const [step, setStep] = useState(0);
-  const [propertyTab, setPropertyTab] = useState<'PROPERTY' | 'OWNER'>('PROPERTY');
+  const [propertyTab, setPropertyTab] = useState<'PROPERTY' | 'OWNER' | 'CLOSURE'>('PROPERTY');
   const [propertyId, setPropertyId] = useState<string>();
   const [propertyName, setPropertyName] = useState('');
   const [ownerId, setOwnerId] = useState<string>();
@@ -72,7 +73,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       }
       const ids = [...new Set(rows.map(row=>row.owner_id))];
       const owners = await supabase.from('property_owners')
-        .select('id,first_name,last_name').eq('organization_id',organizationId).in('id',ids).limit(501);
+        .select('id,first_name,last_name').eq('organization_id',organizationId).eq('agency_status','ACTIVE').in('id',ids).limit(501);
       if (version !== lookupVersion.current) return;
       if (owners.error || (owners.data??[]).length !== ids.length)
         throw new Error('Hay vínculos cuyos propietarios no pueden verificarse en esta inmobiliaria.');
@@ -211,7 +212,16 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
         <button type="button" onClick={() => setPropertyTab('OWNER')}
           className={'rounded-lg border px-3 py-2 text-sm font-semibold ' +
             (propertyTab === 'OWNER' ? 'bg-slate-900 text-white' : 'bg-white')}>Registrar / vincular propietario</button>
+        {can(PERMISSIONS.LEASES_EDIT) && <button type="button" onClick={() => setPropertyTab('CLOSURE')}
+          className={'rounded-lg border px-3 py-2 text-sm font-semibold ' +
+            (propertyTab === 'CLOSURE' ? 'bg-slate-900 text-white' : 'bg-white')}>
+          Finalizar contrato / liberar inmueble
+        </button>}
       </div>
+      {propertyTab === 'CLOSURE' && <RentalContractClosure organizationId={organizationId}
+        onFinished={finishedPropertyId=>{
+          if(propertyId===finishedPropertyId)clearPropertySelection();
+        }}/>}
       {propertyTab === 'PROPERTY' && <PropertiesModule
         selectedPropertyId={propertyId}
         onClearSelection={clearPropertySelection}
@@ -295,7 +305,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
           </div>;
         })}
       </div>}
-      <div className="grid gap-2 sm:grid-cols-2" aria-label="Selección para el nuevo contrato">
+      {propertyTab !== 'CLOSURE' && <div className="grid gap-2 sm:grid-cols-2" aria-label="Selección para el nuevo contrato">
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-sm">
           <span><strong>Vivienda elegida:</strong> {propertyId ? propertyName || propertyId.slice(0,8) : 'Pendiente de selección'}</span>
           {propertyId && <button type="button" onClick={clearPropertySelection}
@@ -308,7 +318,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
             aria-label="Quitar selección de propietario"
             className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-stone-100">Quitar selección</button>}
         </div>
-      </div>
+      </div>}
       {selectionNotice && <p role="status" className="text-xs text-slate-600">{selectionNotice}</p>}
       <p className="text-xs text-slate-600">
         Elegir un propietario aquí lo prepara para el contrato; no modifica las escrituras,

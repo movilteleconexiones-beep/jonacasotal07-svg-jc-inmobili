@@ -289,6 +289,8 @@ jobs:
         run: node --import tsx --test tests/signed-lease-pdf.test.mjs
       - name: Guided rental intake and approval regression tests
         run: node --test tests/rental-intake-guided-flow.test.mjs
+      - name: Rental and owner agency lifecycle UI regression
+        run: node --test tests/rental-agency-lifecycle.test.mjs
       - name: Owner and dwelling one-click selection guided intake tests
         run: node --test tests/rental-intake-owner-click-selection.test.mjs
       - name: Multi-property owner autofill and rental availability regression
@@ -341,6 +343,10 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_intake_admin_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012180000_guided_rental_intake_admin_approval.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_intake_admin_assertions.sql
+      - name: Rental exit and owner retirement SQL release gate
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_owner_exit_assertions.sql
       - name: Itemized owner ledger SQL and concurrency checks
         env:
           PGPASSWORD: postgres

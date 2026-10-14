@@ -21,7 +21,7 @@ RETURNS boolean LANGUAGE sql STABLE
 AS $$
   SELECT org=nullif(current_setting('jco_test.organization',true),'')::uuid AND
     permission IN ('leases.view','leases.create','leases.edit','rent_payments.view','rent_payments.create',
-                   'owner_statements.view','owner_statements.create') AND
+                   'owner_statements.view','owner_statements.create','owners.edit','properties.edit') AND
     permission IS DISTINCT FROM nullif(current_setting('jco_test.denied_permission',true),'')
 $$;
 GRANT USAGE ON SCHEMA auth,public TO authenticated;

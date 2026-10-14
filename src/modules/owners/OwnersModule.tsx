@@ -18,6 +18,7 @@ interface OwnerRow {
   whatsapp: string | null;
   notes: string | null;
   created_at: string;
+  agency_status: 'ACTIVE' | 'RETIRED';
 }
 
 interface PropertyOption {
@@ -34,6 +35,8 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
 } = {}) {
   const { user, activeMembership, can } = useAuth();
   const organizationId = activeMembership?.organization.id;
+  const adminMayRetire=(activeMembership?.roles.some(role=>role.key==='ADMIN')??false)
+    &&can(PERMISSIONS.OWNERS_EDIT)&&can(PERMISSIONS.PROPERTIES_EDIT);
   const [owners, setOwners] = useState<OwnerRow[]>([]);
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -41,6 +44,9 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
   const [ownerSearch, setOwnerSearch] = useState('');
   const [loadingOwners, setLoadingOwners] = useState(false);
   const [ownersLoadError, setOwnersLoadError] = useState(false);
+  const [retireOwnerId,setRetireOwnerId]=useState('');
+  const [retireReason,setRetireReason]=useState('');
+  const [retiring,setRetiring]=useState(false);
 
   async function load() {
     if (!organizationId) return;
@@ -49,7 +55,7 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
     try {
       const [ownersResult, propertiesResult] = await Promise.all([
         supabase.from('property_owners')
-          .select('id,first_name,last_name,document_type,document_number,email,phone,whatsapp,notes,created_at')
+          .select('id,first_name,last_name,document_type,document_number,email,phone,whatsapp,notes,created_at,agency_status')
           .eq('organization_id', organizationId)
           .order('created_at', { ascending: false }),
         supabase.from('properties').select('id,code,title')
@@ -81,6 +87,25 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
   useEffect(() => {
     void load();
   }, [organizationId]);
+
+  async function retireOwner(){
+    if(!adminMayRetire||!organizationId||retiring||!retireOwnerId||retireReason.trim().length<12)return;
+    const owner=owners.find(x=>x.id===retireOwnerId);
+    if(!owner||owner.agency_status!=='ACTIVE')return;
+    if(!window.confirm('¿Retirar al propietario de la gestión? Todos sus inmuebles exclusivos pasarán a inactivos. Los contratos y comprobantes históricos permanecen guardados.'))return;
+    setRetiring(true);setMessage('');
+    try{
+      const {data,error}=await supabase.rpc('admin_retire_owner_agency',{
+        target_org:organizationId,target_owner:retireOwnerId,justification:retireReason.trim(),
+      });
+      if(error){setMessage('No se autorizó el retiro: '+error.message);return;}
+      setMessage('Retiro administrativo registrado. '+String(data??0)+' inmuebles vinculados quedaron fuera de comercialización.');
+      setRetireOwnerId('');setRetireReason('');
+      window.dispatchEvent(new Event('owner-agency-retired'));
+      await load();
+    }catch{setMessage('El retiro no pudo verificarse; actualiza antes de volver a intentar.');}
+    finally{setRetiring(false);}
+  }
 
   async function createOwner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -243,7 +268,8 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
           Aún no hay propietarios registrados. Usa «Nuevo propietario» para crearlo.
         </p>}
         {!loadingOwners && !ownersLoadError && owners.length > 0 &&
-          owners.filter(owner => [owner.first_name,owner.last_name,owner.document_number]
+          owners.filter(owner => owner.agency_status==='ACTIVE')
+            .filter(owner => [owner.first_name,owner.last_name,owner.document_number]
             .filter(Boolean).join(' ').toLocaleLowerCase('es')
             .includes(ownerSearch.trim().toLocaleLowerCase('es'))).map(owner=>{
               const name=[owner.first_name,owner.last_name].filter(Boolean).join(' ');
@@ -274,6 +300,8 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
               <th className="px-4 py-3">Documento</th>
               <th className="px-4 py-3">Contacto</th>
               <th className="px-4 py-3">Notas</th>
+              <th className="px-4 py-3">Gestión</th>
+              {adminMayRetire&&<th className="px-4 py-3">Desvinculación</th>}
             </tr>
           </thead>
           <tbody>
@@ -290,12 +318,20 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
                   <div className="text-xs text-slate-500">{owner.email || ''}</div>
                 </td>
                 <td className="px-4 py-3">{owner.notes || '—'}</td>
+                <td className="px-4 py-3">{owner.agency_status==='RETIRED'?'Retirado · historial conservado':'Activo'}</td>
+                {adminMayRetire&&<td className="px-4 py-3">
+                  {owner.agency_status==='ACTIVE'&&<button type="button"
+                    onClick={()=>{setRetireOwnerId(owner.id);setRetireReason('');setMessage('');}}
+                    className="rounded-lg border px-2 py-1 text-xs font-semibold">
+                    Retirar de la inmobiliaria
+                  </button>}
+                </td>}
               </tr>
             ))}
 
             {owners.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={adminMayRetire?6:5} className="px-4 py-10 text-center text-slate-500">
                   <UserRoundCog className="mx-auto mb-2 h-6 w-6" />
                   Aún no hay propietarios registrados.
                 </td>
@@ -303,6 +339,27 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearS
             )}
           </tbody>
         </table>
+      </div>}
+      {!ownersOnly&&adminMayRetire&&retireOwnerId&&<div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm"
+        aria-label="Desvincular propietario de la inmobiliaria">
+        <h2 className="font-semibold">Retiro de gestión · {owners.find(o=>o.id===retireOwnerId)?.first_name}</h2>
+        <p>Se desactivarán sus inmuebles de gestión exclusiva. Si hay contratos activos,
+          borradores, copropiedades o liquidaciones por revisar, Supabase bloqueará el retiro.
+          No se borran los inmuebles ni las escrituras, contratos, abonos o soportes.</p>
+        <label className="block font-medium">Justificación del retiro
+          <textarea value={retireReason} onChange={e=>setRetireReason(e.target.value)}
+            rows={3} minLength={12} maxLength={1000} required
+            className="mt-1 w-full rounded-lg border bg-white px-3 py-2" />
+        </label>
+        <div className="flex gap-2">
+          <button type="button" disabled={retiring||retireReason.trim().length<12}
+            onClick={()=>void retireOwner()}
+            className="rounded-lg bg-amber-900 px-3 py-2 font-semibold text-white disabled:opacity-40">
+            {retiring?'Retirando…':'Confirmar retiro administrativo'}
+          </button>
+          <button type="button" disabled={retiring} onClick={()=>{setRetireOwnerId('');setRetireReason('');}}
+            className="rounded-lg border bg-white px-3 py-2">Cancelar</button>
+        </div>
       </div>}
     </section>
   );
