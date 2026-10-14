@@ -13,6 +13,7 @@ import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 import { RolePermissionEditor } from './RolePermissionEditor';
 import { MemberPermissionOverview } from './MemberPermissionOverview';
+import { displayTenantRole } from '../../core/portal-access-mode';
 
 const isTenantRole = (role: { key: string | null; name: string }) =>
   role.key !== 'ORGANIZATION_OWNER' && role.key !== 'SUPER_ADMIN' && role.key !== 'PLATFORM_OWNER' && !/super.?admin|platform.?admin/i.test(role.name);
@@ -531,7 +532,7 @@ export function UsersRolesModule() {
                 <label key={role.id} className="flex items-start gap-3 rounded-xl border border-stone-200 p-3">
                   <input type="checkbox" name={'role_' + role.id} className="mt-1" />
                   <span>
-                    <span className="block text-sm font-semibold">{role.name}</span>
+                    <span className="block text-sm font-semibold">{displayTenantRole(role)}</span>
                     {role.description && <span className="mt-0.5 block text-xs text-slate-500">{role.description}</span>}
                   </span>
                 </label>
@@ -648,7 +649,25 @@ export function UsersRolesModule() {
                   <div className="space-y-4">
                     <div>
                       <div className="mb-2 text-xs font-semibold text-slate-500">Roles asignados</div>
+                      {member.member_roles.some(x=>x.roles?.key==='ORGANIZATION_OWNER')&&
+                       member.member_roles.some(x=>x.roles?.key==='CLIENT')&&
+                        <p role="alert" className="mb-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                          Esta cuenta es Cliente y también titular administrativo de la inmobiliaria.
+                          Conserva permisos elevados: no sirve para probar el acceso restringido.
+                          Usa una cuenta diferente únicamente con rol Cliente y su vínculo de portal.
+                        </p>}
+                      {member.member_roles.some(x=>x.roles?.key==='ORGANIZATION_OWNER')&&
+                        <p className="mb-2 text-xs text-slate-600">
+                          «Titular de la inmobiliaria» administra la organización.
+                          El dueño de un inmueble se vincula en «Portal como propietario»,
+                          sin asignar permisos administrativos.
+                        </p>}
                       <div className="flex flex-wrap gap-2">
+                        {member.member_roles.filter(link=>link.roles?.key==='ORGANIZATION_OWNER')
+                          .map(link=><span key={'org-owner-'+link.role_id}
+                            className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-950">
+                            Titular administrativo de la inmobiliaria · acceso elevado
+                          </span>)}
                         {roles.filter((role) => role.active).map((role) => {
                           const checked = assignedRoleIds.has(role.id);
                           return (

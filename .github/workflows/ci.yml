@@ -49,6 +49,8 @@ jobs:
         run: node --test tests/admin-role-permission-editor.test.mjs
       - name: Advisor coordinator and portal client role regressions
         run: node --test tests/tenant-role-portal-permissions.test.mjs
+      - name: Client portal and administrator role entry regression
+        run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Private rent receipt evidence SQL tenant isolation and atomicity
         env:
           PGPASSWORD: postgres
