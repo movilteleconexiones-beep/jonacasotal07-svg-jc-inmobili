@@ -7,7 +7,7 @@ BEGIN;
 REVOKE INSERT,DELETE ON public.roles FROM PUBLIC,anon,authenticated;
 CREATE OR REPLACE FUNCTION public.guard_base_role_identity()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog
-AS $
+AS $$
 BEGIN
   IF auth.uid() IS NULL THEN RETURN NEW; END IF;
   IF OLD.is_system_role OR NEW.organization_id IS DISTINCT FROM OLD.organization_id
@@ -19,7 +19,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 REVOKE ALL ON FUNCTION public.guard_base_role_identity() FROM PUBLIC,anon,authenticated;
 CREATE TRIGGER roles_base_identity_guard
  BEFORE UPDATE ON public.roles FOR EACH ROW
