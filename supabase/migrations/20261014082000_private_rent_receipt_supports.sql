@@ -99,7 +99,7 @@ DECLARE
   required_prefix text;
   filename text;
   expected_mime text;
-  receipt_id uuid;
+  v_receipt_id uuid;
   prior public.rent_receipt_supports%ROWTYPE;
 BEGIN
   IF actor IS NULL OR NOT public.has_org_permission(target_org,'rent_payments.create') THEN
@@ -138,23 +138,23 @@ BEGIN
 
   -- Calls the existing atomic and idempotent ledger. If evidence linking
   -- fails, the entire transaction (including the payment) is rolled back.
-  receipt_id:=public.record_tenant_rent_receipt(target_org,target_payment,
+  v_receipt_id:=public.record_tenant_rent_receipt(target_org,target_payment,
     receipt_amount,receipt_method,receipt_reference,request_key);
 
-  SELECT * INTO prior FROM public.rent_receipt_supports
-    WHERE public.rent_receipt_supports.receipt_id=receipt_id FOR UPDATE;
+  SELECT * INTO prior FROM public.rent_receipt_supports rs
+    WHERE rs.receipt_id=v_receipt_id FOR UPDATE;
   IF FOUND THEN
     IF prior.organization_id<>target_org OR prior.rent_payment_id<>target_payment OR
        prior.storage_path<>evidence_path OR prior.uploaded_by<>actor THEN
       RAISE EXCEPTION 'Idempotency key belongs to a different proof'
         USING ERRCODE='23505';
     END IF;
-    RETURN receipt_id;
+    RETURN v_receipt_id;
   END IF;
 
   -- Do not retrofit proof to an old receipt after its original operation.
   IF NOT EXISTS (
-    SELECT 1 FROM public.rent_receipts rr WHERE rr.id=receipt_id
+    SELECT 1 FROM public.rent_receipts rr WHERE rr.id=v_receipt_id
       AND rr.organization_id=target_org AND rr.rent_payment_id=target_payment
       AND rr.created_by=actor AND rr.created_at >= now()-interval '15 minutes'
   ) THEN
@@ -164,9 +164,9 @@ BEGIN
 
   INSERT INTO public.rent_receipt_supports
     (receipt_id,organization_id,rent_payment_id,storage_path,mime_type,size_bytes,uploaded_by)
-  VALUES (receipt_id,target_org,target_payment,evidence_path,
+  VALUES (v_receipt_id,target_org,target_payment,evidence_path,
     expected_mime,support_file.size_bytes,actor);
-  RETURN receipt_id;
+  RETURN v_receipt_id;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.record_tenant_rent_receipt_with_evidence(
