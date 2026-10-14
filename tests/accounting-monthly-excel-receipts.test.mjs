@@ -118,10 +118,10 @@ test('individual owner net export cannot include other owner metrics or modules'
 
 test('winning deals report contains only deals with WON status from the selected month',()=>{
   const detail=selectedWorkbookContent({kind:'metric',key:'WON_DEALS'},[
-    {name:'Negocios',columns:['stage','created_at'],rows:[
-      {stage:'WON',created_at:'2026-10-12'},
-      {stage:'LOST',created_at:'2026-10-13'},
-      {stage:'WON',created_at:'2026-10-14'},
+    {name:'Cierres',columns:['id','stage','operation_type','closed_at'],rows:[
+      {id:'a',stage:'WON',operation_type:'RENT',closed_at:'2026-10-12'},
+      {id:'b',stage:'LOST',operation_type:'RENT',closed_at:'2026-10-13'},
+      {id:'c',stage:'WON',operation_type:'SALE',closed_at:'2026-10-14'},
     ]},
   ]);
   assert.equal(detail.total,2);
