@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { RolePermissionEditor } from './RolePermissionEditor';
 
 const isTenantRole = (role: { key: string | null; name: string }) =>
   role.key !== 'ORGANIZATION_OWNER' && role.key !== 'SUPER_ADMIN' && role.key !== 'PLATFORM_OWNER' && !/super.?admin|platform.?admin/i.test(role.name);
@@ -91,6 +92,9 @@ export function UsersRolesModule() {
   const [showInvite, setShowInvite] = useState(false);
   const [showRoleCreator, setShowRoleCreator] = useState(false);
   const [workingOn, setWorkingOn] = useState<string | null>(null);
+  const [selectedRoleId,setSelectedRoleId]=useState<string|null>(null);
+  const canEditPermissions=(activeMembership?.roles.some(role=>role.key==='ADMIN')??false)
+    &&can(PERMISSIONS.ROLES_EDIT);
 
   async function load() {
     if (!organizationId) return;
@@ -422,7 +426,7 @@ export function UsersRolesModule() {
 
   async function createRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !can(PERMISSIONS.ROLES_CREATE)) return;
+    if (!organizationId || !canEditPermissions || !can(PERMISSIONS.ROLES_CREATE)) return;
 
     const form = new FormData(event.currentTarget);
     const name = String(form.get('name') ?? '').trim();
@@ -465,7 +469,7 @@ export function UsersRolesModule() {
         <div>
           <h1 className="text-2xl font-bold">Usuarios, roles y permisos</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Controla quién accede al sistema y qué puede hacer dentro de esta inmobiliaria. Los roles marcados se acumulan; no son un selector de vista.
+            Controla quién accede al sistema y qué puede hacer dentro de esta inmobiliaria. Los roles marcados se acumulan; no son un selector de vista. Haz clic en un perfil para consultar sus permisos y, si eres administrador, agregar o quitar autorizaciones.
           </p>
           <p className="mt-2 text-xs text-slate-600">Retirar usuario desactiva solo su acceso a esta inmobiliaria, sin borrar su cuenta, contratos ni historial. Los roles base están protegidos; solo los personalizados pueden desactivarse.</p>
         </div>
@@ -480,7 +484,7 @@ export function UsersRolesModule() {
             Actualizar
           </button>
 
-          {can(PERMISSIONS.ROLES_CREATE) && (
+          {canEditPermissions && can(PERMISSIONS.ROLES_CREATE) && (
             <button
               type="button"
               onClick={() => setShowRoleCreator((value) => !value)}
@@ -767,7 +771,7 @@ export function UsersRolesModule() {
         <h2 className="font-bold">Roles disponibles</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {roles.map((role) => (
-            <div key={role.id} className="rounded-xl border border-stone-200 p-4">
+            <div key={role.id} className={'rounded-xl border p-4 '+(selectedRoleId===role.id?'border-slate-900 bg-slate-50':'border-stone-200')}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-semibold">{role.name}</div>
@@ -786,9 +790,25 @@ export function UsersRolesModule() {
               <div className="mt-3 text-xs text-slate-600">
                 {(role.role_permissions ?? []).length} permisos · {role.active ? 'Activo' : 'Desactivado'}
               </div>
+              <button type="button" aria-expanded={selectedRoleId===role.id}
+                aria-controls="profile-permissions-panel"
+                onClick={()=>setSelectedRoleId(current=>current===role.id?null:role.id)}
+                className="mt-3 w-full rounded-lg border border-slate-900 bg-white px-3 py-2 text-sm font-semibold hover:bg-stone-100">
+                {selectedRoleId===role.id?'Cerrar permisos':'Ver y editar permisos'}
+              </button>
             </div>
           ))}
         </div>
+        {organizationId&&selectedRoleId&&roles.some(role=>role.id===selectedRoleId)&&
+          <div id="profile-permissions-panel">
+            <RolePermissionEditor key={selectedRoleId}
+              organizationId={organizationId}
+              role={roles.find(role=>role.id===selectedRoleId)!}
+              permissions={permissions}
+              onClose={()=>setSelectedRoleId(null)}
+              onSaved={load}
+            />
+          </div>}
       </div>
     </section>
   );
