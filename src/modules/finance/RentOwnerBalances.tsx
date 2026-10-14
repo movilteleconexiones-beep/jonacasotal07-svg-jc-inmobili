@@ -331,8 +331,12 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
   const mayIssue = can(PERMISSIONS.OWNER_STATEMENTS_CREATE) && (activeMembership?.roles.some(role=>role.key==='ADMIN'||role.key==='ORGANIZATION_OWNER')??false);
   const [issuing,setIssuing] = useState(false);
   const [payoutStatementId,setPayoutStatementId] = useState<string|null>(null);
-  const [payouts,setPayouts] = useState<Array<{id:string;amount:number;paid_on:string;payment_method:string;payment_reference:string;evidence_reference:string}>>([]);
+  const [payouts,setPayouts] = useState<Array<{id:string;amount:number;paid_on:string;payment_method:string;payment_reference:string;evidence_reference:string;recorded_by:string;recorded_at:string}>>([]);
   const [payoutBusy,setPayoutBusy] = useState(false);
+  const [payoutReviews,setPayoutReviews]=useState<Array<{id:string;payout_id:string;status:string;reason:string;created_at:string}>>([]);
+  const [reviewPayoutId,setReviewPayoutId]=useState<string|null>(null);
+  const [reviewReason,setReviewReason]=useState('');
+
   const [payoutError,setPayoutError] = useState('');
 
   const [statements, setStatements] = useState<OwnerStatement[]>([]);
@@ -387,12 +391,31 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
 
   async function loadPayouts(statementId:string){
     const {data,error:readError}=await supabase.from('owner_statement_payouts')
-      .select('id,amount,paid_on,payment_method,payment_reference,evidence_reference')
+      .select('id,amount,paid_on,payment_method,payment_reference,evidence_reference,recorded_by,recorded_at')
       .eq('organization_id',organizationId).eq('statement_id',statementId)
       .order('recorded_at',{ascending:false});
     if(readError){setPayoutError('No fue posible consultar los abonos.');return;}
-    setPayouts(data??[]);setPayoutError('');
+    setPayouts(data??[]);
+    const {data:reviewData,error:reviewError}=await supabase.from('owner_payout_review_requests')
+      .select('id,payout_id,status,reason,created_at')
+      .eq('organization_id',organizationId).in('payout_id',(data??[]).map(item=>item.id));
+    setPayoutReviews(reviewError?[]:reviewData??[]);
+    setPayoutError(reviewError?'No fue posible consultar las solicitudes de revisión.':'');
   }
+  async function requestPayoutReview(payoutId:string){
+    if(payoutBusy||reviewReason.trim().length<15)return;
+    setPayoutBusy(true);setPayoutError('');
+    try{
+      const {error:reviewError}=await supabase.rpc('request_owner_payout_review',{
+        p_organization_id:organizationId,p_payout_id:payoutId,p_reason:reviewReason.trim(),
+      });
+      if(reviewError)throw reviewError;
+      setReviewPayoutId(null);setReviewReason('');
+      if(payoutStatementId)await loadPayouts(payoutStatementId);
+    }catch(cause){setPayoutError(cause instanceof Error?cause.message:'No se pudo solicitar revisión.');}
+    finally{setPayoutBusy(false);}
+  }
+
   async function openPayoutEvidence(statementId:string, reference:string){
     const prefix=organizationId+'/owner-payouts/'+statementId+'/';
     if(!reference.startsWith(prefix))return;
@@ -522,7 +545,20 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
             <p className="text-sm text-slate-600">Registrado: {cop(paid)} · Saldo: {cop(balance)}. El registro no envía dinero.</p>
             {payoutError&&<p role="alert" className="my-2 text-sm text-red-700">{payoutError}</p>}
             {payouts.length>0&&<ul className="mt-2 space-y-1 text-sm">{payouts.map(p=><li key={p.id}>
-              {p.paid_on} · {cop(Number(p.amount))} · {p.payment_method} · Referencia: {p.payment_reference} · {p.evidence_reference.startsWith(organizationId+'/owner-payouts/'+selected.id+'/')?
+              {p.paid_on} · {cop(Number(p.amount))} · {p.payment_method} · Referencia: {p.payment_reference}
+              <span className="block text-xs text-slate-500">Registrado por: {p.recorded_by} · {new Date(p.recorded_at).toLocaleString('es-CO')}</span>
+              {payoutReviews.filter(r=>r.payout_id===p.id).map(r=><span key={r.id} className="block text-xs text-amber-800">Revisión: {etiquetaES(r.status)} · {r.reason}</span>)}
+              {!payoutReviews.some(r=>r.payout_id===p.id&&r.status==='PENDING')&&
+                <button type="button" className="mr-2 text-xs underline" onClick={()=>{setReviewPayoutId(p.id);setReviewReason('');}}>Solicitar corrección</button>}
+              {reviewPayoutId===p.id&&<div className="my-2 space-y-1">
+                <textarea aria-label="Motivo de revisión" placeholder="Explica el error (mínimo 15 caracteres)" value={reviewReason}
+                  onChange={event=>setReviewReason(event.target.value)} minLength={15} maxLength={500}
+                  className="w-full rounded-lg border p-2"/>
+                <button type="button" disabled={payoutBusy||reviewReason.trim().length<15}
+                  onClick={()=>void requestPayoutReview(p.id)} className="mr-2 rounded border p-1">Enviar revisión</button>
+                <button type="button" onClick={()=>setReviewPayoutId(null)}>Cancelar</button>
+              </div>}
+              {p.evidence_reference.startsWith(organizationId+'/owner-payouts/'+selected.id+'/')?
               <button type="button" className="underline text-blue-700" onClick={()=>void openPayoutEvidence(selected.id,p.evidence_reference)}>Ver comprobante adjunto</button>:
               <span>Soporte: {p.evidence_reference}</span>}
             </li>)}</ul>}
