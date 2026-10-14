@@ -31,7 +31,7 @@ test('client-only account opens a separate portal without internal tenant naviga
  assert.match(dashboard,/únicamente el rol CLIENT/);
  assert.match(dashboard,/mode\.hasOperationalRole&&<button/);
  assert.match(dashboard,/roleNames=\{activeMembership\.roles\.map\(displayTenantRole\)\}/);
- assert.match(dashboard,/view !== 'DASHBOARD' \|\| mode\.clientLinkedRole && clientPortalMode/);
+ assert.match(dashboard,/if \(mode\.clientLinkedRole && clientPortalMode\) return/);
 });
 
 test('portal queries are always scoped to the current authenticated user and linked records',()=>{
