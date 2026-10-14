@@ -341,6 +341,10 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_intake_admin_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012180000_guided_rental_intake_admin_approval.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_intake_admin_assertions.sql
+      - name: Rental exit and owner retirement SQL release gate
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_owner_exit_assertions.sql
       - name: Itemized owner ledger SQL and concurrency checks
         env:
           PGPASSWORD: postgres
