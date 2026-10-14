@@ -66,7 +66,7 @@ test('Excel reporting is filtered by active tenant, date, permissions and full c
 
 test('statement buttons only print actual financial records, never issue payments',()=>{
   assert.match(receipts,/Emitir estado de cuenta/);
-  assert.match(receipts,/Emitir liquidación/);
+  assert.match(receipts,/Generar comprobante/);
   assert.match(receipts,/disabled=\{!reconciled\}/);
   assert.match(receipts,/printInternalDocument/);
   assert.doesNotMatch(receipts,/\.from\('payment_orders'\)/);
