@@ -28,6 +28,7 @@ interface CommissionReview {
   proposed_values: Record<string, unknown>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   review_reason: string | null;
+  archived_at: string | null;
   created_at: string;
 }
 
@@ -68,6 +69,7 @@ export function CommissionsModule() {
   const [reviewBasis,setReviewBasis] = useState('');
   const [reviews,setReviews] = useState<CommissionReview[]>([]);
   const [showCompletedReviews,setShowCompletedReviews] = useState(false);
+  const [showArchivedReviews,setShowArchivedReviews] = useState(false);
   const [corrections,setCorrections] = useState<Record<string,{corrected_amount:number;original_amount:number;difference_amount:number;archived_from_active:boolean}>>({});
   const [showArchived,setShowArchived] = useState(false);
   const [saving,setSaving] = useState(false);
@@ -106,7 +108,7 @@ export function CommissionsModule() {
         .select('user_id')
         .eq('organization_id', organizationId)
         .eq('status', 'ACTIVE'),
-      supabase.from('commission_review_requests').select('id,commission_id,requested_by,request_type,reason,proposed_values,status,review_reason,created_at')
+      supabase.from('commission_review_requests').select('id,commission_id,requested_by,request_type,reason,proposed_values,status,review_reason,archived_at,created_at')
         .eq('organization_id',organizationId).order('created_at',{ascending:false}).limit(100),
       supabase.from('commission_accounting_corrections').select('commission_id,original_amount,corrected_amount,difference_amount,archived_from_active').eq('organization_id',organizationId),
     ]);
@@ -149,6 +151,19 @@ export function CommissionsModule() {
     void load();
     return () => { ++loadVersion.current; };
   }, [organizationId]);
+
+  async function archiveReview(review:CommissionReview) {
+    if(!isCommissionAdministrator||review.status==='PENDING'||!organizationId||saving)return;
+    if(!window.confirm('¿Archivar esta solicitud cerrada? Quedará disponible en el historial de auditoría.'))return;
+    setSaving(true);setMessage('');
+    try{
+      const {error}=await supabase.rpc('admin_archive_commission_review',{p_review_id:review.id,p_organization_id:organizationId});
+      if(error)throw error;
+      setMessage('Solicitud archivada. Puedes consultarla en el historial archivado.');
+      await load();
+    }catch(error){setMessage(error instanceof Error?error.message:'No fue posible archivar la solicitud.');}
+    finally{setSaving(false);}
+  }
 
   async function createCommission(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -789,11 +804,11 @@ export function CommissionsModule() {
           <div className="mt-4 rounded-xl border bg-slate-50 p-3">
             <button type="button" aria-expanded={showCompletedReviews} onClick={()=>setShowCompletedReviews(value=>!value)}
               className="flex w-full items-center justify-between gap-2 text-left text-sm font-semibold text-slate-800">
-              <span>Historial de correcciones y autorizaciones ({reviews.filter(review=>review.status!=='PENDING'||!!corrections[review.commission_id]).length})</span>
+              <span>Historial de correcciones y autorizaciones ({reviews.filter(review=>(review.status!=='PENDING'||!!corrections[review.commission_id])&&!review.archived_at).length})</span>
               <span>{showCompletedReviews?'Ocultar historial':'Ver historial'}</span>
             </button>
             <p className="mt-1 text-xs text-slate-600">Los movimientos contabilizados permanecen conservados para auditoría, aunque el ajuste sea de $0.</p>
-            {showCompletedReviews&&<div className="mt-3 max-h-80 space-y-2 overflow-y-auto"><div className="space-y-2">{reviews.filter(review=>review.status!=='PENDING'||!!corrections[review.commission_id]).map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+            {showCompletedReviews&&<div className="mt-3 max-h-80 space-y-2 overflow-y-auto"><div className="space-y-2">{reviews.filter(review=>(review.status!=='PENDING'||!!corrections[review.commission_id])&&!review.archived_at).map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
           <div><strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
             <span className="ml-2">{corrections[review.commission_id] ? 'Rectificada contablemente' : etiquetaES(review.status)}</span>
             <div className="text-xs text-slate-600">{review.reason}</div>
@@ -812,7 +827,22 @@ export function CommissionsModule() {
               <button type="button" disabled={saving} onClick={()=>void decideReview(review,'REJECTED')}
                 className="rounded-lg border border-red-300 px-3 py-2 text-red-700">Rechazar</button>
             </div>}
+            {isCommissionAdministrator&&review.status!=='PENDING'&&!review.archived_at&&
+              <button type="button" disabled={saving} onClick={()=>void archiveReview(review)}
+                className="rounded-lg border px-3 py-2 text-xs">Archivar solicitud</button>}
           </div>)}</div></div>}
+          </div>}
+        {isCommissionAdministrator&&reviews.some(review=>review.archived_at)&&
+          <div className="mt-3">
+            <button type="button" onClick={()=>setShowArchivedReviews(value=>!value)} aria-expanded={showArchivedReviews}
+              className="text-sm font-semibold underline">Solicitudes archivadas ({reviews.filter(review=>!!review.archived_at).length})</button>
+            {showArchivedReviews&&<div className="mt-2 max-h-64 space-y-2 overflow-y-auto">
+              {reviews.filter(review=>!!review.archived_at).map(review=><div key={review.id} className="rounded-lg border p-3 text-sm">
+                <strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
+                <span className="ml-2 text-slate-600">Archivada · {etiquetaES(review.status)}</span>
+                <p className="text-xs text-slate-600">{review.reason}</p>
+              </div>)}
+            </div>}
           </div>}
       </section>}
     </section>
