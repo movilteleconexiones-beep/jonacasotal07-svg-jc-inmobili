@@ -39,6 +39,21 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   const [ownerLookup, setOwnerLookup] = useState<'idle'|'loading'|'loaded'|'error'>('idle');
   const [ownerLookupMessage, setOwnerLookupMessage] = useState('');
   const [linkedProperties, setLinkedProperties] = useState<LinkedRentalProperty[]>([]);
+  const [occupancyRevision,setOccupancyRevision]=useState(0);
+  useEffect(()=>{
+    const refresh=()=>setOccupancyRevision(n=>n+1);
+    const visible=()=>{if(document.visibilityState==='visible')refresh();};
+    window.addEventListener('lease-activated',refresh);
+    window.addEventListener('lease-finished',refresh);
+    window.addEventListener('focus',refresh);
+    document.addEventListener('visibilitychange',visible);
+    return()=>{
+      window.removeEventListener('lease-activated',refresh);
+      window.removeEventListener('lease-finished',refresh);
+      window.removeEventListener('focus',refresh);
+      document.removeEventListener('visibilitychange',visible);
+    };
+  },[]);
   const [linksLoading, setLinksLoading] = useState(false);
   const [linksError, setLinksError] = useState('');
   const lookupVersion = useRef(0);
@@ -149,7 +164,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       }
     })();
     return()=>{cancelled=true;};
-  },[ownerId,organizationId,canViewOwners]);
+  },[ownerId,organizationId,canViewOwners,occupancyRevision]);
 
 
   // Only the wizard's choices are cleared; persisted properties, owners and contracts remain unchanged.
