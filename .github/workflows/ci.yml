@@ -37,6 +37,15 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Role permission editor SQL tenant isolation and audit
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_perms_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_assertions.sql
+      - name: Role permission editor interface regression
+        run: node --test tests/admin-role-permission-editor.test.mjs
       - name: Private rent receipt evidence SQL tenant isolation and atomicity
         env:
           PGPASSWORD: postgres
