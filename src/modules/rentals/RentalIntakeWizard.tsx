@@ -73,7 +73,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       }
       const ids = [...new Set(rows.map(row=>row.owner_id))];
       const owners = await supabase.from('property_owners')
-        .select('id,first_name,last_name').eq('organization_id',organizationId).in('id',ids).limit(501);
+        .select('id,first_name,last_name').eq('organization_id',organizationId).eq('agency_status','ACTIVE').in('id',ids).limit(501);
       if (version !== lookupVersion.current) return;
       if (owners.error || (owners.data??[]).length !== ids.length)
         throw new Error('Hay vínculos cuyos propietarios no pueden verificarse en esta inmobiliaria.');
