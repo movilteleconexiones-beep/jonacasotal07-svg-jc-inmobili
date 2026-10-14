@@ -41,7 +41,7 @@ test('individual member overview combines assigned active roles and explicit ove
  assert.match(viewer,/El plan contratado, el estado del usuario y los controles del servidor/);
 });
 
-test('a client's contact or owner portal linking is kept separate from general permissions',()=>{
+test('client contact and owner portal links remain separate from general permissions',()=>{
  assert.match(users,/Portal como cliente/);
  assert.match(users,/Portal como propietario/);
  assert.match(users,/\.from\('portal_access_links'\)/);
