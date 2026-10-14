@@ -44,8 +44,11 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_role_perms_test"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/tenant_role_portal_isolation_assertions.sql
       - name: Role permission editor interface regression
         run: node --test tests/admin-role-permission-editor.test.mjs
+      - name: Advisor coordinator and portal client role regressions
+        run: node --test tests/tenant-role-portal-permissions.test.mjs
       - name: Private rent receipt evidence SQL tenant isolation and atomicity
         env:
           PGPASSWORD: postgres
