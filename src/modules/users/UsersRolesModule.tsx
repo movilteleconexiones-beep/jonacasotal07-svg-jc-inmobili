@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   Check,
-  Clock3,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -14,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { RolePermissionEditor } from './RolePermissionEditor';
 import { MemberPermissionOverview } from './MemberPermissionOverview';
 import { displayTenantRole } from '../../core/portal-access-mode';
+import {InvitationHistory,type InvitationRow} from './InvitationHistory';
 
 const isTenantRole = (role: { key: string | null; name: string }) =>
   role.key !== 'ORGANIZATION_OWNER' && role.key !== 'SUPER_ADMIN' && role.key !== 'PLATFORM_OWNER' && !/super.?admin|platform.?admin/i.test(role.name);
@@ -64,18 +64,6 @@ interface PortalLinkRow {
   owner_id: string | null;
 }
 
-interface InvitationRow {
-  id: string;
-  email: string;
-  full_name: string | null;
-  status: string;
-  expires_at: string;
-  created_at: string;
-  invitation_roles: Array<{
-    role_id: string;
-    roles: { id: string; name: string; key: string | null } | null;
-  }>;
-}
 
 export function UsersRolesModule() {
   const { user, activeMembership, can } = useAuth();
@@ -86,6 +74,7 @@ export function UsersRolesModule() {
   const [allRoles,setAllRoles]=useState<RoleRow[]>([]);
   const [permissions, setPermissions] = useState<PermissionRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
+  const [invitationLoadError,setInvitationLoadError]=useState('');
   const [contacts, setContacts] = useState<ContactOption[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
   const [portalLinks, setPortalLinks] = useState<PortalLinkRow[]>([]);
@@ -104,6 +93,8 @@ export function UsersRolesModule() {
     if (!organizationId) return;
     setLoading(true);
     setMessage('');
+    setInvitationLoadError('');
+    setInvitations([]);
 
     const [membersResult, rolesResult, permissionsResult, invitationsResult, contactsResult, ownersResult, portalLinksResult] = await Promise.all([
       supabase
@@ -123,9 +114,10 @@ export function UsersRolesModule() {
         .order('key'),
       supabase
         .from('organization_invitations')
-        .select('id,email,full_name,status,expires_at,created_at,invitation_roles(role_id,roles(id,name,key))')
+        .select('id,email,full_name,status,expires_at,created_at,accepted_at,invitation_roles(role_id,roles(id,name,key))',{count:'exact'})
         .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(501),
       supabase
         .from('contacts')
         .select('id,first_name,last_name')
@@ -145,7 +137,10 @@ export function UsersRolesModule() {
     if (membersResult.error) setMessage(membersResult.error.message);
     if (rolesResult.error) setMessage((current) => current || rolesResult.error!.message);
     if (permissionsResult.error) setMessage((current) => current || permissionsResult.error!.message);
-    if (invitationsResult.error) setMessage((current) => current || invitationsResult.error!.message);
+    if (invitationsResult.error || invitationsResult.count==null ||
+       invitationsResult.count>500 || (invitationsResult.data??[]).length!==invitationsResult.count){
+      setInvitationLoadError('No fue posible consultar el historial completo de invitaciones. Actualiza o contacta al administrador.');
+    }
 
     const memberRows = (membersResult.data ?? []) as unknown as MemberRow[];
     setMembers(memberRows);
@@ -173,7 +168,10 @@ export function UsersRolesModule() {
     setRoles(((rolesResult.data ?? []) as unknown as RoleRow[]).filter(isTenantRole));
     setAllRoles((rolesResult.data ?? []) as unknown as RoleRow[]);
     setPermissions((permissionsResult.data ?? []) as PermissionRow[]);
-    setInvitations((invitationsResult.data ?? []) as unknown as InvitationRow[]);
+    if (!invitationsResult.error && invitationsResult.count!=null &&
+      invitationsResult.count<=500 && (invitationsResult.data??[]).length===invitationsResult.count){
+      setInvitations((invitationsResult.data ?? []) as unknown as InvitationRow[]);
+    }
     setContacts((contactsResult.data ?? []) as ContactOption[]);
     setOwners((ownersResult.data ?? []) as OwnerOption[]);
     setPortalLinks((portalLinksResult.data ?? []) as PortalLinkRow[]);
@@ -377,13 +375,21 @@ export function UsersRolesModule() {
   }
 
   async function cancelInvitation(invitationId: string) {
-    const { error } = await supabase
+    if(!organizationId || !can(PERMISSIONS.USERS_EDIT))return;
+    if(!window.confirm('¿Cancelar esta invitación pendiente? No se eliminará el historial.'))return;
+    const {data,error}=await supabase
       .from('organization_invitations')
       .update({ status: 'CANCELLED' })
-      .eq('id', invitationId);
-
-    if (error) setMessage(error.message);
-    else await load();
+      .eq('organization_id',organizationId)
+      .eq('id', invitationId)
+      .eq('status','PENDING')
+      .gt('expires_at',new Date().toISOString())
+      .select('id')
+      .maybeSingle();
+    if(error){setMessage('No se pudo cancelar la invitación: '+error.message);return;}
+    if(!data){setMessage('La invitación ya no está pendiente o está vencida. Pulsa Actualizar.');return;}
+    await load();
+    setMessage('Invitación cancelada; permanece en el historial.');
   }
 
   async function setPortalRelation(
@@ -462,11 +468,6 @@ export function UsersRolesModule() {
     event.currentTarget.reset();
     await load();
   }
-
-  const pendingInvitations = useMemo(
-    () => invitations.filter((invitation) => invitation.status === 'PENDING'),
-    [invitations],
-  );
 
   return (
     <section className="space-y-5">
@@ -594,6 +595,10 @@ export function UsersRolesModule() {
           {message}
         </div>
       )}
+
+      <InvitationHistory invitations={invitations} loading={loading}
+        error={invitationLoadError} canCancel={can(PERMISSIONS.USERS_EDIT)}
+        onCancel={id=>void cancelInvitation(id)}/>
 
       <div className="rounded-2xl border border-stone-200 bg-white">
         <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-5 py-4">
@@ -761,45 +766,6 @@ export function UsersRolesModule() {
         </div>
       </div>
 
-      {pendingInvitations.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white">
-          <div className="border-b border-stone-200 px-5 py-4">
-            <h2 className="font-bold">Invitaciones pendientes</h2>
-          </div>
-          <div className="divide-y divide-stone-100">
-            {pendingInvitations.map((invitation) => (
-              <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-4 p-4">
-                <div>
-                  <div className="font-semibold">{invitation.full_name || invitation.email}</div>
-                  <div className="mt-1 text-xs text-slate-500">{invitation.email}</div>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {invitation.invitation_roles.map((item) => (
-                      <span key={item.role_id} className="rounded-full bg-stone-100 px-2 py-1 text-[11px] font-medium">
-                        {item.roles?.name ?? 'Rol'}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex items-center gap-1 text-xs text-amber-700">
-                    <Clock3 className="h-3.5 w-3.5" />
-                    Pendiente
-                  </span>
-                  {can(PERMISSIONS.USERS_EDIT) && (
-                    <button
-                      type="button"
-                      onClick={() => void cancelInvitation(invitation.id)}
-                      className="rounded-lg border border-stone-300 px-3 py-2 text-xs font-semibold"
-                    >
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="rounded-2xl border border-stone-200 bg-white p-5">
         <h2 className="font-bold">Roles disponibles</h2>
