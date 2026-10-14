@@ -26,9 +26,10 @@ interface PropertyOption {
   title: string;
 }
 
-export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onCreated}: {
+export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onClearSelection,onCreated}: {
   ownersOnly?:boolean;selectedOwnerId?:string;
   onSelect?:(ownerId:string,ownerName:string)=>void;
+  onClearSelection?:()=>void;
   onCreated?:(ownerId:string,ownerName:string)=>void;
 } = {}) {
   const { user, activeMembership, can } = useAuth();
@@ -248,7 +249,7 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onCreate
               const name=[owner.first_name,owner.last_name].filter(Boolean).join(' ');
               const selected=owner.id===selectedOwnerId;
               return <button type="button" key={owner.id} aria-pressed={selected}
-                onClick={()=>onSelect(owner.id,name)}
+                onClick={()=>selected&&onClearSelection?onClearSelection():onSelect(owner.id,name)}
                 className={'flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 '+
                   (selected?'border-slate-900 bg-slate-100':'border-stone-200 hover:border-slate-500 hover:bg-stone-50')}>
                 <span className="min-w-0">
@@ -260,7 +261,7 @@ export function OwnersModule({ownersOnly=false,selectedOwnerId,onSelect,onCreate
                 </span>
                 <span className="shrink-0 text-xs font-semibold">
                   {selected?<span className="inline-flex items-center gap-1 text-emerald-800">
-                    <CheckCircle2 className="h-4 w-4" /> Seleccionado
+                    <CheckCircle2 className="h-4 w-4" /> {onClearSelection?'Quitar selección':'Seleccionado'}
                   </span>:'Seleccionar'}
                 </span>
               </button>;
