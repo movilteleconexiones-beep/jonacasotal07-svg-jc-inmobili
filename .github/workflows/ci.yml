@@ -291,6 +291,8 @@ jobs:
         run: node --test tests/rental-intake-guided-flow.test.mjs
       - name: Owner and dwelling one-click selection guided intake tests
         run: node --test tests/rental-intake-owner-click-selection.test.mjs
+      - name: Multi-property owner autofill and rental availability regression
+        run: node --import tsx --test tests/rental-multi-owner-property.test.mjs
       - name: Owner deduction pure accounting tests
         run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
       - name: Owner deduction invoice and payment PDF security tests

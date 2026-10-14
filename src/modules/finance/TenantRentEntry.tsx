@@ -5,6 +5,7 @@ import { parseMoneyInput } from '../../core/rent-owner-money';
 import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
 import { SignedLeaseDocuments } from './SignedLeaseDocuments';
+import { canPrepareRental } from '../../core/rental-owner-selection';
 
 export type RentalEntryMode='STANDARD'|'DRAFT'|'SIGNED_PDF'|'APPROVAL'|'BILLING';
 type Option={id:string;label:string};
@@ -79,6 +80,31 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     }
     setBusy(true);setError('');
     try {
+      if (mode==='DRAFT') {
+        // Read-only preflight: never trust a visual owner name or a property inventory code.
+        // Activation is still protected by database constraints and administrator approval.
+        const [propertyCheck,occupationCheck]=await Promise.all([
+          supabase.from('properties').select('id,status,operation_type')
+            .eq('organization_id',organizationId).eq('id',propertyId).maybeSingle(),
+          supabase.from('leases').select('id',{count:'exact',head:true})
+            .eq('organization_id',organizationId).eq('property_id',propertyId)
+            .in('status',['ACTIVE','RENEWAL']),
+        ]);
+        if(propertyCheck.error||!propertyCheck.data||occupationCheck.error||occupationCheck.count==null){
+          setError('No se pudo verificar la disponibilidad del inmueble. Vuelve a consultar antes de guardar.');return;
+        }
+        if(!canPrepareRental({...propertyCheck.data,code:'',title:'',
+          has_active_lease:occupationCheck.count>0})){
+          setError('El inmueble no está disponible para un nuevo arrendamiento o tiene contrato activo.');return;
+        }
+        if(ownerId){
+          const {data:link,error:linkError}=await supabase.from('property_ownerships')
+            .select('owner_id').eq('property_id',propertyId).eq('owner_id',ownerId).maybeSingle();
+          if(linkError||!link){
+            setError('El propietario elegido no está vinculado a este inmueble. Corrige la selección antes de guardar.');return;
+          }
+        }
+      }
       const {data:created,error:failure}=await supabase.from('leases').insert({
         organization_id:organizationId,property_id:propertyId,tenant_id:tenantId,owner_id:ownerId||null,
         monthly_rent:rent,start_date:start,end_date:end||null,
