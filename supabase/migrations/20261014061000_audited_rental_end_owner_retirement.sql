@@ -41,8 +41,12 @@ SET search_path=pg_catalog
 AS $$
 DECLARE pending boolean;
 BEGIN
- IF TG_OP='INSERT' OR (NEW.owner_id,NEW.property_id,NEW.status)
-                       IS DISTINCT FROM (OLD.owner_id,OLD.property_id,OLD.status) THEN
+ IF TG_OP='INSERT' THEN
+   NULL; -- OLD is absent; always enforce withdrawn-property check below.
+ ELSIF (NEW.owner_id,NEW.property_id,NEW.status)
+        IS NOT DISTINCT FROM (OLD.owner_id,OLD.property_id,OLD.status) THEN
+   RETURN NEW;
+ END IF;
    IF NEW.status IN ('DRAFT','ACTIVE','RENEWAL') AND
       (EXISTS (SELECT 1 FROM public.properties p
                 WHERE p.id=NEW.property_id AND p.organization_id=NEW.organization_id
@@ -53,7 +57,6 @@ BEGIN
             AND o.agency_status='RETIRED'))) THEN
       RAISE EXCEPTION 'Property or owner withdrawn from the agency' USING ERRCODE='23514';
    END IF;
- END IF;
 
  IF TG_OP='UPDATE' AND OLD.status IN ('ACTIVE','RENEWAL') AND NEW.status<>OLD.status THEN
    IF NEW.status<>'FINISHED' THEN
