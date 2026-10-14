@@ -318,7 +318,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
             aria-label="Quitar selección de propietario"
             className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-stone-100">Quitar selección</button>}
         </div>
-      </div>
+      </div>}
       {selectionNotice && <p role="status" className="text-xs text-slate-600">{selectionNotice}</p>}
       <p className="text-xs text-slate-600">
         Elegir un propietario aquí lo prepara para el contrato; no modifica las escrituras,
