@@ -109,7 +109,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const tenantSecondary = safeTenantColor(branding.secondaryColor, TENANT_DEFAULT_SECONDARY);
   const [view, setView] = useState<DashboardView>('DASHBOARD');
-  const [clientPortalMode,setClientPortalMode]=useState(false);
+  const [clientPortalMode,setClientPortalMode]=useState(true);
   const mode=tenantAccessMode(activeMembership?.roles??[]);
   useEffect(()=>{
     // Start in the private portal when CLIENT is one of the assigned roles.
@@ -194,7 +194,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       return;
     }
     // Refresh the counters whenever a user returns from an operational panel.
-    if (view !== 'DASHBOARD') return;
+    if (view !== 'DASHBOARD' || mode.clientLinkedRole && clientPortalMode) return;
 
     let cancelled = false;
 
@@ -238,7 +238,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, can, view]);
+  }, [organizationId, can, view, clientPortalMode, mode.clientLinkedRole]);
 
   const menuItems = useMemo(
     () =>
