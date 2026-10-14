@@ -8,9 +8,9 @@ CREATE TABLE IF NOT EXISTS public.owner_payout_review_requests (
  created_at timestamptz NOT NULL DEFAULT now(),
  reviewed_by uuid REFERENCES auth.users(id),
  reviewed_at timestamptz,
- review_note text,
- UNIQUE(organization_id,payout_id,status)
+ review_note text
 );
+CREATE UNIQUE INDEX IF NOT EXISTS owner_payout_one_pending_review ON public.owner_payout_review_requests(organization_id,payout_id) WHERE status='PENDING';
 ALTER TABLE public.owner_payout_review_requests ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.owner_payout_review_requests FROM PUBLIC,anon,authenticated;
 GRANT SELECT ON public.owner_payout_review_requests TO authenticated;
