@@ -8,7 +8,7 @@ import { effectiveCommissionRows } from '../../core/effective-commissions';
 import { reconciliationAlerts } from '../../core/owner-reconciliation-alerts';
 import {
   excelSafeCell, monthlyDateBounds, financialTotal, rentPeriodTotals,
-  selectedWorkbookContent, MONTHLY_METRICS,
+  selectedWorkbookContent, MONTHLY_METRICS, MONTHLY_MODULE_NAMES,
   type MonthlyReportSelection, type MonthlyMetricKey,
 } from '../../core/accounting-export';
 
@@ -25,28 +25,25 @@ const MONTHLY_SECTIONS = [
   { name:'Cánones', table:'rent_payments', permission:PERMISSIONS.RENT_PAYMENTS_VIEW, date:'period_month', cols:'lease_id,period_month,expected_amount,paid_amount,status,paid_at' },
   { name:'Liquidaciones', table:'owner_statements', permission:PERMISSIONS.OWNER_STATEMENTS_VIEW, date:'period_month', cols:'id,lease_id,owner_id,period_month,gross_income,commission_amount,tax_amount,other_deductions,net_amount,status' },
 ] as const;
-const currentMonth = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-};
 const safeFilename = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,40);
 
 interface MonthlyAccountingReportProps {
   selection: MonthlyReportSelection | null;
   onSelect: (value: MonthlyReportSelection) => void;
+  month: string;
+  onMonthChange: (month: string) => void;
 }
 const DISPLAYED_METRICS: MonthlyMetricKey[] = [
   'EXPECTED_RENT','RECORDED_RENT','PENDING_RENT',
   'OWNER_NET','OWNER_COMMISSION','OWNER_OTHER',
 ];
 
-export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccountingReportProps) {
+export function MonthlyAccountingReport({ selection, onSelect, month, onMonthChange }: MonthlyAccountingReportProps) {
   const { activeMembership, can } = useAuth();
   const { branding } = useTenantBranding();
   const organizationId = activeMembership?.organization.id;
   const allowed = can(PERMISSIONS.REPORTS_VIEW);
-  const [month,setMonth] = useState(currentMonth);
   const [sheets,setSheets] = useState<ReportSheet[]>([]);
   const [staleCount,setStaleCount] = useState(0);
   const [staleStatementIds,setStaleStatementIds] = useState<string[]>([]);
@@ -118,6 +115,33 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
             ? effectiveCommissionRows(rows as ({id:string;status:string;amount:number|null}&DataRow)[],rectifications)
             : rows;
           results.push({name:section.name,columns,rows:effectiveRows});
+        }
+        // A closed deal belongs to the month of closing, never its creation month.
+        // Colombia uses a fixed -05:00 civil offset (no daylight-saving time).
+        if (can(PERMISSIONS.DEALS_VIEW)) {
+          const {data,count,error:closedError}=await supabase.from('deals')
+            .select('id,stage,operation_type,asking_price,offered_price,final_price,commission_amount,closed_at',{count:'exact'})
+            .eq('organization_id',organizationId).eq('stage','WON')
+            .gte('closed_at',start+'T00:00:00-05:00').lt('closed_at',end+'T00:00:00-05:00')
+            .order('closed_at',{ascending:true}).limit(1000);
+          if(closedError)throw new Error('No se pudieron consultar los cierres por fecha: '+closedError.message);
+          if(count==null||count>(data??[]).length)throw new Error('La lista de cierres del mes está incompleta.');
+          results.push({name:'Cierres',columns:['id','closed_at','operation_type','stage','final_price','offered_price','asking_price','commission_amount'],rows:data??[]});
+        }
+        // ACCEPTED here denotes accepted intake, not an active management contract.
+        if (can(PERMISSIONS.PROPERTIES_VIEW)&&can(PERMISSIONS.CLIENTS_VIEW)) {
+          const {data,count,error:adminError}=await supabase.from('property_consignments')
+            .select('reference,status,reviewed_at,payload',{count:'exact'})
+            .eq('organization_id',organizationId).eq('status','ACCEPTED')
+            .gte('reviewed_at',start+'T00:00:00-05:00').lt('reviewed_at',end+'T00:00:00-05:00')
+            .order('reviewed_at',{ascending:true}).limit(1000);
+          if(adminError)throw new Error('No se pudieron consultar las consignaciones aceptadas: '+adminError.message);
+          if(count==null||count>(data??[]).length)throw new Error('Las consignaciones del mes están incompletas.');
+          results.push({name:'Administraciones',columns:['reference','status','reviewed_at','operation_type'],
+            rows:(data??[]).map(item=>({
+              reference:item.reference,status:item.status,reviewed_at:item.reviewed_at,
+              operation_type:(item.payload as {operation_type?:string}|null)?.operation_type??'',
+            }))});
         }
         if (deductionQuery) results.push({
           name:'Deducciones',
@@ -252,7 +276,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
         ['Ítem seleccionado',excelSafeCell(chosen.title)],
         ['Documento','Informe interno para revisión contable, NO factura electrónica DIAN'],
         ['Criterio','Se incluyen solo los registros del mes y de la inmobiliaria activa para el ítem seleccionado.'],
-        ['Precisión','Registros comerciales por fecha de creación; cánones y liquidaciones por período.'],
+        ['Precisión','Cierres por fecha de cierre; consignaciones por aprobación; registros comerciales por creación; cánones y liquidaciones por período.'],
         ...(chosen.total!==null ? [['Total del indicador',chosen.total]] as (string|number)[][] : []),
         [],chosen.columns.map(column=>excelSafeCell(column)),
         ...chosen.rows.map(row=>chosen.columns.map(column=>excelSafeCell(row[column]))),
@@ -289,7 +313,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-sm font-semibold">Mes del informe
-          <input type="month" value={month} onChange={e=>setMonth(e.target.value)}
+          <input type="month" value={month} onChange={e=>onMonthChange(e.target.value)}
             className="mt-1 block rounded-lg border border-stone-300 px-3 py-2" />
         </label>
         <button type="button" onClick={()=>setRevision(v=>v+1)}
@@ -303,7 +327,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
         </button>
       </div>
     </div>
-    <p className="text-xs text-slate-500">Selecciona un solo cuadro o módulo con un clic. Se exportará exclusivamente ese ítem y sus registros del mes, no todos los cuadros. Los indicadores superiores son totales generales; su exportación corresponde al mes elegido. El Excel puede contener datos personales: guárdalo de forma segura.</p>
+    <p className="text-xs text-slate-500">Selecciona un solo cuadro o módulo con un clic. Se exportará exclusivamente ese ítem y sus registros del mes, no todos los cuadros. Los indicadores de cierres y administración corresponden al mes elegido; inventario y clientes son acumulados. El Excel puede contener datos personales: guárdalo de forma segura.</p>
     {!selection && <p className="text-sm font-medium text-slate-600">Selecciona un ítem para habilitar la exportación individual.</p>}
     {selection && <p role="status" className="text-sm font-semibold text-slate-800">
       Seleccionado: {selectedLabel} · Mes {month}. El Excel incluirá únicamente este ítem.
@@ -326,7 +350,7 @@ export function MonthlyAccountingReport({ selection, onSelect }: MonthlyAccounti
           })}
         </div>
         <div className="flex flex-wrap gap-2" aria-label="Seleccionar módulo para exportar">
-          {sheets.map(sheet=>{
+          {sheets.filter(sheet=>MONTHLY_MODULE_NAMES.includes(sheet.name as (typeof MONTHLY_MODULE_NAMES)[number])).map(sheet=>{
             const isSelected=selection?.kind==='module' && selection.name===sheet.name;
             return <button key={sheet.name} type="button" aria-pressed={isSelected}
               onClick={()=>onSelect({kind:'module',name:sheet.name as Extract<MonthlyReportSelection,{kind:'module'}>['name']})}
