@@ -330,6 +330,11 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
   const allowed = can(PERMISSIONS.OWNER_STATEMENTS_VIEW);
   const mayIssue = can(PERMISSIONS.OWNER_STATEMENTS_CREATE) && (activeMembership?.roles.some(role=>role.key==='ADMIN'||role.key==='ORGANIZATION_OWNER')??false);
   const [issuing,setIssuing] = useState(false);
+  const [payoutStatementId,setPayoutStatementId] = useState<string|null>(null);
+  const [payouts,setPayouts] = useState<Array<{id:string;amount:number;paid_on:string;payment_method:string;payment_reference:string;evidence_reference:string}>>([]);
+  const [payoutBusy,setPayoutBusy] = useState(false);
+  const [payoutError,setPayoutError] = useState('');
+
   const [statements, setStatements] = useState<OwnerStatement[]>([]);
   const [owners, setOwners] = useState<Identity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -378,6 +383,41 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
       setRevision(value=>value+1);
     }catch(cause){setError(cause instanceof Error?cause.message:'No se pudo confirmar la emisión.');}
     finally{setIssuing(false);}
+  }
+
+  async function loadPayouts(statementId:string){
+    const {data,error:readError}=await supabase.from('owner_statement_payouts')
+      .select('id,amount,paid_on,payment_method,payment_reference,evidence_reference')
+      .eq('organization_id',organizationId).eq('statement_id',statementId)
+      .order('recorded_at',{ascending:false});
+    if(readError){setPayoutError('No fue posible consultar los abonos.');return;}
+    setPayouts(data??[]);setPayoutError('');
+  }
+  async function recordPayout(event:FormEvent<HTMLFormElement>, statement:OwnerStatement){
+    event.preventDefault();
+    if(!mayIssue||payoutBusy||statement.status!=='GENERATED')return;
+    const form=new FormData(event.currentTarget);
+    const paidAmount=parseMoneyInput(String(form.get('amount')??''));
+    const paidOn=String(form.get('paid_on')??'');
+    const method=String(form.get('payment_method')??'');
+    const reference=String(form.get('payment_reference')??'').trim();
+    const evidence=String(form.get('evidence_reference')??'').trim();
+    if(!Number.isFinite(paidAmount)||paidAmount<=0||!/^\d{4}-\d{2}-\d{2}$/.test(paidOn)||
+       !['TRANSFER','CASH','CHECK','OTHER'].includes(method)||reference.length<5||evidence.length<5){
+      setPayoutError('Completa un importe válido, fecha, medio, referencia y soporte.');return;
+    }
+    if(!window.confirm('Confirma que este dinero YA fue entregado al propietario y que tienes el comprobante. Este registro no realiza transferencias.'))return;
+    setPayoutBusy(true);setPayoutError('');
+    try{
+      const {error:recordError}=await supabase.rpc('admin_record_owner_payout',{
+        p_statement_id:statement.id,p_organization_id:organizationId,p_amount:paidAmount,
+        p_paid_on:paidOn,p_payment_method:method,p_payment_reference:reference,p_evidence_reference:evidence,
+      });
+      if(recordError)throw recordError;
+      await loadPayouts(statement.id);
+      setRevision(value=>value+1);
+    }catch(cause){setPayoutError(cause instanceof Error?cause.message:'No se pudo registrar el abono.');}
+    finally{setPayoutBusy(false);}
   }
 
   if (!allowed) return null;
@@ -431,10 +471,38 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
                   onClick={()=>void confirmIssue(statement)}
                   className="ml-2 rounded-lg border border-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-800 disabled:opacity-40">
                   Confirmar emisión
-                </button>}</td>
+                </button>}
+                <button type="button" className="ml-2 rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                  onClick={()=>{setPayoutStatementId(payoutStatementId===statement.id?null:statement.id);setPayoutError('');void loadPayouts(statement.id);}}>
+                  {payoutStatementId===statement.id?'Ocultar pagos':'Consultar pagos'}
+                </button></td>
             </tr>;
           })}</tbody>
         </table>
+        {payoutStatementId&&statements.some(statement=>statement.id===payoutStatementId)&&(()=>{
+          const selected=statements.find(statement=>statement.id===payoutStatementId)!;
+          const paid=payouts.reduce((sum,p)=>sum+Number(p.amount),0);
+          const balance=Number(selected.net_amount)-paid;
+          return <section className="mt-4 rounded-xl border border-slate-200 p-4" aria-label="Pagos al propietario">
+            <h3 className="font-semibold">Pagos y abonos al propietario</h3>
+            <p className="text-sm text-slate-600">Registrado: {cop(paid)} · Saldo: {cop(balance)}. El registro no envía dinero.</p>
+            {payoutError&&<p role="alert" className="my-2 text-sm text-red-700">{payoutError}</p>}
+            {payouts.length>0&&<ul className="mt-2 space-y-1 text-sm">{payouts.map(p=><li key={p.id}>
+              {p.paid_on} · {cop(Number(p.amount))} · {p.payment_method} · Referencia: {p.payment_reference} · Soporte: {p.evidence_reference}
+            </li>)}</ul>}
+            {mayIssue&&selected.status==='GENERATED'&&<form onSubmit={event=>void recordPayout(event,selected)} className="mt-3 grid gap-2 md:grid-cols-2">
+              <p className="md:col-span-2 text-sm font-semibold">Registrar dinero ya entregado (no inicia pago)</p>
+              <label className="text-sm">Importe COP<input name="amount" type="number" step="0.01" min="0.01" max={Math.max(0,balance)} required className="block w-full rounded-lg border p-2"/></label>
+              <label className="text-sm">Fecha del pago<input name="paid_on" type="date" max={new Date().toISOString().slice(0,10)} required className="block w-full rounded-lg border p-2"/></label>
+              <label className="text-sm">Medio<select name="payment_method" required className="block w-full rounded-lg border p-2">
+                <option value="TRANSFER">Transferencia</option><option value="CASH">Efectivo</option><option value="CHECK">Cheque</option><option value="OTHER">Otro</option>
+              </select></label>
+              <label className="text-sm">Referencia del pago<input name="payment_reference" minLength={5} maxLength={140} required className="block w-full rounded-lg border p-2"/></label>
+              <label className="text-sm md:col-span-2">Referencia del soporte (comprobante verificable)<input name="evidence_reference" minLength={5} maxLength={500} required className="block w-full rounded-lg border p-2"/></label>
+              <button disabled={payoutBusy||balance<=0} type="submit" className="rounded-lg border border-emerald-500 p-2 font-semibold text-emerald-800 disabled:opacity-40">Confirmar registro del abono</button>
+            </form>}
+          </section>;
+        })()}
         <p className="mt-2 text-xs text-slate-600">Generar comprobante crea el documento para consulta; no cambia el estado de la liquidación ni confirma una transferencia bancaria al propietario.</p>
         {statements.length === 100 && <p className="mt-2 text-xs text-amber-800">Mostrando hasta 100 liquidaciones recientes.</p>}
       </div>}
