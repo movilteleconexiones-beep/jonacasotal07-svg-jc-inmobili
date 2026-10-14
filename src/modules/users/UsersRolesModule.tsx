@@ -600,6 +600,22 @@ export function UsersRolesModule() {
         error={invitationLoadError} canCancel={can(PERMISSIONS.USERS_EDIT)}
         onCancel={id=>void cancelInvitation(id)}/>
 
+      {members.some(member=>member.user_id===user?.id)&&
+        <section aria-label="Vinculación del usuario actual" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm">
+          <h2 className="font-semibold">Mi cuenta · pruebas de cliente y propietario</h2>
+          <p className="mt-1 text-slate-700">
+            {portalLinks.some(link=>link.user_id===user?.id&&link.contact_id)
+              ? 'Tu cuenta ya está vinculada a una ficha de cliente de esta inmobiliaria.'
+              : 'Tu cuenta todavía no está vinculada a una ficha de cliente.'}
+            {' '}Puedes consultar o modificar el vínculo en tu fila de Miembros,
+            usando «Portal como cliente». No es necesario crear otro usuario.
+          </p>
+          <p className="mt-1 text-xs text-slate-600">
+            Ser propietario de un inmueble y ser titular administrativo de la inmobiliaria
+            son condiciones diferentes. Probar el portal privado no revoca privilegios elevados.
+          </p>
+        </section>}
+
       <div className="rounded-2xl border border-stone-200 bg-white">
         <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-5 py-4">
           <div>
