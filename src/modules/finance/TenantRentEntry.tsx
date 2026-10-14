@@ -23,7 +23,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   organizationId:string;mode?:RentalEntryMode;preferredPropertyId?:string;preferredTenantId?:string;preferredOwnerId?:string;preferredLeaseId?:string;
   onDraftCreated?:(id:string)=>void;onPdfUploaded?:(id:string)=>void;onActivated?:(id:string)=>void;
 }) {
-  const {can,activeMembership}=useAuth();
+  const {can,activeMembership,user}=useAuth();
   const contractAllowed=can(PERMISSIONS.LEASES_CREATE);
   const activationAllowed=can(PERMISSIONS.LEASES_EDIT) &&
     (activeMembership?.roles.some(role=>role.key==='ADMIN')??false);
@@ -185,7 +185,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       !['CASH','BANK_TRANSFER','OTHER'].includes(method)||reference.length<3||reference.length>140){
       setError('Verifica el cobro, el abono y la referencia del soporte.');return;
     }
-    const actor=activeMembership?.user_id;
+    const actor=user?.id;
     if(file&&!actor){setError('No se pudo verificar el usuario responsable del comprobante.');return;}
     // Keep idempotency and the uploaded path for exact retries (including
     // the file), preventing credit duplication if the network disconnects.
