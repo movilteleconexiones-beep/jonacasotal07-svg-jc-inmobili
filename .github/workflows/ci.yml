@@ -208,6 +208,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/owner_reconciliation_undo_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/safe_tenant_rent_edits_assertions.sql
+      - name: Owner payout audit review requests regression
+        run: node --test tests/owner-payout-review-requests.test.mjs
       - name: Owner payout private evidence upload regression
         run: node --test tests/owner-payout-evidence-upload.test.mjs
       - name: Owner payout ledger authorization regression
