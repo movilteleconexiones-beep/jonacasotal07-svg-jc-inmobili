@@ -53,6 +53,8 @@ jobs:
         run: node --test tests/platform-billing-access-review.test.mjs
       - name: Wompi release readiness preflight checks
         run: node --test tests/wompi-release-readiness.test.mjs
+      - name: Owner deduction administrator approval regression
+        run: node --test tests/owner-deduction-admin-approval.test.mjs
       - name: Wompi private runtime readiness regression
         run: node --test tests/wompi-runtime-readiness.test.mjs
       - name: Wompi HTTP endpoint tests
