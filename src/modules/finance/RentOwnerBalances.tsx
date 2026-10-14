@@ -412,11 +412,11 @@ export function OwnerNetStatementsSummary({ organizationId }: { organizationId: 
                       note:'Las deducciones individuales y los comprobantes de pago deben ser conciliados por la inmobiliaria. No acredita transferencia al propietario.',
                     });
                   } catch (cause) {setError(cause instanceof Error?cause.message:'No fue posible emitir el comprobante.');}
-                }}>Emitir liquidación</button></td>
+                }}>Generar comprobante</button></td>
             </tr>;
           })}</tbody>
         </table>
-        <p className="mt-2 text-xs text-slate-600">El estado registrado no confirma por sí solo una transferencia bancaria al propietario.</p>
+        <p className="mt-2 text-xs text-slate-600">Generar comprobante crea el documento para consulta; no cambia el estado de la liquidación ni confirma una transferencia bancaria al propietario.</p>
         {statements.length === 100 && <p className="mt-2 text-xs text-amber-800">Mostrando hasta 100 liquidaciones recientes.</p>}
       </div>}
   </section>;
