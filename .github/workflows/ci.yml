@@ -291,6 +291,8 @@ jobs:
         run: node --test tests/rental-intake-guided-flow.test.mjs
       - name: Rental and owner agency lifecycle UI regression
         run: node --test tests/rental-agency-lifecycle.test.mjs
+      - name: Approved lease activation and synchronized property status
+        run: node --test tests/rental-property-state-sync.test.mjs
       - name: Owner and dwelling one-click selection guided intake tests
         run: node --test tests/rental-intake-owner-click-selection.test.mjs
       - name: Multi-property owner autofill and rental availability regression
