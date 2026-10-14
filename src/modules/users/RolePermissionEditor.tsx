@@ -40,7 +40,8 @@ export function RolePermissionEditor({organizationId,role,permissions,onClose,on
 }){
  const {can,activeMembership,refreshMemberships}=useAuth();
  const admin=activeMembership?.roles.some(x=>x.key==='ADMIN')??false;
- const editable=admin&&can(PERMISSIONS.ROLES_EDIT)&&role.active;
+ const isPrivateClient=role.key==='CLIENT';
+ const editable=admin&&can(PERMISSIONS.ROLES_EDIT)&&role.active&&!isPrivateClient;
  const baseline=useMemo(()=>currentPermissions(role),[role]);
  const [chosen,setChosen]=useState<Set<string>>(()=>new Set(baseline));
  const [search,setSearch]=useState('');
@@ -109,6 +110,11 @@ export function RolePermissionEditor({organizationId,role,permissions,onClose,on
          Los perfiles base no se eliminan. Los permisos de un usuario con varios roles se acumulan.
          Los permisos críticos de administración permanecen protegidos.
        </p>
+       {isPrivateClient&&<p role="status" className="mt-2 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+         El perfil Cliente es exclusivamente para el portal privado. Sus datos se autorizan
+         vinculándolo desde «Usuarios → Portal como cliente». No se pueden asignar
+         permisos operativos generales porque permitirían consultar información de otros clientes.
+       </p>}
      </div>
      <button type="button" onClick={onClose} disabled={saving}
        className="inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-sm">

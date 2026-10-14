@@ -12,6 +12,7 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 import { RolePermissionEditor } from './RolePermissionEditor';
+import { MemberPermissionOverview } from './MemberPermissionOverview';
 
 const isTenantRole = (role: { key: string | null; name: string }) =>
   role.key !== 'ORGANIZATION_OWNER' && role.key !== 'SUPER_ADMIN' && role.key !== 'PLATFORM_OWNER' && !/super.?admin|platform.?admin/i.test(role.name);
@@ -81,6 +82,7 @@ export function UsersRolesModule() {
 
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [roles, setRoles] = useState<RoleRow[]>([]);
+  const [allRoles,setAllRoles]=useState<RoleRow[]>([]);
   const [permissions, setPermissions] = useState<PermissionRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
   const [contacts, setContacts] = useState<ContactOption[]>([]);
@@ -93,6 +95,7 @@ export function UsersRolesModule() {
   const [showRoleCreator, setShowRoleCreator] = useState(false);
   const [workingOn, setWorkingOn] = useState<string | null>(null);
   const [selectedRoleId,setSelectedRoleId]=useState<string|null>(null);
+  const [expandedMemberId,setExpandedMemberId]=useState<string|null>(null);
   const canEditPermissions=(activeMembership?.roles.some(role=>role.key==='ADMIN')??false)
     &&can(PERMISSIONS.ROLES_EDIT);
 
@@ -167,6 +170,7 @@ export function UsersRolesModule() {
     }
 
     setRoles(((rolesResult.data ?? []) as unknown as RoleRow[]).filter(isTenantRole));
+    setAllRoles((rolesResult.data ?? []) as unknown as RoleRow[]);
     setPermissions((permissionsResult.data ?? []) as PermissionRow[]);
     setInvitations((invitationsResult.data ?? []) as unknown as InvitationRow[]);
     setContacts((contactsResult.data ?? []) as ContactOption[]);
@@ -715,6 +719,17 @@ export function UsersRolesModule() {
                     )}
                   </div>
                 </div>
+                {can(PERMISSIONS.USERS_VIEW) && <div className="mt-4 border-t border-stone-100 pt-3">
+                  <button type="button" aria-expanded={expandedMemberId===member.id}
+                    onClick={()=>setExpandedMemberId(current=>current===member.id?null:member.id)}
+                    className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-semibold">
+                    {expandedMemberId===member.id?'Ocultar autorizaciones':'Consultar permisos del usuario'}
+                  </button>
+                  {expandedMemberId===member.id &&
+                    <MemberPermissionOverview key={member.id} memberId={member.id}
+                      status={member.status} assignments={member.member_roles}
+                      allRoles={allRoles} catalog={permissions}/>}
+                </div>}
               </article>
             );
           })}
