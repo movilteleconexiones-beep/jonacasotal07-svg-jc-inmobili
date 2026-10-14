@@ -779,7 +779,7 @@ export function CommissionsModule() {
         <h2 className="font-semibold">Solicitudes de corrección sobre comisiones pagadas</h2>
         <p className="mb-3 text-xs text-slate-600">La aprobación autoriza la revisión contable, no modifica ni borra el pago original.</p>
         {reviews.some(review=>review.status==='PENDING'&&!corrections[review.commission_id]) ?
-          <div className="space-y-2">{reviews.filter(review=>review.status==='PENDING'&&!corrections[review.commission_id]).map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+          <div className="space-y-2">{reviews.filter(review=>review.status==='PENDING'&&!corrections[review.commission_id]&&!review.archived_at).map(review=><div key={review.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
           <div><strong>{review.request_type==='EDIT'?'Corrección':'Anulación solicitada'}</strong>
             <span className="ml-2">{corrections[review.commission_id] ? 'Rectificada contablemente' : etiquetaES(review.status)}</span>
             <div className="text-xs text-slate-600">{review.reason}</div>
@@ -800,7 +800,7 @@ export function CommissionsModule() {
             </div>}
           </div>)}</div> :
           <p className="mb-3 text-sm text-slate-500">No hay solicitudes pendientes de autorización.</p>}
-        {reviews.some(review=>review.status!=='PENDING'||!!corrections[review.commission_id])&&
+        {reviews.some(review=>(review.status!=='PENDING'||!!corrections[review.commission_id])&&!review.archived_at)&&
           <div className="mt-4 rounded-xl border bg-slate-50 p-3">
             <button type="button" aria-expanded={showCompletedReviews} onClick={()=>setShowCompletedReviews(value=>!value)}
               className="flex w-full items-center justify-between gap-2 text-left text-sm font-semibold text-slate-800">
