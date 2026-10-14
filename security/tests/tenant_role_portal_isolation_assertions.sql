@@ -1,3 +1,17 @@
+CREATE FUNCTION pg_temp.expect_rejection(command text,expected text)
+RETURNS void LANGUAGE plpgsql AS $
+DECLARE state text;
+BEGIN
+ BEGIN EXECUTE command; EXCEPTION WHEN OTHERS THEN
+  GET STACKED DIAGNOSTICS state=RETURNED_SQLSTATE;
+ END;
+ IF state IS DISTINCT FROM expected THEN
+  RAISE EXCEPTION 'Expected %, received %, command %',
+    expected,coalesce(state,'SUCCESS'),command;
+ END IF;
+END;
+$;
+
 -- Continuing the isolated two-tenant permissions fixture, not production.
 -- Set a MANAGER profile to verify that both operational roles are editable.
 INSERT INTO public.roles(id,organization_id,key,name,is_system_role,active)
