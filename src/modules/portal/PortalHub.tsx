@@ -130,18 +130,18 @@ export function PortalHub() {
         // Never retrieve unrelated contracts or private documents through
         // the broader privileges a mixed organization-owner account retains.
         const docs=await Promise.all([
-          ...ownerIds.length?[checked(supabase.from('documents')
+          ...(ownerIds.length?[checked(supabase.from('documents')
             .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
             .eq('organization_id',organizationId).eq('entity_type','OWNER')
-            .in('entity_id',ownerIds).limit(501))]:[],
-          ...contactIds.length?[checked(supabase.from('documents')
+            .in('entity_id',ownerIds).limit(501))]:[]),
+          ...(contactIds.length?[checked(supabase.from('documents')
             .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
             .eq('organization_id',organizationId).eq('entity_type','CONTACT')
-            .in('entity_id',contactIds).limit(501))]:[],
-          ...propertyIds.length?[checked(supabase.from('documents')
+            .in('entity_id',contactIds).limit(501))]:[]),
+          ...(propertyIds.length?[checked(supabase.from('documents')
             .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
             .eq('organization_id',organizationId).eq('entity_type','PROPERTY')
-            .in('entity_id',propertyIds).limit(501))]:[],
+            .in('entity_id',propertyIds).limit(501))]:[]),
         ]);
         if(cancelled)return;
         setProperties(linkedProperties as PropertyRow[]);
