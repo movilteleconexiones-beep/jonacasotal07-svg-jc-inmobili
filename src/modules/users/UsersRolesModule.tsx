@@ -469,7 +469,7 @@ export function UsersRolesModule() {
         <div>
           <h1 className="text-2xl font-bold">Usuarios, roles y permisos</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Controla quién accede al sistema y qué puede hacer dentro de esta inmobiliaria. Haz clic en un perfil para consultar sus permisos y, si eres administrador, agregar o quitar autorizaciones.
+            Controla quién accede al sistema y qué puede hacer dentro de esta inmobiliaria. Los roles marcados se acumulan; no son un selector de vista. Haz clic en un perfil para consultar sus permisos y, si eres administrador, agregar o quitar autorizaciones.
           </p>
           <p className="mt-2 text-xs text-slate-600">Retirar usuario desactiva solo su acceso a esta inmobiliaria, sin borrar su cuenta, contratos ni historial. Los roles base están protegidos; solo los personalizados pueden desactivarse.</p>
         </div>
