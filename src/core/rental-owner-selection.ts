@@ -34,7 +34,8 @@ export function canPrepareRental(property: LinkedRentalProperty): boolean {
 export function rentalAvailability(property: LinkedRentalProperty): string {
   if (property.has_active_lease) return 'Contrato activo · no disponible';
   if (!['RENT', 'SALE_OR_RENT'].includes(property.operation_type)) return 'No habilitado para arriendo';
-  if (['RENTED', 'SOLD', 'INACTIVE'].includes(property.status)) return 'No disponible';
+  if (property.status === 'RENTED') return 'Arrendado · no disponible';
+  if (['SOLD', 'INACTIVE'].includes(property.status)) return 'No disponible';
   if (property.status === 'AVAILABLE') return 'Disponible';
   if (property.status === 'DRAFT') return 'Borrador de inventario · revisar';
   if (['RESERVED', 'NEGOTIATION'].includes(property.status)) return 'Reservado/en negociación · revisar';
