@@ -49,6 +49,7 @@ export function ReportsModule() {
     const date = new Date();
     return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
   });
+  const changeMonth=(value:string)=>{if(/^\d{4}-(0[1-9]|1[0-2])$/.test(value))setMonth(value);};
   const canSeeAdminIntakes = can(PERMISSIONS.PROPERTIES_VIEW) && can(PERMISSIONS.CLIENTS_VIEW);
   const canSeeAdminFees = can(PERMISSIONS.OWNER_STATEMENTS_VIEW);
 
@@ -190,7 +191,7 @@ export function ReportsModule() {
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-4">
         <label htmlFor="commercial-report-month" className="text-sm font-semibold">Mes del reporte comercial</label>
         <input id="commercial-report-month" type="month" value={month}
-          onChange={event=>{if(/^\\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value))setMonth(event.target.value);}}
+          onChange={event=>changeMonth(event.target.value)}
           className="rounded-lg border border-stone-300 px-3 py-2" />
         <span className="text-xs text-slate-500">El mismo mes se usa en los informes y archivos Excel.</span>
       </div>
@@ -214,7 +215,7 @@ export function ReportsModule() {
       </div>
 
       <MonthlyAccountingReport key={organizationId ?? 'no-organization'} month={month}
-        onMonthChange={setMonth} selection={selectedReport} onSelect={setSelectedReport} />
+        onMonthChange={changeMonth} selection={selectedReport} onSelect={setSelectedReport} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Metric title="Comisiones pendientes · acumulado" value={loading || error ? '—' : money(state.pendingCommissions)} />
