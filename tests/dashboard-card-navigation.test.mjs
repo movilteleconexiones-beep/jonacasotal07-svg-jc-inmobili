@@ -45,6 +45,6 @@ test('cards use an actual button, accessible label, visible navigation affordanc
 
 test('returning to Inicio refreshes metric counts without changing tenant boundaries', () => {
   assert.match(source, /if \(view !== 'DASHBOARD'\) return/);
-  assert.match(source, /\}, \[organizationId, can, view\]\)/);
+  assert.match(source, /\}, \[organizationId, can, view, clientPortalMode, mode\.clientLinkedRole\]\)/);
   assert.match(source, /\.from\('deals'\)\.select\('id', \{ count: 'exact', head: true \}\)\.eq\('organization_id', organizationId\)/);
 });
