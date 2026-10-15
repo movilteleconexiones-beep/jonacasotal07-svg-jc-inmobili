@@ -111,9 +111,13 @@ ALTER POLICY license_acceptance_insert ON public.license_acceptances TO authenti
     WHERE l.id=organization_license_id AND jco_private.is_internal_staff(l.organization_id)));
 ALTER POLICY import_rows_manage ON public.import_job_rows TO authenticated
  USING (EXISTS(SELECT 1 FROM public.import_jobs j WHERE j.id=import_job_id
-  AND (public.is_platform_admin() OR jco_private.is_internal_staff(j.organization_id))))
+  AND (public.is_platform_admin() OR jco_private.is_internal_staff(j.organization_id))
+  AND ((j.entity_type='CONTACTS' AND public.has_org_permission(j.organization_id,'clients.create'))
+    OR (j.entity_type='PROPERTIES' AND public.has_org_permission(j.organization_id,'properties.create')))))
  WITH CHECK (EXISTS(SELECT 1 FROM public.import_jobs j WHERE j.id=import_job_id
-  AND jco_private.is_internal_staff(j.organization_id)));
+  AND (public.is_platform_admin() OR jco_private.is_internal_staff(j.organization_id))
+  AND ((j.entity_type='CONTACTS' AND public.has_org_permission(j.organization_id,'clients.create'))
+    OR (j.entity_type='PROPERTIES' AND public.has_org_permission(j.organization_id,'properties.create')))));
 ALTER POLICY subscriptions_org_read ON public.subscriptions TO authenticated
  USING (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id));
 ALTER POLICY org_license_read ON public.organization_licenses TO authenticated
