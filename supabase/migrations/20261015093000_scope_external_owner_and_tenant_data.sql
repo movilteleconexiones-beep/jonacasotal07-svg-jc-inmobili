@@ -61,6 +61,12 @@ CREATE POLICY leases_tenant_portal_select ON public.leases FOR SELECT TO authent
    WHERE l.user_id=(SELECT auth.uid()) AND l.organization_id=leases.organization_id
     AND l.contact_id=leases.tenant_id
  ));
+CREATE POLICY leases_owner_portal_select ON public.leases FOR SELECT TO authenticated
+ USING (status IN ('ACTIVE','TERMINATED') AND EXISTS (
+  SELECT 1 FROM public.portal_access_links l
+   WHERE l.user_id=(SELECT auth.uid()) AND l.organization_id=leases.organization_id
+    AND l.owner_id=leases.owner_id
+ ));
 CREATE POLICY rent_payments_external_personal ON public.rent_payments FOR SELECT TO authenticated
  USING (EXISTS(
   SELECT 1 FROM public.leases le
