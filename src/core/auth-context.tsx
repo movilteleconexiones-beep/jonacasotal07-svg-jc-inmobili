@@ -11,7 +11,7 @@ import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Organization, OrganizationMember, Role } from './types';
 import { parseBillingAccess, type BillingAccess } from './billing-access';
-import { canUseTenantPermission } from './portal-access-mode';
+import { canUseTenantPermission, hasVerifiedOperationalRole } from './portal-access-mode';
 
 export interface AuthMembership {
   member: OrganizationMember;
@@ -117,7 +117,9 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
         updatedAt: org.updated_at,
       },
       roles,
-      permissions: billing.permissions,
+      // Plans grant feature entitlements, not internal privileges to CLIENT-only
+      // accounts. RLS and per-member permission checks still govern operations.
+      permissions: hasVerifiedOperationalRole(roles) ? billing.permissions : [],
       billing,
     });
   }
