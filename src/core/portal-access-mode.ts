@@ -19,3 +19,16 @@ export function tenantAccessMode(roles:Array<{key?:string|null}>):{
   portalOnly:clientLinkedRole&&!hasOperationalRole,
   mixedElevated:clientLinkedRole&&hasOperationalRole};
 }
+
+/** Frontend convenience only. A plan entitlement never authorizes a client
+ *  to operate the CRM; database RLS and RPC authorization remain mandatory.
+ *  Unknown/missing role keys are not sufficient evidence of a staff role. */
+export function canUseTenantPermission(
+ roles:Array<{key?:string|null}>,
+ entitledPermissions:readonly string[],
+ permission:string,
+):boolean{
+ const hasVerifiedStaffRole=roles.some(r=>typeof r.key==='string'&&
+  r.key.trim().length>0&&r.key!=='CLIENT');
+ return hasVerifiedStaffRole&&entitledPermissions.includes(permission);
+}
