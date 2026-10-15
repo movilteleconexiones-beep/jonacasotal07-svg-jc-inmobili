@@ -36,7 +36,10 @@ test('client-only account opens a separate portal without internal tenant naviga
 
 test('portal queries are always scoped to the current authenticated user and linked records',()=>{
  assert.match(portal,/\.eq\('user_id',user\.id\)/);
- assert.match(portal,/if\(!privateLinks\.length\)/);
+ assert.match(portal,/setOwners\(ownerIds\);setContacts\(contactIds\)/);
+ assert.match(portal,/ownerIds\.length\?await checked/);
+ assert.match(portal,/contactIds\.length\?await checked/);
+ assert.match(portal,/No se pudo verificar la información privada completa/);
  assert.match(portal,/\.in\('owner_id',ownerIds\)/);
  assert.match(portal,/\.in\('tenant_id',contactIds\)/);
  assert.match(portal,/\.in\('id',propertyIds\)/);
