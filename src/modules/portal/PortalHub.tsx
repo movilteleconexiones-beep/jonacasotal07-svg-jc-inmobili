@@ -1,323 +1,155 @@
-import { etiquetaES } from '../../core/etiquetas-es';
-import { useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarDays, FileText, Handshake, UserRound } from 'lucide-react';
-import { useAuth } from '../../core/auth-context';
-import { useTenantBranding } from '../../core/use-tenant-branding';
-import { supabase } from '../../lib/supabase';
+import {useEffect,useState} from 'react';
+import {Building2,FileCheck2,Home,KeyRound} from 'lucide-react';
+import {useAuth} from '../../core/auth-context';
+import {supabase} from '../../lib/supabase';
+import {etiquetaES} from '../../core/etiquetas-es';
 
-interface PortalLink {
-  contact_id: string | null;
-  owner_id: string | null;
-}
+type LinkRow={owner_id:string|null;contact_id:string|null};
+type PropertyRow={id:string;code:string;title:string;status:string;city:string|null};
+type LeaseRow={id:string;property_id:string;owner_id:string;status:string;monthly_rent:number|null;start_date:string;end_date:string|null};
+type PaymentRow={id:string;lease_id:string;period_month:string;paid_amount:number;status:string};
+type StatementRow={id:string;owner_id:string;period_month:string;net_amount:number;status:string};
 
-interface PropertyRow {
-  id: string;
-  code: string;
-  title: string;
-  status: string;
-  price: number | null;
-  currency: string;
-  city: string | null;
-}
+const money=(value:number|null)=>value===null?'—':
+  new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(value);
 
-interface AppointmentRow {
-  id: string;
-  appointment_type: string;
-  status: string;
-  starts_at: string;
-  location: string | null;
-  properties: { code: string; title: string } | null;
-}
-
-interface DealRow {
-  id: string;
-  stage: string;
-  offered_price: number | null;
-  final_price: number | null;
-  properties: { code: string; title: string; currency: string } | null;
-}
-
-interface DocumentRow {
-  id: string;
-  title: string;
-  storage_bucket: string;
-  storage_path: string;
-  document_type: string;
-  created_at: string;
-}
-
-export function PortalHub() {
-  const { activeMembership,user } = useAuth();
-  const { branding } = useTenantBranding();
-  const organizationId = activeMembership?.organization.id;
-
-  const [links, setLinks] = useState<PortalLink[]>([]);
-  const [properties, setProperties] = useState<PropertyRow[]>([]);
-  const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
-  const [deals, setDeals] = useState<DealRow[]>([]);
-  const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
+/**
+ * External account presentation is not an authorization boundary.
+ * Each backend query must be scoped by the authenticated user through RLS
+ * AND by the portal_access_links validated for the current organization.
+ * Contact-only prospects get the public catalog and consignment intake,
+ * not private CRM, lead activity, quotes or documents.
+ */
+export function PortalHub(){
+  const {activeMembership,user}=useAuth();
+  const organizationId=activeMembership?.organization.id;
+  const [owners,setOwners]=useState<string[]>([]);
+  const [contacts,setContacts]=useState<string[]>([]);
+  const [properties,setProperties]=useState<PropertyRow[]>([]);
+  const [leases,setLeases]=useState<LeaseRow[]>([]);
+  const [payments,setPayments]=useState<PaymentRow[]>([]);
+  const [statements,setStatements]=useState<StatementRow[]>([]);
+  const [loading,setLoading]=useState(true);
   const [portalError,setPortalError]=useState('');
 
-  useEffect(() => {
+  useEffect(()=>{
     let cancelled=false;
     setLoading(true);setPortalError('');
-    setLinks([]);setProperties([]);setAppointments([]);setDeals([]);setDocuments([]);
+    setOwners([]);setContacts([]);setProperties([]);setLeases([]);setPayments([]);setStatements([]);
     if(!organizationId||!user?.id){setLoading(false);return;}
-    // Privileged users can also enter this portal, so tenant RLS alone is
-    // insufficient: always fetch by explicit links to the current user.
+    const checked=async <T,>(request:PromiseLike<{data:T[]|null;error:{message:string}|null;count:number|null}>):Promise<T[]>=>{
+      const result=await request;
+      if(result.error||result.count==null||result.count>500||!result.data||result.data.length!==result.count)
+        throw new Error('No se pudo verificar la información privada completa');
+      return result.data;
+    };
     void (async()=>{
-      try {
-        const {data:linksData,error:linkError,count:linkCount}=await supabase
-          .from('portal_access_links')
-          .select('contact_id,owner_id',{count:'exact'})
-          .eq('organization_id',organizationId).eq('user_id',user.id).limit(501);
-        if(linkError||linkCount==null||linkCount>500)
-          throw new Error('No se pudieron verificar todos los vínculos de tu portal.');
+      try{
+        const links=await checked<LinkRow>(supabase.from('portal_access_links')
+          .select('owner_id,contact_id',{count:'exact'})
+          .eq('organization_id',organizationId).eq('user_id',user.id).limit(501));
         if(cancelled)return;
-        const privateLinks=(linksData??[]) as PortalLink[];
-        setLinks(privateLinks);
-        if(!privateLinks.length){setLoading(false);return;}
-
-        const ownerIds=[...new Set(privateLinks.map(x=>x.owner_id).filter((x):x is string=>!!x))];
-        const contactIds=[...new Set(privateLinks.map(x=>x.contact_id).filter((x):x is string=>!!x))];
-
-        const checked=async<T,>(promise:PromiseLike<{data:T[]|null;error:{message:string}|null;count:number|null}>):Promise<T[]>=>{
-          const response=await promise;
-          if(response.error||response.count==null||response.count>500||response.data==null)
-            throw new Error('No fue posible comprobar la información relacionada de forma segura.');
-          return response.data;
-        };
-
-        const ownershipRows=ownerIds.length?await checked(
+        const ownerIds=[...new Set(links.map(x=>x.owner_id).filter((v):v is string=>!!v))];
+        const contactIds=[...new Set(links.map(x=>x.contact_id).filter((v):v is string=>!!v))];
+        setOwners(ownerIds);setContacts(contactIds);
+        const ownerships=ownerIds.length?await checked(
           supabase.from('property_ownerships').select('property_id',{count:'exact'})
             .in('owner_id',ownerIds).limit(501)
         ):[];
-
-        const linkedAppointments=contactIds.length?await checked(
-          supabase.from('appointments')
-            .select('id,appointment_type,status,starts_at,location,property_id,properties(code,title)',{count:'exact'})
-            .eq('organization_id',organizationId).in('contact_id',contactIds)
-            .order('starts_at',{ascending:true}).limit(501)
+        const tenantLeases=contactIds.length?await checked<LeaseRow>(
+          supabase.from('leases')
+            .select('id,property_id,owner_id,status,monthly_rent,start_date,end_date',{count:'exact'})
+            .eq('organization_id',organizationId).in('tenant_id',contactIds)
+            .in('status',['ACTIVE','TERMINATED']).limit(501)
         ):[];
-
-        const linkedDeals=contactIds.length?await checked(
-          supabase.from('deals')
-            .select('id,stage,offered_price,final_price,property_id,properties(code,title,currency)',{count:'exact'})
-            .eq('organization_id',organizationId).in('contact_id',contactIds)
-            .order('created_at',{ascending:false}).limit(501)
+        const ownerLeases=ownerIds.length?await checked<LeaseRow>(
+          supabase.from('leases')
+            .select('id,property_id,owner_id,status,monthly_rent,start_date,end_date',{count:'exact'})
+            .eq('organization_id',organizationId).in('owner_id',ownerIds)
+            .in('status',['ACTIVE','TERMINATED']).limit(501)
         ):[];
-
-        const linkedLeads=contactIds.length?await checked(
-          supabase.from('leads').select('property_id',{count:'exact'})
-            .eq('organization_id',organizationId).in('contact_id',contactIds).limit(501)
-        ):[];
-
-        const propertyIds=[...new Set([
-          ...ownershipRows.map(r=>r.property_id),
-          ...linkedAppointments.map(r=>r.property_id),
-          ...linkedDeals.map(r=>r.property_id),
-          ...linkedLeads.map(r=>r.property_id),
-        ].filter((id):id is string=>!!id))];
-        const linkedProperties=propertyIds.length?await checked(
-          supabase.from('properties')
-            .select('id,code,title,status,price,currency,city',{count:'exact'})
-            .eq('organization_id',organizationId).in('id',propertyIds)
-            .order('created_at',{ascending:false}).limit(501)
-        ):[];
-
-        // Never retrieve unrelated contracts or private documents through
-        // the broader privileges a mixed organization-owner account retains.
-        const docs=await Promise.all([
-          ...(ownerIds.length?[checked(supabase.from('documents')
-            .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
-            .eq('organization_id',organizationId).eq('entity_type','OWNER')
-            .in('entity_id',ownerIds).limit(501))]:[]),
-          ...(contactIds.length?[checked(supabase.from('documents')
-            .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
-            .eq('organization_id',organizationId).eq('entity_type','CONTACT')
-            .in('entity_id',contactIds).limit(501))]:[]),
-          ...(propertyIds.length?[checked(supabase.from('documents')
-            .select('id,title,storage_bucket,storage_path,document_type,created_at',{count:'exact'})
-            .eq('organization_id',organizationId).eq('entity_type','PROPERTY')
-            .in('entity_id',propertyIds).limit(501))]:[]),
+        const ownLeases=[...new Map([...tenantLeases,...ownerLeases].map(x=>[x.id,x])).values()];
+        const propertyIds=[...new Set([...ownerships.map(x=>x.property_id),...ownLeases.map(x=>x.property_id)]
+          .filter((v):v is string=>!!v))];
+        const leaseIds=ownLeases.map(x=>x.id);
+        const [ownProperties,ownPayments,issuedStatements]=await Promise.all([
+          propertyIds.length?checked<PropertyRow>(supabase.from('properties')
+            .select('id,code,title,status,city',{count:'exact'})
+            .eq('organization_id',organizationId).in('id',propertyIds).limit(501)):Promise.resolve([]),
+          leaseIds.length?checked<PaymentRow>(supabase.from('rent_payments')
+            .select('id,lease_id,period_month,paid_amount,status',{count:'exact'})
+            .eq('organization_id',organizationId).in('lease_id',leaseIds).limit(501)):Promise.resolve([]),
+          ownerIds.length?checked<StatementRow>(supabase.from('owner_statements')
+            .select('id,owner_id,period_month,net_amount,status',{count:'exact'})
+            .eq('organization_id',organizationId).in('owner_id',ownerIds)
+            .eq('status','ISSUED').limit(501)):Promise.resolve([]),
         ]);
         if(cancelled)return;
-        setProperties(linkedProperties as PropertyRow[]);
-        setAppointments(linkedAppointments as unknown as AppointmentRow[]);
-        setDeals(linkedDeals as unknown as DealRow[]);
-        setDocuments([...new Map(docs.flat().map(d=>[d.id,d])).values()] as DocumentRow[]);
+        setProperties(ownProperties);setLeases(ownLeases);setPayments(ownPayments);setStatements(issuedStatements);
       }catch{
-        if(!cancelled){
-          setPortalError('No se pudo comprobar el acceso privado. No mostraremos información sin verificar tus vínculos.');
-          setLinks([]);setProperties([]);setAppointments([]);setDeals([]);setDocuments([]);
-        }
+        if(cancelled)return;
+        setPortalError('No se pudo comprobar el acceso privado. No mostraremos información sin verificar tus vínculos.');
+        setOwners([]);setContacts([]);setProperties([]);setLeases([]);setPayments([]);setStatements([]);
       }finally{if(!cancelled)setLoading(false);}
     })();
     return()=>{cancelled=true;};
   },[organizationId,user?.id]);
 
-  const isClient = links.some((link) => Boolean(link.contact_id));
-  const isOwner = links.some((link) => Boolean(link.owner_id));
-
-  const money = useMemo(
-    () => (value: number | null, currency?: string | null) =>
-      value == null
-        ? '—'
-        : new Intl.NumberFormat(branding.locale || 'es-CO', {
-            style: 'currency',
-            currency: currency || branding.currency || 'COP',
-            maximumFractionDigits: 0,
-          }).format(value),
-    [branding.locale, branding.currency],
-  );
-
-  async function openDocument(document: DocumentRow) {
-    const { data, error } = await supabase.storage
-      .from(document.storage_bucket)
-      .createSignedUrl(document.storage_path, 60);
-
-    if (!error && data?.signedUrl) {
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
-    }
-  }
-
-  if (loading) {
-    return <div className="rounded-2xl border border-stone-200 bg-white p-8 text-sm text-slate-500">Cargando portal…</div>;
-  }
-
-  if(portalError){
-    return <section role="alert" className="rounded-xl border border-amber-300 bg-white p-6 text-amber-900">
-      {portalError}
-    </section>;
-  }
-
-  if (!isClient && !isOwner) {
-    return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center">
-        <UserRound className="mx-auto h-7 w-7 text-slate-500" />
-        <h2 className="mt-3 font-bold">Tu cuenta aún no está vinculada</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Un administrador debe relacionar tu usuario con tu ficha de cliente o propietario.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Mi portal</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          {isOwner && isClient
-            ? 'Vista combinada como propietario y cliente.'
-            : isOwner
-              ? 'Consulta tus inmuebles, actividad y documentos.'
-              : 'Consulta tus visitas, negocios, propiedades relacionadas y documentos.'}
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Summary label="Propiedades relacionadas" value={properties.length} icon={Building2} />
-        <Summary label="Visitas / citas" value={appointments.length} icon={CalendarDays} />
-        <Summary label="Negocios" value={deals.length} icon={Handshake} />
-        <Summary label="Documentos" value={documents.length} icon={FileText} />
-      </div>
-
-      <div className="rounded-2xl border border-stone-200 bg-white">
-        <div className="border-b border-stone-200 px-5 py-4 font-bold">Propiedades</div>
-        <div className="divide-y divide-stone-100">
-          {properties.map((property) => (
-            <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
-                <div className="font-semibold">{property.code} · {property.title}</div>
-                <div className="mt-1 text-xs text-slate-500">{property.city || '—'} · {etiquetaES(property.status)}</div>
-              </div>
-              <div className="text-sm font-semibold">{money(property.price, property.currency)}</div>
-            </div>
-          ))}
-          {properties.length === 0 && <div className="p-5 text-sm text-slate-500">Sin propiedades relacionadas.</div>}
-        </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-2xl border border-stone-200 bg-white">
-          <div className="border-b border-stone-200 px-5 py-4 font-bold">Agenda</div>
-          <div className="divide-y divide-stone-100">
-            {appointments.map((item) => (
-              <div key={item.id} className="p-4">
-                <div className="font-semibold">{etiquetaES(item.appointment_type)}</div>
-                <div className="mt-1 text-sm text-slate-600">
-                  {new Intl.DateTimeFormat(branding.locale || 'es-CO', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                    timeZone: branding.timezone || 'America/Bogota',
-                  }).format(new Date(item.starts_at))}
-                </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {item.properties ? item.properties.code + ' · ' + item.properties.title : item.location || '—'}
-                </div>
-              </div>
-            ))}
-            {appointments.length === 0 && <div className="p-5 text-sm text-slate-500">Sin citas programadas.</div>}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white">
-          <div className="border-b border-stone-200 px-5 py-4 font-bold">Negocios</div>
-          <div className="divide-y divide-stone-100">
-            {deals.map((deal) => (
-              <div key={deal.id} className="p-4">
-                <div className="font-semibold">{deal.properties?.code || 'Negocio'} · {etiquetaES(deal.stage)}</div>
-                <div className="mt-1 text-sm text-slate-600">
-                  {money(deal.final_price ?? deal.offered_price, deal.properties?.currency)}
-                </div>
-              </div>
-            ))}
-            {deals.length === 0 && <div className="p-5 text-sm text-slate-500">Sin negocios relacionados.</div>}
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-stone-200 bg-white">
-        <div className="border-b border-stone-200 px-5 py-4 font-bold">Documentos</div>
-        <div className="divide-y divide-stone-100">
-          {documents.map((document) => (
-            <button
-              key={document.id}
-              type="button"
-              onClick={() => void openDocument(document)}
-              className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-stone-50"
-            >
-              <div>
-                <div className="font-semibold">{document.title}</div>
-                <div className="mt-1 text-xs text-slate-500">{etiquetaES(document.document_type)}</div>
-              </div>
-              <span className="text-xs font-semibold">Abrir</span>
-            </button>
-          ))}
-          {documents.length === 0 && <div className="p-5 text-sm text-slate-500">Sin documentos disponibles.</div>}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Summary({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: number;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
+  if(loading)return <section role="status" className="rounded-xl border bg-white p-6">
+    Verificando los vínculos personales de tu portal…
+  </section>;
+  if(portalError)return <section role="alert" className="rounded-xl border border-amber-300 bg-white p-6 text-amber-900">
+    {portalError}
+  </section>;
+  const isOwner=owners.length>0;
+  const isTenant=leases.length>0&&contacts.length>0;
+  return <section className="space-y-5" aria-label="Portal privado externo">
     <div className="rounded-2xl border border-stone-200 bg-white p-5">
-      <Icon className="h-5 w-5 text-slate-500" />
-      <div className="mt-4 text-3xl font-bold">{value}</div>
-      <div className="mt-1 text-sm text-slate-600">{label}</div>
+      <h1 className="text-xl font-bold">Mi portal · INMOJCO</h1>
+      <p className="mt-2 text-sm text-slate-700">
+        {isOwner?'Consulta únicamente tus propiedades vinculadas y liquidaciones emitidas.':
+          isTenant?'Consulta solamente tu contrato y los pagos relacionados.':
+          'Acceso público: consulta el catálogo y consigna una propiedad. Los expedientes privados requieren una vinculación comprobada.'}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a href="/#catalogo" className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+          <Home className="h-4 w-4"/> Ver catálogo de propiedades
+        </a>
+        <a href="/?consignar=1" className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold">
+          <Building2 className="h-4 w-4"/> Consignar mi propiedad
+        </a>
+      </div>
     </div>
-  );
+    {properties.length>0&&<section className="rounded-2xl border bg-white p-5">
+      <h2 className="flex items-center gap-2 font-bold"><Building2 className="h-4 w-4"/> Inmuebles vinculados</h2>
+      <div className="mt-3 divide-y">{properties.map(property=><div key={property.id} className="py-3">
+        <div className="font-medium">{property.code} · {property.title}</div>
+        <div className="text-xs text-slate-600">{property.city??'Sin ciudad'} · {etiquetaES(property.status)}</div>
+      </div>)}</div>
+    </section>}
+    {leases.length>0&&<section className="rounded-2xl border bg-white p-5">
+      <h2 className="flex items-center gap-2 font-bold"><KeyRound className="h-4 w-4"/> Mis contratos vinculados</h2>
+      <div className="mt-3 divide-y">{leases.map(lease=><div key={lease.id} className="py-3 text-sm">
+        <p className="font-semibold">{properties.find(p=>p.id===lease.property_id)?.title??'Inmueble vinculado'}</p>
+        <p>Estado: {etiquetaES(lease.status)} · Canon: {money(lease.monthly_rent)}</p>
+        <p className="text-xs text-slate-600">Inicio: {lease.start_date} · Terminación: {lease.end_date??'Sin fecha registrada'}</p>
+      </div>)}</div>
+    </section>}
+    {payments.length>0&&<section className="rounded-2xl border bg-white p-5">
+      <h2 className="font-bold">Pagos de mis contratos</h2>
+      <div className="mt-3 divide-y">{payments.map(payment=><div key={payment.id} className="flex justify-between gap-2 py-3 text-sm">
+        <span>{payment.period_month} · {etiquetaES(payment.status)}</span>
+        <strong>{money(payment.paid_amount)}</strong>
+      </div>)}</div>
+    </section>}
+    {statements.length>0&&<section className="rounded-2xl border bg-white p-5">
+      <h2 className="flex items-center gap-2 font-bold"><FileCheck2 className="h-4 w-4"/> Liquidaciones emitidas de mis inmuebles</h2>
+      <div className="mt-3 divide-y">{statements.map(s=><div key={s.id} className="flex justify-between gap-2 py-3 text-sm">
+        <span>{s.period_month} · {etiquetaES(s.status)}</span><strong>{money(s.net_amount)}</strong>
+      </div>)}</div>
+    </section>}
+    {!isOwner&&!isTenant&&<p className="rounded-lg bg-stone-50 p-4 text-sm text-slate-600">
+      Para consultar un contrato de arrendamiento o tus inmuebles, solicita a la inmobiliaria vincular tu cuenta a tu ficha de inquilino o propietario.
+    </p>}
+  </section>;
 }
