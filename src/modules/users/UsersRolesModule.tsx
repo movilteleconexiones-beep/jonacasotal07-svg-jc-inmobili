@@ -620,7 +620,11 @@ export function UsersRolesModule() {
         <div className="flex items-center justify-between gap-3 border-b border-stone-200 px-5 py-4">
           <div>
             <h2 className="font-bold">Miembros</h2>
-            <div className="text-xs text-slate-500">{members.length} usuarios vinculados</div>
+            <div className="text-xs text-slate-500">{members.length} cuentas vinculadas entre personal interno y portales externos</div>
+            <p className="mt-1 text-xs text-slate-600">
+              Los accesos exclusivamente Cliente no consumen cupos del plan. Al asignarles
+              un rol operativo o permisos administrativos, pasan a contar como personal interno.
+            </p>
           </div>
           <UsersRound className="h-5 w-5 text-slate-500" />
         </div>

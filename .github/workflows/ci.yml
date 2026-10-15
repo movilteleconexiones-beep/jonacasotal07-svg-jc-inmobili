@@ -61,6 +61,17 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_basic_pro_equal_test -f security/tests/basic_pro_functional_parity_assertions.sql
       - name: Basic Pro identical functionality and guarded role access regression
         run: node --test tests/basic-pro-functional-parity.test.mjs
+      - name: External portal RLS, customer privacy and staff-seat SQL isolation
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_external_access_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portals_staff_seats_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015092500_isolate_external_accounts_and_staff_seats.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015093000_scope_external_owner_and_tenant_data.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_staff_seats_assertions.sql
+      - name: External portal navigation and no internal CRM data regression
+        run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Role permission editor SQL tenant isolation and audit
         env:
           PGPASSWORD: postgres

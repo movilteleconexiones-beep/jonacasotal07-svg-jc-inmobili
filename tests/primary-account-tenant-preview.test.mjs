@@ -33,7 +33,9 @@ test('private client portal is still scoped to the authenticated linked account'
  assert.match(dashboard,/if \(mode\.portalOnly \|\| \(mode\.clientLinkedRole&&clientPortalMode\)\)/);
  assert.match(portal,/\.from\('portal_access_links'\)/);
  assert.match(portal,/\.eq\('organization_id',organizationId\)\.eq\('user_id',user\.id\)/);
- assert.match(portal,/if\(!privateLinks\.length\)/);
+ assert.match(portal,/setOwners\(ownerIds\);setContacts\(contactIds\)/);
+ assert.match(portal,/ownerIds\.length\?await checked/);
+ assert.match(portal,/contactIds\.length\?await checked/);
 });
 
 test('Users gives current owner a self-linking path and an accurate status',()=>{

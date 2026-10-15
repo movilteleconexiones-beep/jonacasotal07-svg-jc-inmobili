@@ -46,7 +46,7 @@ test('finance and customer modules no longer render internal states or record ca
     ['modules/finance/RentOwnerBalances.tsx',['etiquetaES(lease.status)','etiquetaES(payment.status)','etiquetaES(statement.status)']],
     ['modules/finance/OwnerDeductionLedger.tsx',['etiquetaES(line.status)']],
     ['modules/properties/PropertiesModule.tsx',['etiquetaES(row.status)','etiquetaES(row.property_type)']],
-    ['modules/portal/PortalHub.tsx',['etiquetaES(property.status)','etiquetaES(deal.stage)','etiquetaES(document.document_type)','etiquetaES(item.appointment_type)']],
+    ['modules/portal/PortalHub.tsx',['etiquetaES(property.status)','etiquetaES(lease.status)','etiquetaES(payment.status)','etiquetaES(s.status)']],
     ['modules/appointments/AppointmentsModule.tsx',['etiquetaES(row.status)','etiquetaES(row.appointment_type)']],
     ['modules/documents/DocumentsModule.tsx',['etiquetaES(row.document_type)','etiquetaES(row.entity_type)']],
     ['modules/commissions/CommissionsModule.tsx',['etiquetaES(row.commission_type)']],

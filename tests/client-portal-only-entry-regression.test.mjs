@@ -36,11 +36,17 @@ test('client-only account opens a separate portal without internal tenant naviga
 
 test('portal queries are always scoped to the current authenticated user and linked records',()=>{
  assert.match(portal,/\.eq\('user_id',user\.id\)/);
- assert.match(portal,/if\(!privateLinks\.length\)/);
+ assert.match(portal,/setOwners\(ownerIds\);setContacts\(contactIds\)/);
+ assert.match(portal,/ownerIds\.length\?await checked/);
+ assert.match(portal,/contactIds\.length\?await checked/);
+ assert.match(portal,/No se pudo verificar la información privada completa/);
  assert.match(portal,/\.in\('owner_id',ownerIds\)/);
- assert.match(portal,/\.in\('contact_id',contactIds\)/);
+ assert.match(portal,/\.in\('tenant_id',contactIds\)/);
  assert.match(portal,/\.in\('id',propertyIds\)/);
- for (const x of ['OWNER','CONTACT','PROPERTY'])assert.ok(portal.includes(`.eq('entity_type','${x}')`));
+ assert.doesNotMatch(portal,/\.from\('(deals|leads|appointments|activities|documents)'\)/);
+ assert.match(portal,/Ver catálogo de propiedades/);
+ assert.match(portal,/Consignar mi propiedad/);
+ assert.match(portal,/Sin fecha registrada/);
  assert.match(portal,/setPortalError\('No se pudo comprobar el acceso privado/);
  assert.doesNotMatch(portal,/\.from\('properties'\)\s*\.select\([\s\S]*?\.eq\('organization_id',organizationId\)\s*\.order\(/);
 });
