@@ -87,7 +87,7 @@ GRANT ALL ON public.deals TO authenticated,anon;
 CREATE TABLE public.documents(id uuid,organization_id uuid,entity_type text,entity_id uuid);
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.documents TO authenticated,anon;
-CREATE TABLE public.import_jobs(id uuid,organization_id uuid);
+CREATE TABLE public.import_jobs(id uuid,organization_id uuid,entity_type text);
 ALTER TABLE public.import_jobs ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.import_jobs TO authenticated,anon;
 CREATE TABLE public.import_job_rows(id uuid,import_job_id uuid);
@@ -107,6 +107,7 @@ CREATE TABLE public.license_acceptances(id uuid,organization_license_id uuid,acc
 ALTER TABLE public.license_acceptances ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.license_acceptances TO authenticated,anon;
 CREATE FUNCTION public.is_org_member(org uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT EXISTS(SELECT 1 FROM public.organization_members WHERE organization_id=org AND user_id=(SELECT auth.uid()) AND status='ACTIVE') $$;
+CREATE FUNCTION public.has_org_permission(uuid,text) RETURNS boolean LANGUAGE sql STABLE AS $ SELECT true $;
 CREATE FUNCTION public.is_platform_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.has_portal_owner(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.has_portal_contact(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
