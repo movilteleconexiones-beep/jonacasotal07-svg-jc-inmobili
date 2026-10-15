@@ -47,6 +47,9 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
  );
 $$;
 REVOKE ALL ON FUNCTION jco_private.is_internal_staff(uuid),jco_private.is_external_only_member(uuid) FROM PUBLIC,anon,authenticated;
+-- The RLS policy invokes this narrowly scoped boolean predicate directly:
+-- authenticated must have EXECUTE, while the raw membership-classifier stays private.
+GRANT EXECUTE ON FUNCTION jco_private.is_internal_staff(uuid) TO authenticated;
 
 -- Current commercial broad policy was allowing the whole tenant by operational
 -- status alone. Restrict it to real staff and never grant external portal access.
@@ -96,6 +99,21 @@ ALTER POLICY roles_select_org ON public.roles TO authenticated
 ALTER POLICY role_permissions_select_org ON public.role_permissions TO authenticated
  USING (EXISTS(SELECT 1 FROM public.roles r WHERE r.id=role_id
    AND (r.organization_id IS NULL OR jco_private.is_internal_staff(r.organization_id))));
+ALTER POLICY billing_access_read ON public.organization_billing_access TO authenticated
+ USING (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id));
+ALTER POLICY license_acceptance_read ON public.license_acceptances TO authenticated
+ USING (accepted_by=(SELECT auth.uid()) OR public.is_platform_admin() OR EXISTS(
+   SELECT 1 FROM public.organization_licenses l
+    WHERE l.id=organization_license_id AND jco_private.is_internal_staff(l.organization_id)));
+ALTER POLICY license_acceptance_insert ON public.license_acceptances TO authenticated
+ WITH CHECK (accepted_by=(SELECT auth.uid()) AND EXISTS(
+   SELECT 1 FROM public.organization_licenses l
+    WHERE l.id=organization_license_id AND jco_private.is_internal_staff(l.organization_id)));
+ALTER POLICY import_rows_manage ON public.import_job_rows TO authenticated
+ USING (EXISTS(SELECT 1 FROM public.import_jobs j WHERE j.id=import_job_id
+  AND jco_private.is_internal_staff(j.organization_id)))
+ WITH CHECK (EXISTS(SELECT 1 FROM public.import_jobs j WHERE j.id=import_job_id
+  AND jco_private.is_internal_staff(j.organization_id)));
 ALTER POLICY subscriptions_org_read ON public.subscriptions TO authenticated
  USING (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id));
 ALTER POLICY org_license_read ON public.organization_licenses TO authenticated
