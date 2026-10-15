@@ -157,7 +157,7 @@ CREATE TRIGGER jco_no_client_role_permissions BEFORE INSERT OR UPDATE ON public.
 -- workaround for a missing staff role; a legitimate staff account adds that
 -- operational role first and then receives its per-member overrides.
 CREATE OR REPLACE FUNCTION jco_private.block_external_override()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
  IF NEW.effect='ALLOW' AND EXISTS(
    SELECT 1 FROM public.member_roles mr
@@ -172,7 +172,7 @@ BEGIN
  THEN RAISE EXCEPTION 'External CLIENT must not receive operational permission overrides';
  END IF;
  RETURN NEW;
-END $;
+END $$;
 DROP TRIGGER IF EXISTS jco_no_external_overrides ON public.member_permissions;
 CREATE TRIGGER jco_no_external_overrides BEFORE INSERT OR UPDATE ON public.member_permissions
  FOR EACH ROW EXECUTE FUNCTION jco_private.block_external_override();
