@@ -82,7 +82,7 @@ export function PortalHub(){
           ownerIds.length?checked<StatementRow>(supabase.from('owner_statements')
             .select('id,owner_id,period_month,net_amount,status',{count:'exact'})
             .eq('organization_id',organizationId).in('owner_id',ownerIds)
-            .eq('status','ISSUED').limit(501)):Promise.resolve([]),
+            .in('status',['GENERATED','ISSUED']).not('issued_at','is',null).limit(501)):Promise.resolve([]),
         ]);
         if(cancelled)return;
         setProperties(ownProperties);setLeases(ownLeases);setPayments(ownPayments);setStatements(issuedStatements);
