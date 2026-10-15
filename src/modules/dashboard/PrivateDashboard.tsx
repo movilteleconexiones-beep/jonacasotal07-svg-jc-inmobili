@@ -336,7 +336,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-bold">INMOJCO · Portal privado</h1>
-            <p className="text-sm text-slate-600">{branding.companyName} · Cliente / propietario de inmueble</p>
+            <p className="text-sm text-slate-600">{activeMembership.organization.name} · Cliente / propietario de inmueble</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {previewSelector}
@@ -367,14 +367,15 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-14 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-white" aria-label="Logo de la inmobiliaria">
-              {logoUrl ? <img src={logoUrl} alt={'Logo de ' + branding.companyName} className="max-h-full max-w-full object-contain p-1.5" /> :
+              {logoUrl ? <img src={logoUrl} alt={'Logo de ' + activeMembership.organization.name} className="max-h-full max-w-full object-contain p-1.5" /> :
                 <Building2 className="h-7 w-7 text-slate-500" aria-hidden="true" />}
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 {branding.softwareName}
               </div>
-              <div className="truncate text-lg font-bold" style={branding.primaryColor ? { color: tenantPrimary } : undefined}>{branding.companyName}</div>
+              <div className="truncate text-lg font-bold" aria-label="Inmobiliaria activa" style={branding.primaryColor ? { color: tenantPrimary } : undefined}>{activeMembership.organization.name}</div>
+              <p className="text-xs text-slate-600">{activeMembership.billing.is_test ? 'Cuenta de prueba · Solo datos de esta inmobiliaria' : 'Cuenta inmobiliaria · Solo datos de esta inmobiliaria'}</p>
               {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-slate-600 hover:underline">
                 <ExternalLink className="h-3 w-3" /> Sitio web de la inmobiliaria
               </a>}
