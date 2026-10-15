@@ -14,7 +14,7 @@ export function tenantAccessMode(roles:Array<{key?:string|null}>):{
  mixedElevated:boolean;
 }{
  const clientLinkedRole=roles.some(r=>r.key==='CLIENT');
- const hasOperationalRole=roles.some(r=>r.key!=='CLIENT');
+ const hasOperationalRole=hasVerifiedOperationalRole(roles);
  return {clientLinkedRole,hasOperationalRole,
   portalOnly:clientLinkedRole&&!hasOperationalRole,
   mixedElevated:clientLinkedRole&&hasOperationalRole};
