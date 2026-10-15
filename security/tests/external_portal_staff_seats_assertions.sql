@@ -7,12 +7,14 @@ SELECT public.test_assert((
  SELECT count(*) FROM public.organization_members m WHERE m.status='ACTIVE'
   AND NOT jco_private.is_external_only_member(m.id))=2,'two counted staff');
 -- At internal capacity, another CLIENT member can still join in the same transaction.
+BEGIN;
 INSERT INTO public.organization_members VALUES
  ('18181818-1818-4818-8818-181818181818','22222222-2222-4222-8222-222222222222',
   'dddddddd-dddd-4ddd-8ddd-dddddddddddd','ACTIVE');
 INSERT INTO public.member_roles VALUES
  ('18181818-1818-4818-8818-181818181818','33333333-3333-4333-8333-333333333333');
 SET CONSTRAINTS ALL IMMEDIATE;
+COMMIT;
 SELECT public.test_assert(jco_private.is_external_only_member('18181818-1818-4818-8818-181818181818'),
  'third CLIENT excluded from seat count');
 -- Mixed CLIENT+ADMIN must consume a staff seat, even when CLIENT was assigned first.
