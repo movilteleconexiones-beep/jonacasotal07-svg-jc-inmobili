@@ -48,6 +48,19 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_price_catalog_test -f security/tests/approved_saas_lifetime_catalog_assertions.sql
       - name: Billing approved monthly prices and perpetual contract regression
         run: node --test tests/approved-monthly-prices-preserve-lifetime.test.mjs
+      - name: Basic and Pro equal benefits SQL with unchanged resource quotas
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_basic_pro_equal_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_basic_pro_equal_test -f security/tests/approved_saas_lifetime_catalog_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_basic_pro_equal_test -f supabase/migrations/20261015074000_approved_monthly_prices_preserve_lifetime.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_basic_pro_equal_test -f security/tests/basic_pro_functional_parity_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_basic_pro_equal_test -f supabase/migrations/20261015081500_basic_pro_functional_parity.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_basic_pro_equal_test -f supabase/migrations/20261015081500_basic_pro_functional_parity.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_basic_pro_equal_test -f security/tests/basic_pro_functional_parity_assertions.sql
+      - name: Basic Pro identical functionality and guarded role access regression
+        run: node --test tests/basic-pro-functional-parity.test.mjs
       - name: Role permission editor SQL tenant isolation and audit
         env:
           PGPASSWORD: postgres
