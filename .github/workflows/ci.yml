@@ -69,6 +69,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portals_staff_seats_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015092500_isolate_external_accounts_and_staff_seats.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015093000_scope_external_owner_and_tenant_data.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_staff_seats_assertions.sql
       - name: External portal navigation and no internal CRM data regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
