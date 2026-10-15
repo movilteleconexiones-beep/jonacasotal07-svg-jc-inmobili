@@ -9,7 +9,8 @@ const auth = readFileSync(new URL('../src/core/auth-context.tsx', import.meta.ur
 test('Panel and SuperAdmin remain distinct destinations', () => {
   assert.match(app, /setIsPrivateDashboardOpen\(true\)/);
   assert.match(app, /href="\/super-admin"/);
-  assert.match(app, />\s*Panel\s*<\/button>/);
+  assert.match(app, /'Mi portal' : 'Panel'/);
+  assert.match(app, /aria-label=\{activeMembership\?\.roles\.length===1/);
   assert.doesNotMatch(app, /if \(activeMembership\) \{\s*setIsPrivateDashboardOpen\(true\);\s*\} else if \(isPlatformAdmin\) \{\s*window\.location\.assign\('\/super-admin'\)/);
 });
 test('tenant dashboard retains visible SuperAdmin shortcut and membership restrictions', () => {
