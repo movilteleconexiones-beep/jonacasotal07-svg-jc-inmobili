@@ -40,7 +40,9 @@ test('website and logo fields only accept safe HTTPS URLs', () => {
 });
 
 test('agency logo and site are shown in tenant dashboard but do not alter the public brand', () => {
-  assert.match(dashboard, /alt=\{'Logo de ' \+ branding\.companyName\}/);
+  // Agency legal/tenant identity must never be replaced by editable brand copy.
+  assert.match(dashboard, /alt=\{'Logo de ' \+ activeMembership\.organization\.name\}/);
+  assert.match(dashboard, /aria-label="Inmobiliaria activa"/);
   assert.match(dashboard, /Sitio web de la inmobiliaria/);
   assert.match(dashboard, /tenantPrimary/);
   assert.match(dashboard, /tenantSecondary/);

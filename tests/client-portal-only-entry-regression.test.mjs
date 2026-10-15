@@ -19,7 +19,9 @@ test('organization owner is not synonymous with property owner',()=>{
    clientLinkedRole:true,hasOperationalRole:true,portalOnly:false,mixedElevated:true,
  });
  assert.equal(tenantAccessMode([{key:'ADMIN'}]).clientLinkedRole,false);
- assert.equal(tenantAccessMode([{key:'CLIENT'},{key:null}]).portalOnly,false);
+ assert.equal(tenantAccessMode([{key:'CLIENT'},{key:null}]).portalOnly,true);
+ assert.equal(tenantAccessMode([{key:'CLIENT'},{key:undefined}]).hasOperationalRole,false);
+ assert.equal(tenantAccessMode([{key:'CLIENT'},{key:''}]).portalOnly,true);
 });
 
 test('client-only account opens a separate portal without internal tenant navigation',()=>{
