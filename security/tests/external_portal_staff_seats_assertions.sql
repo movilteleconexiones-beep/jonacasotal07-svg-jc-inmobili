@@ -63,7 +63,7 @@ COMMIT;
 SELECT public.test_assert(jco_private.is_external_only_member('20202020-2020-4020-8020-202020202020'),
   'property owner stays outside staff seat quota');
 -- Direct per-member ALLOW on CLIENT-only must also be rejected at the database.
-DO $
+DO $$
 DECLARE reason text;
 BEGIN
  BEGIN
@@ -76,7 +76,7 @@ BEGIN
   IF reason NOT LIKE '%External CLIENT must not receive operational permission overrides%'
   THEN RAISE EXCEPTION 'Unexpected permission bypass: %',reason; END IF;
  END;
-END $;
+END $$;
 -- RLS checks: selected user is the third external tenant with an actual lease.
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
