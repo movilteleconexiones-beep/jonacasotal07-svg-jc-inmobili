@@ -37,6 +37,17 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Approved COP monthly prices and immutable perpetual license SQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_price_catalog_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_price_catalog_test -f security/tests/approved_saas_lifetime_catalog_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_price_catalog_test -f supabase/migrations/20261015074000_approved_monthly_prices_preserve_lifetime.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_price_catalog_test -f supabase/migrations/20261015074000_approved_monthly_prices_preserve_lifetime.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_price_catalog_test -f security/tests/approved_saas_lifetime_catalog_assertions.sql
+      - name: Billing approved monthly prices and perpetual contract regression
+        run: node --test tests/approved-monthly-prices-preserve-lifetime.test.mjs
       - name: Role permission editor SQL tenant isolation and audit
         env:
           PGPASSWORD: postgres
