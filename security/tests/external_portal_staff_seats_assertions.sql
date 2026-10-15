@@ -62,6 +62,21 @@ INSERT INTO public.portal_access_links VALUES
 COMMIT;
 SELECT public.test_assert(jco_private.is_external_only_member('20202020-2020-4020-8020-202020202020'),
   'property owner stays outside staff seat quota');
+-- Direct per-member ALLOW on CLIENT-only must also be rejected at the database.
+DO $
+DECLARE reason text;
+BEGIN
+ BEGIN
+  INSERT INTO public.member_permissions VALUES(
+   '77777777-7777-4777-8777-777777777777',
+   '19191919-1919-4919-8919-191919191919','ALLOW');
+  RAISE EXCEPTION 'Expected external manual permission denial';
+ EXCEPTION WHEN OTHERS THEN
+  GET STACKED DIAGNOSTICS reason=MESSAGE_TEXT;
+  IF reason NOT LIKE '%External CLIENT must not receive operational permission overrides%'
+  THEN RAISE EXCEPTION 'Unexpected permission bypass: %',reason; END IF;
+ END;
+END $;
 -- RLS checks: selected user is the third external tenant with an actual lease.
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
