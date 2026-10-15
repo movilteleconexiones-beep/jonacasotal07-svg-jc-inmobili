@@ -81,7 +81,7 @@ CREATE POLICY rent_payments_external_personal ON public.rent_payments FOR SELECT
     )
  ));
 CREATE POLICY owner_statements_external_issued ON public.owner_statements FOR SELECT TO authenticated
- USING (status='ISSUED' AND EXISTS(
+ USING (issued_at IS NOT NULL AND status IN ('GENERATED','ISSUED') AND EXISTS(
    SELECT 1 FROM public.portal_access_links l WHERE l.organization_id=owner_statements.organization_id
     AND l.owner_id=owner_statements.owner_id AND l.user_id=(SELECT auth.uid())
  ));
