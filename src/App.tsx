@@ -84,7 +84,9 @@ export default function App() {
   const [savedPropertyIds, setSavedPropertyIds] = useState<string[]>(['prop-1', 'prop-2']);
   const [comparePropertyIds, setComparePropertyIds] = useState<string[]>([]);
   const [isPortfolioDrawerOpen, setIsPortfolioDrawerOpen] = useState(false);
-  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('consignar')==='1'
+  );
   const [scheduledVisitsLog, setScheduledVisitsLog] = useState<
     Array<{ code: string; title: string; name: string; date: string; modality: string }>
   >([]);
@@ -290,9 +292,9 @@ export default function App() {
                 type="button"
                 onClick={() => setIsPrivateDashboardOpen(true)}
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
-                aria-label="Abrir panel inmobiliario"
+                aria-label={activeMembership?.roles.length===1 && activeMembership.roles[0]?.key==='CLIENT' ? 'Abrir mi portal privado' : 'Abrir panel inmobiliario'}
               >
-                Panel
+                {activeMembership?.roles.length===1 && activeMembership.roles[0]?.key==='CLIENT' ? 'Mi portal' : 'Panel'}
               </button>
             )}
             {user && isPlatformAdmin && (
