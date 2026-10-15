@@ -59,7 +59,7 @@ BEGIN
  FOR t IN SELECT tablename FROM pg_policies WHERE schemaname='public'
    AND policyname='jco_commercial_access' ORDER BY tablename LOOP
    EXECUTE format(
-    'ALTER POLICY jco_commercial_access ON public.%I TO authenticated USING (jco_private.operational_access(organization_id) AND jco_private.is_internal_staff(organization_id)) WITH CHECK (jco_private.operational_access(organization_id) AND jco_private.is_internal_staff(organization_id))',t
+    'ALTER POLICY jco_commercial_access ON public.%I TO authenticated USING (jco_private.operational_access(organization_id) AND (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id))) WITH CHECK (jco_private.operational_access(organization_id) AND (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id)))',t
    );
    n:=n+1;
  END LOOP;
@@ -79,26 +79,26 @@ BEGIN
     AND tablename=t AND policyname=p) THEN
      RAISE EXCEPTION 'Expected protected policy %.% missing',t,p;
   END IF;
-  EXECUTE format('ALTER POLICY %I ON public.%I TO authenticated USING (jco_private.is_internal_staff(organization_id)) WITH CHECK (jco_private.is_internal_staff(organization_id))',p,t);
+  EXECUTE format('ALTER POLICY %I ON public.%I TO authenticated USING (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id)) WITH CHECK (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id))',p,t);
  END LOOP;
 END $$;
 -- Block anonymous/CLIENT accounts from sensitive roster and internal settings.
 ALTER POLICY members_select_org ON public.organization_members TO authenticated
- USING (user_id=(SELECT auth.uid()) OR jco_private.is_internal_staff(organization_id));
+ USING (user_id=(SELECT auth.uid()) OR public.is_platform_admin() OR jco_private.is_internal_staff(organization_id));
 ALTER POLICY member_roles_select_org ON public.member_roles TO authenticated
  USING (EXISTS(SELECT 1 FROM public.organization_members m
   WHERE m.id=organization_member_id AND
-   (m.user_id=(SELECT auth.uid()) OR jco_private.is_internal_staff(m.organization_id))));
+   (m.user_id=(SELECT auth.uid()) OR public.is_platform_admin() OR jco_private.is_internal_staff(m.organization_id))));
 ALTER POLICY member_permissions_select_org ON public.member_permissions TO authenticated
  USING (EXISTS(SELECT 1 FROM public.organization_members m
   WHERE m.id=organization_member_id AND
-   (m.user_id=(SELECT auth.uid()) OR jco_private.is_internal_staff(m.organization_id))));
+   (m.user_id=(SELECT auth.uid()) OR public.is_platform_admin() OR jco_private.is_internal_staff(m.organization_id))));
 ALTER POLICY roles_select_org ON public.roles TO authenticated
- USING (organization_id IS NULL OR jco_private.is_internal_staff(organization_id)
+ USING (organization_id IS NULL OR public.is_platform_admin() OR jco_private.is_internal_staff(organization_id)
    OR (key='CLIENT' AND public.is_org_member(organization_id)));
 ALTER POLICY role_permissions_select_org ON public.role_permissions TO authenticated
  USING (EXISTS(SELECT 1 FROM public.roles r WHERE r.id=role_id
-   AND (r.organization_id IS NULL OR jco_private.is_internal_staff(r.organization_id))));
+   AND (r.organization_id IS NULL OR public.is_platform_admin() OR jco_private.is_internal_staff(r.organization_id))));
 ALTER POLICY billing_access_read ON public.organization_billing_access TO authenticated
  USING (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id));
 ALTER POLICY license_acceptance_read ON public.license_acceptances TO authenticated
@@ -111,7 +111,7 @@ ALTER POLICY license_acceptance_insert ON public.license_acceptances TO authenti
     WHERE l.id=organization_license_id AND jco_private.is_internal_staff(l.organization_id)));
 ALTER POLICY import_rows_manage ON public.import_job_rows TO authenticated
  USING (EXISTS(SELECT 1 FROM public.import_jobs j WHERE j.id=import_job_id
-  AND jco_private.is_internal_staff(j.organization_id)))
+  AND (public.is_platform_admin() OR jco_private.is_internal_staff(j.organization_id))))
  WITH CHECK (EXISTS(SELECT 1 FROM public.import_jobs j WHERE j.id=import_job_id
   AND jco_private.is_internal_staff(j.organization_id)));
 ALTER POLICY subscriptions_org_read ON public.subscriptions TO authenticated
@@ -119,7 +119,7 @@ ALTER POLICY subscriptions_org_read ON public.subscriptions TO authenticated
 ALTER POLICY org_license_read ON public.organization_licenses TO authenticated
  USING (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id));
 ALTER POLICY settings_select_org ON public.organization_settings TO authenticated
- USING (jco_private.is_internal_staff(organization_id));
+ USING (public.is_platform_admin() OR jco_private.is_internal_staff(organization_id));
 ALTER POLICY organization_compliance_read ON public.organization_compliance TO authenticated
  USING (jco_private.is_internal_staff(organization_id));
 -- External accounts can still see their own portal links only.
