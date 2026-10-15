@@ -118,7 +118,13 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $auth
  );
 $auth_fixture$;
 CREATE FUNCTION public.is_platform_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
-CREATE FUNCTION public.has_portal_owner(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
+CREATE FUNCTION public.has_portal_owner(target_owner uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $owner_acl$
+ SELECT (SELECT auth.uid()) IS NOT NULL AND EXISTS(
+  SELECT 1 FROM public.portal_access_links l
+  WHERE l.user_id=(SELECT auth.uid()) AND l.owner_id=target_owner
+ );
+$owner_acl$;
 CREATE FUNCTION public.has_portal_contact(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.has_portal_property(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION private.can_read_portal_property(uuid,uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
