@@ -11,6 +11,7 @@ import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Organization, OrganizationMember, Role } from './types';
 import { parseBillingAccess, type BillingAccess } from './billing-access';
+import { canUseTenantPermission } from './portal-access-mode';
 
 export interface AuthMembership {
   member: OrganizationMember;
@@ -57,10 +58,15 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
   const result: AuthMembership[] = [];
 
   for (const row of memberships as any[]) {
-    const { data: memberRoles } = await supabase
+    const { data: memberRoles, error: rolesError } = await supabase
       .from('member_roles')
       .select('roles(id, organization_id, key, name, description, is_system_role, active)')
       .eq('organization_member_id', row.id);
+
+    // A failed role lookup must not be interpreted as an empty/staff role list.
+    if (rolesError || !memberRoles) {
+      throw new Error('No se pudieron verificar los roles de la inmobiliaria.');
+    }
 
     const roles: Role[] = (memberRoles ?? [])
       .map((entry: any) => entry.roles)
@@ -81,7 +87,7 @@ async function loadMemberships(userId: string): Promise<AuthMembership[]> {
     const org = row.organizations as any;
     // A membership without a readable organization, or one linked to a
     // different organization, must never grant tenant-scoped UI permissions.
-    if (!org || !org.id || org.id !== row.organization_id) continue;
+    if (!org || !org.id || org.id !== row.organization_id || !roles.length) continue;
 
     const { data: accessData, error: accessError } = await supabase.rpc('billing_get_access', { target_org: org.id });
     if (accessError) throw new Error('No se pudo verificar la activación de la inmobiliaria.');
@@ -172,7 +178,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         await loadForUser(error ? null : data.session?.user.id ?? null);
       } catch (loadError) {
         console.error('Unable to load organization memberships', loadError);
-        if (mounted) setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+        if (mounted) {
+          setMemberships([]);
+          setActiveOrganizationId(null);
+          setIsPlatformAdmin(false);
+          setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -190,7 +201,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         void loadForUser(nextSession?.user.id ?? null)
           .catch((error) => {
             console.error('Unable to refresh memberships', error);
-            if (mounted) setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+            if (mounted) {
+          setMemberships([]);
+          setActiveOrganizationId(null);
+          setIsPlatformAdmin(false);
+          setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+        }
           })
           .finally(() => {
             if (mounted) setLoading(false);
@@ -263,7 +279,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const can = useCallback(
-    (permission: string) => activeMembership?.permissions.includes(permission) ?? false,
+    (permission: string) => Boolean(activeMembership &&
+      canUseTenantPermission(activeMembership.roles, activeMembership.permissions, permission)),
     [activeMembership],
   );
 
