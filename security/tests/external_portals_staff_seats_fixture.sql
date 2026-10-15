@@ -107,7 +107,7 @@ CREATE TABLE public.license_acceptances(id uuid,organization_license_id uuid,acc
 ALTER TABLE public.license_acceptances ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.license_acceptances TO authenticated,anon;
 CREATE FUNCTION public.is_org_member(org uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT EXISTS(SELECT 1 FROM public.organization_members WHERE organization_id=org AND user_id=(SELECT auth.uid()) AND status='ACTIVE') $$;
-CREATE FUNCTION public.has_org_permission(uuid,text) RETURNS boolean LANGUAGE sql STABLE AS $ SELECT true $;
+CREATE FUNCTION public.has_org_permission(uuid,text) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$;
 CREATE FUNCTION public.is_platform_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.has_portal_owner(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.has_portal_contact(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
