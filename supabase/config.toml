@@ -1,0 +1,9 @@
+# Wompi calls /functions/v1/billing/events without a Supabase user JWT.
+# The single billing function also hosts /checkout, which authenticates each
+# bearer token inside createBillingHandler() before any payment-order RPC.
+# Every webhook is HMAC-verified and reconciled against Wompi's transaction
+# API before any database write; NEVER disable those handler checks.
+# Setting verify_jwt=false ONLY removes the platform gateway JWT requirement;
+# it does NOT authorize a checkout or accept an unsigned event.
+[functions.billing]
+verify_jwt = false
