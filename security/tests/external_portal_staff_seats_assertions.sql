@@ -46,6 +46,22 @@ BEGIN
    IF reason NOT LIKE '%External CLIENT role cannot be granted%' THEN RAISE EXCEPTION 'Unexpected denial: %',reason; END IF;
  END;
 END $$;
+-- An owner with only CLIENT role and owner_id portal link also stays outside staff seats.
+BEGIN;
+SET CONSTRAINTS ALL DEFERRED;
+INSERT INTO public.organization_members VALUES
+ ('20202020-2020-4020-8020-202020202020','22222222-2222-4222-8222-222222222222',
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','ACTIVE');
+INSERT INTO public.member_roles VALUES
+ ('20202020-2020-4020-8020-202020202020','33333333-3333-4333-8333-333333333333');
+INSERT INTO public.portal_access_links VALUES
+ ('21212121-2121-4121-8121-212121212121',
+  '22222222-2222-4222-8222-222222222222',
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  NULL,'99999999-9999-4999-8999-999999999999');
+COMMIT;
+SELECT public.test_assert(jco_private.is_external_only_member('20202020-2020-4020-8020-202020202020'),
+  'property owner stays outside staff seat quota');
 -- RLS checks: selected user is the third external tenant with an actual lease.
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
@@ -65,9 +81,13 @@ SELECT public.test_assert((SELECT count(*) FROM public.leases)=0,'unlinked prosp
 SELECT public.test_assert((SELECT count(*) FROM public.properties)=0,'prospect cannot browse private property rows');
 SELECT public.test_assert((SELECT count(*) FROM public.rent_payments)=0,'prospect has no financial reads');
 SELECT public.test_assert((SELECT count(*) FROM public.portal_access_links)=0,'prospect has no other client links');
+SELECT set_config('request.jwt.claim.sub','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',false);
+SELECT public.test_assert((SELECT count(*) FROM public.owner_statements)=1,'property owner only sees issued statement');
+SELECT public.test_assert((SELECT count(*) FROM public.rent_payments)=1,'property owner sees own lease payment');
+SELECT public.test_assert((SELECT count(*) FROM public.deals)=0,'owner cannot read client deals');
 -- Genuine staff still get internal access.
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
 SELECT public.test_assert((SELECT count(*) FROM public.contacts)=1,'staff retains tenant contacts');
 SELECT public.test_assert((SELECT count(*) FROM public.deals)=1,'staff retains CRM');
-SELECT public.test_assert((SELECT count(*) FROM public.organization_members)=4,'staff can inspect tenant roster');
+SELECT public.test_assert((SELECT count(*) FROM public.organization_members)=5,'staff can inspect tenant roster');
 RESET ROLE;
