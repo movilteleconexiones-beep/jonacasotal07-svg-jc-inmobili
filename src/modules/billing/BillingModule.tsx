@@ -12,6 +12,7 @@ export function BillingModule() {
   const orgId = activeMembership?.organization.id;
   const billing = activeMembership?.billing;
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [lifetimeAvailable,setLifetimeAvailable]=useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<{ sandbox_enabled: boolean; production_enabled: boolean; activation_mode: string } | null>(null);
   const [error, setError] = useState('');
@@ -20,13 +21,15 @@ export function BillingModule() {
 
   const load = useCallback(async () => {
     if (!orgId || !billing?.can_manage_billing) return;
-    const [catalog, history, config] = await Promise.all([
+    const [catalog, history, config, perpetual] = await Promise.all([
       supabase.from('plans').select('id,name,price,currency,billing_cycle,max_users,max_properties').eq('active', true).in('billing_cycle', ['MONTHLY', 'ANNUAL']).eq('currency', 'COP').order('price'),
       supabase.from('payment_orders').select('id,reference,status,fulfillment_status,environment,created_at,amount_in_cents').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10),
       supabase.from('billing_activation_settings').select('sandbox_enabled,production_enabled,activation_mode').single(),
+      supabase.from('plans').select('id,code,billing_cycle').eq('active',true).eq('code','LIFETIME').eq('billing_cycle','ONE_TIME').maybeSingle(),
     ]);
-    if (catalog.error || history.error || config.error) { setError('No se pudo consultar la facturación. Vuelve a intentar.'); return; }
-    setPlans(catalog.data ?? []); setOrders(history.data ?? []); setSettings(config.data); setError('');
+    if (catalog.error || history.error || config.error || perpetual.error) { setError('No se pudo consultar la facturación. Vuelve a intentar.'); return; }
+    setPlans(catalog.data ?? []); setOrders(history.data ?? []); setSettings(config.data);
+    setLifetimeAvailable(Boolean(perpetual.data?.id)); setError('');
   }, [orgId, billing?.can_manage_billing]);
   useEffect(() => { attempts.current.clear(); void load(); }, [load]);
 
@@ -83,6 +86,22 @@ export function BillingModule() {
           onClick={() => void checkout(plan.id)} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
           {billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
       </article>)}</div>
+      {lifetimeAvailable && <section aria-label="Licencia vitalicia" className="rounded-2xl border border-stone-200 bg-white p-5">
+        <h2 className="text-lg font-bold">INMOJCO Vitalicio · pago único</h2>
+        <p className="mt-2 text-sm text-slate-700">
+          Licencia perpetua para el uso interno de la inmobiliaria, disponible mediante cotización
+          y contrato individual. Conservas el acceso según las condiciones de la licencia adquirida,
+          sin transferencia de derechos de autor, reventa ni sublicenciamiento.
+        </p>
+        <p className="mt-2 text-sm text-slate-700">
+          No incluye automáticamente alojamiento, soporte, mantenimiento o actualizaciones
+          indefinidas. Estos servicios y los límites de usuarios e inmuebles se definen por contrato.
+        </p>
+        <p role="status" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          Precio vitalicio pendiente de aprobación. No está habilitado para compra automática
+          con Wompi. Solicita una cotización al administrador comercial de INMOJCO.
+        </p>
+      </section>}
       <div className="rounded-2xl border bg-white p-5"><div className="flex items-center justify-between gap-3"><h2 className="font-bold">Historial de pagos</h2>
         <button type="button" disabled={busy} onClick={() => void refresh()} className="rounded-lg border px-4 py-2 text-sm">Comprobar estado</button></div>
         <ul className="mt-4 space-y-3">{orders.map(order => <li key={order.id} className="rounded-lg bg-stone-50 p-3 text-sm">
