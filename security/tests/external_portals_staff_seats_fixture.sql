@@ -107,7 +107,16 @@ CREATE TABLE public.license_acceptances(id uuid,organization_license_id uuid,acc
 ALTER TABLE public.license_acceptances ENABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.license_acceptances TO authenticated,anon;
 CREATE FUNCTION public.is_org_member(org uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT EXISTS(SELECT 1 FROM public.organization_members WHERE organization_id=org AND user_id=(SELECT auth.uid()) AND status='ACTIVE') $$;
-CREATE FUNCTION public.has_org_permission(uuid,text) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$;
+CREATE FUNCTION public.has_org_permission(target_org uuid,permission_key text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $auth_fixture$
+ SELECT EXISTS(
+   SELECT 1 FROM public.organization_members m
+   JOIN public.member_roles mr ON mr.organization_member_id=m.id
+   JOIN public.roles r ON r.id=mr.role_id
+   WHERE m.organization_id=target_org AND m.user_id=(SELECT auth.uid())
+    AND m.status='ACTIVE' AND r.active AND r.key <> 'CLIENT'
+ );
+$auth_fixture$;
 CREATE FUNCTION public.is_platform_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.has_portal_owner(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE FUNCTION public.has_portal_contact(uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
@@ -141,17 +150,24 @@ CREATE POLICY jco_commercial_access ON public.appointments FOR ALL USING(jco_pri
 CREATE POLICY jco_commercial_access ON public.commissions FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
 CREATE POLICY jco_commercial_access ON public.contacts FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
 CREATE POLICY jco_commercial_access ON public.deals FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
-CREATE POLICY jco_commercial_access ON public.documents FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
+CREATE POLICY jco_commercial_access ON public.documents AS RESTRICTIVE FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
 CREATE POLICY jco_commercial_access ON public.import_jobs FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
 CREATE POLICY jco_commercial_access ON public.leads FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
-CREATE POLICY jco_commercial_access ON public.leases FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
+CREATE POLICY jco_commercial_access ON public.leases AS RESTRICTIVE FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
 CREATE POLICY jco_commercial_access ON public.maintenance_requests FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
-CREATE POLICY jco_commercial_access ON public.owner_statements FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
-CREATE POLICY jco_commercial_access ON public.portal_access_links FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
-CREATE POLICY jco_commercial_access ON public.properties FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
+CREATE POLICY jco_commercial_access ON public.owner_statements AS RESTRICTIVE FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
+CREATE POLICY jco_commercial_access ON public.portal_access_links AS RESTRICTIVE FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
+CREATE POLICY jco_commercial_access ON public.properties AS RESTRICTIVE FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
 CREATE POLICY jco_commercial_access ON public.property_consignments FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
 CREATE POLICY jco_commercial_access ON public.property_owners FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
-CREATE POLICY jco_commercial_access ON public.rent_payments FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
+CREATE POLICY jco_commercial_access ON public.rent_payments AS RESTRICTIVE FOR ALL USING(jco_private.operational_access(organization_id)) WITH CHECK(jco_private.operational_access(organization_id));
+-- Production has additional RESTRICTIVE staff-only finance SELECT checks.
+CREATE POLICY leases_financial_view ON public.leases AS RESTRICTIVE FOR SELECT TO authenticated
+ USING(public.has_org_permission(organization_id,'leases.view'));
+CREATE POLICY rent_payments_financial_view ON public.rent_payments AS RESTRICTIVE FOR SELECT TO authenticated
+ USING(public.has_org_permission(organization_id,'rent_payments.view'));
+CREATE POLICY owner_statement_financial_view ON public.owner_statements AS RESTRICTIVE FOR SELECT TO authenticated
+ USING(public.has_org_permission(organization_id,'owner_statements.view'));
 CREATE POLICY activities_portal_select ON public.activities FOR SELECT USING(true);
 CREATE POLICY appointments_portal_select ON public.appointments FOR SELECT USING(true);
 CREATE POLICY deals_portal_select ON public.deals FOR SELECT USING(true);

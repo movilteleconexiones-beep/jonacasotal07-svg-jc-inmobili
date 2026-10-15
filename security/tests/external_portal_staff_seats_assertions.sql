@@ -106,3 +106,25 @@ SELECT public.test_assert((SELECT count(*) FROM public.contacts)=1,'staff retain
 SELECT public.test_assert((SELECT count(*) FROM public.deals)=1,'staff retains CRM');
 SELECT public.test_assert((SELECT count(*) FROM public.organization_members)=5,'staff can inspect tenant roster');
 RESET ROLE;
+
+-- The six production-shaped RESTRICTIVE ALL policies are split by operation.
+SELECT public.test_assert(
+ (SELECT count(*) FROM pg_policies
+   WHERE schemaname='public'
+    AND tablename IN ('portal_access_links','properties','leases','rent_payments','owner_statements','documents')
+    AND policyname='jco_commercial_portal_read_guard'
+    AND permissive='RESTRICTIVE' AND cmd='SELECT')=6,
+ 'all six portal read gates stay restrictive');
+SELECT public.test_assert(
+ (SELECT count(*) FROM pg_policies
+   WHERE schemaname='public'
+    AND tablename IN ('portal_access_links','properties','leases','rent_payments','owner_statements','documents')
+    AND policyname IN ('jco_commercial_staff_insert_guard','jco_commercial_staff_update_guard','jco_commercial_staff_delete_guard')
+    AND permissive='RESTRICTIVE' AND cmd IN ('INSERT','UPDATE','DELETE'))=18,
+ 'writes remain guarded by restrictive staff-only policies');
+SELECT public.test_assert(
+ (SELECT count(*) FROM pg_policies
+   WHERE schemaname='public'
+    AND tablename IN ('portal_access_links','properties','leases','rent_payments','owner_statements','documents')
+    AND policyname='jco_commercial_access')=0,
+ 'obsolete restrictive ALL gates removed from private portal tables');
