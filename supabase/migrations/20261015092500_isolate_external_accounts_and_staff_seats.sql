@@ -33,17 +33,12 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
  SELECT (SELECT auth.uid()) IS NOT NULL AND EXISTS(
   SELECT 1 FROM public.organization_members m
   WHERE m.organization_id=p_org AND m.user_id=(SELECT auth.uid())
-    AND m.status='ACTIVE' AND (
-      EXISTS(
+    AND m.status='ACTIVE' AND EXISTS(
        SELECT 1 FROM public.member_roles mr
        JOIN public.roles r ON r.id=mr.role_id
        WHERE mr.organization_member_id=m.id AND r.active
         AND r.organization_id=p_org AND r.key IS DISTINCT FROM 'CLIENT'
-      ) OR EXISTS(
-       SELECT 1 FROM public.member_permissions mp
-       WHERE mp.organization_member_id=m.id AND mp.effect='ALLOW'
       )
-    )
  );
 $$;
 REVOKE ALL ON FUNCTION jco_private.is_internal_staff(uuid),jco_private.is_external_only_member(uuid) FROM PUBLIC,anon,authenticated;
@@ -158,6 +153,29 @@ CREATE TRIGGER jco_no_client_role_permissions BEFORE INSERT OR UPDATE ON public.
 -- The ordinary seat counter runs BEFORE the invitation roles are attached.
 -- Replace only its members trigger with deferred checks so an external-only
 -- invitation remains possible even when all internal seats are occupied.
+-- CLIENT-only must never acquire individual operating permissions as a
+-- workaround for a missing staff role; a legitimate staff account adds that
+-- operational role first and then receives its per-member overrides.
+CREATE OR REPLACE FUNCTION jco_private.block_external_override()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $
+BEGIN
+ IF NEW.effect='ALLOW' AND EXISTS(
+   SELECT 1 FROM public.member_roles mr
+   JOIN public.roles r ON r.id=mr.role_id
+   WHERE mr.organization_member_id=NEW.organization_member_id AND r.key='CLIENT'
+ ) AND NOT EXISTS(
+   SELECT 1 FROM public.member_roles mr
+   JOIN public.roles r ON r.id=mr.role_id
+   WHERE mr.organization_member_id=NEW.organization_member_id
+    AND r.key IS DISTINCT FROM 'CLIENT'
+ )
+ THEN RAISE EXCEPTION 'External CLIENT must not receive operational permission overrides';
+ END IF;
+ RETURN NEW;
+END $;
+DROP TRIGGER IF EXISTS jco_no_external_overrides ON public.member_permissions;
+CREATE TRIGGER jco_no_external_overrides BEFORE INSERT OR UPDATE ON public.member_permissions
+ FOR EACH ROW EXECUTE FUNCTION jco_private.block_external_override();
 DROP TRIGGER IF EXISTS jco_user_plan_limit ON public.organization_members;
 CREATE OR REPLACE FUNCTION jco_private.enforce_internal_seat_limit()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
@@ -191,7 +209,7 @@ CREATE CONSTRAINT TRIGGER jco_internal_seat_role_changes AFTER INSERT OR UPDATE 
 CREATE CONSTRAINT TRIGGER jco_internal_seat_overrides AFTER INSERT OR UPDATE OR DELETE ON public.member_permissions
  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION jco_private.enforce_internal_seat_limit();
 
-REVOKE ALL ON FUNCTION jco_private.enforce_internal_seat_limit(),jco_private.guard_client_role_grants()
+REVOKE ALL ON FUNCTION jco_private.enforce_internal_seat_limit(),jco_private.guard_client_role_grants(),jco_private.block_external_override()
  FROM PUBLIC,anon,authenticated;
 
 COMMIT;
