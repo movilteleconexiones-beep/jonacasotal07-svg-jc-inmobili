@@ -304,7 +304,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         <p className="mt-3 text-slate-700">Tu cuenta tiene acceso a la administración central, pero todavía no dispone de una membresía activa en una inmobiliaria. Para ver propiedades, clientes, CRM y demás módulos necesitas que una inmobiliaria te asigne un perfil autorizado.</p>
         <div className="mt-6 flex flex-wrap gap-3">
           {isPlatformAdmin && <a href="/super-admin" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Administración central · Superadministrador</a>}
-          <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 font-semibold">Volver al inicio</button>
+{isPlatformAdmin && <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 font-semibold">Volver al inicio</button>}
         </div>
       </div>
     </main>;
@@ -325,7 +325,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   if (!activeMembership.billing.operational) {
     return <main className="min-h-screen bg-stone-100 p-5 text-slate-900"><div className="mx-auto max-w-6xl">
       <header className="mb-6 flex justify-between gap-3"><h1 className="font-bold">{activeMembership.organization.name}</h1>
-        <button type="button" onClick={onClose} className="rounded-lg border bg-white px-4 py-2">Volver al inicio</button></header>
+{isPlatformAdmin && <button type="button" onClick={onClose} className="rounded-lg border bg-white px-4 py-2">Volver al inicio</button>}</header>
       <BillingModule key={organizationId} />
     </div></main>;
   }
@@ -335,7 +335,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       <header className="border-b border-stone-200 bg-white px-6 py-4">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-bold">INMOJCO · Portal privado</h1>
+            <h1 className="text-lg font-bold">{activeMembership.organization.name} · Portal privado</h1>
             <p className="text-sm text-slate-600">{activeMembership.organization.name} · Cliente / propietario de inmueble</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -344,7 +344,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
               Cambiar a administración
             </button>}
-            <button type="button" onClick={onClose} className="rounded-lg border px-3 py-2 text-sm">Volver</button>
+{isPlatformAdmin && <button type="button" onClick={onClose} className="rounded-lg border px-3 py-2 text-sm">Volver</button>}
             <button type="button" onClick={()=>void signOut()} className="rounded-lg border px-3 py-2 text-sm">Salir</button>
           </div>
         </div>
@@ -372,7 +372,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {branding.softwareName}
+                Panel privado de la inmobiliaria
               </div>
               <div className="truncate text-lg font-bold" aria-label="Inmobiliaria activa" style={branding.primaryColor ? { color: tenantPrimary } : undefined}>{activeMembership.organization.name}</div>
               <p className="text-xs text-slate-600">{activeMembership.billing.is_test ? 'Cuenta de prueba · Solo datos de esta inmobiliaria' : 'Cuenta inmobiliaria · Solo datos de esta inmobiliaria'}</p>
@@ -407,14 +407,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               </select>
             )}
 
-            <button
+{isPlatformAdmin && <button
               type="button"
               onClick={onClose}
               className="inline-flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium"
             >
               <Home className="h-4 w-4" />
               Portal
-            </button>
+            </button>}
 
             <button
               type="button"
