@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { MAX_PHOTOS, validateInventoryPhotos, saveInventoryPhotos, loadInventoryPhotos, type InventoryPhoto } from '../../lib/property-private-photos';
 import { PropertyPublishingControls } from './PropertyPublishingControls';
+import { AgencyPublicSiteControls } from './AgencyPublicSiteControls';
 
 interface PropertyRow {
   id: string;
@@ -205,6 +206,8 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
           )}
         </div>
       </div>
+
+      {organizationId&&<AgencyPublicSiteControls organizationId={organizationId}/>}
 
       {showCreate && (
         <form onSubmit={createProperty} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
