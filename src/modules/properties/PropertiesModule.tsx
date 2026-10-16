@@ -207,7 +207,7 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
         </div>
       </div>
 
-      {organizationId&&<AgencyPublicSiteControls organizationId={organizationId}/>}
+      {organizationId&&<AgencyPublicSiteControls key={organizationId} organizationId={organizationId}/>}
 
       {showCreate && (
         <form onSubmit={createProperty} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
