@@ -4,7 +4,7 @@ VALUES
  ('11111111-aaaa-4111-8111-111111111111','11111111-1111-1111-1111-111111111111',true,'Descripción comercial A','https://example.org/casa-a.jpg'),
  ('22222222-bbbb-4222-8222-222222222222','22222222-2222-2222-2222-222222222222',true,'Descripción comercial B',NULL),
  ('11111111-aaaa-4111-8111-111111111112','11111111-1111-1111-1111-111111111111',true,NULL,NULL),
- ('11111111-aaaa-4111-8111-111111111113','11111111-1111-1111-1111-111111111111',true,NULL,NULL),
+ ('11111111-aaaa-4111-8111-111111111113','11111111-1111-1111-1111-111111111111',false,NULL,NULL),
  ('33333333-cccc-4333-8333-333333333333','33333333-3333-3333-3333-333333333333',true,NULL,NULL);
 
 SELECT public.consignment_test_assert(jsonb_array_length(public.get_public_agency_listings('tenant-a'))=1,
@@ -147,3 +147,39 @@ SELECT public.consignment_test_assert(
 SELECT public.consignment_test_assert(
  jsonb_array_length(public.get_public_agency_listings('tenant-b',24,0))=1,
  'pagination never leaks listings from agency A into B');
+
+-- Publication is revocable by inventory lifecycle, never restored automatically.
+-- 111114 was explicitly published and AVAILABLE in the pagination scenario.
+UPDATE public.properties SET status='RENTED'
+WHERE id='11111111-aaaa-4111-8111-111111111114';
+SELECT public.consignment_test_assert(
+ (SELECT published=false FROM public.property_publications
+  WHERE property_id='11111111-aaaa-4111-8111-111111111114')
+ AND jsonb_array_length(public.get_public_agency_listings('tenant-a',24,0))=2,
+ 'rented listing is automatically unpublished and excluded from public RPC');
+UPDATE public.properties SET status='AVAILABLE'
+WHERE id='11111111-aaaa-4111-8111-111111111114';
+SELECT public.consignment_test_assert(
+ (SELECT published=false FROM public.property_publications
+  WHERE property_id='11111111-aaaa-4111-8111-111111111114')
+ AND jsonb_array_length(public.get_public_agency_listings('tenant-a',24,0))=2,
+ 'becoming available again NEVER silently restores public approval');
+UPDATE public.property_publications SET published=true
+WHERE property_id='11111111-aaaa-4111-8111-111111111114';
+SELECT public.consignment_test_assert(
+ jsonb_array_length(public.get_public_agency_listings('tenant-a',24,0))=3,
+ 'only explicitly reapproving an AVAILABLE property publishes it again');
+
+DO $test$
+BEGIN
+ BEGIN
+  UPDATE public.property_publications SET published=true
+  WHERE property_id='11111111-aaaa-4111-8111-111111111113';
+  RAISE EXCEPTION 'Expected rented publication to be rejected';
+ EXCEPTION WHEN check_violation THEN NULL;
+ END;
+END $test$;
+SELECT public.consignment_test_assert(
+ (SELECT published=false FROM public.property_publications
+  WHERE property_id='11111111-aaaa-4111-8111-111111111113'),
+ 'service process cannot mark rented inventory as published');
