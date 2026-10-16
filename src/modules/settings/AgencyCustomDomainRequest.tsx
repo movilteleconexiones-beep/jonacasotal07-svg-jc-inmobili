@@ -22,7 +22,7 @@ export function AgencyCustomDomainRequest({organizationId}:{organizationId:strin
  useEffect(()=>{
   let disposed=false;
   ++requestGeneration.current;
-  setRecord(null);setHostname('');setError('');setLoading(true);
+  setRecord(null);setHostname('');setError('');setLoading(true);setBusy(false);
   void (async()=>{
    const {data,error:requestError}=await supabase.rpc('get_my_agency_custom_domain',{
      p_organization_id:organizationId
