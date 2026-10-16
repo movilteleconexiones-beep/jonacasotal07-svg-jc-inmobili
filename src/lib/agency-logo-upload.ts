@@ -1,12 +1,12 @@
 import { supabase } from './supabase';
 
 export const AGENCY_LOGO_BUCKET='jco-agency-logos';
-import {VALID_AGENCY_LOGO_TYPES,validateAgencyLogo} from '../core/agency-logo-validation';
+import {VALID_AGENCY_LOGO_TYPES,validateAgencyLogoContents} from '../core/agency-logo-validation';
 export {validateAgencyLogo,MAX_AGENCY_LOGO_BYTES} from '../core/agency-logo-validation';
 
 /** This bucket holds ONLY non-confidential, intentionally public company logos. */
 export async function uploadAgencyLogo(organizationId:string,file:File) {
- const error=validateAgencyLogo(file);
+ const error=await validateAgencyLogoContents(file);
  if(error)throw new Error(error);
  if(!/^[0-9a-f-]{36}$/i.test(organizationId))throw new Error('Inmobiliaria inválida');
  const key=`${organizationId}/${crypto.randomUUID()}.${VALID_AGENCY_LOGO_TYPES.get(file.type)}`;
