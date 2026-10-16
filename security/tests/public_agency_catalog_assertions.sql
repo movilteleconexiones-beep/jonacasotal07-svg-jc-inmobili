@@ -1,12 +1,11 @@
 -- A tenant's public site can only show its manually approved AVAILABLE rows.
-SELECT id,organization_id FROM public.properties ORDER BY code,organization_id;
 INSERT INTO public.property_publications(property_id,organization_id,published,public_description,public_photo_url)
 VALUES
  ('11111111-aaaa-4111-8111-111111111111','11111111-1111-1111-1111-111111111111',true,'Descripción comercial A','https://example.org/casa-a.jpg'),
  ('22222222-bbbb-4222-8222-222222222222','22222222-2222-2222-2222-222222222222',true,'Descripción comercial B',NULL),
  ('11111111-aaaa-4111-8111-111111111112','11111111-1111-1111-1111-111111111111',true,NULL,NULL),
  ('11111111-aaaa-4111-8111-111111111113','11111111-1111-1111-1111-111111111111',true,NULL,NULL),
- ('33333333-cccc-4333-8333-333333333333','33333333-3333-3333-8333-333333333333',true,NULL,NULL);
+ ('33333333-cccc-4333-8333-333333333333','33333333-3333-3333-3333-333333333333',true,NULL,NULL);
 
 SELECT public.consignment_test_assert(jsonb_array_length(public.get_public_agency_listings('tenant-a'))=1,
  'A receives only one listed AVAILABLE property');
