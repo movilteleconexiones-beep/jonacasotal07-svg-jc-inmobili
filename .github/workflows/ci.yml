@@ -235,6 +235,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_assertions.sql
           bash security/tests/billing_activation_concurrency.sh
+      - name: Tenant property publishing request generation regression
+        run: node --import tsx --test tests/property-publication-session-isolation.test.mjs
       - name: Real public catalogs isolated by agency and manual publication
         env:
           PGPASSWORD: postgres
