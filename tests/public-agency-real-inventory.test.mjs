@@ -50,7 +50,7 @@ test('listing is explicitly published and requires enabled ACTIVE site',()=>{
  assert.match(sql,/o\.status='ACTIVE'/);
  assert.match(sql,/pub\.organization_id=o\.id AND pub\.published/);
  assert.match(sql,/jco_private\.is_internal_staff\(organization_id\)/);
- assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.get_public_agency_listings\(text\) TO anon,authenticated/);
+ assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.get_public_agency_listings\(text,integer,integer\) TO anon,authenticated/);
  assert.doesNotMatch(sql,/GRANT (?:SELECT|ALL) ON public\.properties TO anon/);
  assert.doesNotMatch(sql,/storage\.buckets.*public\s*=\s*true/);
 });
