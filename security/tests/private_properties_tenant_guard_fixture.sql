@@ -10,6 +10,8 @@ VALUES ('fefefefe-fefe-4fef-8fef-fefefefefefe','abababab-abab-4bab-8bab-abababab
 INSERT INTO public.roles(id,organization_id,key,active)
 VALUES ('abababab-1111-4111-8111-abababababab',
         'abababab-abab-4bab-8bab-abababababab','ORGANIZATION_OWNER',true);
+BEGIN;
+SET CONSTRAINTS ALL DEFERRED;
 INSERT INTO public.organization_members(id,organization_id,user_id,status)
 VALUES
  ('abababab-2222-4222-8222-abababababab',
@@ -24,6 +26,7 @@ VALUES
   'abababab-1111-4111-8111-abababababab'),
  ('abababab-3333-4333-8333-abababababab',
   '33333333-3333-4333-8333-333333333333');
+COMMIT;
 
 -- Reproduce the production risk: a broad legacy portal helper and SELECT
 -- policy accidentally advertise every row, despite a tenant-specific UI.
