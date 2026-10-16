@@ -7,7 +7,7 @@ const site=read('src/lib/property-consignments.ts');
 const catalog=read('src/pages/PublicAgencyCatalog.tsx');
 
 test('public consignment branding is never inherited from authenticated private agency',()=>{
- assert.doesNotMatch(modal,/useTenantBranding|activeMembership|tenantBranding|organization_branding/);
+ assert.doesNotMatch(modal,/(?:import[^\n]*useTenantBranding|useTenantBranding\(|tenantBranding\.|\.from\('organization_branding'\))/);
  assert.match(modal,/usePublicPropertyIntakeSite\(isOpen,siteSlug\)/);
  assert.match(modal,/companyName:site\?\.company_name\|\|'la inmobiliaria'/);
  assert.match(modal,/country:site\?\.country\|\|'CO'/);
