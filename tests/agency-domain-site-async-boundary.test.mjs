@@ -28,3 +28,10 @@ test('public site enable/disable response belongs only to captured agency',()=>{
  assert.match(s,/generation!==operationVersion\.current\|\|currentOrganizationRef\.current!==requestedOrgId/);
  assert.match(s,/setWorking\(false\);setMessage\(''\)/);
 });
+
+test('cross-agency switch immediately remounts DNS proof and catalog controls before effects',()=>{
+ const settings=content('src/modules/settings/SettingsModule.tsx');
+ const properties=content('src/modules/properties/PropertiesModule.tsx');
+ assert.match(settings,/<AgencyCustomDomainRequest key=\{organizationId\} organizationId=\{organizationId\}\/>/);
+ assert.match(properties,/<AgencyPublicSiteControls key=\{organizationId\} organizationId=\{organizationId\}\/>/);
+});
