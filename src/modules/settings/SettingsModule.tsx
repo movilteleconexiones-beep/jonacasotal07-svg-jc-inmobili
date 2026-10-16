@@ -331,7 +331,7 @@ export function SettingsModule() {
           </div>
         </div>
         {organizationId&&<div className="md:col-span-2">
-          <AgencyCustomDomainRequest organizationId={organizationId}/>
+          <AgencyCustomDomainRequest key={organizationId} organizationId={organizationId}/>
         </div>}
         <div className="md:col-span-2 rounded-xl border border-stone-200 bg-white p-4">
           <div className="font-semibold">Logo y colores de tu inmobiliaria</div>
