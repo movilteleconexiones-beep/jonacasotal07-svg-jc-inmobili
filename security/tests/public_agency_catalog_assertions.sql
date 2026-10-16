@@ -73,3 +73,32 @@ SELECT public.consignment_test_assert(
  jsonb_array_length(public.get_public_agency_listings('tenant-b'))=1,
  'anonymous projection still scopes B, regardless of signed-in user');
 RESET ROLE;
+
+-- B cannot configure or disable A's site. A can manage only its own site.
+SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',false);
+SET ROLE authenticated;
+DO $test$
+BEGIN
+ BEGIN
+  PERFORM public.configure_my_agency_public_site('11111111-1111-1111-1111-111111111111',false);
+  RAISE EXCEPTION 'Missing cross-tenant authorization guard';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+END $test$;
+SELECT public.consignment_test_assert(
+ public.get_my_agency_public_site('11111111-1111-1111-1111-111111111111') IS NULL,
+ 'B must not read configuration for A');
+RESET ROLE;
+
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',false);
+SET ROLE authenticated;
+SELECT public.consignment_test_assert(
+ public.configure_my_agency_public_site('11111111-1111-1111-1111-111111111111',false)='tenant-a',
+ 'A can disable its own public site');
+SELECT public.consignment_test_assert(
+ jsonb_array_length(public.get_public_agency_listings('tenant-a'))=0,
+ 'site disabled by authorized owner hides every listing');
+SELECT public.consignment_test_assert(
+ public.configure_my_agency_public_site('11111111-1111-1111-1111-111111111111',true)='tenant-a',
+ 'A can restore its own public site');
+RESET ROLE;
