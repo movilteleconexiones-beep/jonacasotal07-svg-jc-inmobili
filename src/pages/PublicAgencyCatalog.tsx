@@ -233,6 +233,6 @@ export function PublicAgencyCatalog() {
         </div>
       </div>
     </div>}
-    <SubmitPropertyModal isOpen={Boolean(site)&&consigning} onClose={()=>setConsigning(false)}/>
+    <SubmitPropertyModal key={slug} siteSlug={slug||undefined} isOpen={Boolean(site)&&consigning} onClose={()=>setConsigning(false)}/>
   </div>;
 }
