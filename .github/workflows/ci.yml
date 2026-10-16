@@ -243,6 +243,8 @@ jobs:
           bash security/tests/billing_activation_concurrency.sh
       - name: Tenant property publishing request generation regression
         run: node --import tsx --test tests/property-publication-session-isolation.test.mjs
+      - name: Public consignment branding never inherits another tenant
+        run: node --import tsx --test tests/public-consignment-branding-boundary.test.mjs
       - name: Real public catalogs isolated by agency and manual publication
         env:
           PGPASSWORD: postgres
