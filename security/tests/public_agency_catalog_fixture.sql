@@ -8,6 +8,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
 $$;
 GRANT EXECUTE ON FUNCTION jco_private.is_internal_staff(uuid) TO authenticated;
 
+ALTER TABLE public.organizations ADD COLUMN slug text;
+UPDATE public.organizations SET slug=CASE id
+  WHEN '11111111-1111-1111-1111-111111111111' THEN 'tenant-a'
+  WHEN '22222222-2222-2222-2222-222222222222' THEN 'tenant-b'
+  ELSE 'tenant-c' END;
+
 ALTER TABLE public.properties
  ADD COLUMN featured boolean NOT NULL DEFAULT false,
  ADD COLUMN created_at timestamptz NOT NULL DEFAULT now();
