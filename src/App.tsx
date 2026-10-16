@@ -5,7 +5,6 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  PROPERTIES,
   CASE_STUDIES,
   ACADEMY_MODULES,
   HERO_IMAGE,
@@ -23,6 +22,7 @@ import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { getCountryOption } from './core/countries';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
 import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
+import { publicAgencySlug } from './core/public-agency-route';
 import {
   Search,
   ArrowRight,
@@ -38,6 +38,7 @@ import {
 
 const PrivateDashboard = React.lazy(() => import('./modules/dashboard/PrivateDashboard.tsx').then(module => ({ default: module.PrivateDashboard })));
 const SuperAdminModule = React.lazy(() => import('./modules/platform/SuperAdminModule'));
+const PublicAgencyCatalog = React.lazy(() => import('./pages/PublicAgencyCatalog').then(module => ({ default: module.PublicAgencyCatalog })));
 
 export default function App() {
   const [isSuperAdminRoute, setIsSuperAdminRoute] = useState(
@@ -76,7 +77,7 @@ export default function App() {
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
   );
   // Catalog state
-  const [properties] = useState<Property[]>(PROPERTIES);
+  const [properties] = useState<Property[]>([]);
   const [operationFilter, setOperationFilter] = useState<'Todas' | Property['operation']>('Todas');
   const [categoryFilter, setCategoryFilter] = useState<'Todas' | Property['category']>('Todas');
   const [locationFilter, setLocationFilter] = useState<CatalogLocationSelection>({ region: '', locality: '' });
@@ -89,7 +90,7 @@ export default function App() {
 
   // Interactive modals & portfolio state
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [savedPropertyIds, setSavedPropertyIds] = useState<string[]>(['prop-1', 'prop-2']);
+  const [savedPropertyIds, setSavedPropertyIds] = useState<string[]>([]);
   const [comparePropertyIds, setComparePropertyIds] = useState<string[]>([]);
   const [isPortfolioDrawerOpen, setIsPortfolioDrawerOpen] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(
@@ -220,6 +221,20 @@ export default function App() {
     setContactError('');
     setContactSubmitted(true);
   };
+
+  // Public agency route is resolved independently of the viewer's signed-in
+  // organization. Only the tenant-safe listing RPC supplies its inventory.
+  const publicSlug = publicAgencySlug(window.location.pathname);
+  if (publicSlug) {
+    return <React.Suspense fallback={<p role="status" className="p-6">Cargando catálogo…</p>}><PublicAgencyCatalog /></React.Suspense>;
+  }
+  if (window.location.pathname.startsWith('/inmobiliaria/')) {
+    return <main role="alert" className="mx-auto max-w-3xl p-10">
+      <h1 className="text-2xl font-bold">Enlace de inmobiliaria inválido</h1>
+      <p>Accede desde un enlace público autorizado de la inmobiliaria.</p>
+      <a href="/" className="underline">Volver a INMOJCO</a>
+    </main>;
+  }
 
   if (isSuperAdminRoute) {
     return <React.Suspense fallback={<p role="status" className="p-6">Cargando administración…</p>}><SuperAdminModule /></React.Suspense>;

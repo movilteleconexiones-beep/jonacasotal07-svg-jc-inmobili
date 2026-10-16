@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PropertyConsignmentInput } from '../core/property-consignment';
 import { consignmentErrorMessage } from '../core/property-consignment';
 import { isSupabaseConfigured, supabase } from './supabase';
+import { publicConsignmentSlug } from '../core/public-agency-route';
 
 export interface PublicPropertyIntakeSite {
   slug: string;
@@ -10,7 +11,10 @@ export interface PublicPropertyIntakeSite {
   currency: string;
 }
 
-const publicSiteSlug = (import.meta.env.VITE_PUBLIC_SITE_SLUG as string | undefined)?.trim();
+const publicSiteSlug = publicConsignmentSlug(
+  window.location.pathname,
+  import.meta.env.VITE_PUBLIC_SITE_SLUG as string | undefined,
+);
 
 export function usePublicPropertyIntakeSite(enabled: boolean) {
   const [site, setSite] = useState<PublicPropertyIntakeSite | null>(null);
