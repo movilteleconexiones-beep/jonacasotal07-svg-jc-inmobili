@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const settings=readFileSync(new URL('../src/modules/settings/SettingsModule.tsx',import.meta.url),'utf8');
 test('settings cannot mix branding/logo colors across organizations during async operations',()=>{
  assert.match(settings,/const logoSelectionGeneration=useRef\(0\)/);
- assert.match(settings,/\+\+logoSelectionGeneration\.current;\s*setPendingLogo\(null\)/);
+ assert.match(settings,/\+\+logoSelectionGeneration\.current;\s*\+\+saveGeneration\.current;\s*setPendingLogo\(null\)/);
  assert.match(settings,/const generation=\+\+logoSelectionGeneration\.current/);
  assert.match(settings,/const issue=await validateAgencyLogoContents\(file\);\s*if\(generation!==logoSelectionGeneration\.current\)return/);
  assert.match(settings,/const palette=await paletteFromLogoFile\(file\);\s*if\(generation!==logoSelectionGeneration\.current\)return/);
