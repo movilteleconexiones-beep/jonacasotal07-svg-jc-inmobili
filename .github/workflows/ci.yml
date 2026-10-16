@@ -206,6 +206,18 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_assertions.sql
           bash security/tests/billing_activation_concurrency.sh
+      - name: Real public catalogs isolated by agency and manual publication
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_agency_catalog_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_catalog_test -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_catalog_test -f supabase/migrations/20261010212630_property_consignment_intake.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_catalog_test -f security/tests/public_agency_catalog_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_catalog_test -f supabase/migrations/20261015194000_isolated_real_property_publications.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_catalog_test -f security/tests/public_agency_catalog_assertions.sql
+      - name: Agency public catalog route and non-demo safety
+        run: node --import tsx --test tests/public-agency-real-inventory.test.mjs
       - name: Property consignment SQL security and atomicity tests
         env:
           PGPASSWORD: postgres
