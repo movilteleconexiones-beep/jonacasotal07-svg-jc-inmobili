@@ -34,6 +34,6 @@ test('domain registration creates requests only, with no web routing shortcut',(
  assert.match(migration,/GRANT SELECT ON public\.agency_custom_domains TO authenticated/);
  assert.doesNotMatch(migration,/GRANT (?:UPDATE|INSERT|DELETE) ON public\.agency_custom_domains TO authenticated/);
  assert.match(migration,/request_agency_custom_domain/);
- assert.match(domains,/Sol.icitar verificación DNS/);
+ assert.match(domains,/Solicitar verificación DNS/);
  assert.match(domains,/Ningún dominio queda activo automáticamente/);
 });
