@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -8,6 +8,9 @@ type SiteState={slug:string;enabled:boolean};
 
 export function AgencyPublicSiteControls({organizationId}:{organizationId:string}){
   const {can}=useAuth();
+  const operationVersion=useRef(0);
+  const currentOrganizationRef=useRef(organizationId);
+  currentOrganizationRef.current=organizationId;
   const [site,setSite]=useState<SiteState|null>(null);
   const [ready,setReady]=useState(false);
   const [working,setWorking]=useState(false);
@@ -15,7 +18,8 @@ export function AgencyPublicSiteControls({organizationId}:{organizationId:string
 
   useEffect(()=>{
     let cancelled=false;
-    setSite(null);setReady(false);setMessage('');
+    ++operationVersion.current;
+    setSite(null);setReady(false);setWorking(false);setMessage('');
     if(!can(PERMISSIONS.SETTINGS_VIEW))return;
     void (async()=>{
       const {data,error}=await supabase.rpc('get_my_agency_public_site',{p_organization_id:organizationId});
@@ -23,18 +27,21 @@ export function AgencyPublicSiteControls({organizationId}:{organizationId:string
       if(error)setMessage('No se pudo verificar el sitio público. Comprueba la migración del catálogo.');
       else{setSite(data?.slug?data as SiteState:null);setReady(true);}
     })();
-    return()=>{cancelled=true;};
+    return()=>{cancelled=true;++operationVersion.current;};
   },[organizationId,can]);
 
   if(!can(PERMISSIONS.SETTINGS_VIEW))return null;
 
   async function change(enabled:boolean){
     if(working||!ready||!can(PERMISSIONS.SETTINGS_EDIT))return;
+    const requestedOrgId=organizationId;
+    const generation=++operationVersion.current;
     if(enabled&&!window.confirm('¿Activar el sitio público de esta inmobiliaria? Ningún inmueble se publicará sin autorización individual.'))return;
     setWorking(true);setMessage('');
     const {data,error}=await supabase.rpc('configure_my_agency_public_site',{
-      p_organization_id:organizationId,p_enabled:enabled
+      p_organization_id:requestedOrgId,p_enabled:enabled
     });
+    if(generation!==operationVersion.current||currentOrganizationRef.current!==requestedOrgId)return;
     setWorking(false);
     if(error||typeof data!=='string'){setMessage('No se pudo actualizar el sitio. Se conservará su configuración anterior.');return;}
     setSite({slug:data,enabled});
