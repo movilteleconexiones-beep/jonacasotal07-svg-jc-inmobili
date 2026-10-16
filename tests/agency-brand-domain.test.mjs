@@ -23,7 +23,7 @@ test('settings automatically analyzes selected file and does not change platform
  assert.match(settings,/await paletteFromLogoFile\(file\)/);
  assert.match(settings,/uploadAgencyLogo\(targetOrganizationId,pendingLogo\)/);
  assert.match(settings,/rollbackAgencyLogoUpload/);
- assert.match(settings,/AgencyCustomDomainRequest organizationId=/);
+ assert.match(settings,/AgencyCustomDomainRequest key=\{organizationId\} organizationId=/);
  assert.match(colors,/createImageBitmap\(file\)/);
  assert.match(colors,/return extractTenantPalette/);
 });
