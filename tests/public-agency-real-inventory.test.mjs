@@ -62,3 +62,14 @@ test('only editable staff can explicitly publish; private photos remain private'
  assert.match(publish,/jco-inventory-private/);
  assert.match(publish,/property_publications'\)\.upsert/);
 });
+
+test('inventory lifecycle revokes publication until newly approved by staff',()=>{
+ assert.match(sql,/CREATE FUNCTION private\.revoke_unavailable_property_publication\(\)/);
+ assert.match(sql,/AFTER UPDATE OF status ON public\.properties/);
+ assert.match(sql,/SET published=false/);
+ assert.match(sql,/NEW\.status IS DISTINCT FROM 'AVAILABLE'/);
+ assert.match(sql,/IF NEW\.published AND actual_status <> 'AVAILABLE' THEN/);
+ const scenarios=read('security/tests/public_agency_catalog_assertions.sql');
+ assert.match(scenarios,/becoming available again NEVER silently restores public approval/);
+ assert.match(scenarios,/service process cannot mark rented inventory as published/);
+});
