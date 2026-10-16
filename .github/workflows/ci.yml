@@ -205,6 +205,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_assertions.sql
+      - name: Tenant catalog async and public logo signature safety
+        run: node --import tsx --test tests/tenant-catalog-logo-hardening.test.mjs
       - name: Agency branding settings source and image safety
         run: node --import tsx --test tests/agency-brand-domain.test.mjs
       - name: Colombian geography and catalog filter tests
