@@ -114,4 +114,40 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $jco$
 $jco$;
 REVOKE ALL ON FUNCTION public.get_public_agency_listings(text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_agency_listings(text) TO anon,authenticated;
+-- Agency administrators can activate their own storefront, never a different
+-- organization's. A public site alone publishes ZERO private properties.
+CREATE FUNCTION public.get_my_agency_public_site(p_organization_id uuid)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $jco$
+ SELECT jsonb_build_object('slug',s.slug,'enabled',s.enabled)
+ FROM private.property_intake_sites s
+ WHERE s.organization_id=p_organization_id
+   AND jco_private.is_internal_staff(p_organization_id)
+   AND public.has_org_permission(p_organization_id,'settings.view');
+$jco$;
+REVOKE ALL ON FUNCTION public.get_my_agency_public_site(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_agency_public_site(uuid) TO authenticated;
+
+CREATE FUNCTION public.configure_my_agency_public_site(p_organization_id uuid,p_enabled boolean)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $jco$
+DECLARE target_slug text;
+BEGIN
+ IF p_organization_id IS NULL OR p_enabled IS NULL
+   OR NOT jco_private.is_internal_staff(p_organization_id)
+   OR NOT public.has_org_permission(p_organization_id,'settings.edit') THEN
+   RAISE EXCEPTION 'Permission denied' USING ERRCODE='42501';
+ END IF;
+ SELECT slug INTO target_slug FROM public.organizations
+ WHERE id=p_organization_id AND status='ACTIVE' FOR UPDATE;
+ IF target_slug IS NULL OR target_slug !~ '^[a-z0-9][a-z0-9-]{2,79}
+ THEN
+   RAISE EXCEPTION 'Valid active agency slug required' USING ERRCODE='22023';
+ END IF;
+ INSERT INTO private.property_intake_sites(slug,organization_id,enabled)
+ VALUES(target_slug,p_organization_id,p_enabled)
+ ON CONFLICT(organization_id) DO UPDATE SET enabled=excluded.enabled;
+ RETURN (SELECT slug FROM private.property_intake_sites
+         WHERE organization_id=p_organization_id);
+END $jco$;
+REVOKE ALL ON FUNCTION public.configure_my_agency_public_site(uuid,boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.configure_my_agency_public_site(uuid,boolean) TO authenticated;
 COMMIT;
