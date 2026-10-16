@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -17,17 +17,23 @@ export function PropertyPublishingControls({property,organizationId}: {
   const [description,setDescription]=useState('');
   const [imageUrl,setImageUrl]=useState('');
   const [loaded,setLoaded]=useState(false);
+  // Invalidate requests from earlier properties, tenants or closed editors.
+  const requestGeneration=useRef(0);
   useEffect(()=>{
-    setOpen(false);setLoaded(false);setPublished(false);setImageUrl('');setDescription('');setMessage('');
+    ++requestGeneration.current;
+    setOpen(false);setBusy(false);setLoaded(false);setPublished(false);setImageUrl('');setDescription('');setMessage('');
+    return()=>{++requestGeneration.current;};
   },[organizationId,property.id]);
 
   if(!can(PERMISSIONS.PROPERTIES_EDIT))return null;
 
   async function showEditor(){
+    const generation=++requestGeneration.current;
     setOpen(true);setBusy(true);setLoaded(false);setMessage('');
     const {data,error}=await supabase.from('property_publications')
       .select('published,public_description,public_photo_url')
       .eq('organization_id',organizationId).eq('property_id',property.id).maybeSingle();
+    if(generation!==requestGeneration.current)return;
     if(error){setMessage('No se pudo verificar la publicación. Esta función requiere la migración de catálogo público.');}
     else{
       setPublished(Boolean(data?.published&&property.status==='AVAILABLE'));
@@ -54,11 +60,13 @@ export function PropertyPublishingControls({property,organizationId}: {
       }catch{setMessage('Utiliza únicamente una URL HTTPS pública de una foto aprobada, no enlaces privados o firmados.');return;}
     }
     if(description.length>600){setMessage('La descripción pública admite hasta 600 caracteres.');return;}
+    const generation=requestGeneration.current;
     setBusy(true);setMessage('');
     const {error}=await supabase.from('property_publications').upsert({
       property_id:property.id,organization_id:organizationId,published,
       public_description:description.trim()||null,public_photo_url:url||null,
     },{onConflict:'property_id'});
+    if(generation!==requestGeneration.current)return;
     setBusy(false);
     if(error){setMessage('No fue posible actualizar la publicación. Comprueba tus permisos y la publicación del módulo.');return;}
     setMessage(published?'Anuncio guardado. Solo se mostrará en el sitio habilitado de esta inmobiliaria.':
@@ -102,7 +110,7 @@ export function PropertyPublishingControls({property,organizationId}: {
             {busy?'Guardando…':'Guardar publicación'}
           </button>}
           <button type="button" className="rounded-lg border px-4 py-2 text-sm"
-            onClick={()=>setOpen(false)}>Cerrar</button>
+            onClick={()=>{++requestGeneration.current;setOpen(false);}}>Cerrar</button>
         </div>
       </section>
     </div>}
