@@ -79,7 +79,7 @@ CREATE POLICY publication_staff_delete ON public.property_publications
 -- its unique server-owned slug. Never allows a client-supplied organization_id.
 -- Does not expose owner contact, full address, coordinates, confidential notes,
 -- private storage references or draft/sold/rented/reserved properties.
-CREATE FUNCTION public.get_public_agency_listings(p_site_slug text)
+CREATE FUNCTION public.get_public_agency_listings(p_site_slug text, p_limit integer DEFAULT 24, p_offset integer DEFAULT 0)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $jco$
  SELECT COALESCE(jsonb_agg(
    jsonb_build_object(
@@ -109,11 +109,12 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $jco$
      AND s.enabled
      AND COALESCE(os.enable_public_website,true)
    ORDER BY p.featured DESC,p.created_at DESC
-   LIMIT 100
+   LIMIT LEAST(GREATEST(COALESCE(p_limit,24),1),48)
+   OFFSET GREATEST(LEAST(COALESCE(p_offset,0),20000),0)
  ) x;
 $jco$;
-REVOKE ALL ON FUNCTION public.get_public_agency_listings(text) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.get_public_agency_listings(text) TO anon,authenticated;
+REVOKE ALL ON FUNCTION public.get_public_agency_listings(text,integer,integer) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.get_public_agency_listings(text,integer,integer) TO anon,authenticated;
 -- Agency administrators can activate their own storefront, never a different
 -- organization's. A public site alone publishes ZERO private properties.
 CREATE FUNCTION public.get_my_agency_public_site(p_organization_id uuid)
