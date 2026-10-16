@@ -147,7 +147,7 @@ export function SettingsModule() {
       setMessage('El sitio web debe empezar por https:// y ser una dirección válida.');
       return;
     }
-    if (logoUrl.trim() && !safeBrandUrl(logoUrl)) {
+    if (!pendingLogo && logoUrl.trim() && !safeBrandUrl(logoUrl)) {
       setMessage('El logo debe estar alojado en una dirección HTTPS válida.');
       return;
     }
