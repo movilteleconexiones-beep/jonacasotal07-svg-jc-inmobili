@@ -1,5 +1,5 @@
 import { etiquetaES } from '../../core/etiquetas-es';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { FileCheck2, Palette, Save } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { getCountryOption, LATAM_COUNTRIES } from '../../core/countries';
@@ -28,6 +28,7 @@ export function SettingsModule() {
   const [website, setWebsite] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [pendingLogo,setPendingLogo]=useState<File|null>(null);
+  const logoSelectionGeneration=useRef(0);
   const [logoPreview,setLogoPreview]=useState('');
   const [analyzingFile,setAnalyzingFile]=useState(false);
   const [primaryColor, setPrimaryColor] = useState(TENANT_DEFAULT_PRIMARY);
@@ -55,7 +56,10 @@ export function SettingsModule() {
   },[pendingLogo]);
 
   useEffect(() => {
+    ++logoSelectionGeneration.current;
     setPendingLogo(null);
+    setAnalyzingFile(false);
+    return()=>{++logoSelectionGeneration.current;};
   },[organizationId]);
 
   useEffect(() => {
@@ -75,6 +79,10 @@ export function SettingsModule() {
 
   useEffect(() => {
     if (!organizationId) return;
+    let disposed=false;
+    setLicenseType('SAAS');
+    setWhiteLabelAllowed(false);
+    setCompliance({status:'PENDING'});
 
     void supabase
       .from('organization_licenses')
@@ -82,6 +90,7 @@ export function SettingsModule() {
       .eq('organization_id', organizationId)
       .maybeSingle()
       .then(({ data }) => {
+        if(disposed)return;
         setLicenseType((data as any)?.license_type ?? 'SAAS');
         setWhiteLabelAllowed(Boolean((data as any)?.white_label_allowed));
       });
@@ -92,6 +101,7 @@ export function SettingsModule() {
       .eq('organization_id', organizationId)
       .maybeSingle()
       .then(({ data }) => {
+        if(disposed)return;
         const pack = (data as any)?.compliance_packs;
         setCompliance({
           status: (data as any)?.status ?? 'PENDING',
@@ -101,7 +111,8 @@ export function SettingsModule() {
           summary: pack?.summary ?? undefined,
         });
       });
-  }, [organizationId, country]);
+    return()=>{disposed=true;};
+  }, [organizationId]);
 
   function handleCountryChange(nextCountry: string) {
     const profile = getCountryOption(nextCountry);
@@ -112,32 +123,37 @@ export function SettingsModule() {
 
   async function selectLogoFile(file:File|undefined) {
     if(!file||!can('settings.edit'))return;
+    const generation=++logoSelectionGeneration.current;
     setMessage('');
     setAnalyzingFile(true);
     try {
       const issue=await validateAgencyLogoContents(file);
+      if(generation!==logoSelectionGeneration.current)return;
       if(issue){setPendingLogo(null);setMessage(issue);return;}
       setPendingLogo(file);
       const palette=await paletteFromLogoFile(file);
+      if(generation!==logoSelectionGeneration.current)return;
       setPrimaryColor(palette.primary);
       setSecondaryColor(palette.secondary);
       setMessage('Logo preparado y colores adaptados automáticamente. Pulsa Guardar configuración para confirmar.');
     }catch(error){
-      setMessage(error instanceof Error?error.message:'No se pudieron analizar los colores. Puedes ajustarlos manualmente.');
-    }finally{setAnalyzingFile(false);}
+      if(generation===logoSelectionGeneration.current)setMessage(error instanceof Error?error.message:'No se pudieron analizar los colores. Puedes ajustarlos manualmente.');
+    }finally{if(generation===logoSelectionGeneration.current)setAnalyzingFile(false);}
   }
 
   async function adaptLogoColors() {
     if (!can('settings.edit') || !logoUrl.trim() || sampling) return;
+    const generation=++logoSelectionGeneration.current;
     setSampling(true);
     setMessage('');
     try {
       const palette = await paletteFromLogoUrl(logoUrl);
+      if(generation!==logoSelectionGeneration.current)return;
       setPrimaryColor(palette.primary);
       setSecondaryColor(palette.secondary);
       setMessage('Colores detectados. Comprueba la vista previa y pulsa Guardar configuración.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No fue posible analizar el logo.');
+      if(generation===logoSelectionGeneration.current)setMessage(error instanceof Error ? error.message : 'No fue posible analizar el logo.');
     } finally { setSampling(false); }
   }
 
