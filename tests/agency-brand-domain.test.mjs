@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {validateAgencyLogo} from '../src/lib/agency-logo-upload.ts';
+import {validateAgencyLogo} from '../src/core/agency-logo-validation.ts';
 
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const settings=read('src/modules/settings/SettingsModule.tsx');
