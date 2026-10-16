@@ -30,12 +30,16 @@ GRANT ALL ON public.property_publications TO service_role;
 -- The row's tenant cannot be forged by a staff member from a different agency.
 CREATE FUNCTION private.validate_property_publication_tenant()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $jco$
-DECLARE actual_org uuid;
+DECLARE actual_org uuid; actual_status text;
 BEGIN
- SELECT organization_id INTO actual_org
+ SELECT organization_id, status INTO actual_org, actual_status
    FROM public.properties WHERE id=NEW.property_id;
  IF actual_org IS NULL OR actual_org <> NEW.organization_id THEN
    RAISE EXCEPTION 'Property and publication belong to different organizations' USING ERRCODE='23514';
+ END IF;
+ -- Even service processes cannot approve an already unavailable property.
+ IF NEW.published AND actual_status <> 'AVAILABLE' THEN
+   RAISE EXCEPTION 'Only available properties may be published' USING ERRCODE='23514';
  END IF;
  NEW.updated_at := now();
  RETURN NEW;
@@ -44,6 +48,25 @@ REVOKE ALL ON FUNCTION private.validate_property_publication_tenant() FROM PUBLI
 CREATE TRIGGER validate_public_property_tenant
  BEFORE INSERT OR UPDATE ON public.property_publications
  FOR EACH ROW EXECUTE FUNCTION private.validate_property_publication_tenant();
+
+-- A withdrawn, sold or rented property requires a NEW conscious approval if it
+-- becomes available later. Merely restoring AVAILABLE must never republish it.
+CREATE FUNCTION private.revoke_unavailable_property_publication()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $jco$
+BEGIN
+ IF NEW.status IS DISTINCT FROM 'AVAILABLE' THEN
+  UPDATE public.property_publications
+     SET published=false
+   WHERE property_id=NEW.id AND organization_id=NEW.organization_id AND published;
+ END IF;
+ RETURN NEW;
+END $jco$;
+REVOKE ALL ON FUNCTION private.revoke_unavailable_property_publication()
+ FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER revoke_unavailable_property_publication
+ AFTER UPDATE OF status ON public.properties
+ FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status)
+ EXECUTE FUNCTION private.revoke_unavailable_property_publication();
 
 CREATE POLICY publication_staff_read ON public.property_publications
  FOR SELECT TO authenticated USING (
