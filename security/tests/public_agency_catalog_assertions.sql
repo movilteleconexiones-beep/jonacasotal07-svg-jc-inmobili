@@ -29,8 +29,10 @@ SELECT public.consignment_test_assert(
   public.get_public_agency_listings('tenant-a')->0->>'description'='Descripción comercial A'
   AND public.get_public_agency_listings('tenant-a')::text NOT LIKE '%DESCRIPCION PRIVADA%',
  'public description must be explicitly approved, not private notes');
-SELECT public.consignment_test_assert(NOT has_table_privilege('anon','public.properties','SELECT'),
- 'anonymous cannot directly select private properties');
+SET ROLE anon;
+SELECT public.consignment_test_assert((SELECT count(*) FROM public.properties)=0,
+ 'anonymous direct properties SELECT must be blocked by private RLS');
+RESET ROLE;
 SELECT public.consignment_test_assert(NOT has_table_privilege('anon','public.property_publications','SELECT'),
  'anonymous cannot directly read publication metadata');
 SELECT public.consignment_test_assert(has_function_privilege('anon','public.get_public_agency_listings(text)','EXECUTE'),
