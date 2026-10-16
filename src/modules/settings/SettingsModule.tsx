@@ -5,7 +5,8 @@ import { useAuth } from '../../core/auth-context';
 import { getCountryOption, LATAM_COUNTRIES } from '../../core/countries';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { paletteFromLogoUrl, paletteFromLogoFile, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
-import { uploadAgencyLogo, rollbackAgencyLogoUpload, validateAgencyLogo } from '../../lib/agency-logo-upload';
+import { uploadAgencyLogo, rollbackAgencyLogoUpload } from '../../lib/agency-logo-upload';
+import { validateAgencyLogoContents } from '../../core/agency-logo-validation';
 import { AgencyCustomDomainRequest } from './AgencyCustomDomainRequest';
 import { supabase } from '../../lib/supabase';
 
@@ -111,12 +112,12 @@ export function SettingsModule() {
 
   async function selectLogoFile(file:File|undefined) {
     if(!file||!can('settings.edit'))return;
-    const issue=validateAgencyLogo(file);
-    if(issue){setMessage(issue);return;}
-    setPendingLogo(file);
     setMessage('');
     setAnalyzingFile(true);
     try {
+      const issue=await validateAgencyLogoContents(file);
+      if(issue){setPendingLogo(null);setMessage(issue);return;}
+      setPendingLogo(file);
       const palette=await paletteFromLogoFile(file);
       setPrimaryColor(palette.primary);
       setSecondaryColor(palette.secondary);
@@ -142,7 +143,7 @@ export function SettingsModule() {
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!organizationId || !can('settings.edit')) return;
+    if (!organizationId || !can('settings.edit') || analyzingFile) return;
     if (website.trim() && !safeBrandUrl(website)) {
       setMessage('El sitio web debe empezar por https:// y ser una dirección válida.');
       return;
