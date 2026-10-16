@@ -14,7 +14,7 @@ WITH CHECK (
  bucket_id='jco-agency-logos'
  AND name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f-]{36}[.](png|jpg|webp)$'
  AND EXISTS (
-  SELECT 1 FROM public.organizations o WHERE o.id::text=split_part(name,'/',1)
+  SELECT 1 FROM public.organizations o WHERE o.id::text=split_part(storage.objects.name,'/',1)
   AND o.status='ACTIVE'
   AND jco_private.is_internal_staff(o.id)
   AND public.has_org_permission(o.id,'settings.edit')
@@ -25,7 +25,7 @@ CREATE POLICY jco_agency_logos_delete ON storage.objects FOR DELETE TO authentic
 USING (
  bucket_id='jco-agency-logos'
  AND EXISTS (
-  SELECT 1 FROM public.organizations o WHERE o.id::text=split_part(name,'/',1)
+  SELECT 1 FROM public.organizations o WHERE o.id::text=split_part(storage.objects.name,'/',1)
   AND jco_private.is_internal_staff(o.id)
   AND public.has_org_permission(o.id,'settings.edit')
  )
