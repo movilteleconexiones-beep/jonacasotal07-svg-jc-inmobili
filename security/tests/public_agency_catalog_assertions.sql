@@ -102,3 +102,48 @@ SELECT public.consignment_test_assert(
  public.configure_my_agency_public_site('11111111-1111-1111-1111-111111111111',true)='tenant-a',
  'A can restore its own public site');
 RESET ROLE;
+
+
+-- Pagination regression: 3 approved listings from A, with stable order across
+-- page boundaries and no cross-tenant leakage even if codes sort differently.
+INSERT INTO public.properties (
+ id,organization_id,code,title,description,operation_type,property_type,
+ status,price,currency,city,featured,created_at
+) VALUES (
+ '11111111-aaaa-4111-8111-111111111114',
+ '11111111-1111-1111-1111-111111111111',
+ 'ZZ99','Casa A secundaria','CONFIDENCIAL',
+ 'SALE','HOUSE','AVAILABLE',80000000,'COP','Medellín',
+ true, now() - interval '1 day'
+), (
+ '11111111-aaaa-4111-8111-111111111115',
+ '11111111-1111-1111-1111-111111111111',
+ 'AA00','Casa A tercera','CONFIDENCIAL',
+ 'SALE','HOUSE','AVAILABLE',70000000,'COP','Medellín',
+ false, now() + interval '1 day'
+);
+INSERT INTO public.property_publications(property_id,organization_id,published)
+VALUES
+ ('11111111-aaaa-4111-8111-111111111114',
+ '11111111-1111-1111-1111-111111111111',true),
+ ('11111111-aaaa-4111-8111-111111111115',
+ '11111111-1111-1111-1111-111111111111',true);
+
+SELECT public.consignment_test_assert(
+ jsonb_array_length(public.get_public_agency_listings('tenant-a',1,0))=1
+ AND public.get_public_agency_listings('tenant-a',1,0)->0->>'title'='Casa A',
+ 'first paginated item is the most recently created featured property');
+SELECT public.consignment_test_assert(
+ public.get_public_agency_listings('tenant-a',1,1)->0->>'title'='Casa A secundaria',
+ 'second page has the older featured property');
+SELECT public.consignment_test_assert(
+ public.get_public_agency_listings('tenant-a',1,2)->0->>'title'='Casa A tercera'
+ AND jsonb_array_length(public.get_public_agency_listings('tenant-a',1,3))=0,
+ 'third page contains nonfeatured property and pagination terminates');
+SELECT public.consignment_test_assert(
+ (SELECT count(DISTINCT row_item->>'id')
+  FROM jsonb_array_elements(public.get_public_agency_listings('tenant-a',24,0)) AS row_item)=3,
+ 'each page and full listing contain distinct property identities');
+SELECT public.consignment_test_assert(
+ jsonb_array_length(public.get_public_agency_listings('tenant-b',24,0))=1,
+ 'pagination never leaks listings from agency A into B');
