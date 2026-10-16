@@ -12,7 +12,7 @@ DROP POLICY IF EXISTS jco_agency_logos_upload ON storage.objects;
 CREATE POLICY jco_agency_logos_upload ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
  bucket_id='jco-agency-logos'
- AND name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f-]{36}\\.(png|jpg|webp)$'
+ AND name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f-]{36}[.](png|jpg|webp)$'
  AND EXISTS (
   SELECT 1 FROM public.organizations o WHERE o.id::text=split_part(name,'/',1)
   AND o.status='ACTIVE'
@@ -72,10 +72,10 @@ BEGIN
  THEN RAISE EXCEPTION 'Not authorized to register an agency hostname'
       USING ERRCODE='42501'; END IF;
  IF length(host) NOT BETWEEN 4 AND 253
-    OR host !~ '^[a-z0-9][a-z0-9-]*(\\.[a-z0-9][a-z0-9-]*)+$'
-    OR host ~ '(^|\\.)(localhost|local|internal|test|invalid)$'
-    OR host ~ '(^|\\.)(inmojco\\.com|railway\\.app|supabase\\.co)$'
-    OR host ~ '[0-9]\\.[0-9]\\.[0-9]\\.[0-9]$'
+    OR host !~ '^[a-z0-9][a-z0-9-]*([.][a-z0-9][a-z0-9-]*)+$'
+    OR host ~ '(^|[.])(localhost|local|internal|test|invalid)$'
+    OR host ~ '(^|[.])(inmojco[.]com|railway[.]app|supabase[.]co)$'
+    OR host ~ '[0-9][.][0-9][.][0-9][.][0-9]$'
     OR EXISTS (SELECT 1 FROM unnest(string_to_array(host,'.')) label
                WHERE char_length(label)>63 OR right(label,1)='-')
  THEN RAISE EXCEPTION 'Invalid or reserved hostname' USING ERRCODE='22023'; END IF;
