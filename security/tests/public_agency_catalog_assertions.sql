@@ -1,4 +1,5 @@
 -- A tenant's public site can only show its manually approved AVAILABLE rows.
+SELECT id,organization_id FROM public.properties ORDER BY code,organization_id;
 INSERT INTO public.property_publications(property_id,organization_id,published,public_description,public_photo_url)
 VALUES
  ('11111111-aaaa-4111-8111-111111111111','11111111-1111-1111-1111-111111111111',true,'Descripción comercial A','https://example.org/casa-a.jpg'),
