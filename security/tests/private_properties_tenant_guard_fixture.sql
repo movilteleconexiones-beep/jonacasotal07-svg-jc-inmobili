@@ -6,7 +6,7 @@ VALUES ('fefefefe-fefe-4fef-8fef-fefefefefefe','abababab-abab-4bab-8bab-abababab
 
 -- Reproduce the production risk: a broad legacy portal helper and SELECT
 -- policy accidentally advertise every row, despite a tenant-specific UI.
-CREATE OR REPLACE FUNCTION public.has_portal_property(uuid)
+CREATE OR REPLACE FUNCTION public.has_portal_property(target_property uuid)
  RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$;
 CREATE POLICY properties_unintended_legacy_allow ON public.properties
  FOR SELECT TO authenticated USING (true);
