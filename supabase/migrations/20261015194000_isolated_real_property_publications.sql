@@ -91,13 +91,13 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $jco$
      'parking_spaces', x.parking_spaces, 'built_area', x.built_area,
      'lot_area', x.lot_area, 'featured', x.featured,
      'description', x.public_description, 'image_url', x.public_photo_url
-   ) ORDER BY x.featured DESC, x.code
+   ) ORDER BY x.featured DESC, x.created_at DESC, x.id DESC
  ), '[]'::jsonb)
  FROM (
    SELECT p.id, p.code, p.title, p.operation_type, p.property_type,
           p.price, p.currency, p.country, p.state, p.city, p.neighborhood,
           p.bedrooms, p.bathrooms, p.parking_spaces, p.built_area,
-          p.lot_area, p.featured, pub.public_description, pub.public_photo_url
+          p.lot_area, p.featured, p.created_at, pub.public_description, pub.public_photo_url
    FROM private.property_intake_sites s
    JOIN public.organizations o ON o.id=s.organization_id AND o.status='ACTIVE'
    LEFT JOIN public.organization_settings os ON os.organization_id=o.id
@@ -108,7 +108,7 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $jco$
      AND s.slug=p_site_slug
      AND s.enabled
      AND COALESCE(os.enable_public_website,true)
-   ORDER BY p.featured DESC,p.created_at DESC
+   ORDER BY p.featured DESC,p.created_at DESC,p.id DESC
    LIMIT LEAST(GREATEST(COALESCE(p_limit,24),1),48)
    OFFSET GREATEST(LEAST(COALESCE(p_offset,0),20000),0)
  ) x;
