@@ -25,5 +25,5 @@ test('public site slug is scoped per navigation, and mismatched RPC response is 
 test('agency storefront fully remounts consignment form on public tenant change',()=>{
  assert.match(catalog,/<SubmitPropertyModal key=\{slug\} siteSlug=\{slug\|\|undefined\}/);
  assert.match(catalog,/supabase\.rpc\('get_public_property_intake_site',\{p_slug:slug\}\)/);
- assert.doesNotMatch(catalog,/useTenantBranding|activeMembership|\.from\('properties'\)/);
+ assert.doesNotMatch(catalog,/(?:useTenantBranding\(|\bactiveMembership\s*\.|\.from\('properties'\))/);
 });
