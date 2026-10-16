@@ -1,5 +1,13 @@
 # Wompi Sandbox — Diagnóstico de Railway (16/oct/2026)
 
+## Arquitectura y alcance
+
+La aplicación web actual inicia pagos mediante `supabase.functions.invoke('billing/checkout')` y recibe eventos en la **Supabase Edge Function** `supabase/functions/billing/index.ts`. El servicio Node `inmojco-wompi-sandbox` en Railway es **otra implementación** de webhook de ensayo y no constituye por sí solo el indicador de disponibilidad del flujo Edge usado por la UI. No configurar o exponer un segundo webhook en producción sin decidir un único receptor autoritativo y probar idempotencia.
+
+La migración de `app.inmojco.com` a `www.inmojco.com` requiere revisar en Supabase `APP_URL=https://www.inmojco.com/`, el origen permitido, la redirección de confirmación, y que `www` ya esté verificado con HTTPS. La rama de integración prepara el *fallback* pero **una variable APP_URL existente prevalece**. No cambiar APP_URL durante la espera de liberación DNS si se pretende mantener la ruta operativa.
+
+## Diagnóstico del runtime alternativo de Railway
+
 ## Confirmado por logs del servicio
 
 - Railway: proyecto `secure-sparkle`, servicio `inmojco-wompi-sandbox`.
