@@ -35,7 +35,7 @@ SELECT public.consignment_test_assert((SELECT count(*) FROM public.properties)=0
 RESET ROLE;
 SELECT public.consignment_test_assert(NOT has_table_privilege('anon','public.property_publications','SELECT'),
  'anonymous cannot directly read publication metadata');
-SELECT public.consignment_test_assert(has_function_privilege('anon','public.get_public_agency_listings(text)','EXECUTE'),
+SELECT public.consignment_test_assert(has_function_privilege('anon','public.get_public_agency_listings(text,integer,integer)','EXECUTE'),
  'anonymous receives only controlled catalog RPC access');
 
 UPDATE private.property_intake_sites SET enabled=false WHERE slug='tenant-a';
