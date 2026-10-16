@@ -21,7 +21,7 @@ test('settings automatically analyzes selected file and does not change platform
  assert.match(settings,/Subir mi logo/);
  assert.match(settings,/void selectLogoFile\(file\)/);
  assert.match(settings,/await paletteFromLogoFile\(file\)/);
- assert.match(settings,/uploadAgencyLogo\(organizationId,pendingLogo\)/);
+ assert.match(settings,/uploadAgencyLogo\(targetOrganizationId,pendingLogo\)/);
  assert.match(settings,/rollbackAgencyLogoUpload/);
  assert.match(settings,/AgencyCustomDomainRequest organizationId=/);
  assert.match(colors,/createImageBitmap\(file\)/);
