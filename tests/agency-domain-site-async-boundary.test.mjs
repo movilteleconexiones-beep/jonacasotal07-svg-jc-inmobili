@@ -12,8 +12,9 @@ test('DNS ownership proof is never shown from another agency after changing memb
  assert.match(s,/const requestedOrgId=organizationId;\s*const generation=\+\+requestGeneration\.current/);
  assert.match(s,/p_organization_id:requestedOrgId,p_hostname:host/);
  assert.match(s,/generation!==requestGeneration\.current\|\|activeOrganizationRef\.current!==requestedOrgId/);
- assert.ok(s.indexOf('if(generation!==requestGeneration.current||activeOrganizationRef.current!==requestedOrgId)return;') <
-  s.indexOf('setRecord(data as DomainRequest);setHostname(data.hostname);'),
+ const requestBody=s.slice(s.indexOf('async function requestDomain()'));
+ assert.ok(requestBody.indexOf('if(generation!==requestGeneration.current||activeOrganizationRef.current!==requestedOrgId)return;') <
+  requestBody.indexOf('setRecord(data as DomainRequest);setHostname(data.hostname);'),
   'stale domain request must not show another tenant DNS proof');
 });
 
