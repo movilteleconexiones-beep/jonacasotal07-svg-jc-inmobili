@@ -103,7 +103,7 @@ export function PublicAgencyCatalog() {
     if(requestError||!Array.isArray(data)||data.some(v=>!verifiedListing(v))){
       setError('No se pudo cargar el siguiente grupo de inmuebles. Intenta nuevamente.');
     }else{
-      setListings(items=>[...items,...data as Listing[]]);
+      setListings(items=>[...items,...(data as Listing[])]);
       setHasMore(data.length===PAGE_SIZE);
     }
     setLoadingMore(false);
