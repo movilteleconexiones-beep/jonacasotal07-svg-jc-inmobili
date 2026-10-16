@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../core/auth-context';
 
@@ -10,6 +10,9 @@ interface DomainRequest {
  * and authoritative DNS verification remain separate operations. */
 export function AgencyCustomDomainRequest({organizationId}:{organizationId:string}){
  const {can}=useAuth();
+ const requestGeneration=useRef(0);
+ const activeOrganizationRef=useRef(organizationId);
+ activeOrganizationRef.current=organizationId;
  const [hostname,setHostname]=useState('');
  const [record,setRecord]=useState<DomainRequest|null>(null);
  const [busy,setBusy]=useState(false);
@@ -18,6 +21,7 @@ export function AgencyCustomDomainRequest({organizationId}:{organizationId:strin
 
  useEffect(()=>{
   let disposed=false;
+  ++requestGeneration.current;
   setRecord(null);setHostname('');setError('');setLoading(true);
   void (async()=>{
    const {data,error:requestError}=await supabase.rpc('get_my_agency_custom_domain',{
@@ -28,24 +32,33 @@ export function AgencyCustomDomainRequest({organizationId}:{organizationId:strin
    else if(data?.hostname){setRecord(data as DomainRequest);setHostname(data.hostname);}
    setLoading(false);
   })();
-  return()=>{disposed=true;};
+  return()=>{disposed=true;++requestGeneration.current;};
  },[organizationId]);
 
  if(!can('settings.view'))return null;
 
  async function requestDomain(){
-  if(busy||!can('settings.edit'))return;
+  if(busy||loading||!can('settings.edit'))return;
+  const requestedOrgId=organizationId;
+  const generation=++requestGeneration.current;
   const host=hostname.trim().toLowerCase();
   if(!host||host.includes('://')||host.includes('/')||host.includes(':')){
    setError('Registra solo el dominio o subdominio, sin https://, rutas ni puertos.');
    return;
   }
   setBusy(true);setError('');
-  const {data,error:requestError}=await supabase.rpc('request_agency_custom_domain',{
-   p_organization_id:organizationId,p_hostname:host
-  });
+  let data:DomainRequest|null=null;
+  let requestFailed=false;
+  try{
+   const result=await supabase.rpc('request_agency_custom_domain',{
+    p_organization_id:requestedOrgId,p_hostname:host
+   });
+   requestFailed=Boolean(result.error);
+   data=result.data as DomainRequest|null;
+  }catch{requestFailed=true;}
+  if(generation!==requestGeneration.current||activeOrganizationRef.current!==requestedOrgId)return;
   setBusy(false);
-  if(requestError||!data?.hostname){
+  if(requestFailed||!data?.hostname){
    setError('No se pudo registrar el dominio. Comprueba que sea válido, propio y no esté asociado a otra inmobiliaria.');
    return;
   }
