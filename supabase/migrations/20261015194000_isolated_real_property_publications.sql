@@ -139,8 +139,7 @@ BEGIN
  END IF;
  SELECT slug INTO target_slug FROM public.organizations
  WHERE id=p_organization_id AND status='ACTIVE' FOR UPDATE;
- IF target_slug IS NULL OR target_slug !~ '^[a-z0-9][a-z0-9-]{2,79}
- THEN
+ IF target_slug IS NULL OR target_slug !~ '^[a-z0-9][a-z0-9-]{2,79}$' THEN
    RAISE EXCEPTION 'Valid active agency slug required' USING ERRCODE='22023';
  END IF;
  INSERT INTO private.property_intake_sites(slug,organization_id,enabled)
