@@ -144,6 +144,9 @@ export function SettingsModule() {
   async function adaptLogoColors() {
     if (!can('settings.edit') || !logoUrl.trim() || sampling) return;
     const generation=++logoSelectionGeneration.current;
+    // Choosing a remote logo supersedes any unfinished local file analysis.
+    setPendingLogo(null);
+    setAnalyzingFile(false);
     setSampling(true);
     setMessage('');
     try {
