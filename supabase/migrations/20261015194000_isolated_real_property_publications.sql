@@ -35,7 +35,7 @@ BEGIN
  SELECT organization_id INTO actual_org
    FROM public.properties WHERE id=NEW.property_id;
  IF actual_org IS NULL OR actual_org <> NEW.organization_id THEN
-   RAISE EXCEPTION 'Property and publication belong to different organizations' USING ERRCODE='23514';
+   RAISE EXCEPTION 'Property and publication belong to different organizations: property %, expected org %, received %', NEW.property_id, actual_org, NEW.organization_id USING ERRCODE='23514';
  END IF;
  NEW.updated_at := now();
  RETURN NEW;
