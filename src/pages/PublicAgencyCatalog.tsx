@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Building2, MapPin, Search, X, Home, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { ResilientImage } from '../components/ResilientImage';
@@ -64,10 +64,14 @@ export function PublicAgencyCatalog() {
   const [consigning,setConsigning]=useState(()=>
     new URLSearchParams(window.location.search).get('consignar')==='1'
   );
+  // In-flight requests for agency A must never mutate agency B's catalog.
+  const catalogGeneration=useRef(0);
 
   useEffect(()=>{
     let disposed=false;
-    setLoading(true);setSite(null);setListings([]);setError('');setHasMore(false);
+    const generation=++catalogGeneration.current;
+    setLoading(true);setLoadingMore(false);setSite(null);setListings([]);setSelected(null);
+    setSearch('');setOperation('ALL');setError('');setHasMore(false);
     if(!slug) {setError('Enlace de inmobiliaria no válido.');setLoading(false);return;}
     void (async()=>{
       try {
@@ -75,7 +79,7 @@ export function PublicAgencyCatalog() {
           supabase.rpc('get_public_property_intake_site',{p_slug:slug}),
           supabase.rpc('get_public_agency_listings',{p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:0}),
         ]);
-        if(disposed)return;
+        if(disposed||generation!==catalogGeneration.current)return;
         if(siteResult.error||catalogResult.error||!siteResult.data?.slug ||
           siteResult.data.slug!==slug||!Array.isArray(catalogResult.data)||
           catalogResult.data.some(v=>!verifiedListing(v))) {
@@ -85,21 +89,23 @@ export function PublicAgencyCatalog() {
         setListings(catalogResult.data as Listing[]);
         setHasMore(catalogResult.data.length===PAGE_SIZE);
       }catch(e){
-        if(!disposed){
+        if(!disposed&&generation===catalogGeneration.current){
           setError(e instanceof Error?e.message:'No se pudo consultar el catálogo público.');
           setListings([]);setSite(null);
         }
-      }finally{if(!disposed)setLoading(false);}
+      }finally{if(!disposed&&generation===catalogGeneration.current)setLoading(false);}
     })();
-    return()=>{disposed=true;};
+    return()=>{disposed=true;++catalogGeneration.current;};
   },[slug]);
 
   async function loadMore(){
     if(!slug||loading||loadingMore||!hasMore||!site)return;
+    const generation=catalogGeneration.current;
     setLoadingMore(true);setError('');
     const {data,error:requestError}=await supabase.rpc('get_public_agency_listings',{
       p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:listings.length,
     });
+    if(generation!==catalogGeneration.current)return;
     if(requestError||!Array.isArray(data)||data.some(v=>!verifiedListing(v))){
       setError('No se pudo cargar el siguiente grupo de inmuebles. Intenta nuevamente.');
     }else{
