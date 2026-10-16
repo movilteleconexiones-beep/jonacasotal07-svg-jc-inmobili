@@ -19,6 +19,7 @@ import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
 import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
 import { useTenantBranding } from './core/use-tenant-branding';
+import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { getCountryOption } from './core/countries';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
 import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
@@ -59,7 +60,14 @@ export default function App() {
   }, []);
 
 
-  const { user, activeMembership, isPlatformAdmin } = useAuth();
+  const { user, activeMembership, isPlatformAdmin, loading: authLoading } = useAuth();
+  const agencyWorkspaceRequired = shouldOpenAgencyWorkspace({
+    authenticated: Boolean(user),
+    hasMembership: Boolean(activeMembership),
+    platformAdmin: isPlatformAdmin,
+    pathname: window.location.pathname,
+    publicConsignment: new URLSearchParams(window.location.search).get('consignar') === '1',
+  });
   const { branding } = useTenantBranding();
   const countryProfile = getCountryOption(branding.country);
   const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
@@ -217,8 +225,22 @@ export default function App() {
     return <React.Suspense fallback={<p role="status" className="p-6">Cargando administración…</p>}><SuperAdminModule /></React.Suspense>;
   }
 
-  if (isPrivateDashboardOpen && user && (activeMembership || isPlatformAdmin)) {
-    return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}><PrivateDashboard key={activeMembership?.organization.id ?? 'platform-no-tenant'} onClose={() => setIsPrivateDashboardOpen(false)} /></React.Suspense>;
+  // Authentication hydration is checked before rendering the central storefront:
+  // a returning agency user must not briefly see another brand or sample stock.
+  if (authLoading) {
+    return <main role="status" className="min-h-screen grid place-items-center bg-stone-100 p-8 text-slate-800">
+      Verificando el acceso a tu inmobiliaria…
+    </main>;
+  }
+
+  if (user && (activeMembership || isPlatformAdmin) &&
+      (isPrivateDashboardOpen || agencyWorkspaceRequired)) {
+    return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}>
+      <PrivateDashboard
+        key={activeMembership?.organization.id ?? 'platform-no-tenant'}
+        onClose={() => { if (isPlatformAdmin) setIsPrivateDashboardOpen(false); }}
+      />
+    </React.Suspense>;
   }
 
   return (
