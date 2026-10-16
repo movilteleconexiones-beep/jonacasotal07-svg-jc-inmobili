@@ -74,6 +74,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_cross_person_assertions.sql
       - name: External portal navigation and no internal CRM data regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
+      - name: Private agency home vs platform landing regression
+        run: node --import tsx --test tests/agency-workspace-entry.test.mjs
       - name: Tenant identity and private inventory boundary checks
         run: node --test tests/tenant-boundary-ui-regression.test.mjs
       - name: External role verification must fail closed
