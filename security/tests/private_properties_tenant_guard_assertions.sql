@@ -21,6 +21,14 @@ SELECT public.property_tenant_test_assert(
  (SELECT COUNT(*) FROM public.properties
  WHERE organization_id='abababab-abab-4bab-8bab-abababababab')=0,
  'A cannot SELECT B property with broad legacy policy');
+-- Two memberships: administrator in one company, CLIENT only in another.
+SELECT set_config('request.jwt.claim.sub','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',false);
+SELECT public.property_tenant_test_assert(
+ (SELECT COUNT(*) FROM public.properties WHERE organization_id='22222222-2222-4222-8222-222222222222')=0,
+ 'active CLIENT membership alone grants no private inventory');
+SELECT public.property_tenant_test_assert(
+ (SELECT COUNT(*) FROM public.properties WHERE organization_id='abababab-abab-4bab-8bab-abababababab')=1,
+ 'authorized staff can see its own agency');
 -- Unlinked user cannot read either property despite broad legacy helper.
 SELECT set_config('request.jwt.claim.sub','dddddddd-dddd-4ddd-8ddd-dddddddddddd',false);
 SELECT public.property_tenant_test_assert(
