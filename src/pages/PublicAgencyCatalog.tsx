@@ -15,6 +15,7 @@ interface Listing {
   parking_spaces: number | null; built_area: number | null; lot_area: number | null;
   featured: boolean; description: string | null; image_url: string | null;
 }
+const PAGE_SIZE=24;
 const operations: Record<string,string> = {
  SALE:'Venta', RENT:'Arriendo', SALE_OR_RENT:'Venta o arriendo',
  ADMINISTRATION:'Administración',
@@ -54,6 +55,8 @@ export function PublicAgencyCatalog() {
   const [site,setSite]=useState<Site|null>(null);
   const [listings,setListings]=useState<Listing[]>([]);
   const [loading,setLoading]=useState(true);
+  const [loadingMore,setLoadingMore]=useState(false);
+  const [hasMore,setHasMore]=useState(false);
   const [error,setError]=useState('');
   const [search,setSearch]=useState('');
   const [operation,setOperation]=useState('ALL');
@@ -64,13 +67,13 @@ export function PublicAgencyCatalog() {
 
   useEffect(()=>{
     let disposed=false;
-    setLoading(true);setSite(null);setListings([]);setError('');
+    setLoading(true);setSite(null);setListings([]);setError('');setHasMore(false);
     if(!slug) {setError('Enlace de inmobiliaria no válido.');setLoading(false);return;}
     void (async()=>{
       try {
         const [siteResult,catalogResult]=await Promise.all([
           supabase.rpc('get_public_property_intake_site',{p_slug:slug}),
-          supabase.rpc('get_public_agency_listings',{p_site_slug:slug}),
+          supabase.rpc('get_public_agency_listings',{p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:0}),
         ]);
         if(disposed)return;
         if(siteResult.error||catalogResult.error||!siteResult.data?.slug ||
@@ -80,6 +83,7 @@ export function PublicAgencyCatalog() {
         }
         setSite(siteResult.data as Site);
         setListings(catalogResult.data as Listing[]);
+        setHasMore(catalogResult.data.length===PAGE_SIZE);
       }catch(e){
         if(!disposed){
           setError(e instanceof Error?e.message:'No se pudo consultar el catálogo público.');
@@ -89,6 +93,21 @@ export function PublicAgencyCatalog() {
     })();
     return()=>{disposed=true;};
   },[slug]);
+
+  async function loadMore(){
+    if(!slug||loading||loadingMore||!hasMore||!site)return;
+    setLoadingMore(true);setError('');
+    const {data,error:requestError}=await supabase.rpc('get_public_agency_listings',{
+      p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:listings.length,
+    });
+    if(requestError||!Array.isArray(data)||data.some(v=>!verifiedListing(v))){
+      setError('No se pudo cargar el siguiente grupo de inmuebles. Intenta nuevamente.');
+    }else{
+      setListings(items=>[...items,...data as Listing[]]);
+      setHasMore(data.length===PAGE_SIZE);
+    }
+    setLoadingMore(false);
+  }
 
   const visible=useMemo(()=>listings.filter(item=>{
     if(operation!=='ALL'&&item.operation_type!==operation)return false;
@@ -181,6 +200,12 @@ export function PublicAgencyCatalog() {
             </button>
           </article>)}
         </div>
+        {hasMore&&<div className="mt-9 text-center">
+          <button type="button" disabled={loadingMore} onClick={()=>void loadMore()}
+            className="rounded-lg border border-[#0F2942] px-6 py-3 text-sm font-semibold text-[#0F2942] disabled:opacity-50">
+            {loadingMore?'Cargando…':'Ver más inmuebles'}
+          </button>
+        </div>}
       </>}
     </main>
     {selected&&<div role="dialog" aria-modal="true" aria-label={'Ficha de '+selected.title}
