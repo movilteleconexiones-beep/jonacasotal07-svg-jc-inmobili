@@ -205,6 +205,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_assertions.sql
+      - name: Domain DNS ownership and public site tenant switch regression
+        run: node --import tsx --test tests/agency-domain-site-async-boundary.test.mjs
       - name: Tenant branding partial-save integrity and switch isolation
         run: node --import tsx --test tests/tenant-branding-save-consistency.test.mjs
       - name: Tenant branding asynchronous switch isolation
