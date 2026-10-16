@@ -20,3 +20,12 @@ test('tenant-specific compliance and licensing queries cannot populate another t
  assert.match(settings,/\.from\('organization_compliance'\)[\s\S]*?\.then\(\(\{ data \}\) => \{\s*if\(disposed\)return/);
  assert.match(settings,/return\(\)=>\{disposed=true;\};\s*\}, \[organizationId\]\)/);
 });
+
+test('remote URL palette selection clears superseded file choice and loading state',()=>{
+ const match=settings.match(/async function adaptLogoColors\(\) \{([\s\S]*?)async function save\(/);
+ assert.ok(match,'remote palette flow must exist');
+ assert.match(match[1],/const generation=\+\+logoSelectionGeneration\.current/);
+ assert.match(match[1],/setPendingLogo\(null\)/);
+ assert.match(match[1],/setAnalyzingFile\(false\)/);
+ assert.match(match[1],/if\(generation!==logoSelectionGeneration\.current\)return/);
+});
