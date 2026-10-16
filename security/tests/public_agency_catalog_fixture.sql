@@ -30,3 +30,8 @@ VALUES
   'DATOS PRIVADOS','RENT','HOUSE','DRAFT',2500000,'COP','Bogotá','Centro',false),
  ('33333333-cccc-4333-8333-333333333333','33333333-3333-3333-3333-333333333333','0004','Inmueble suspendido',
   'INTERNO','SALE','HOUSE','AVAILABLE',300000000,'COP','Medellín','Poblado',false);
+
+-- The legitimate A administrator controls only A's public website.
+INSERT INTO public.consignment_test_permissions(user_id,organization_id,permission_key)
+VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','settings.view'),
+       ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','settings.edit');
