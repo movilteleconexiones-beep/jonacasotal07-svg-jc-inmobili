@@ -16,7 +16,9 @@ SET ROLE authenticated;
 SELECT 'AUTH PROBE' AS phase, current_user AS sql_role, auth.uid() AS identity,
  public.has_org_permission('11111111-1111-1111-1111-111111111111','settings.edit') AS has_edit,
  jco_private.is_internal_staff('11111111-1111-1111-1111-111111111111') AS staff,
- ('11111111-1111-1111-1111-111111111111/cccccccc-cccc-4ccc-8ccc-cccccccccccc.png' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f-]{36}[.](png|jpg|webp)(id,bucket_id,name) VALUES
+ ('11111111-1111-1111-1111-111111111111/cccccccc-cccc-4ccc-8ccc-cccccccccccc.png'
+   ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f-]{36}[.](png|jpg|webp)$') AS valid_path;
+INSERT INTO storage.objects(id,bucket_id,name) VALUES
  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','jco-agency-logos',
  '11111111-1111-1111-1111-111111111111/cccccccc-cccc-4ccc-8ccc-cccccccccccc.png');
 DO $t$ BEGIN
