@@ -180,6 +180,17 @@ jobs:
         run: node --import tsx --test tests/tenant-menu-overview.test.mjs
       - name: Dashboard home card navigation and permission tests
         run: node --import tsx --test tests/dashboard-card-navigation.test.mjs
+      - name: Agency logos and pending custom domain isolation SQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_agency_identity_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_assertions.sql
+      - name: Agency branding settings source and image safety
+        run: node --import tsx --test tests/agency-brand-domain.test.mjs
       - name: Colombian geography and catalog filter tests
         run: node --import tsx --test tests/catalog-location.test.mjs
       - name: Older official schema, owner trials and monthly overview

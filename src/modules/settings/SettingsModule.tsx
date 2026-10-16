@@ -4,7 +4,9 @@ import { FileCheck2, Palette, Save } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { getCountryOption, LATAM_COUNTRIES } from '../../core/countries';
 import { useTenantBranding } from '../../core/use-tenant-branding';
-import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
+import { paletteFromLogoUrl, paletteFromLogoFile, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
+import { uploadAgencyLogo, rollbackAgencyLogoUpload, validateAgencyLogo } from '../../lib/agency-logo-upload';
+import { AgencyCustomDomainRequest } from './AgencyCustomDomainRequest';
 import { supabase } from '../../lib/supabase';
 
 interface ComplianceInfo {
@@ -24,6 +26,9 @@ export function SettingsModule() {
   const [softwareName, setSoftwareName] = useState('');
   const [website, setWebsite] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [pendingLogo,setPendingLogo]=useState<File|null>(null);
+  const [logoPreview,setLogoPreview]=useState('');
+  const [analyzingFile,setAnalyzingFile]=useState(false);
   const [primaryColor, setPrimaryColor] = useState(TENANT_DEFAULT_PRIMARY);
   const [secondaryColor, setSecondaryColor] = useState(TENANT_DEFAULT_SECONDARY);
   const [sampling, setSampling] = useState(false);
@@ -40,6 +45,17 @@ export function SettingsModule() {
   const [whiteLabelAllowed, setWhiteLabelAllowed] = useState(false);
 
   const selectedCountry = useMemo(() => getCountryOption(country), [country]);
+
+  useEffect(()=>{
+    if(!pendingLogo){setLogoPreview('');return;}
+    const preview=URL.createObjectURL(pendingLogo);
+    setLogoPreview(preview);
+    return()=>URL.revokeObjectURL(preview);
+  },[pendingLogo]);
+
+  useEffect(() => {
+    setPendingLogo(null);
+  },[organizationId]);
 
   useEffect(() => {
     setCompanyName(branding.companyName);
@@ -93,6 +109,23 @@ export function SettingsModule() {
     setTimezone(profile.timezone);
   }
 
+  async function selectLogoFile(file:File|undefined) {
+    if(!file||!can('settings.edit'))return;
+    const issue=validateAgencyLogo(file);
+    if(issue){setMessage(issue);return;}
+    setPendingLogo(file);
+    setMessage('');
+    setAnalyzingFile(true);
+    try {
+      const palette=await paletteFromLogoFile(file);
+      setPrimaryColor(palette.primary);
+      setSecondaryColor(palette.secondary);
+      setMessage('Logo preparado y colores adaptados automáticamente. Pulsa Guardar configuración para confirmar.');
+    }catch(error){
+      setMessage(error instanceof Error?error.message:'No se pudieron analizar los colores. Puedes ajustarlos manualmente.');
+    }finally{setAnalyzingFile(false);}
+  }
+
   async function adaptLogoColors() {
     if (!can('settings.edit') || !logoUrl.trim() || sampling) return;
     setSampling(true);
@@ -114,12 +147,21 @@ export function SettingsModule() {
       setMessage('El sitio web debe empezar por https:// y ser una dirección válida.');
       return;
     }
-    if (logoUrl.trim() && !safeBrandUrl(logoUrl)) {
+    if (!pendingLogo && logoUrl.trim() && !safeBrandUrl(logoUrl)) {
       setMessage('El logo debe estar alojado en una dirección HTTPS válida.');
       return;
     }
     setSaving(true);
     setMessage('');
+    let uploadedLogo:{url:string;path:string}|null=null;
+    try{
+      if(pendingLogo) uploadedLogo=await uploadAgencyLogo(organizationId,pendingLogo);
+    }catch(error){
+      setMessage(error instanceof Error?error.message:'No se pudo cargar el archivo del logo.');
+      setSaving(false);
+      return;
+    }
+    const effectiveLogo=uploadedLogo?.url || (logoUrl.trim()?safeBrandUrl(logoUrl):null);
 
     const countryResult = await supabase.rpc('set_organization_country', {
       target_org: organizationId,
@@ -127,6 +169,7 @@ export function SettingsModule() {
     });
 
     if (countryResult.error) {
+      if(uploadedLogo)await rollbackAgencyLogoUpload(uploadedLogo.path);
       setMessage(countryResult.error.message);
       setSaving(false);
       return;
@@ -144,7 +187,7 @@ export function SettingsModule() {
           company_name: companyName.trim(),
           software_name: softwareName.trim(),
           website: website.trim() ? safeBrandUrl(website) : null,
-          logo_url: logoUrl.trim() ? safeBrandUrl(logoUrl) : null,
+          logo_url: effectiveLogo,
           primary_color: safeTenantColor(primaryColor, TENANT_DEFAULT_PRIMARY),
           secondary_color: safeTenantColor(secondaryColor, TENANT_DEFAULT_SECONDARY),
           phone: phone.trim() || null,
@@ -167,9 +210,12 @@ export function SettingsModule() {
 
     const error = orgResult.error || brandingResult.error || settingsResult.error;
     if (error) {
+      if(uploadedLogo)await rollbackAgencyLogoUpload(uploadedLogo.path);
       setMessage(error.message);
     } else {
-      setMessage('Identidad, país y configuración regional guardados correctamente.');
+      setPendingLogo(null);
+      if(uploadedLogo)setLogoUrl(uploadedLogo.url);
+      setMessage('Identidad, logo, colores y configuración regional guardados correctamente.');
       await refresh();
       window.dispatchEvent(new Event('tenant-branding-updated'));
 
@@ -236,15 +282,31 @@ export function SettingsModule() {
             <Field label="Dirección de tu sitio web (https://...)" value={website} onChange={setWebsite} type="url" />
           </div>
         </div>
+        {organizationId&&<div className="md:col-span-2">
+          <AgencyCustomDomainRequest organizationId={organizationId}/>
+        </div>}
         <div className="md:col-span-2 rounded-xl border border-stone-200 bg-white p-4">
           <div className="font-semibold">Logo y colores de tu inmobiliaria</div>
           <p className="mt-1 text-xs text-slate-600">Tu logo se mostrará en la cabecera del panel inmobiliario, sin cambiar la marca de INMOJCO ni la administración central.</p>
           <div className="mt-3">
-            <Field label="Dirección HTTPS de la imagen del logo" value={logoUrl} onChange={setLogoUrl} type="url" />
+            <label className="block text-sm font-medium" htmlFor="agency-logo-file">Subir mi logo (PNG, JPG o WebP, máximo 2 MB)</label>
+            <input id="agency-logo-file" type="file" accept="image/png,image/jpeg,image/webp"
+              disabled={!can('settings.edit')||saving} onChange={event=>{
+                const file=event.target.files?.[0];event.target.value='';
+                void selectLogoFile(file);
+              }} className="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm"/>
+            {pendingLogo&&<p className="mt-2 text-xs text-slate-700">
+              Archivo seleccionado: {pendingLogo.name}. {analyzingFile?'Analizando colores…':'Listo para guardar.'}
+              <button type="button" className="ml-2 underline" onClick={()=>setPendingLogo(null)}>Cancelar</button>
+            </p>}
+          </div>
+          <div className="mt-3">
+            <Field label="O utilizar una URL HTTPS pública del logo" value={logoUrl}
+              onChange={value=>{setLogoUrl(value);setPendingLogo(null);}} type="url" />
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <div className="flex h-20 w-28 items-center justify-center overflow-hidden rounded-xl border bg-white">
-              {safeBrandUrl(logoUrl) ? <img src={safeBrandUrl(logoUrl) ?? ''} alt="Vista previa del logo" className="max-h-full max-w-full object-contain p-2" /> :
+              {logoPreview||safeBrandUrl(logoUrl) ? <img src={logoPreview||safeBrandUrl(logoUrl)||''} alt="Vista previa del logo" className="max-h-full max-w-full object-contain p-2" /> :
                 <span className="text-center text-xs text-slate-500">Sin logo</span>}
             </div>
             <button type="button" onClick={() => void adaptLogoColors()} disabled={sampling || saving || !can('settings.edit') || !safeBrandUrl(logoUrl)} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">
@@ -350,7 +412,7 @@ export function SettingsModule() {
         <div className="md:col-span-2 flex justify-end">
           <button
             type="submit"
-            disabled={saving || !can('settings.edit')}
+            disabled={saving || analyzingFile || !can('settings.edit')}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             <Save className="h-4 w-4" />

@@ -89,3 +89,16 @@ export async function paletteFromLogoUrl(value: string): Promise<{ primary: stri
     throw e;
   }
 }
+
+/** Local files need no CORS access: extract palette before storage upload. */
+export async function paletteFromLogoFile(file:File):Promise<{primary:string;secondary:string}>{
+ const bitmap=await createImageBitmap(file);
+ try{
+  const canvas=document.createElement('canvas');
+  canvas.width=96;canvas.height=96;
+  const context=canvas.getContext('2d',{willReadFrequently:true});
+  if(!context)throw new Error('Este navegador no permite analizar los colores del logo.');
+  context.drawImage(bitmap,0,0,96,96);
+  return extractTenantPalette(context.getImageData(0,0,96,96).data);
+ }finally{bitmap.close();}
+}
