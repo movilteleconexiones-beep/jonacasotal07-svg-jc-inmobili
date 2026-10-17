@@ -109,6 +109,6 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
       </div>)}
       <p className="mt-2 text-xs">El motivo de auditoría se escribe en el campo «Motivo» anterior. La base de datos volverá a comprobar firma, contrato y seguridad antes de aplicar.</p>
     </section>}
-    {message && <p role="status" className="mt-3 text-sm">{message}</p>
+    {message && <p role="status" className="mt-3 text-sm">{message}</p>}
   </section>;
 }
