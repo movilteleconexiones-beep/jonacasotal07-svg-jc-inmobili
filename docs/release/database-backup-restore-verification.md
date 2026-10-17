@@ -14,7 +14,7 @@ Prohibido subir respaldos, contraseñas, claves service_role, JWT, datos de clie
 
 ## 2. Respaldo privado de PostgreSQL cuando exista staging
 
-Requiere cliente PostgreSQL 17, conexión administrativa segura (TLS), destino cifrado privado fuera del repositorio y capacidad de restaurar una copia en una base DESARTABLE. El plan Pro se contratará en la fase final, tras confirmar su precio y la ventana de ensayo.
+Requiere cliente PostgreSQL 17, conexión administrativa segura (TLS), destino cifrado privado fuera del repositorio y capacidad de restaurar una copia en una base DESCARTABLE. El plan Pro se contratará en la fase final, tras confirmar su precio y la ventana de ensayo.
 
 Conectar PostgreSQL sin contraseñas visibles en comandos:
 
