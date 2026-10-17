@@ -21,9 +21,11 @@ SELECT id,organization_id,true,
 FROM public.properties;
 
 SET ROLE anon;
+-- The strongest boundary is an explicit SQL privilege error, not an
+-- apparent zero-row response. Attempting SELECT would raise 42501.
 SELECT public.property_tenant_test_assert(
- (SELECT count(*) FROM public.properties)=0,
- 'anon never selects private inventory after RLS migration');
+ NOT has_table_privilege('anon','public.properties','SELECT'),
+ 'anon cannot issue any direct private inventory query (SQL 42501)');
 SELECT public.property_tenant_test_assert(
  jsonb_array_length(public.get_public_agency_listings('tenant-a',24,0))=1
  AND public.get_public_agency_listings('tenant-a',24,0)->0->>'title'='Apartamento de A'
