@@ -28,7 +28,7 @@ Ejemplo Linux/macOS; en Windows 10 se puede ejecutar pg_dump.exe y pg_restore.ex
 umask 077
 mkdir -p "$HOME/inmojco-private-backups"
 pg_dump --dbname="service=inmojco_production" \
-  --format=custom --no-owner --no-acl \
+  --format=custom --no-owner \
   --file="$HOME/inmojco-private-backups/inmojco-pre-pr185.backup"
 sha256sum "$HOME/inmojco-private-backups/inmojco-pre-pr185.backup"
 pg_restore --list "$HOME/inmojco-private-backups/inmojco-pre-pr185.backup" > /dev/null
@@ -46,7 +46,7 @@ pg_dump preserva referencias y metadatos de storage.objects, pero **NO copia los
 
 1. Crear un proyecto de staging/clon expresamente descartable. Comprobar dos veces destino e identificador: no debe ser cuitgyqrjibgwuniapmk.
 2. Deshabilitar o sustituir emails externos, webhooks, cobros, tareas programadas y conexiones de producción en el clon.
-3. Restaurar el respaldo en destino vacío con pg_restore --exit-on-error --no-owner --no-acl. Investigar incompatibilidades de Auth, extensiones y esquemas administrados.
+3. Restaurar el respaldo en destino vacío con pg_restore --exit-on-error --no-owner. Investigar incompatibilidades de Auth, extensiones y esquemas administrados.
 4. Restaurar también objetos privados de Storage; comparar sus checksums con la exportación privada.
 5. Comparar conteos y restricciones de las tablas clave sin difundir PII, y repetir RLS con dos inmobiliarias y cinco perfiles: administrador, asesor, CLIENT, propietario e inquilino; comprobar la cuenta SuperAdmin.
 6. Registrar fuera del repositorio hash, fecha UTC, responsable y resultado del ensayo.
@@ -76,3 +76,21 @@ La revisión humana debe inspeccionar los artefactos y confirmar que estas decla
 Para el lanzamiento comercial existe el perfil commercial, con pruebas adicionales de contabilidad, SMTP, conciliación e idempotencia Wompi, licenciamiento exclusivo y autorización expresa para pagos reales. Esto no significa que el modo real esté autorizado ahora.
 
 **Recordatorio:** opción A aprobada; no contratar Supabase Pro anticipadamente. Solicitarlo solo al llegar al ensayo y lanzamiento comercial final, y confirmar el precio vigente antes de contratar.
+
+
+### Ensayo gratuito adicional (datos ficticios)
+
+GitHub Actions ejecuta `security/tests/isolated_backup_restore_rehearsal.sh`:
+vuelca una base de datos PostgreSQL 17 **sintética** y la restaura en otra
+base de pruebas del mismo entorno de CI. Verifica tablas, RLS y permisos
+privados al terminar. Esto prueba que el procedimiento de prueba es ejecutable,
+**no** que exista ya un respaldo real de producción, ni restaura los archivos
+Supabase Storage. El script rechaza credenciales que no sean las ficticias
+usadas en CI y nunca recibe un proyecto o URI de producción.
+
+**Conservar privilegios:** el respaldo de ensayo y el procedimiento de
+restauración deben preservar GRANT/REVOKE y políticas. Evitar `--no-acl`
+como atajo de recuperación completa: si se omiten los permisos, deberán
+reconstruirse explícitamente y comprobarse en el entorno aislado. `--no-owner`
+puede emplearse con el operador autorizado del clon, revisando las diferencias
+de propietarios y servicios gestionados.
