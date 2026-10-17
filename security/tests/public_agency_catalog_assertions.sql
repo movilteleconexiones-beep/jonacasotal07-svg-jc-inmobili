@@ -30,8 +30,12 @@ SELECT public.consignment_test_assert(
   AND public.get_public_agency_listings('tenant-a')::text NOT LIKE '%DESCRIPCION PRIVADA%',
  'public description must be explicitly approved, not private notes');
 SET ROLE anon;
-SELECT public.consignment_test_assert((SELECT count(*) FROM public.properties)=0,
- 'anonymous direct properties SELECT must be blocked by private RLS');
+-- A direct table SELECT must be denied by PostgreSQL (SQLSTATE 42501), not
+-- merely filtered to zero rows. The safe public RPC stays available.
+SELECT public.consignment_test_assert(
+ NOT has_table_privilege('anon','public.properties','SELECT')
+ AND jsonb_array_length(public.get_public_agency_listings('tenant-a'))=1,
+ 'anonymous has no private inventory table grants but sees approved RPC listings');
 RESET ROLE;
 SELECT public.consignment_test_assert(NOT has_table_privilege('anon','public.property_publications','SELECT'),
  'anonymous cannot directly read publication metadata');
