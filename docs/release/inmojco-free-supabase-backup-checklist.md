@@ -35,6 +35,18 @@ Fuentes oficiales:
 5. Revisar que `supabase db dump --help` incluya los parámetros
    `--linked`, `--role-only`, `--data-only` y `--use-copy`.
 
+## Opción simplificada: script de respaldo preparado
+
+Antes de usarlo, confirma que la copia será guardada en un disco **cifrado y privado**, fuera del repositorio Git y fuera de carpetas sincronizadas (OneDrive, Dropbox o Descargas).
+
+Desde PowerShell abierto dentro del repositorio, después de instalar Supabase CLI, Docker y ejecutar `supabase link --project-ref cuitgyqrjibgwuniapmk`, se podrá lanzar:
+
+```powershell
+.\scripts\backup-inmojco-free.ps1 -Destination 'D:\RespaldosCifrados\INMOJCO' -ConfirmEncryptedDestination
+```
+
+El script rechazará un proyecto Supabase distinto del esperado, comprobará la presencia de Docker y generará una carpeta privada con `roles.sql`, `schema.sql`, `data.sql` y `SHA256SUMS.txt`. No borra, restaura ni migra datos; no guarda contraseñas en la línea de comandos. Si una etapa falla, la copia se marca como incompleta. **Debe restaurarse en un destino aislado y complementarse con los archivos Storage y la configuración de Auth antes de considerarse un respaldo completo.**
+
 ## 3. Tres copias lógicas mínimas (PowerShell local)
 
 Desde el repositorio, con la vinculación autorizada y Docker funcionando,
