@@ -55,7 +55,10 @@ test('plan benefits never become client-only operational permissions', () => {
   assert.match(auth, /canUseTenantPermission\(activeMembership\.roles, activeMembership\.permissions, permission\)/);
 });
 
-test('failed refresh clears old memberships, active organization and administrator view', () => {
+test('failed refresh clears roles only if its auth generation is still current', () => {
   const failures = auth.match(/setMemberships\(\[\]\);\s*setActiveOrganizationId\(null\);\s*setIsPlatformAdmin\(false\);\s*setAccessError\('No se pudieron consultar las inmobiliarias\./g) ?? [];
-  assert.equal(failures.length, 2, 'initial-load and subscription-refresh failure paths must both clear state');
+  assert.equal(failures.length, 1,
+    'one shared failure handler prevents an obsolete request from clearing a new session');
+  assert.match(auth, /catch \(loadError\) \{\s*if \(authLoadGate\.current\.isCurrent\(generation\)\)/);
+  assert.match(auth, /if \(authLoadGate\.current\.isCurrent\(generation\)\) setLoading\(false\)/);
 });
