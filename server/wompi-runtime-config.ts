@@ -23,7 +23,15 @@ function requireRealSecret(env: RuntimeEnvironment, name: string): string {
   return value;
 }
 
-export function validateWompiRuntimeConfig(env: RuntimeEnvironment = process.env) {
+export function validateWompiRuntimeConfig(
+  env: RuntimeEnvironment = process.env,
+): {
+  environment: 'sandbox' | 'production';
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  eventsSecret: string;
+  port: number;
+} {
   const environment = requireEnvironmentVariable(env, 'WOMPI_ENV');
   if (environment !== 'sandbox' && environment !== 'production') {
     throw new Error('WOMPI_ENV must be sandbox or production');
