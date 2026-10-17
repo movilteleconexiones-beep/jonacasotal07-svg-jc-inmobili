@@ -3,6 +3,15 @@
 -- This migration does not publish any existing property automatically.
 BEGIN;
 
+-- Migration filenames run in timestamp order: this publication migration is
+-- applied BEFORE the separate 19:55 private inventory RLS hardening migration.
+-- Fail closed at the first phase. Legacy anonymous table grants must never
+-- survive the interval between creation of the public catalog and the stronger
+-- restrictive SELECT gate. Catalog reads instead use a vetted definer RPC.
+-- The 19:55 migration repeats this REVOKE idempotently for defense in depth.
+ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
+REVOKE ALL PRIVILEGES ON TABLE public.properties FROM anon;
+
 CREATE TABLE public.property_publications (
  property_id uuid PRIMARY KEY REFERENCES public.properties(id) ON DELETE CASCADE,
  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
