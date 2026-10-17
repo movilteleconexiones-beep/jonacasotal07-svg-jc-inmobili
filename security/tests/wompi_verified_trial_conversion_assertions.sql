@@ -69,7 +69,7 @@ VALUES('20000000-0000-0000-0000-000000000008',(SELECT id FROM public.plans WHERE
 INSERT INTO public.payment_events(payment_order_id,provider_event_id,provider_transaction_id,
  reported_status,signature_valid,payload_sha256,processed_at)
 VALUES((SELECT id FROM public.payment_orders WHERE reference='TRIAL_REVIEW_APPROVED_1'),
- repeat('a',64),'tx-historical-trial','APPROVED',true,repeat('b',64),now());
+ repeat('7',64),'tx-historical-trial','APPROVED',true,repeat('b',64),now());
 SELECT set_config('request.jwt.claim.role','authenticated',false);
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 DO $deny$ BEGIN
