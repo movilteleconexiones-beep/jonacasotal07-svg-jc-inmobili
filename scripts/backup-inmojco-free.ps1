@@ -51,7 +51,8 @@ try {
     foreach ($job in $jobs) {
       $file = Join-Path $target ($job.Label + '.sql')
       Write-Host ("Exportando " + $job.Label + " de la base vinculada...")
-      & supabase db dump @($job.Args) --file $file
+      $argsForDump = [string[]]$job.Args
+      & supabase db dump @argsForDump --file $file
       if ($LASTEXITCODE -ne 0) { throw ("Error al exportar " + $job.Label) }
       if (-not (Test-Path -LiteralPath $file) -or (Get-Item -LiteralPath $file).Length -eq 0) {
         throw ("Archivo de respaldo vacio: " + $job.Label)
