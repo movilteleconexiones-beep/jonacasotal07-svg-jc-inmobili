@@ -1,8 +1,7 @@
--- PostgreSQL 17 fake-data fixture AFTER:
--- external_portals_staff_seats_fixture.sql,
--- 20261015092500, 20261015093000, 20261015114500,
--- private_properties_tenant_guard_fixture.sql,
--- 20261015195500 and its privacy assertions.
+-- PostgreSQL 17 fake-data fixture shared by both tested migration orders:
+-- after external_portals_staff_seats_fixture.sql, the 09:25/09:30/11:45
+-- existing-portal migrations and private_properties_tenant_guard_fixture.sql.
+-- It may run either before or after 19:55 RLS; both must be safe.
 -- NEVER execute on Supabase production.
 DO $fixture$ BEGIN
  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='service_role') THEN
