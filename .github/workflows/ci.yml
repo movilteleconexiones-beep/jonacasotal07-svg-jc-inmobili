@@ -179,6 +179,8 @@ jobs:
         run: node --test tests/owner-deduction-admin-approval.test.mjs
       - name: Wompi private runtime readiness regression
         run: node --test tests/wompi-runtime-readiness.test.mjs
+      - name: Wompi backend secret and canonical Supabase deployment gates
+        run: node --import tsx --test tests/wompi-runtime-config.test.mjs
       - name: Wompi HTTP endpoint tests
         run: node --import tsx --test tests/wompi-express-router.test.mjs
       - name: JCO tax policy and approved prices tests
