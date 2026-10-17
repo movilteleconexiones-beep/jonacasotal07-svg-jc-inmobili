@@ -133,3 +133,39 @@ licencias o descripciones entre tenants durante navegación rápida.
 - GitHub CI prueba un administrador de plataforma simulado, personal de dos agencias y un vínculo `CLIENT` de otra organización, contra políticas restrictivas y permisivas combinadas. Las sesiones simuladas con credenciales reales en SQL siguen siendo **pruebas diagnósticas**, no sustituyen un ensayo de autenticación por API ni un clon de datos reales.
 - La creación de rama Supabase se intentó con costo informado de USD 0,01344/h, previamente autorizado para staging; el servicio la rechazó con `Branching is supported only on the Pro plan or above`. No se creó rama ni se realizó cargo. No activar servicios pagos sin decisión expresa.
 - **Bloqueo de despliegue:** sin instancia de restauración y copia de seguridad verificada, no aplicar el conjunto de migraciones `#185` a producción. Enviar a producción solo un lote migrado y probado con procedimientos de recuperación revisados.
+
+## 10. Infraestructura comercial autorizada: opción A (sin contratación anticipada)
+
+**Decisión del propietario del software:** trabajar sin compras nuevas durante las
+fases de desarrollo y validación. Avisar expresamente al alcanzar la etapa final
+en la que Supabase Pro sea necesario para respaldos y una puesta en producción
+comercial controlada. No elevar planes, contratar SMTP, crear recursos pagados
+ni activar Wompi real de manera automática.
+
+Plan inicial previsto, sujeto a tarifas y consumo vigentes al contratar:
+
+- Supabase Pro: nivel base aproximado US$25/mes; comprobar cuotas, uso y
+  costos de entornos de prueba antes de confirmar la compra.
+- Railway Hobby: nivel base aproximado US$5/mes con utilización facturable;
+  si el servicio ya existente puede operar dentro del plan contratado, no
+  abrir un segundo servicio innecesario.
+- Namecheap: conservar `inmojco.com` y su renovación anual; no adquirir dominios extra.
+- GitHub: usar CI y repositorio sin pagar por funciones que entren en cuota gratuita.
+- Wompi: conservar sandbox; cobro solo de licencias por el SuperAdmin,
+  sin producción hasta verificar firmas, idempotencia y conciliación.
+- SMTP transaccional: comprobar entrega de invitaciones y recuperación de acceso
+  antes del lanzamiento; usar plan gratuito compatible hasta superar sus límites.
+
+### Condiciones para solicitar la compra de Supabase Pro (fase final)
+
+1. PR de integración probado: CI, perfiles internos y externos, catálogo
+   público, seguridad entre inmobiliarias y flujo de pagos sandbox.
+2. Migraciones preparadas y verificadas en PostgreSQL aislado.
+3. Plan de copia de seguridad y restauración documentado y realizable.
+4. Presupuesto mensual de infraestructura aprobado nuevamente con la tarifa
+   vigente y sin suponer que el monto base cubre consumos adicionales.
+5. Ventana de despliegue acordada, monitoreo y posibilidad de reversión.
+6. Solo entonces solicitar contratación; tras activarla, verificar backup/restore
+   antes de modificar tablas financieras o reglas RLS en producción.
+
+**Nunca considerar el pago como requisito para programar o ejecutar CI.**
