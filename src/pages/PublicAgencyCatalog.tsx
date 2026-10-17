@@ -66,10 +66,14 @@ export function PublicAgencyCatalog() {
   );
   // In-flight requests for agency A must never mutate agency B's catalog.
   const catalogGeneration=useRef(0);
+  // React state updates are asynchronous; a ref prevents duplicate requests
+  // for the same offset when the user clicks "Ver más" repeatedly.
+  const loadMoreInFlight=useRef(false);
 
   useEffect(()=>{
     let disposed=false;
     const generation=++catalogGeneration.current;
+    loadMoreInFlight.current=false;
     setLoading(true);setLoadingMore(false);setSite(null);setListings([]);setSelected(null);
     setSearch('');setOperation('ALL');setError('');setHasMore(false);
     if(!slug) {setError('Enlace de inmobiliaria no válido.');setLoading(false);return;}
@@ -99,20 +103,38 @@ export function PublicAgencyCatalog() {
   },[slug]);
 
   async function loadMore(){
-    if(!slug||loading||loadingMore||!hasMore||!site)return;
+    if(!slug||loading||loadingMore||loadMoreInFlight.current||!hasMore||!site)return;
+    // Acquire the lock synchronously, before the first asynchronous boundary.
+    loadMoreInFlight.current=true;
     const generation=catalogGeneration.current;
     setLoadingMore(true);setError('');
-    const {data,error:requestError}=await supabase.rpc('get_public_agency_listings',{
-      p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:listings.length,
-    });
-    if(generation!==catalogGeneration.current)return;
-    if(requestError||!Array.isArray(data)||data.some(v=>!verifiedListing(v))){
-      setError('No se pudo cargar el siguiente grupo de inmuebles. Intenta nuevamente.');
-    }else{
-      setListings(items=>[...items,...(data as Listing[])]);
-      setHasMore(data.length===PAGE_SIZE);
+    try {
+      const {data,error:requestError}=await supabase.rpc('get_public_agency_listings',{
+        p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:listings.length,
+      });
+      if(generation!==catalogGeneration.current)return;
+      if(requestError||!Array.isArray(data)||data.some(v=>!verifiedListing(v))){
+        setError('No se pudo cargar el siguiente grupo de inmuebles. Intenta nuevamente.');
+      }else{
+        const nextPage=data as Listing[];
+        // Keep a stable unique inventory even if the server repeats an item
+        // across page boundaries while properties are being edited.
+        setListings(items=>{
+          const existingIds=new Set(items.map(item=>item.id));
+          return [...items,...nextPage.filter(item=>!existingIds.has(item.id))];
+        });
+        setHasMore(nextPage.length===PAGE_SIZE);
+      }
+    } catch {
+      if(generation===catalogGeneration.current)
+        setError('No se pudo cargar el siguiente grupo de inmuebles. Intenta nuevamente.');
+    } finally {
+      // An obsolete request cannot unlock or alter a newer tenant's request.
+      if(generation===catalogGeneration.current){
+        loadMoreInFlight.current=false;
+        setLoadingMore(false);
+      }
     }
-    setLoadingMore(false);
   }
 
   const visible=useMemo(()=>listings.filter(item=>{
