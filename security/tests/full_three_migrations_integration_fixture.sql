@@ -15,6 +15,12 @@ INSERT INTO auth.users(id) VALUES
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee');
 
+-- Production has organizations_select_member; the generic external/staff
+-- fixture deliberately omitted it. Model the real organization RLS here:
+-- Storage logo policies query organizations under the authenticated actor.
+CREATE POLICY organizations_select_member ON public.organizations
+ FOR SELECT TO authenticated USING (public.is_org_member(id));
+
 ALTER TABLE public.organizations ADD COLUMN slug text;
 UPDATE public.organizations SET slug=CASE id
  WHEN '22222222-2222-4222-8222-222222222222' THEN 'tenant-a'
