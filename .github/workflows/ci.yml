@@ -209,6 +209,20 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_identity_test -f security/tests/agency_brand_domain_assertions.sql
+      - name: Combined public catalog and agency brand SQL migration integration
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_agency_combined_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f supabase/migrations/20261010212630_property_consignment_intake.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f security/tests/public_agency_catalog_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f security/tests/integrated_agency_catalog_brand_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f supabase/migrations/20261015194000_isolated_real_property_publications.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f security/tests/public_agency_catalog_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f security/tests/agency_brand_domain_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_combined_test -f security/tests/integrated_agency_catalog_brand_assertions.sql
       - name: Domain DNS ownership and public site tenant switch regression
         run: node --import tsx --test tests/agency-domain-site-async-boundary.test.mjs
       - name: Tenant branding partial-save integrity and switch isolation
