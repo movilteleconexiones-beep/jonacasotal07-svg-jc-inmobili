@@ -269,6 +269,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261010214633_fix_property_portal_rls_recursion.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/public_consignment_signed_in_cross_tenant_assertions.sql
       - name: Consignment private photo safety checks
         run: node --test tests/consignment-photo-upload.test.mjs
       - name: Private inventory photos security checks
