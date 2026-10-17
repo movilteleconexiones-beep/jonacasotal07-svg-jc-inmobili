@@ -257,6 +257,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_agency_catalog_test -f security/tests/public_agency_catalog_assertions.sql
       - name: Agency public catalog route and non-demo safety
         run: node --import tsx --test tests/public-agency-real-inventory.test.mjs
+      - name: Public catalog pagination concurrency and distinct listings
+        run: node --import tsx --test tests/public-agency-pagination-atomicity.test.mjs
       - name: Property consignment SQL security and atomicity tests
         env:
           PGPASSWORD: postgres
