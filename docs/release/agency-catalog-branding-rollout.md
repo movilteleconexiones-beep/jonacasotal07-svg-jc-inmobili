@@ -118,7 +118,7 @@ licencias o descripciones entre tenants durante navegación rápida.
 
 1. Comprobar respaldo recuperable y restauración ensayada en un entorno separado compatible; GitHub CI no sustituye esa evidencia.
 2. Ejecutar pruebas de RLS e intersección de políticas con dos identidades autenticadas de inmobiliarias distintas (incluida cuenta con roles mixtos).
-3. Aplicar migraciones ordenadas y verificadas: primero `20261015195500` de aislamiento; después `20261015194000` de publicaciones (orden operativo por dependencias, no por nombre); finalmente `20261015201000` de branding/dominios, siguiendo los prerrequisitos del esquema y la revisión de sus scripts.
+3. **Respetar el orden real por timestamp** del gestor Supabase: `20261015194000` (publicaciones, revocación inmediata de los permisos `anon` a inventario privado y cero publicaciones iniciales), `20261015195500` (RLS restrictiva) y `20261015201000` (branding/dominios). Ejecutar exclusivamente desde un plan de migraciones revisado que registre versiones en `supabase_migrations`, sin aplicar scripts manualmente fuera de orden ni marcar versiones sin ejecutar su contenido. La CI comprueba tanto el orden reforzado como el orden por timestamp e inspecciona la barrera intermedia.
 4. Repetir los controles de regresión y confirmar que `anon` no tiene `SELECT` directo sobre `public.properties`; verificar que portales personales no pierden lecturas legítimas y que todas las publicaciones iniciales siguen sin aprobarse.
 5. Solo después fusionar o desplegar la interfaz correspondiente; mantener Wompi producción desactivado.
 
