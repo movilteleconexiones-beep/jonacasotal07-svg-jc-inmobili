@@ -26,6 +26,7 @@ const commercialChecks = [
   ['commercial.financial_flows_verified', 'Cobros, abonos, deducciones y liquidaciones comprobados'],
   ['commercial.smtp_invitation_recovery', 'Correo de invitación y recuperación probado'],
   ['commercial.wompi_sandbox_signed', 'Firma e idempotencia de Wompi Sandbox probadas'],
+  ['commercial.wompi_real_approved', 'Autorización expresa del SuperAdmin para habilitar Wompi real'],
   ['commercial.licensing_is_superadmin_only', 'Licencias y cobros restringidos al SuperAdmin'],
 ];
 
@@ -67,8 +68,12 @@ export function evaluateReleaseReadiness(evidence, {
     errors.push('El respaldo debe ser reciente (últimas 24 horas) y tener fecha con zona horaria.');
   if (!recentTimestamp(e.database?.restore_verified_at, now, 168))
     errors.push('La restauración de prueba debe estar verificada dentro de los últimos 7 días.');
-  if (e.deployment?.wompi_mode !== 'sandbox')
-    errors.push('Wompi debe continuar en modo sandbox; no activar cobros reales.');
+  if (Date.parse(e.database?.restore_verified_at) < Date.parse(e.database?.backup_created_at))
+    errors.push('La restauración debe verificar el mismo respaldo reciente, no uno anterior.');
+  if (phase === 'pr185' && e.deployment?.wompi_mode !== 'sandbox')
+    errors.push('Wompi debe continuar en modo sandbox durante la integración PR #185.');
+  if (phase === 'commercial' && e.deployment?.wompi_mode !== 'production')
+    errors.push('La fase comercial exige Wompi real autorizado y verificado, nunca activación automática.');
   for (const [key, description] of checks) {
     if (get(e, key) !== true) errors.push('Falta evidencia: ' + description + '.');
   }
