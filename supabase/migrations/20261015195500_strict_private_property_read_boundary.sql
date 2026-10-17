@@ -68,4 +68,33 @@ CREATE POLICY jco_private_properties_tenant_read_boundary ON public.properties
     )
     OR jco_private.can_read_authorized_external_property(id, organization_id)
  );
+
+-- A platform administrator must be able to audit *all* organizations.
+-- Earlier migrations gave platform admins a restrictive staff exception but
+-- omitted a permissive SELECT policy: the intersection made their inventory
+-- visibility depend on ordinary organization permissions. This change is
+-- SELECT-only and does not grant write, tenant staff or public privileges.
+DO $jco_admin$
+BEGIN
+ IF NOT EXISTS(
+   SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='properties'
+     AND policyname='jco_commercial_portal_read_guard'
+     AND cmd='SELECT' AND permissive='RESTRICTIVE'
+ ) THEN
+   RAISE EXCEPTION 'Expected commercial restrictive property read gate is missing';
+ END IF;
+END $jco_admin$;
+
+ALTER POLICY jco_commercial_portal_read_guard ON public.properties TO authenticated
+ USING (
+   public.is_platform_admin()
+   OR (jco_private.operational_access(organization_id)
+       AND jco_private.is_internal_staff(organization_id))
+   OR public.has_portal_property(id)
+ );
+DROP POLICY IF EXISTS jco_platform_admin_properties_read ON public.properties;
+CREATE POLICY jco_platform_admin_properties_read ON public.properties
+ AS PERMISSIVE FOR SELECT TO authenticated
+ USING (public.is_platform_admin());
+
 COMMIT;
