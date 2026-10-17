@@ -123,3 +123,13 @@ licencias o descripciones entre tenants durante navegación rápida.
 5. Solo después fusionar o desplegar la interfaz correspondiente; mantener Wompi producción desactivado.
 
 **No se aplicó ninguna migración ni se modificaron tablas de producción durante este preflight.**
+
+## 9. Validación ampliada de producción y límite de staging — 16/oct/2026
+
+- El `security/preflight/agency_release_read_only.sql` ampliado se ejecutó en la base real dentro de `BEGIN READ ONLY` / `ROLLBACK`, sin fallos ni mutaciones; se comprobaron 1 superadministrador, 2 inmobiliarias activas, 2 inmuebles y 1 sitio público habilitado.
+- Dos actores reales distintos, uno por inmobiliaria, fueron evaluados en transacciones separadas de solo lectura con `SET LOCAL ROLE authenticated` y `request.jwt.claim.sub`. Cada uno vio 1 inmueble propio y **0** inmuebles ajenos.
+- La cuenta SuperAdmin validó `is_platform_admin()=true` pero vio solo 1 inmueble de 2; el diagnóstico señala ausencia de una policy permisiva de lectura global sobre `public.properties`, pese al predicado de administrador en la política restrictiva previa. Se preparó en `20261015195500_strict_private_property_read_boundary.sql` una política de lectura específica para SuperAdmin, sin autorización adicional de escritura.
+- `anon` conservaba concesiones directas `SELECT/INSERT/UPDATE/DELETE` sobre `properties`, aunque sin policy permisiva de filas. La migración ahora revoca **todos** los privilegios sobre esa tabla para `anon`; las pruebas SQL verifican todas las operaciones DML.
+- GitHub CI prueba un administrador de plataforma simulado, personal de dos agencias y un vínculo `CLIENT` de otra organización, contra políticas restrictivas y permisivas combinadas. Las sesiones simuladas con credenciales reales en SQL siguen siendo **pruebas diagnósticas**, no sustituyen un ensayo de autenticación por API ni un clon de datos reales.
+- La creación de rama Supabase se intentó con costo informado de USD 0,01344/h, previamente autorizado para staging; el servicio la rechazó con `Branching is supported only on the Pro plan or above`. No se creó rama ni se realizó cargo. No activar servicios pagos sin decisión expresa.
+- **Bloqueo de despliegue:** sin instancia de restauración y copia de seguridad verificada, no aplicar el conjunto de migraciones `#185` a producción. Enviar a producción solo un lote migrado y probado con procedimientos de recuperación revisados.
