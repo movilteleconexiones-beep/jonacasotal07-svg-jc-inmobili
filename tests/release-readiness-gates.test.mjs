@@ -13,6 +13,8 @@ function completeEvidence() {
     database: {
       migrations_reviewed: true,
       backup_sha256: 'b'.repeat(64),
+      restored_backup_sha256: 'b'.repeat(64),
+      restore_target: 'local:inmojco-recovery-ci',
       backup_created_at: '2030-03-10T08:00:00.000Z',
       backup_restored_isolated: true,
       storage_objects_restored: true,
@@ -62,7 +64,7 @@ test('an old backup, expired restore, or restore predating the backup cannot aut
   const restore=completeEvidence();restore.database.restore_verified_at='2030-02-21T10:00:00Z';
   assert.equal(readiness(restore).ready,false);
   const reversed=completeEvidence();reversed.database.restore_verified_at='2030-03-10T07:00:00Z';
-  assert.match(readiness(reversed).errors.join(' '), /mismo respaldo reciente/);
+  assert.match(readiness(reversed).errors.join(' '), /posterior al respaldo reciente/);
   const future=completeEvidence();future.database.backup_created_at='2030-03-11T10:00:00Z';
   assert.equal(readiness(future).ready,false);
 });
@@ -73,6 +75,33 @@ test('a restored database without actual contract and photo files is not enough'
   const result=readiness(evidence);
   assert.equal(result.ready,false);
   assert.match(result.errors.join(' '), /Storage/);
+});
+
+test('recovery must use the exact backup file hash, not merely a later timestamp', () => {
+  const mismatched=completeEvidence();
+  mismatched.database.restored_backup_sha256='f'.repeat(64);
+  assert.match(readiness(mismatched).errors.join(' '), /SHA-256 del respaldo/);
+  const missing=completeEvidence();
+  delete missing.database.restored_backup_sha256;
+  assert.equal(readiness(missing).ready,false);
+  const equivalentWindowsHex=completeEvidence();
+  equivalentWindowsHex.database.restored_backup_sha256='B'.repeat(64);
+  assert.equal(readiness(equivalentWindowsHex).ready,true);
+});
+
+test('the restored database must be isolated from production', () => {
+  const missing=completeEvidence();
+  delete missing.database.restore_target;
+  assert.equal(readiness(missing).ready,false);
+  const production=completeEvidence();
+  production.database.restore_target='staging:'+PRODUCTION_PROJECT_REF;
+  assert.match(readiness(production).errors.join(' '), /distinto a producción/);
+  const malformed=completeEvidence();
+  malformed.database.restore_target='https://db.cuitgyqrjibgwuniapmk.supabase.co';
+  assert.equal(readiness(malformed).ready,false);
+  const isolated=completeEvidence();
+  isolated.database.restore_target='staging:backup-lab-01';
+  assert.equal(readiness(isolated).ready,true);
 });
 
 test('sandbox is mandatory for PR phase and commercial launch has stricter gates', () => {
