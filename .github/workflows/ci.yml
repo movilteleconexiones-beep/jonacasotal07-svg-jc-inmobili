@@ -104,6 +104,22 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_full_agency_integration_test -f supabase/migrations/20261015194000_isolated_real_property_publications.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_full_agency_integration_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_full_agency_integration_test -f security/tests/full_three_migrations_integration_assertions.sql
+      - name: Chronological Supabase migration order with all tenant security layers
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_chronological_agency_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/external_portals_staff_seats_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015092500_isolate_external_accounts_and_staff_seats.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015093000_scope_external_owner_and_tenant_data.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/private_properties_tenant_guard_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/full_three_migrations_integration_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015194000_isolated_real_property_publications.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015195500_strict_private_property_read_boundary.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/private_properties_tenant_guard_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/full_three_migrations_integration_assertions.sql
       - name: External portal navigation and no internal CRM data regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Private agency home vs platform landing regression
