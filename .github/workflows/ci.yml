@@ -213,6 +213,8 @@ jobs:
         run: node --import tsx --test tests/tenant-settings-async-isolation.test.mjs
       - name: Auth session generation and cross-tenant permission isolation
         run: node --import tsx --test tests/auth-session-generation-isolation.test.mjs
+      - name: Release gate refuses unsafe database deployment without recovery evidence
+        run: node --test tests/release-readiness-gates.test.mjs
       - name: Tenant catalog async and public logo signature safety
         run: node --import tsx --test tests/tenant-catalog-logo-hardening.test.mjs
       - name: Agency branding settings source and image safety
