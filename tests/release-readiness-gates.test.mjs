@@ -15,6 +15,7 @@ function completeEvidence() {
       backup_sha256: 'b'.repeat(64),
       backup_created_at: '2030-03-10T08:00:00.000Z',
       backup_restored_isolated: true,
+      storage_objects_restored: true,
       restore_verified_at: '2030-03-10T10:00:00.000Z',
     },
     security: {
@@ -64,6 +65,14 @@ test('an old backup, expired restore, or restore predating the backup cannot aut
   assert.match(readiness(reversed).errors.join(' '), /mismo respaldo reciente/);
   const future=completeEvidence();future.database.backup_created_at='2030-03-11T10:00:00Z';
   assert.equal(readiness(future).ready,false);
+});
+
+test('a restored database without actual contract and photo files is not enough', () => {
+  const evidence=completeEvidence();
+  evidence.database.storage_objects_restored=false;
+  const result=readiness(evidence);
+  assert.equal(result.ready,false);
+  assert.match(result.errors.join(' '), /Storage/);
 });
 
 test('sandbox is mandatory for PR phase and commercial launch has stricter gates', () => {
