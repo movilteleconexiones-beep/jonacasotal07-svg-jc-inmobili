@@ -67,6 +67,7 @@ Campos a verificar en el archivo de evidencia local:
 - project_ref: ID exacto Supabase producción.
 - commit_sha, ci.commit_sha y ci.passed: mismo commit GitHub y CI aprobada.
 - database.migrations_reviewed, database.backup_sha256 (hexadecimal SHA-256), database.backup_created_at (máximo 24 horas), database.backup_restored_isolated, database.restore_verified_at (máximo 7 días y posterior al respaldo).
+- database.storage_objects_restored: evidencia de que los bytes de fotografías, PDF y soportes privados se restauraron y verificaron, no solo sus referencias en Postgres.
 - security.agency_a_b_isolation, security.client_and_staff_permissions, security.platform_admin_exclusive, security.external_owner_tenant.
 - deployment.rollback_reviewed, deployment.window_confirmed y deployment.wompi_mode = sandbox.
 
