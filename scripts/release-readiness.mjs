@@ -69,8 +69,20 @@ export function evaluateReleaseReadiness(evidence, {
     errors.push('El respaldo debe ser reciente (últimas 24 horas) y tener fecha con zona horaria.');
   if (!recentTimestamp(e.database?.restore_verified_at, now, 168))
     errors.push('La restauración de prueba debe estar verificada dentro de los últimos 7 días.');
+  // Timestamp order is insufficient: the restored object must be precisely the
+  // backup whose hash was independently computed for this release.
+  if (!SHA256.test(e.database?.restored_backup_sha256 ?? '') ||
+      e.database.restored_backup_sha256 !== e.database.backup_sha256)
+    errors.push('La restauración no corresponde al SHA-256 del respaldo de esta liberación.');
+  // Do not accept a restore performed against production as disaster-recovery
+  // evidence. Explicitly record whether the destination is local or staging.
+  const restoreTarget = e.database?.restore_target;
+  if (typeof restoreTarget !== 'string' ||
+      !/^(local|staging):[a-z0-9][a-z0-9_-]{2,63}$/.test(restoreTarget) ||
+      restoreTarget.endsWith(PRODUCTION_PROJECT_REF))
+    errors.push('La restauración requiere un destino local o staging identificable, distinto a producción.');
   if (Date.parse(e.database?.restore_verified_at) < Date.parse(e.database?.backup_created_at))
-    errors.push('La restauración debe verificar el mismo respaldo reciente, no uno anterior.');
+    errors.push('La restauración debe ser posterior al respaldo reciente.');
   if (phase === 'pr185' && e.deployment?.wompi_mode !== 'sandbox')
     errors.push('Wompi debe continuar en modo sandbox durante la integración PR #185.');
   if (phase === 'commercial' && e.deployment?.wompi_mode !== 'production')
