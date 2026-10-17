@@ -38,6 +38,10 @@ test('load more acquires a synchronous lock and releases only within its generat
   assert.match(handler, /setListings\(items=>mergeDistinctListings\(items,nextPage\)\)/);
   assert.match(handler, /finally\s*\{/);
   assert.match(handler, /if\(generation===catalogGeneration\.current\)\s*\{\s*loadMoreInFlight\.current=false/);
-  assert.match(catalog, /loadMoreInFlight\.current=false;\s*setLoading\(true\)/);
+  assert.match(catalog, /loadMoreInFlight\.current=false;\s*nextPageOffset\.current=0;\s*setLoading\(true\)/);
+  assert.match(catalog, /nextPageOffset\.current=catalogResult\.data\.length/);
+  assert.match(handler, /p_offset:nextPageOffset\.current/);
+  assert.match(handler, /nextPageOffset\.current\+=nextPage\.length/);
+  assert.doesNotMatch(handler, /p_offset:listings\.length/);
   assert.match(handler, /if\(generation!==catalogGeneration\.current\)return/);
 });
