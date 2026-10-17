@@ -66,10 +66,12 @@ Campos a verificar en el archivo de evidencia local:
 
 - project_ref: ID exacto Supabase producción.
 - commit_sha, ci.commit_sha y ci.passed: mismo commit GitHub y CI aprobada.
-- database.migrations_reviewed, database.backup_sha256 (hexadecimal SHA-256), database.backup_created_at (máximo 24 horas), database.backup_restored_isolated, database.restore_verified_at (máximo 7 días y posterior al respaldo).
+- database.migrations_reviewed, database.backup_sha256 (SHA-256 del archivo original), database.restored_backup_sha256 (SHA-256 del **mismo archivo** realmente utilizado para restaurar), database.restore_target (destino explícitamente separado, como `local:inmojco-recuperacion` o `staging:inmojco-pruebas`), database.backup_created_at (máximo 24 horas), database.backup_restored_isolated, database.restore_verified_at (máximo 7 días y posterior al respaldo).
 - database.storage_objects_restored: evidencia de que los bytes de fotografías, PDF y soportes privados se restauraron y verificaron, no solo sus referencias en Postgres.
 - security.agency_a_b_isolation, security.client_and_staff_permissions, security.platform_admin_exclusive, security.external_owner_tenant.
 - deployment.rollback_reviewed, deployment.window_confirmed y deployment.wompi_mode = sandbox.
+
+La salida de `Get-FileHash` de Windows puede estar en mayúsculas; el comparador SHA-256 normaliza mayúsculas y minúsculas, pero no admite huellas diferentes. El identificador del destino declara dónde se ensayó la recuperación y **no sustituye verificar manualmente** que la dirección de conexión apuntó realmente a una base descartable, nunca a producción.
 
 La revisión humana debe inspeccionar los artefactos y confirmar que estas declaraciones son auténticas; esta herramienta no puede certificar una copia sin intentar recuperarla.
 
