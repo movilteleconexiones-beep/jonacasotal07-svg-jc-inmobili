@@ -52,3 +52,31 @@ SELECT public.property_tenant_test_assert(
  (SELECT COUNT(*) FROM pg_policies WHERE schemaname='public'
  AND tablename='properties' AND policyname='jco_private_properties_tenant_read_boundary')=1,
  'only one guard after migration');
+
+-- Existing application invariant: the sole platform administrator can audit
+-- every organization's private inventory even without staff membership there.
+-- This fixture substitutes a fresh admin actor into the mock admin predicate;
+-- the actual production predicate resolves public.platform_admins securely.
+CREATE OR REPLACE FUNCTION public.is_platform_admin() RETURNS boolean
+ LANGUAGE sql STABLE AS $jco_admin$
+ SELECT (SELECT auth.uid())='77777777-7777-4777-8777-777777777777'::uuid;
+$jco_admin$;
+
+SELECT set_config('request.jwt.claim.sub','77777777-7777-4777-8777-777777777777',false);
+SET ROLE authenticated;
+SELECT public.property_tenant_test_assert(
+ (SELECT COUNT(*) FROM public.properties)=2,
+ 'platform administrator can read both organizations regardless of membership');
+SELECT public.property_tenant_test_assert(
+ (SELECT COUNT(DISTINCT organization_id) FROM public.properties)=2,
+ 'platform administrator can audit inventory across agency boundary');
+RESET ROLE;
+
+-- An ordinary staff user cannot piggyback on the new admin-only permissive
+-- policy, even though the legacy test helper mistakenly returns true.
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+SET ROLE authenticated;
+SELECT public.property_tenant_test_assert(
+ (SELECT COUNT(*) FROM public.properties)=1,
+ 'global admin SELECT policy does not extend cross-tenant read to staff');
+RESET ROLE;
