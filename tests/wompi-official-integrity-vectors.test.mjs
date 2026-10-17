@@ -29,6 +29,9 @@ test('expiration is included BEFORE integrity secret, and must match URL exactly
 
 test('the real checkout builder signs every query field exactly as Wompi will receive it', async () => {
   const futureExpiration = '2035-06-09T20:28:50.000Z';
+  // Postgres may return microsecond timestamps: Wompi receives whole
+  // second precision and the SHA-256 must sign that normalized exact string.
+  const databaseExpiration = '2035-06-09T20:28:50.789123+00:00';
   const cfg = {
     environment: 'sandbox', publicKey: 'pub_test_documentation_fixture_only',
     eventsSecret: 'test_events_documentation_fixture_only',
@@ -41,7 +44,7 @@ test('the real checkout builder signs every query field exactly as Wompi will re
       return { data: {
         id: 'fixture-order',
         reference, amount_in_cents: amount, currency, status: 'PENDING',
-        expires_at: futureExpiration,
+        expires_at: databaseExpiration,
       }, error: null };
     },
     async processEvent() { throw new Error('events not used'); },
