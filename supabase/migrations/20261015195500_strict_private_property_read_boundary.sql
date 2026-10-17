@@ -5,7 +5,11 @@
 BEGIN;
 ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Permitir lectura publica de propiedades" ON public.properties;
-REVOKE SELECT ON public.properties FROM anon;
+-- Production preflight confirmed that anon was granted SELECT, INSERT,
+-- UPDATE and DELETE on this *private* table. RLS currently denies anon rows,
+-- but any future accidental permissive policy must not unlock those grants.
+-- Public catalog/consignments use controlled SECURITY DEFINER RPCs instead.
+REVOKE ALL PRIVILEGES ON TABLE public.properties FROM anon;
 DROP POLICY IF EXISTS jco_private_properties_anon_deny ON public.properties;
 CREATE POLICY jco_private_properties_anon_deny ON public.properties
  AS RESTRICTIVE FOR SELECT TO anon USING (false);
