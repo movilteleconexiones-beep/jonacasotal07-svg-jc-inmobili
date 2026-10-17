@@ -116,6 +116,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/private_properties_tenant_guard_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/full_three_migrations_integration_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015194000_isolated_real_property_publications.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/chronological_migration_boundary_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015195500_strict_private_property_read_boundary.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f security/tests/private_properties_tenant_guard_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_chronological_agency_test -f supabase/migrations/20261015201000_agency_logos_and_domain_requests.sql
