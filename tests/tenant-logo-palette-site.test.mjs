@@ -56,9 +56,10 @@ test('palette write is limited to the active tenant and settings.edit permission
   assert.match(dashboard, /from\('organization_branding'\)\.upsert\(\{/);
   assert.match(dashboard, /organization_id: organizationId/);
   assert.match(dashboard, /onConflict: 'organization_id'/);
-  assert.match(settings, /logo_url: logoUrl\.trim\(\) \? safeBrandUrl\(logoUrl\) : null/);
-  assert.match(settings, /primary_color: safeTenantColor\(primaryColor, TENANT_DEFAULT_PRIMARY\)/);
-  assert.match(settings, /secondary_color: safeTenantColor\(secondaryColor, TENANT_DEFAULT_SECONDARY\)/);
+  assert.match(settings, /logo_url:\s*effectiveLogo/);
+  assert.match(settings, /uploadedLogo\?\.url \|\| \(logoUrl\.trim\(\)\?safeBrandUrl\(logoUrl\):null\)/);
+  assert.match(settings, /primary_color:\s*safeTenantColor\(primaryColor,\s*TENANT_DEFAULT_PRIMARY\)/);
+  assert.match(settings, /secondary_color:\s*safeTenantColor\(secondaryColor,\s*TENANT_DEFAULT_SECONDARY\)/);
   assert.match(settings, /El sitio web debe empezar por https/);
   assert.match(settings, /verificar su propiedad, DNS y certificado HTTPS/);
 });

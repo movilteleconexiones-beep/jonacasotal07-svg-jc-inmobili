@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
@@ -12,6 +13,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Organization, OrganizationMember, Role } from './types';
 import { parseBillingAccess, type BillingAccess } from './billing-access';
 import { canUseTenantPermission, hasVerifiedOperationalRole } from './portal-access-mode';
+import { createAuthLoadGate } from './auth-load-gate';
 
 export interface AuthMembership {
   member: OrganizationMember;
@@ -135,89 +137,122 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [memberships, setMemberships] = useState<AuthMembership[]>([]);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
 
-  const loadForUser = useCallback(async (userId: string | null) => {
-    if (!userId) {
-      setAccessError(null);
-      setMemberships([]);
-      setIsPlatformAdmin(false);
-      setActiveOrganizationId(null);
-      return;
-    }
+  const authLoadGate = useRef(createAuthLoadGate());
+  const currentAuthUserId = useRef<string | null>(null);
 
-    // Invitation claiming is best-effort: a temporary RPC failure must not
-    // prevent an existing user from loading their organizations.
+  // Never commit an obsolete session's memberships, admin flag or tenant.
+  // Results are committed together only when this auth generation is current.
+  const loadForUser = useCallback(async (userId: string | null) => {
+    const generation = authLoadGate.current.begin();
     try {
-      const { error: invitationError } = await supabase.rpc('claim_my_invitations');
-      if (invitationError) console.warn('Unable to claim invitations', invitationError.message);
-    } catch (invitationError) {
-      console.warn('Unable to claim invitations', invitationError);
+      if (!userId) {
+        if (authLoadGate.current.isCurrent(generation)) {
+          setAccessError(null);
+          setMemberships([]);
+          setIsPlatformAdmin(false);
+          setActiveOrganizationId(null);
+        }
+        return;
+      }
+
+      // Invitation claiming is best-effort: failure must not prevent access
+      // to a previously verified membership.
+      try {
+        const { error: invitationError } = await supabase.rpc('claim_my_invitations');
+        if (invitationError) console.warn('Unable to claim invitations', invitationError.message);
+      } catch (invitationError) {
+        console.warn('Unable to claim invitations', invitationError);
+      }
+      if (!authLoadGate.current.isCurrent(generation)) return;
+
+      const { data: admin, error: adminError } = await supabase.from('platform_admins')
+        .select('user_id,admin_level,active').eq('user_id', userId).eq('active',true)
+        .in('admin_level',['SUPER_ADMIN','PLATFORM_OWNER']).maybeSingle();
+      if (!authLoadGate.current.isCurrent(generation)) return;
+
+      const nextMemberships = await loadMemberships(userId);
+      if (!authLoadGate.current.isCurrent(generation)) return;
+
+      if (adminError) console.warn('Unable to verify platform administrator', adminError.message);
+      setIsPlatformAdmin(!adminError && admin?.user_id === userId);
+      setAccessError(adminError ? 'No se pudo verificar el acceso administrativo. Intenta actualizar el acceso.' : null);
+      setMemberships(nextMemberships);
+      setActiveOrganizationId((current) => {
+        if (current && nextMemberships.some((membership) => membership.organization.id === current)) return current;
+        return nextMemberships[0]?.organization.id ?? null;
+      });
+    } catch (loadError) {
+      if (authLoadGate.current.isCurrent(generation)) {
+        setMemberships([]);
+        setActiveOrganizationId(null);
+        setIsPlatformAdmin(false);
+        setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
+      }
+      throw loadError;
+    } finally {
+      if (authLoadGate.current.isCurrent(generation)) setLoading(false);
     }
-    const { data: admin, error: adminError } = await supabase.from('platform_admins').select('user_id,admin_level,active').eq('user_id', userId).eq('active',true).in('admin_level',['SUPER_ADMIN','PLATFORM_OWNER']).maybeSingle();
-    setIsPlatformAdmin(!adminError && admin?.user_id === userId);
-    if (adminError) console.warn('Unable to verify platform administrator', adminError.message);
-    const nextMemberships = await loadMemberships(userId);
-    setAccessError(adminError ? 'No se pudo verificar el acceso administrativo. Intenta actualizar el acceso.' : null);
-    setMemberships(nextMemberships);
-    setActiveOrganizationId((current) => {
-      if (current && nextMemberships.some((m) => m.organization.id === current)) return current;
-      return nextMemberships[0]?.organization.id ?? null;
-    });
   }, []);
 
   useEffect(() => {
-    // A partial staging configuration must not attempt any authentication requests.
+    // A partial staging configuration must not attempt authentication.
     if (!isSupabaseConfigured) {
       setLoading(false);
       return;
     }
 
     let mounted = true;
+    let authEventVersion = 0;
 
-    supabase.auth.getSession().then(async ({ data, error }) => {
-      if (!mounted) return;
-      setSession(error ? null : data.session);
-      try {
-        await loadForUser(error ? null : data.session?.user.id ?? null);
-      } catch (loadError) {
-        console.error('Unable to load organization memberships', loadError);
-        if (mounted) {
-          setMemberships([]);
-          setActiveOrganizationId(null);
-          setIsPlatformAdmin(false);
-          setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
-        }
-      } finally {
-        if (mounted) setLoading(false);
+    // Invalidate old requests synchronously with a change of session.
+    // An obsolete asynchronous query can never restore the old agency.
+    const applySession = (nextSession: Session | null): string | null => {
+      authLoadGate.current.invalidate();
+      const nextUserId = nextSession?.user.id ?? null;
+      if (currentAuthUserId.current !== nextUserId) {
+        currentAuthUserId.current = nextUserId;
+        setMemberships([]);
+        setActiveOrganizationId(null);
+        setIsPlatformAdmin(false);
+        setAccessError(null);
       }
-    }).catch((error) => {
-      console.error('Unable to initialize authentication', error);
-      if (mounted) setLoading(false);
+      setSession(nextSession);
+      setLoading(true);
+      return nextUserId;
+    };
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      // INITIAL_SESSION or SIGNED_IN may have arrived before getSession.
+      if (!mounted || authEventVersion !== 0) return;
+      const userId = applySession(error ? null : data.session);
+      void loadForUser(userId).catch((loadError) => {
+        if (mounted) console.error('Unable to load organization memberships', loadError);
+      });
+    }).catch((loadError) => {
+      if (!mounted || authEventVersion !== 0) return;
+      console.error('Unable to initialize authentication', loadError);
+      applySession(null);
+      setAccessError('No se pudo inicializar la sesión. Intenta nuevamente.');
+      setLoading(false);
     });
 
-    // Supabase warns against awaiting other Supabase calls inside this callback.
+    // Supabase warns against awaiting API queries inside this callback.
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
-      setSession(nextSession);
+      const version = ++authEventVersion;
+      const userId = applySession(nextSession);
       setTimeout(() => {
-        if (!mounted) return;
-        void loadForUser(nextSession?.user.id ?? null)
-          .catch((error) => {
-            console.error('Unable to refresh memberships', error);
-            if (mounted) {
-          setMemberships([]);
-          setActiveOrganizationId(null);
-          setIsPlatformAdmin(false);
-          setAccessError('No se pudieron consultar las inmobiliarias. Intenta actualizar el acceso.');
-        }
-          })
-          .finally(() => {
-            if (mounted) setLoading(false);
-          });
+        if (!mounted || version !== authEventVersion) return;
+        void loadForUser(userId).catch((loadError) => {
+          if (mounted && version === authEventVersion)
+            console.error('Unable to refresh memberships', loadError);
+        });
       }, 0);
     });
 
     return () => {
       mounted = false;
+      authLoadGate.current.invalidate();
       subscription.subscription.unsubscribe();
     };
   }, [loadForUser]);

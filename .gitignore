@@ -7,3 +7,10 @@ supabase/.temp/
 *.log
 .env*
 !.env.example
+
+# Private release evidence and database backup artifacts (never commit).
+release-evidence.local.json
+*.backup
+*.dump
+*.dump.gz
+*.backup.gz

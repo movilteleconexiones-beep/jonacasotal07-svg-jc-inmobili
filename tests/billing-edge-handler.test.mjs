@@ -79,23 +79,24 @@ test('oversized or malformed payloads are rejected without side effects', async(
   assert.equal((await f.request('{')).status,400); assert.deepEqual(f.calls,[]);
 });
 
-test('canonical app.inmojco.com origin is enabled in the deployed billing entrypoint', async () => {
+test('canonical www.inmojco.com origin is enabled for verified domain migration', async () => {
   const entrypoint = readFileSync('supabase/functions/billing/index.ts', 'utf8');
   assert.match(entrypoint, /allowedOrigins: \['https:\/\/app\.inmojco\.com'/);
-  assert.match(entrypoint, /appUrl: Deno\.env\.get\('APP_URL'\) \?\? 'https:\/\/app\.inmojco\.com\/'/);
-  const cfg = { ...config, appUrl: 'https://app.inmojco.com/',
-    allowedOrigins: ['https://app.inmojco.com'] };
+  assert.match(entrypoint, /'https:\/\/www\.inmojco\.com'/);
+  assert.match(entrypoint, /appUrl: Deno\.env\.get\('APP_URL'\) \?\? 'https:\/\/www\.inmojco\.com\/'/);
+  const cfg = { ...config, appUrl: 'https://www.inmojco.com/',
+    allowedOrigins: ['https://www.inmojco.com'] };
   const f = fixture({}, cfg);
   const body = { organizationId: '20000000-0000-0000-0000-000000000002',
     planId: '60000000-0000-0000-0000-000000000001',
     requestKey: '50000000-0000-0000-0000-000000000001' };
   const result = await f.request(body, '/checkout',
-    { authorization: 'Bearer fixture', origin: 'https://app.inmojco.com' });
+    { authorization: 'Bearer fixture', origin: 'https://www.inmojco.com' });
   assert.equal(result.status, 200);
-  assert.equal(result.headers.get('access-control-allow-origin'), 'https://app.inmojco.com');
+  assert.equal(result.headers.get('access-control-allow-origin'), 'https://www.inmojco.com');
   const payload = await result.json();
   assert.equal(new URL(payload.checkoutUrl).searchParams.get('redirect-url'),
-    'https://app.inmojco.com/?billing=return');
+    'https://www.inmojco.com/?billing=return');
   const forbidden = await f.request(body, '/checkout',
     { authorization: 'Bearer fixture', origin: 'https://malicious.example' });
   assert.equal(forbidden.status, 403);

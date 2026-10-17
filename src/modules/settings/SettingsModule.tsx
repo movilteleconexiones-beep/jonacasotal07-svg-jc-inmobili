@@ -1,10 +1,13 @@
 import { etiquetaES } from '../../core/etiquetas-es';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { FileCheck2, Palette, Save } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { getCountryOption, LATAM_COUNTRIES } from '../../core/countries';
 import { useTenantBranding } from '../../core/use-tenant-branding';
-import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
+import { paletteFromLogoUrl, paletteFromLogoFile, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
+import { uploadAgencyLogo, rollbackAgencyLogoUpload } from '../../lib/agency-logo-upload';
+import { validateAgencyLogoContents } from '../../core/agency-logo-validation';
+import { AgencyCustomDomainRequest } from './AgencyCustomDomainRequest';
 import { supabase } from '../../lib/supabase';
 
 interface ComplianceInfo {
@@ -24,6 +27,10 @@ export function SettingsModule() {
   const [softwareName, setSoftwareName] = useState('');
   const [website, setWebsite] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [pendingLogo,setPendingLogo]=useState<File|null>(null);
+  const logoSelectionGeneration=useRef(0);
+  const [logoPreview,setLogoPreview]=useState('');
+  const [analyzingFile,setAnalyzingFile]=useState(false);
   const [primaryColor, setPrimaryColor] = useState(TENANT_DEFAULT_PRIMARY);
   const [secondaryColor, setSecondaryColor] = useState(TENANT_DEFAULT_SECONDARY);
   const [sampling, setSampling] = useState(false);
@@ -35,11 +42,32 @@ export function SettingsModule() {
   const [timezone, setTimezone] = useState('America/Bogota');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  // A save started for agency A must never update the form after switching to B.
+  const saveGeneration=useRef(0);
+  const activeOrganizationIdRef=useRef(organizationId);
+  activeOrganizationIdRef.current=organizationId;
   const [compliance, setCompliance] = useState<ComplianceInfo>({ status: 'PENDING' });
   const [licenseType, setLicenseType] = useState('SAAS');
   const [whiteLabelAllowed, setWhiteLabelAllowed] = useState(false);
 
   const selectedCountry = useMemo(() => getCountryOption(country), [country]);
+
+  useEffect(()=>{
+    if(!pendingLogo){setLogoPreview('');return;}
+    const preview=URL.createObjectURL(pendingLogo);
+    setLogoPreview(preview);
+    return()=>URL.revokeObjectURL(preview);
+  },[pendingLogo]);
+
+  useEffect(() => {
+    ++logoSelectionGeneration.current;
+    ++saveGeneration.current;
+    setPendingLogo(null);
+    setAnalyzingFile(false);
+    setSaving(false);
+    setMessage('');
+    return()=>{++logoSelectionGeneration.current;++saveGeneration.current;};
+  },[organizationId]);
 
   useEffect(() => {
     setCompanyName(branding.companyName);
@@ -58,6 +86,10 @@ export function SettingsModule() {
 
   useEffect(() => {
     if (!organizationId) return;
+    let disposed=false;
+    setLicenseType('SAAS');
+    setWhiteLabelAllowed(false);
+    setCompliance({status:'PENDING'});
 
     void supabase
       .from('organization_licenses')
@@ -65,6 +97,7 @@ export function SettingsModule() {
       .eq('organization_id', organizationId)
       .maybeSingle()
       .then(({ data }) => {
+        if(disposed)return;
         setLicenseType((data as any)?.license_type ?? 'SAAS');
         setWhiteLabelAllowed(Boolean((data as any)?.white_label_allowed));
       });
@@ -75,6 +108,7 @@ export function SettingsModule() {
       .eq('organization_id', organizationId)
       .maybeSingle()
       .then(({ data }) => {
+        if(disposed)return;
         const pack = (data as any)?.compliance_packs;
         setCompliance({
           status: (data as any)?.status ?? 'PENDING',
@@ -84,7 +118,8 @@ export function SettingsModule() {
           summary: pack?.summary ?? undefined,
         });
       });
-  }, [organizationId, country]);
+    return()=>{disposed=true;};
+  }, [organizationId]);
 
   function handleCountryChange(nextCountry: string) {
     const profile = getCountryOption(nextCountry);
@@ -93,103 +128,162 @@ export function SettingsModule() {
     setTimezone(profile.timezone);
   }
 
+  async function selectLogoFile(file:File|undefined) {
+    if(!file||!can('settings.edit'))return;
+    const generation=++logoSelectionGeneration.current;
+    setMessage('');
+    setAnalyzingFile(true);
+    try {
+      const issue=await validateAgencyLogoContents(file);
+      if(generation!==logoSelectionGeneration.current)return;
+      if(issue){setPendingLogo(null);setMessage(issue);return;}
+      setPendingLogo(file);
+      const palette=await paletteFromLogoFile(file);
+      if(generation!==logoSelectionGeneration.current)return;
+      setPrimaryColor(palette.primary);
+      setSecondaryColor(palette.secondary);
+      setMessage('Logo preparado y colores adaptados automáticamente. Pulsa Guardar configuración para confirmar.');
+    }catch(error){
+      if(generation===logoSelectionGeneration.current)setMessage(error instanceof Error?error.message:'No se pudieron analizar los colores. Puedes ajustarlos manualmente.');
+    }finally{if(generation===logoSelectionGeneration.current)setAnalyzingFile(false);}
+  }
+
   async function adaptLogoColors() {
     if (!can('settings.edit') || !logoUrl.trim() || sampling) return;
+    const generation=++logoSelectionGeneration.current;
+    // Choosing a remote logo supersedes any unfinished local file analysis.
+    setPendingLogo(null);
+    setAnalyzingFile(false);
     setSampling(true);
     setMessage('');
     try {
       const palette = await paletteFromLogoUrl(logoUrl);
+      if(generation!==logoSelectionGeneration.current)return;
       setPrimaryColor(palette.primary);
       setSecondaryColor(palette.secondary);
       setMessage('Colores detectados. Comprueba la vista previa y pulsa Guardar configuración.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No fue posible analizar el logo.');
+      if(generation===logoSelectionGeneration.current)setMessage(error instanceof Error ? error.message : 'No fue posible analizar el logo.');
     } finally { setSampling(false); }
   }
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!organizationId || !can('settings.edit')) return;
+    if (!organizationId || !can('settings.edit') || analyzingFile || sampling || saving) return;
     if (website.trim() && !safeBrandUrl(website)) {
       setMessage('El sitio web debe empezar por https:// y ser una dirección válida.');
       return;
     }
-    if (logoUrl.trim() && !safeBrandUrl(logoUrl)) {
+    if (!pendingLogo && logoUrl.trim() && !safeBrandUrl(logoUrl)) {
       setMessage('El logo debe estar alojado en una dirección HTTPS válida.');
       return;
     }
+
+    const targetOrganizationId=organizationId;
+    const generation=++saveGeneration.current;
+    const isCurrent=()=>saveGeneration.current===generation &&
+      activeOrganizationIdRef.current===targetOrganizationId;
     setSaving(true);
     setMessage('');
+    let uploadedLogo:{url:string;path:string}|null=null;
+    // Once branding saves, its public URL must not be deleted even if a
+    // separate settings write fails. Multiple PostgREST writes are not atomic.
+    let brandingPersisted=false;
 
-    const countryResult = await supabase.rpc('set_organization_country', {
-      target_org: organizationId,
-      target_country_code: country,
-    });
+    try {
+      if (pendingLogo) uploadedLogo=await uploadAgencyLogo(targetOrganizationId,pendingLogo);
+      if (!isCurrent()) {
+        if(uploadedLogo)await rollbackAgencyLogoUpload(uploadedLogo.path);
+        return;
+      }
 
-    if (countryResult.error) {
-      setMessage(countryResult.error.message);
-      setSaving(false);
-      return;
-    }
-
-    const [orgResult, brandingResult, settingsResult] = await Promise.all([
-      supabase
-        .from('organizations')
-        .update({ name: companyName.trim(), updated_at: new Date().toISOString() })
-        .eq('id', organizationId),
-      supabase
-        .from('organization_branding')
-        .upsert({
-          organization_id: organizationId,
-          company_name: companyName.trim(),
-          software_name: softwareName.trim(),
-          website: website.trim() ? safeBrandUrl(website) : null,
-          logo_url: logoUrl.trim() ? safeBrandUrl(logoUrl) : null,
-          primary_color: safeTenantColor(primaryColor, TENANT_DEFAULT_PRIMARY),
-          secondary_color: safeTenantColor(secondaryColor, TENANT_DEFAULT_SECONDARY),
-          phone: phone.trim() || null,
-          whatsapp: whatsapp.trim() || null,
-          email: email.trim() || null,
-          updated_at: new Date().toISOString(),
-        }),
-      supabase
-        .from('organization_settings')
-        .upsert({
-          organization_id: organizationId,
-          default_currency: currency,
-          country,
-          timezone,
-          locale: selectedCountry.locale,
-          language: selectedCountry.language,
-          updated_at: new Date().toISOString(),
-        }),
-    ]);
-
-    const error = orgResult.error || brandingResult.error || settingsResult.error;
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage('Identidad, país y configuración regional guardados correctamente.');
-      await refresh();
-      window.dispatchEvent(new Event('tenant-branding-updated'));
-
-      const { data } = await supabase
-        .from('organization_compliance')
-        .select('status, compliance_packs(title,version,authority,summary)')
-        .eq('organization_id', organizationId)
-        .maybeSingle();
-
-      const pack = (data as any)?.compliance_packs;
-      setCompliance({
-        status: (data as any)?.status ?? 'PENDING',
-        title: pack?.title ?? undefined,
-        version: pack?.version ?? undefined,
-        authority: pack?.authority ?? undefined,
-        summary: pack?.summary ?? undefined,
+      const effectiveLogo=uploadedLogo?.url || (logoUrl.trim()?safeBrandUrl(logoUrl):null);
+      const countryResult=await supabase.rpc('set_organization_country', {
+        target_org:targetOrganizationId,
+        target_country_code:country,
       });
-    }
+      if(countryResult.error) {
+        if(uploadedLogo)await rollbackAgencyLogoUpload(uploadedLogo.path);
+        if(isCurrent())setMessage(countryResult.error.message);
+        return;
+      }
+      if(!isCurrent()) {
+        if(uploadedLogo)await rollbackAgencyLogoUpload(uploadedLogo.path);
+        return;
+      }
 
-    setSaving(false);
+      const [orgResult,brandingResult,settingsResult]=await Promise.all([
+        supabase.from('organizations')
+          .update({name:companyName.trim(),updated_at:new Date().toISOString()})
+          .eq('id',targetOrganizationId),
+        supabase.from('organization_branding')
+          .upsert({
+            organization_id:targetOrganizationId,
+            company_name:companyName.trim(),
+            software_name:softwareName.trim(),
+            website:website.trim()?safeBrandUrl(website):null,
+            logo_url:effectiveLogo,
+            primary_color:safeTenantColor(primaryColor,TENANT_DEFAULT_PRIMARY),
+            secondary_color:safeTenantColor(secondaryColor,TENANT_DEFAULT_SECONDARY),
+            phone:phone.trim()||null,
+            whatsapp:whatsapp.trim()||null,
+            email:email.trim()||null,
+            updated_at:new Date().toISOString(),
+          }),
+        supabase.from('organization_settings')
+          .upsert({
+            organization_id:targetOrganizationId,
+            default_currency:currency,
+            country,timezone,
+            locale:selectedCountry.locale,
+            language:selectedCountry.language,
+            updated_at:new Date().toISOString(),
+          }),
+      ]);
+
+      brandingPersisted=!brandingResult.error;
+      // Only remove a new public asset when its branding URL failed to save.
+      // Deleting it after successful branding creates a broken logo reference.
+      if(uploadedLogo&&!brandingPersisted)await rollbackAgencyLogoUpload(uploadedLogo.path);
+      if(!isCurrent())return;
+
+      const error=orgResult.error||brandingResult.error||settingsResult.error;
+      if(error) {
+        if(brandingPersisted) {
+          setPendingLogo(null);
+          if(uploadedLogo)setLogoUrl(uploadedLogo.url);
+        }
+        setMessage('El guardado fue parcial o falló. Comprueba los datos actuales y vuelve a guardar los campos pendientes. Detalle: '+error.message);
+      }else{
+        setPendingLogo(null);
+        if(uploadedLogo)setLogoUrl(uploadedLogo.url);
+        setMessage('Identidad, logo, colores y configuración regional guardados correctamente.');
+      }
+
+      await refresh();
+      if(!isCurrent())return;
+      window.dispatchEvent(new Event('tenant-branding-updated'));
+      if(error)return;
+
+      const {data}=await supabase.from('organization_compliance')
+        .select('status, compliance_packs(title,version,authority,summary)')
+        .eq('organization_id',targetOrganizationId).maybeSingle();
+      if(!isCurrent())return;
+      const pack=(data as any)?.compliance_packs;
+      setCompliance({
+        status:(data as any)?.status??'PENDING',
+        title:pack?.title??undefined,
+        version:pack?.version??undefined,
+        authority:pack?.authority??undefined,
+        summary:pack?.summary??undefined,
+      });
+    } catch(error) {
+      // A transport-level exception after any write leaves persistence unknown:
+      // do not delete the logo, as branding may already reference it.
+      if(isCurrent())setMessage('No se pudo completar o confirmar el guardado. Recarga la configuración antes de reintentarlo.');
+    } finally {
+      if(isCurrent())setSaving(false);
+    }
   }
 
   return (
@@ -236,15 +330,31 @@ export function SettingsModule() {
             <Field label="Dirección de tu sitio web (https://...)" value={website} onChange={setWebsite} type="url" />
           </div>
         </div>
+        {organizationId&&<div className="md:col-span-2">
+          <AgencyCustomDomainRequest key={organizationId} organizationId={organizationId}/>
+        </div>}
         <div className="md:col-span-2 rounded-xl border border-stone-200 bg-white p-4">
           <div className="font-semibold">Logo y colores de tu inmobiliaria</div>
           <p className="mt-1 text-xs text-slate-600">Tu logo se mostrará en la cabecera del panel inmobiliario, sin cambiar la marca de INMOJCO ni la administración central.</p>
           <div className="mt-3">
-            <Field label="Dirección HTTPS de la imagen del logo" value={logoUrl} onChange={setLogoUrl} type="url" />
+            <label className="block text-sm font-medium" htmlFor="agency-logo-file">Subir mi logo (PNG, JPG o WebP, máximo 2 MB)</label>
+            <input id="agency-logo-file" type="file" accept="image/png,image/jpeg,image/webp"
+              disabled={!can('settings.edit')||saving} onChange={event=>{
+                const file=event.target.files?.[0];event.target.value='';
+                void selectLogoFile(file);
+              }} className="mt-1 w-full rounded-xl border border-stone-300 bg-white p-3 text-sm"/>
+            {pendingLogo&&<p className="mt-2 text-xs text-slate-700">
+              Archivo seleccionado: {pendingLogo.name}. {analyzingFile?'Analizando colores…':'Listo para guardar.'}
+              <button type="button" className="ml-2 underline" onClick={()=>setPendingLogo(null)}>Cancelar</button>
+            </p>}
+          </div>
+          <div className="mt-3">
+            <Field label="O utilizar una URL HTTPS pública del logo" value={logoUrl}
+              onChange={value=>{setLogoUrl(value);setPendingLogo(null);}} type="url" />
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <div className="flex h-20 w-28 items-center justify-center overflow-hidden rounded-xl border bg-white">
-              {safeBrandUrl(logoUrl) ? <img src={safeBrandUrl(logoUrl) ?? ''} alt="Vista previa del logo" className="max-h-full max-w-full object-contain p-2" /> :
+              {logoPreview||safeBrandUrl(logoUrl) ? <img src={logoPreview||safeBrandUrl(logoUrl)||''} alt="Vista previa del logo" className="max-h-full max-w-full object-contain p-2" /> :
                 <span className="text-center text-xs text-slate-500">Sin logo</span>}
             </div>
             <button type="button" onClick={() => void adaptLogoColors()} disabled={sampling || saving || !can('settings.edit') || !safeBrandUrl(logoUrl)} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">
@@ -350,7 +460,7 @@ export function SettingsModule() {
         <div className="md:col-span-2 flex justify-end">
           <button
             type="submit"
-            disabled={saving || !can('settings.edit')}
+            disabled={saving || analyzingFile || !can('settings.edit')}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             <Save className="h-4 w-4" />

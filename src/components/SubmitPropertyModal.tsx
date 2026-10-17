@@ -5,7 +5,6 @@ import { validatePropertyConsignment, type PropertyConsignmentInput } from '../c
 import { submitPropertyConsignment, usePublicPropertyIntakeSite } from '../lib/property-consignments';
 import { X, CheckCircle2 } from 'lucide-react';
 import { uploadConsignmentPhoto } from '../lib/consignment-photos';
-import { useTenantBranding } from '../core/use-tenant-branding';
 import { getCountryOption } from '../core/countries';
 import { administrativeLabels, loadAdministrativeCatalog, type AdministrativeCatalog } from '../core/location-catalog';
 
@@ -23,15 +22,23 @@ function PhotoThumbnail({ file }: { file: File }) {
 interface SubmitPropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Public route slug; never derived from the viewer's private membership. */
+  siteSlug?: string;
 }
 
 export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   isOpen,
-  onClose
+  onClose,
+  siteSlug,
 }) => {
-  const { branding: tenantBranding } = useTenantBranding();
-  const { site, loading: siteLoading, error: siteError } = usePublicPropertyIntakeSite(isOpen);
-  const branding = site ? { ...tenantBranding, companyName: site.company_name, country: site.country, currency: site.currency } : tenantBranding;
+  // Public visitors (including users signed in to ANOTHER agency) must never
+  // inherit branding, contact details or private settings from activeMembership.
+  const { site, loading: siteLoading, error: siteError } = usePublicPropertyIntakeSite(isOpen,siteSlug);
+  const branding = {
+    companyName:site?.company_name||'la inmobiliaria',
+    country:site?.country||'CO',
+    currency:site?.currency||'COP',
+  };
   const [submitting, setSubmitting] = useState(false);
   const [contactConsent, setContactConsent] = useState(false);
   const submitLock = useRef(false);

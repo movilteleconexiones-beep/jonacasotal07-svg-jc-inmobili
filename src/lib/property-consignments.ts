@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PropertyConsignmentInput } from '../core/property-consignment';
 import { consignmentErrorMessage } from '../core/property-consignment';
 import { isSupabaseConfigured, supabase } from './supabase';
+import { publicConsignmentSlug } from '../core/public-agency-route';
 
 export interface PublicPropertyIntakeSite {
   slug: string;
@@ -10,9 +11,17 @@ export interface PublicPropertyIntakeSite {
   currency: string;
 }
 
-const publicSiteSlug = (import.meta.env.VITE_PUBLIC_SITE_SLUG as string | undefined)?.trim();
-
-export function usePublicPropertyIntakeSite(enabled: boolean) {
+/**
+ * Resolves the public tenant on each render, never once at module import.
+ * Explicit catalog slugs are supplied by the validated public route and
+ * never derived from the signed-in user's active organization.
+ */
+export function usePublicPropertyIntakeSite(enabled: boolean, requestedSiteSlug?:string) {
+  const routeSlug=publicConsignmentSlug(
+    window.location.pathname,
+    import.meta.env.VITE_PUBLIC_SITE_SLUG as string | undefined,
+  );
+  const publicSiteSlug=requestedSiteSlug ?? routeSlug;
   const [site, setSite] = useState<PublicPropertyIntakeSite | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,7 +41,7 @@ export function usePublicPropertyIntakeSite(enabled: boolean) {
       try {
         const { data, error: rpcError } = await supabase.rpc('get_public_property_intake_site', { p_slug: publicSiteSlug });
         if (cancelled) return;
-        if (rpcError || !data?.slug || !data?.company_name || !data?.country || !data?.currency) {
+        if (rpcError || data?.slug !== publicSiteSlug || !data?.company_name || !data?.country || !data?.currency) {
           setError('La recepción de consignaciones no está disponible. Contacta directamente a la inmobiliaria.');
         } else {
           setSite(data as PublicPropertyIntakeSite);
@@ -44,9 +53,9 @@ export function usePublicPropertyIntakeSite(enabled: boolean) {
       }
     })();
     return () => { cancelled = true; };
-  }, [enabled]);
+  }, [enabled, publicSiteSlug]);
 
-  return { site, loading, error };
+  return { site: site?.slug === publicSiteSlug ? site : null, loading, error };
 }
 
 export async function submitPropertyConsignment(siteSlug: string, requestId: string, payload: PropertyConsignmentInput): Promise<string> {
