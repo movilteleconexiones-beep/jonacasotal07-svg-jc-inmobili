@@ -128,6 +128,8 @@ jobs:
         run: node --test tests/wompi-verified-trial-reconciliation-ui.test.mjs
       - name: Wompi reconciliation production preflight read-only guard
         run: node --test tests/wompi-verified-trial-release-preflight.test.mjs
+      - name: Supabase Free local backup script safety checks
+        run: node --test tests/supabase-free-backup-safety.test.mjs
       - name: Wompi release readiness preflight checks
         run: node --test tests/wompi-release-readiness.test.mjs
       - name: Owner deduction administrator approval regression
