@@ -72,7 +72,7 @@ export function evaluateReleaseReadiness(evidence, {
   // Timestamp order is insufficient: the restored object must be precisely the
   // backup whose hash was independently computed for this release.
   if (!SHA256.test(e.database?.restored_backup_sha256 ?? '') ||
-      e.database.restored_backup_sha256 !== e.database.backup_sha256)
+      String(e.database.restored_backup_sha256).toLowerCase() !== String(e.database.backup_sha256 ?? '').toLowerCase())
     errors.push('La restauración no corresponde al SHA-256 del respaldo de esta liberación.');
   // Do not accept a restore performed against production as disaster-recovery
   // evidence. Explicitly record whether the destination is local or staging.
