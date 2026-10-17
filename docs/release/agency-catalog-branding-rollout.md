@@ -169,3 +169,18 @@ Plan inicial previsto, sujeto a tarifas y consumo vigentes al contratar:
    antes de modificar tablas financieras o reglas RLS en producción.
 
 **Nunca considerar el pago como requisito para programar o ejecutar CI.**
+
+### Verificación de recuperación en fase final (sin compras actuales)
+
+Preparé una lista **GO/NO-GO** de liberación en
+`scripts/release-readiness.mjs`, con pruebas aisladas en
+`tests/release-readiness-gates.test.mjs`, y un procedimiento paso a paso en
+`docs/release/database-backup-restore-verification.md`.
+El validador exige un respaldo reciente de la instancia correcta, restauración
+de prueba posterior al respaldo, CI del mismo commit, pruebas entre agencias,
+roles internos y externos, lectura global del SuperAdmin y ventana de reversión.
+**No considera CI = backup**, no inicia procesos de pago, no crea recursos
+pagados y nunca ejecuta operaciones DDL. El control comercial adicional
+exige aprobación expresa para activar Wompi real. La salida predeterminada
+es **NO APTO** hasta reunir evidencia verificable. El fichero local se excluye
+de GitHub junto con respaldos y volcados de base de datos.
