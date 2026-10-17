@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { ResilientImage } from '../components/ResilientImage';
 import { SubmitPropertyModal } from '../components/SubmitPropertyModal';
 import { publicAgencySlug } from '../core/public-agency-route';
+import { mergeDistinctListings } from '../core/public-listing-pagination';
 
 interface Site { slug: string; company_name: string; country: string; currency: string }
 interface Listing {
@@ -119,10 +120,7 @@ export function PublicAgencyCatalog() {
         const nextPage=data as Listing[];
         // Keep a stable unique inventory even if the server repeats an item
         // across page boundaries while properties are being edited.
-        setListings(items=>{
-          const existingIds=new Set(items.map(item=>item.id));
-          return [...items,...nextPage.filter(item=>!existingIds.has(item.id))];
-        });
+        setListings(items=>mergeDistinctListings(items,nextPage));
         setHasMore(nextPage.length===PAGE_SIZE);
       }
     } catch {
