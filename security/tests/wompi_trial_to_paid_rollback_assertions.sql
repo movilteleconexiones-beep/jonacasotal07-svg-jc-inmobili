@@ -41,7 +41,7 @@ DECLARE result text;
 BEGIN
   result := public.process_verified_payment_event('ROLLBACK_TRIAL_GUARD_1',
     'tx-roll-back-trial', (SELECT amount_in_cents FROM public.payment_orders WHERE reference='ROLLBACK_TRIAL_GUARD_1'),
-    'COP','APPROVED','sandbox',repeat('6',64),repeat('4',64));
+    'COP','APPROVED','sandbox',repeat('0',64),repeat('4',64));
   IF result IS DISTINCT FROM 'processed' THEN
     RAISE EXCEPTION 'Original Wompi handler rollback failed. actual=%',result;
   END IF;
