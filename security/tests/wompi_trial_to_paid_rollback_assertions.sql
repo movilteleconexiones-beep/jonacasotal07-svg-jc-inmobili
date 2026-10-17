@@ -36,10 +36,17 @@ INSERT INTO public.payment_orders(organization_id,plan_id,created_by,idempotency
  (SELECT (price*100)::bigint FROM public.plans WHERE code='BASIC'),'COP',
  ARRAY['properties.view'],(SELECT id FROM public.license_terms_versions LIMIT 1),now()+interval '25 minutes');
 SELECT set_config('request.jwt.claim.role','service_role',false);
-SELECT pg_temp.rollback_check(public.process_verified_payment_event('ROLLBACK_TRIAL_GUARD_1',
- 'tx-roll-back-trial', (SELECT amount_in_cents FROM public.payment_orders WHERE reference='ROLLBACK_TRIAL_GUARD_1'),
- 'COP','APPROVED','sandbox',repeat('6',64),repeat('4',64))='processed',
- 'original verified Wompi handler restored');
+DO $rollback_handler$
+DECLARE result text;
+BEGIN
+  result := public.process_verified_payment_event('ROLLBACK_TRIAL_GUARD_1',
+    'tx-roll-back-trial', (SELECT amount_in_cents FROM public.payment_orders WHERE reference='ROLLBACK_TRIAL_GUARD_1'),
+    'COP','APPROVED','sandbox',repeat('6',64),repeat('4',64));
+  IF result IS DISTINCT FROM 'processed' THEN
+    RAISE EXCEPTION 'Original Wompi handler rollback failed. actual=%',result;
+  END IF;
+END;
+$rollback_handler$;
 SELECT pg_temp.rollback_check((SELECT fulfillment_status='REVIEW_REQUIRED' AND review_reason='contract_review'
  FROM public.payment_orders WHERE reference='ROLLBACK_TRIAL_GUARD_1'),
  'prior stricter trial plan-change review restored');
