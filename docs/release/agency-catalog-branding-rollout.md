@@ -64,11 +64,14 @@ sobre ese árbol integrado: cada CI histórico por separado no prueba la combina
 
 ## 6. Bloqueos actuales
 
-La conexión Supabase de ChatGPT solo tiene acceso administrativo a `nqzopzhmhqdssgpljypu`.
-La instancia objetivo de INMOJCO es `cuitgyqrjibgwuniapmk` y devuelve
-`You do not have permission to perform this action`: **nunca ejecutar migraciones
-de INMOJCO en la base visible pero diferente**. Requiere conectar la organización
-autorizada correcta, y luego preflight SQL, respaldo y validación real de RLS.
+**Conexión corregida el 16/oct/2026:** el complemento Supabase de ChatGPT
+tiene ahora acceso al proyecto de producción correcto `cuitgyqrjibgwuniapmk`
+(región `us-west-2`, PostgreSQL 17.11, `ACTIVE_HEALTHY`). Se verificó el
+historial de migraciones y se realizaron consultas de preflight **solo lectura**.
+El acceso administrativo a la base es un prerrequisito, no una autorización de
+publicación: persisten las puertas de seguridad de respaldo y pruebas reales.
+**Nunca apuntar las migraciones de INMOJCO al proyecto diferente
+`nqzopzhmhqdssgpljypu`.**
 
 El dominio `www.inmojco.com` **ya funciona en producción** con HTTPS válido
 en Railway; `inmojco.com` sin www mantiene un CNAME @ independiente en
@@ -96,3 +99,27 @@ la base real antes de aplicar**.
 Los formularios de publicación y personalización invalidan respuestas tardías
 al cambiar de inmueble o de inmobiliaria, para no mezclar nombres, colores,
 licencias o descripciones entre tenants durante navegación rápida.
+
+
+## 8. Preflight real de Supabase — 16/oct/2026 (solo lectura)
+
+- Instancia consultada: `cuitgyqrjibgwuniapmk`, PostgreSQL 17.11, estado saludable.
+- Inventario: 2 inmobiliarias activas, 2 inmuebles privados; 1 inmueble `AVAILABLE`.
+- Identidad: 1 cuenta de superadministrador activa (solo cardinalidad, sin divulgar usuario).
+- Catálogo: `private.property_intake_sites` existe; 1 sitio activo. Aún **no existen** `public.property_publications` ni `public.agency_custom_domains`.
+- Los RPC del nuevo catálogo, los dominios y `jco_private.can_read_authorized_external_property` todavía no existen, como corresponde antes de las migraciones de integración.
+- `public.properties` tiene RLS activado; no se encontró policy de `SELECT` para `anon`, pero **`anon` conserva GRANT SELECT** en la tabla. La migración `20261015195500_strict_private_property_read_boundary.sql` contiene `REVOKE SELECT`. Verificar la revocación y las políticas efectivas tras aplicarla; no asumir exposición real de datos solo por el GRANT.
+- Las policies de `properties` para miembros autenticados incluyen reglas permisivas de acceso por agencia y relaciones personales; el nuevo guard `AS RESTRICTIVE` debe comprobarse con cuentas reales A/B y perfiles CLIENT, propietario, inquilino y personal operativo.
+- Tablas reales `properties`, `organizations`, `portal_access_links`, `property_owners`, `property_ownerships`, `leases` y `organization_settings` incluyen las columnas utilizadas por el SQL propuesto.
+- Los buckets `jco-consignment-photos` y `jco-inventory-private` siguen privados. No se ha creado aún `jco-agency-logos`.
+- El asesor de seguridad indica 2 funciones públicas `SECURITY DEFINER` intencionadas para consignación y un conjunto de funciones autenticadas `SECURITY DEFINER`. Auditoría de sus guardas de permisos necesaria; **no revocar masivamente** sus ejecuciones, pues rompería funcionalidades existentes.
+
+### Bloqueos antes de cualquier DDL en producción
+
+1. Comprobar respaldo recuperable y restauración ensayada en un entorno separado compatible; GitHub CI no sustituye esa evidencia.
+2. Ejecutar pruebas de RLS e intersección de políticas con dos identidades autenticadas de inmobiliarias distintas (incluida cuenta con roles mixtos).
+3. Aplicar migraciones ordenadas y verificadas: primero `20261015195500` de aislamiento; después `20261015194000` de publicaciones (orden operativo por dependencias, no por nombre); finalmente `20261015201000` de branding/dominios, siguiendo los prerrequisitos del esquema y la revisión de sus scripts.
+4. Repetir los controles de regresión y confirmar que `anon` no tiene `SELECT` directo sobre `public.properties`; verificar que portales personales no pierden lecturas legítimas y que todas las publicaciones iniciales siguen sin aprobarse.
+5. Solo después fusionar o desplegar la interfaz correspondiente; mantener Wompi producción desactivado.
+
+**No se aplicó ninguna migración ni se modificaron tablas de producción durante este preflight.**
