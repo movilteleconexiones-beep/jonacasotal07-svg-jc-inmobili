@@ -154,6 +154,8 @@ jobs:
         run: node --import tsx --test tests/property-consignment.test.mjs
       - name: Verified checkout and webhook tests
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
+      - name: Official Wompi SHA-256 signature integration vectors
+        run: node --import tsx --test tests/wompi-official-integrity-vectors.test.mjs
       - name: Wompi Edge gateway JWT and signed webhook safety
         run: node --import tsx --test tests/wompi-edge-gateway-auth.test.mjs
       - name: PostgREST explicit deal joins and accurate count regression tests
