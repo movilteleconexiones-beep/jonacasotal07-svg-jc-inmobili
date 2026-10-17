@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 
 interface Tenant { organization_id: string; organization_name: string; organization_status: string; owner_user_id: string | null }
 interface Plan { id: string; name: string; code: string; billing_cycle: string; currency: string }
+interface WompiReview { id: string; amount_in_cents: number; currency: string; created_at: string }
 export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null; onDone: () => void }) {
   const [mode, setMode] = useState('');
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -12,6 +13,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [verifiedReviews, setVerifiedReviews] = useState<WompiReview[]>([]);
   useEffect(() => {
     void Promise.all([
       supabase.from('billing_activation_settings').select('activation_mode').single(),
@@ -21,6 +23,21 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
       setMode(config.data.activation_mode); setPlans(catalog.data ?? []); setConfiguredPlanIds([...new Set((features.data ?? []).map(f => f.plan_id))]); });
   }, []);
   useEffect(() => { setReason(''); setPlan(''); setAction('APPROVE'); setMessage(''); }, [tenant?.organization_id]);
+  useEffect(() => {
+    setVerifiedReviews([]);
+    if (!tenant?.organization_id) return;
+    let cancelled = false;
+    void supabase.from('payment_orders')
+      .select('id,amount_in_cents,currency,created_at')
+      .eq('organization_id',tenant.organization_id)
+      .eq('environment','sandbox').eq('status','APPROVED')
+      .eq('fulfillment_status','REVIEW_REQUIRED').eq('review_reason','contract_review')
+      .order('created_at',{ascending:false}).limit(5)
+      .then(({data,error}) => {
+        if (!cancelled && !error) setVerifiedReviews(data ?? []);
+      });
+    return () => { cancelled=true; };
+  }, [tenant?.organization_id]);
   async function saveMode(next: string) {
     setBusy(true); setMessage('');
     const { error } = await supabase.rpc('billing_admin_set_mode',{ mode: next });
@@ -43,6 +60,22 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
     else { setMessage('Cambio aplicado y registrado en auditoría.'); onDone(); }
     setBusy(false);
   }
+  async function reconcileVerifiedTrial(orderId: string) {
+    if (!tenant || busy || reason.trim().length < 10 ||
+      !verifiedReviews.some(o => o.id===orderId)) return;
+    setBusy(true); setMessage('');
+    const {data,error} = await supabase.rpc('billing_admin_reconcile_verified_trial_payment',
+      { target_order:orderId,justification:reason.trim() });
+    if (error) setMessage('No fue posible conciliar el pago; verifica que esté aprobado y el contrato continúe en prueba.');
+    else if (data==='applied' || data==='already_applied') {
+      setVerifiedReviews(items => items.filter(order => order.id!==orderId));
+      setMessage(data==='applied'
+        ? 'Pago de prueba verificado y aplicado una sola vez. Conciliación registrada en auditoría.'
+        : 'El pago ya estaba aplicado. No se modificó la licencia.');
+      onDone();
+    } else setMessage('El pago permanece en revisión. No se cambió la licencia; revisa el contrato o la evidencia.');
+    setBusy(false);
+  }
   return <section className="mt-5 rounded-xl border border-slate-200 bg-white p-5">
     <div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-bold">Activación comercial</h2>
       <p className="mt-1 text-sm text-slate-600">El pago confirmado puede habilitar el plan automáticamente. Las suspensiones administrativas requieren revisión.</p></div>
@@ -63,6 +96,19 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
         <textarea aria-label="Motivo del cambio" value={reason} minLength={10} maxLength={1000} onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
       <button type="button" disabled={busy || reason.trim().length<10 || ((action==='APPROVE'||action==='TRIAL') && (!plan || !configuredPlanIds.includes(plan))) || (action==='TRIAL' && !tenant.owner_user_id)} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
     </div>}
+    {tenant && verifiedReviews.length>0 && <section aria-label="Conciliación Wompi verificada" className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4">
+      <h3 className="font-semibold">Pago Wompi aprobado pendiente de aplicar</h3>
+      <p className="mt-1 text-sm">Solo pagos Sandbox confirmados y retenidos al cambiar de un plan en prueba a otro plan. Requiere motivo y autorización exclusiva del SuperAdmin. No crea ni repite cargos.</p>
+      {verifiedReviews.map(order=><div key={order.id} className="mt-3 rounded-lg border bg-white p-3">
+        <p className="text-sm">{(order.amount_in_cents/100).toLocaleString('es-CO',{style:'currency',currency:order.currency})} · {new Date(order.created_at).toLocaleDateString('es-CO')}</p>
+        <button type="button" disabled={busy || reason.trim().length<10}
+          onClick={()=>void reconcileVerifiedTrial(order.id)}
+          className="mt-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+          Conciliar pago firmado y activar plan
+        </button>
+      </div>)}
+      <p className="mt-2 text-xs">El motivo de auditoría se escribe en el campo «Motivo» anterior. La base de datos volverá a comprobar firma, contrato y seguridad antes de aplicar.</p>
+    </section>}
     {message && <p role="status" className="mt-3 text-sm">{message}</p>}
   </section>;
 }

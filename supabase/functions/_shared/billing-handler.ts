@@ -131,8 +131,14 @@ export function createBillingHandler(config: BillingConfig, deps: BillingDepende
         target_plan: body.planId, target_environment: config.environment, request_key: body.requestKey });
       if (error || !record(order)) return response(409, { error: 'checkout_unavailable' });
       if (order.status !== 'PENDING') return response(200, { orderId: order.id, status: order.status });
-      if (Date.parse(order.expires_at) <= Date.now()) return response(409, { error: 'order_expired' });
-      const expiration = new Date(order.expires_at).toISOString();
+      const expirationMillis = Date.parse(order.expires_at);
+      if (!Number.isFinite(expirationMillis) || expirationMillis <= Date.now())
+        return response(409, { error: 'order_expired' });
+      // Wompi's documented expiration-time example uses whole UTC seconds
+      // (.000Z). Sign and send this EXACT normalized value. Postgres timestamp
+      // values may include microseconds; never let date parser round-trip drift
+      // alter the string Wompi sees.
+      const expiration = new Date(Math.floor(expirationMillis / 1000) * 1000).toISOString();
       const signature = await sha256(order.reference + order.amount_in_cents + order.currency + expiration + config.integritySecret);
       const checkout = new URL('https://checkout.wompi.co/p/');
       checkout.search = new URLSearchParams({ 'public-key': config.publicKey, 'currency': order.currency,

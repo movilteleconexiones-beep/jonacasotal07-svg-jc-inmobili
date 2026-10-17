@@ -124,6 +124,12 @@ jobs:
         run: node --test tests/payment-migration-gates.test.mjs
       - name: Platform-only billing access regression
         run: node --test tests/platform-billing-access-review.test.mjs
+      - name: Verified Wompi trial-to-paid SuperAdmin reconciliation UI safety
+        run: node --test tests/wompi-verified-trial-reconciliation-ui.test.mjs
+      - name: Wompi reconciliation production preflight read-only guard
+        run: node --test tests/wompi-verified-trial-release-preflight.test.mjs
+      - name: Supabase Free local backup script safety checks
+        run: node --test tests/supabase-free-backup-safety.test.mjs
       - name: Wompi release readiness preflight checks
         run: node --test tests/wompi-release-readiness.test.mjs
       - name: Owner deduction administrator approval regression
@@ -152,6 +158,8 @@ jobs:
         run: node --import tsx --test tests/property-consignment.test.mjs
       - name: Verified checkout and webhook tests
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
+      - name: Official Wompi SHA-256 signature integration vectors
+        run: node --import tsx --test tests/wompi-official-integrity-vectors.test.mjs
       - name: Wompi Edge gateway JWT and signed webhook safety
         run: node --import tsx --test tests/wompi-edge-gateway-auth.test.mjs
       - name: PostgREST explicit deal joins and accurate count regression tests
@@ -208,6 +216,10 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_assertions.sql
           bash security/tests/billing_activation_concurrency.sh
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261017090000_verified_trial_to_paid_reconciliation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/wompi_verified_trial_conversion_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/rollback/wompi_trial_to_paid_20261017.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/wompi_trial_to_paid_rollback_assertions.sql
       - name: Property consignment SQL security and atomicity tests
         env:
           PGPASSWORD: postgres
