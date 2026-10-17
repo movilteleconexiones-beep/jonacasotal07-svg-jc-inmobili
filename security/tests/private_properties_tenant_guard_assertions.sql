@@ -8,8 +8,11 @@ SELECT public.property_tenant_test_assert(
  AND permissive='RESTRICTIVE' AND cmd='SELECT')=1,
  'a restrictive property SELECT guard exists');
 SELECT public.property_tenant_test_assert(
- NOT has_table_privilege('anon','public.properties','SELECT'),
- 'anonymous direct access is revoked');
+ NOT has_table_privilege('anon','public.properties','SELECT')
+ AND NOT has_table_privilege('anon','public.properties','INSERT')
+ AND NOT has_table_privilege('anon','public.properties','UPDATE')
+ AND NOT has_table_privilege('anon','public.properties','DELETE'),
+ 'anonymous cannot read or mutate private property records even if a permissive policy is added');
 
 -- Staff user A has organization membership and VIEW only in A, never B.
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
