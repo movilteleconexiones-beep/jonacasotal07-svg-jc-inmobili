@@ -40,5 +40,29 @@ SELECT
  has_table_privilege('anon','public.properties','SELECT') AS anon_can_select_private_properties,
  has_table_privilege('authenticated','public.properties','SELECT') AS auth_can_query_rls_filtered_properties;
 
+-- Verify every anonymous table privilege that a broad legacy grant could
+-- accidentally expose. Direct public operations use audited SECURITY DEFINER
+-- functions; the private inventory must not expose table-level DML.
+SELECT
+ has_table_privilege('anon','public.properties','SELECT') AS anonymous_can_select,
+ has_table_privilege('anon','public.properties','INSERT') AS anonymous_can_insert,
+ has_table_privilege('anon','public.properties','UPDATE') AS anonymous_can_update,
+ has_table_privilege('anon','public.properties','DELETE') AS anonymous_can_delete,
+ (SELECT relrowsecurity FROM pg_class WHERE oid='public.properties'::regclass) AS private_rls_enabled,
+ (SELECT count(*) FROM pg_policies WHERE schemaname='public'
+  AND tablename='properties' AND policyname='jco_platform_admin_properties_read'
+  AND cmd='SELECT' AND permissive='PERMISSIVE') AS platform_admin_global_read_policies,
+ (SELECT count(*) FROM pg_policies WHERE schemaname='public'
+  AND tablename='properties' AND policyname='jco_private_properties_tenant_read_boundary'
+  AND cmd='SELECT' AND permissive='RESTRICTIVE') AS tenant_read_boundary_policies;
+
+-- Cardinalities only: no emails, personal identifiers, payment details,
+-- residential addresses or secret configuration are returned.
+SELECT
+ (SELECT count(*) FROM public.platform_admins WHERE active) AS active_platform_admins,
+ (SELECT count(*) FROM public.organizations WHERE status='ACTIVE') AS active_agencies,
+ (SELECT count(*) FROM public.properties) AS properties_total,
+ (SELECT count(*) FROM private.property_intake_sites WHERE enabled) AS public_sites_enabled;
+
 -- Do not grant SERVICE_ROLE or bypass-RLS credentials to users in the browser.
 ROLLBACK;
