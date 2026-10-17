@@ -70,11 +70,14 @@ export function PublicAgencyCatalog() {
   // React state updates are asynchronous; a ref prevents duplicate requests
   // for the same offset when the user clicks "Ver más" repeatedly.
   const loadMoreInFlight=useRef(false);
+  // Keep the RPC offset separate from deduplicated UI rows.
+  const nextPageOffset=useRef(0);
 
   useEffect(()=>{
     let disposed=false;
     const generation=++catalogGeneration.current;
     loadMoreInFlight.current=false;
+    nextPageOffset.current=0;
     setLoading(true);setLoadingMore(false);setSite(null);setListings([]);setSelected(null);
     setSearch('');setOperation('ALL');setError('');setHasMore(false);
     if(!slug) {setError('Enlace de inmobiliaria no válido.');setLoading(false);return;}
@@ -92,6 +95,7 @@ export function PublicAgencyCatalog() {
         }
         setSite(siteResult.data as Site);
         setListings(catalogResult.data as Listing[]);
+        nextPageOffset.current=catalogResult.data.length;
         setHasMore(catalogResult.data.length===PAGE_SIZE);
       }catch(e){
         if(!disposed&&generation===catalogGeneration.current){
@@ -111,13 +115,15 @@ export function PublicAgencyCatalog() {
     setLoadingMore(true);setError('');
     try {
       const {data,error:requestError}=await supabase.rpc('get_public_agency_listings',{
-        p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:listings.length,
+        p_site_slug:slug,p_limit:PAGE_SIZE,p_offset:nextPageOffset.current,
       });
       if(generation!==catalogGeneration.current)return;
       if(requestError||!Array.isArray(data)||data.some(v=>!verifiedListing(v))){
         setError('No se pudo cargar el siguiente grupo de inmuebles. Intenta nuevamente.');
       }else{
         const nextPage=data as Listing[];
+        // Offset reflects consumed server rows, not distinct UI cards.
+        nextPageOffset.current+=nextPage.length;
         // Keep a stable unique inventory even if the server repeats an item
         // across page boundaries while properties are being edited.
         setListings(items=>mergeDistinctListings(items,nextPage));
