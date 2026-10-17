@@ -208,6 +208,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_assertions.sql
           bash security/tests/billing_activation_concurrency.sh
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261017090000_verified_trial_to_paid_reconciliation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/wompi_verified_trial_conversion_assertions.sql
       - name: Property consignment SQL security and atomicity tests
         env:
           PGPASSWORD: postgres
