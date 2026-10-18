@@ -71,6 +71,26 @@ test('checkout uses server price and signs the same expiration sent to Wompi', a
   assert.equal(url.searchParams.get('redirect-url'),'https://www.inmojco.com/?billing=return');
   assert.equal(f.calls[0].args.target_environment,'sandbox'); assert.equal(Object.hasOwn(f.calls[0].args,'amount'),false);
 });
+test('checkout normalizes fractional Postgres expiry before signing', async () => {
+  const future = new Date(Date.now() + 600000).toISOString().replace(/\.\d{3}Z$/, '.987654Z');
+  const f = fixture({ createOrder: async () => ({
+    data: { id:'order-micros', reference:tx.reference, amount_in_cents:tx.amount_in_cents,
+      currency:'COP',status:'PENDING', expires_at:future }, error:null,
+  }) });
+  const body = { organizationId:'20000000-0000-0000-0000-000000000002',
+    planId:'60000000-0000-0000-0000-000000000001',
+    requestKey:'50000000-0000-0000-0000-000000000001' };
+  const res = await f.request(body,'/checkout',{authorization:'Bearer fixture'});
+  assert.equal(res.status,200);
+  const url=new URL((await res.json()).checkoutUrl);
+  const expiry=url.searchParams.get('expiration-time');
+  assert.match(expiry,/\.000Z$/);
+  const expected=new Date(Math.floor(Date.parse(future)/1000)*1000).toISOString();
+  assert.equal(expiry,expected);
+  assert.equal(url.searchParams.get('signature:integrity'),
+    await sha256(tx.reference+tx.amount_in_cents+'COP'+expected+config.integritySecret));
+});
+
 test('untrusted origins are denied before authentication', async()=> {
   const f=fixture(); assert.equal((await f.request({},'/checkout',{origin:'https://attacker.example'})).status,403); assert.deepEqual(f.calls,[]);
 });
