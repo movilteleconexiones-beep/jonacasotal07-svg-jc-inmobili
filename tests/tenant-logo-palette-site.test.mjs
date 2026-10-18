@@ -39,7 +39,7 @@ test('website and logo fields only accept safe HTTPS URLs', () => {
   assert.equal(safeTenantColor('#Aa12CC', TENANT_DEFAULT_SECONDARY), '#aa12cc');
 });
 
-test('agency logo and site are shown in tenant dashboard but do not alter the public brand', () => {
+test('agency dashboard remains isolated and public storefront uses explicit tenant scope', () => {
   // Agency legal/tenant identity must never be replaced by editable brand copy.
   assert.match(dashboard, /alt=\{'Logo de ' \+ activeMembership\.organization\.name\}/);
   assert.match(dashboard, /aria-label="Inmobiliaria activa"/);
@@ -48,7 +48,11 @@ test('agency logo and site are shown in tenant dashboard but do not alter the pu
   assert.match(dashboard, /tenantSecondary/);
   assert.match(dashboard, /isPlatformAdmin && <a href="\/super-admin"/);
   assert.match(app, /href="\/super-admin"/);
-  assert.doesNotMatch(app, /tenantPrimary/);
+  // The platform storefront defaults to softwareBrand; a selected tenant
+  // receives only its own public catalogue and branding from the scoped RPC.
+  assert.match(app, /publicCatalog\.brand \? publicCompanyName : softwareBrand/);
+  assert.match(app, /usePublicTenantCatalog\(tenantSlug\)/);
+  assert.match(app, /const tenantPrimary = safeTenantColor\(branding\.primaryColor, TENANT_DEFAULT_PRIMARY\)/);
 });
 
 test('palette write is limited to the active tenant and settings.edit permission', () => {
