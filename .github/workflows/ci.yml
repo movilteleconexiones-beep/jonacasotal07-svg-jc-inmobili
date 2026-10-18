@@ -84,6 +84,17 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261018162000_strict_private_property_read_boundary.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
+      - name: Public portfolio requires manual approval and tenant isolation
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_public_approval_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_approval_test -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_approval_test -f security/tests/public_tenant_publications_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_approval_test -f supabase/migrations/20261018174000_opt_in_public_property_catalog.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_approval_test -f security/tests/public_tenant_publications_assertions.sql
+      - name: Public portfolio photo and release opt-in tests
+        run: node --import tsx --test tests/public-tenant-optin-photo.test.mjs
       - name: External portal navigation and no internal CRM data regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Private agency home vs platform landing regression
@@ -138,6 +149,8 @@ jobs:
         run: node --test tests/platform-billing-access-review.test.mjs
       - name: Wompi release readiness preflight checks
         run: node --test tests/wompi-release-readiness.test.mjs
+      - name: Commercial launch GO-NO-GO safety gates
+        run: node --test tests/release-readiness-gates.test.mjs
       - name: Owner deduction administrator approval regression
         run: node --test tests/owner-deduction-admin-approval.test.mjs
       - name: Wompi private runtime readiness regression
