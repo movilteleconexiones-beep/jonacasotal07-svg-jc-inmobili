@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Property } from '../data/properties';
+import { safePublicPropertyPhoto } from './public-property-photo';
 
 export interface PublicTenantBrand {
   companyName: string;
@@ -73,7 +74,7 @@ function asProperty(row: Row): Property {
     parkingSpaces: numeric(row.parking_spaces),
     annualAppreciationPct: 0,
     rentalYieldPct: 0,
-    image: '',
+    image: safePublicPropertyPhoto(row.image_url),
     secondaryImage: '',
     legalStatus: '',
     architecturalSummary: text(row.description),
