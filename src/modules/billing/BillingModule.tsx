@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 import { LicenseModule } from '../license/LicenseModule';
+import { paymentDisplayLabel } from '../../core/payment-display';
 
 interface Plan { id: string; name: string; price: number; currency: string; billing_cycle: string; max_users: number | null; max_properties: number | null }
 interface Order { id: string; reference: string; status: string; fulfillment_status: string; environment: string; created_at: string; amount_in_cents: number }
@@ -61,9 +62,7 @@ export function BillingModule() {
   }
   if (!billing) return null;
   const available = billing.is_test ? settings?.sandbox_enabled : settings?.production_enabled;
-  const paymentLabel = (order: Order) => order.status === 'APPROVED'
-    ? order.fulfillment_status === 'APPLIED' ? 'Pago confirmado · acceso activado' : 'Pago confirmado · pendiente de revisión'
-    : order.status === 'PENDING' ? 'Pago pendiente de confirmación' : 'Pago no aprobado';
+  const paymentLabel = paymentDisplayLabel;
   return <section className="space-y-5">
     <div><h1 className="text-2xl font-bold">Plan y activación</h1>
       <p className="mt-2 text-sm text-slate-600">{billing.operational ? 'Tu inmobiliaria está habilitada.' : billing.status === 'SUSPENDED'
@@ -73,7 +72,7 @@ export function BillingModule() {
     </div>
     <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-700">Los pagos por Wompi corresponden exclusivamente a las licencias y suscripciones de INMOJCO, cobradas por el comercio central del propietario del software. La inmobiliaria contrata el derecho de uso para su propia operación; no puede revender, sublicenciar ni redistribuir INMOJCO, ni operar como distribuidora del sistema.</p>
     {billing.can_manage_billing ? <>
-      {billing.is_test && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Inmobiliaria de prueba · Entorno de pruebas. Los pagos de esta cuenta no habilitan otras inmobiliarias.</p>}
+      {billing.is_test && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Cuenta de pruebas. Las transacciones Sandbox no cobran dinero real y nunca representan una venta o licencia comercial activa.</p>}
       <p className="rounded-xl border bg-white p-4 text-sm">{settings?.activation_mode === 'MANUAL'
         ? 'Los pagos confirmados requieren revisión del superadministrador.'
         : 'La confirmación del pago habilita automáticamente los módulos de tu plan. El regreso desde Wompi no confirma el pago.'}</p>
