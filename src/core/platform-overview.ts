@@ -28,5 +28,5 @@ export function parsePlatformOverview(data: unknown): PlatformOverview {
   }
   return value;
 }
-export const organizationStatusLabel = (status: string) => ({ ACTIVE: 'Activa', INACTIVE: 'Inactiva', TRIAL: 'Pendiente', SUSPENDED: 'Suspendida', EXPIRED: 'Vencida' }[status] ?? etiquetaES(status));
+export const organizationStatusLabel = (status: string) => ({ ACTIVE: 'Activa', INACTIVE: 'Pendiente de pago', TRIAL: 'Pendiente (legado)', SUSPENDED: 'Suspendida', EXPIRED: 'Vencida' }[status] ?? etiquetaES(status));
 export const monthLabel = (month: string) => new Intl.DateTimeFormat('es-CO', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
