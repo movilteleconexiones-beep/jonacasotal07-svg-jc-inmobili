@@ -66,8 +66,9 @@ export function BillingModule() {
     : order.status === 'PENDING' ? 'Pago pendiente de confirmación' : 'Pago no aprobado';
   return <section className="space-y-5">
     <div><h1 className="text-2xl font-bold">Plan y activación</h1>
-      <p className="mt-2 text-sm text-slate-600">{billing.operational ? 'Tu inmobiliaria está habilitada.' : billing.status === 'SUSPENDED' || billing.status === 'INACTIVE'
-        ? 'La inmobiliaria está suspendida o inactiva. Contacta al administrador.' : 'La inmobiliaria está registrada y pendiente de activación.'}</p>
+      <p className="mt-2 text-sm text-slate-600">{billing.operational ? 'Tu inmobiliaria está habilitada.' : billing.status === 'SUSPENDED'
+        ? 'La inmobiliaria está suspendida. Contacta al administrador.'
+        : 'Tu inmobiliaria está registrada y pendiente de pago. El acceso se activa tras verificar el cobro.'}</p>
       {billing.period_end && <p className="mt-1 text-sm">Vigencia hasta {new Date(billing.period_end).toLocaleDateString('es-CO')}.</p>}
     </div>
     <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-700">Los pagos por Wompi corresponden exclusivamente a las licencias y suscripciones de INMOJCO, cobradas por el comercio central del propietario del software. La inmobiliaria contrata el derecho de uso para su propia operación; no puede revender, sublicenciar ni redistribuir INMOJCO, ni operar como distribuidora del sistema.</p>
@@ -82,7 +83,7 @@ export function BillingModule() {
         <h2 className="font-bold">{plan.name}</h2><p className="mt-3 text-2xl font-bold">{money(Number(plan.price))}</p>
         <p className="text-sm text-slate-600">{plan.billing_cycle === 'ANNUAL' ? 'Por año' : 'Por mes'} · Total comercial 2026</p>
         <p className="mt-3 text-sm">{plan.max_users ? `${plan.max_users} usuarios` : 'Usuarios según contrato'} · {plan.max_properties ? `${plan.max_properties} inmuebles` : 'Inmuebles según contrato'}</p>
-        <button type="button" disabled={busy || !available || !billing.terms_accepted || ['SUSPENDED','INACTIVE'].includes(billing.status)}
+        <button type="button" disabled={busy || !available || !billing.terms_accepted || billing.status === 'SUSPENDED'}
           onClick={() => void checkout(plan.id)} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
           {billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
       </article>)}</div>

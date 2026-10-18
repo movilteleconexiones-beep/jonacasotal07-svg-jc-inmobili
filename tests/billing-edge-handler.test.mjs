@@ -82,7 +82,7 @@ test('oversized or malformed payloads are rejected without side effects', async(
 test('canonical app.inmojco.com origin is enabled in the deployed billing entrypoint', async () => {
   const entrypoint = readFileSync('supabase/functions/billing/index.ts', 'utf8');
   assert.match(entrypoint, /allowedOrigins: \['https:\/\/app\.inmojco\.com'/);
-  assert.match(entrypoint, /appUrl: Deno\.env\.get\('APP_URL'\) \?\? 'https:\/\/app\.inmojco\.com\/'/);
+  assert.match(entrypoint, /appUrl: Deno\.env\.get\('APP_URL'\) \?\? 'https:\/\/www\.inmojco\.com\/'/);
   const cfg = { ...config, appUrl: 'https://app.inmojco.com/',
     allowedOrigins: ['https://app.inmojco.com'] };
   const f = fixture({}, cfg);
