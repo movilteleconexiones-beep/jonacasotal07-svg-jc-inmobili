@@ -72,6 +72,18 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_staff_seats_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_cross_person_assertions.sql
+      - name: Private inventory RLS guard (two organizations + global SuperAdmin)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_property_boundary_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/external_portals_staff_seats_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261015092500_isolate_external_accounts_and_staff_seats.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261015093000_scope_external_owner_and_tenant_data.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261018162000_strict_private_property_read_boundary.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
       - name: External portal navigation and no internal CRM data regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Private agency home vs platform landing regression
@@ -154,6 +166,8 @@ jobs:
         run: node --import tsx --test tests/property-consignment.test.mjs
       - name: Verified checkout and webhook tests
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
+      - name: Sandbox payment labels cannot imply real sales
+        run: node --import tsx --test tests/wompi-sandbox-commercial-separation.test.mjs
       - name: Wompi Edge gateway JWT and signed webhook safety
         run: node --import tsx --test tests/wompi-edge-gateway-auth.test.mjs
       - name: PostgREST explicit deal joins and accurate count regression tests
