@@ -5,7 +5,6 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  PROPERTIES,
   CASE_STUDIES,
   ACADEMY_MODULES,
   HERO_IMAGE,
@@ -19,6 +18,8 @@ import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
 import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
 import { useTenantBranding } from './core/use-tenant-branding';
+import { usePublicTenantCatalog } from './core/use-public-tenant-catalog';
+import { safeBrandUrl } from './core/tenant-palette';
 import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { getCountryOption } from './core/countries';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
@@ -68,15 +69,24 @@ export default function App() {
     pathname: window.location.pathname,
     publicConsignment: new URLSearchParams(window.location.search).get('consignar') === '1',
   });
-  const { branding } = useTenantBranding();
+  const { branding: memberBranding } = useTenantBranding();
+  const tenantSlug = activeMembership?.organization.slug
+    || new URLSearchParams(window.location.search).get('inmobiliaria')
+    || import.meta.env.VITE_PUBLIC_SITE_SLUG || '';
+  const publicCatalog = usePublicTenantCatalog(tenantSlug);
+  const branding = !activeMembership && publicCatalog.brand
+    ? { ...memberBranding, ...publicCatalog.brand }
+    : memberBranding;
   const countryProfile = getCountryOption(branding.country);
   const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
+  const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
   );
   // Catalog state
-  const [properties] = useState<Property[]>(PROPERTIES);
+  // The published catalogue comes from one scoped database RPC; never use demo inventory.
+  const properties: Property[] = publicCatalog.properties;
   const [operationFilter, setOperationFilter] = useState<'Todas' | Property['operation']>('Todas');
   const [categoryFilter, setCategoryFilter] = useState<'Todas' | Property['category']>('Todas');
   const [locationFilter, setLocationFilter] = useState<CatalogLocationSelection>({ region: '', locality: '' });
@@ -89,9 +99,14 @@ export default function App() {
 
   // Interactive modals & portfolio state
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [savedPropertyIds, setSavedPropertyIds] = useState<string[]>(['prop-1', 'prop-2']);
+  const [savedPropertyIds, setSavedPropertyIds] = useState<string[]>([]);
   const [comparePropertyIds, setComparePropertyIds] = useState<string[]>([]);
   const [isPortfolioDrawerOpen, setIsPortfolioDrawerOpen] = useState(false);
+  React.useEffect(() => {
+    setSavedPropertyIds([]);
+    setComparePropertyIds([]);
+    setSelectedProperty(null);
+  }, [tenantSlug]);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(
     () => new URLSearchParams(window.location.search).get('consignar')==='1'
   );
@@ -115,9 +130,9 @@ export default function App() {
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactError, setContactError] = useState('');
 
-  const formatMoney = (val: number) => {
+  const formatMoney = (val: number, sourceCurrency?: string) => {
     const safeValue = Number.isFinite(val) ? val : 0;
-    const currency = branding.currency || 'COP';
+    const currency = sourceCurrency || branding.currency || 'COP';
     const formatted = new Intl.NumberFormat(branding.locale || 'es-CO', {
       style: 'currency',
       currency,
@@ -253,7 +268,11 @@ export default function App() {
             href="#inicio"
             className="text-2xl font-display font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
           >
-            {softwareBrand}
+            {publicCatalog.brand?.logoUrl && safeBrandUrl(publicCatalog.brand.logoUrl) && (
+              <img src={safeBrandUrl(publicCatalog.brand.logoUrl) || ''} alt={`Logo de ${publicCompanyName}`}
+                className="mr-3 inline-block h-9 max-w-20 object-contain align-middle" />
+            )}
+            {publicCatalog.brand ? publicCompanyName : softwareBrand}
           </a>
 
           {/* Zone 2: 5 clean text navigation links */}
@@ -354,25 +373,13 @@ export default function App() {
                 Gestionamos tu patrimonio inmobiliario en {countryProfile.name} mediante procesos comerciales, administrativos y documentales centralizados en una sola plataforma.
               </p>
 
-              {/* Quantitative proof bar in clean unboxed layout */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-4 pb-2 border-y border-white/15">
-                <div>
-                  <p className="text-2xl md:text-3xl font-semibold text-white font-mono-tabular">18+</p>
-                  <p className="text-xs text-stone-300 mt-0.5">Trayectoria inmobiliaria</p>
+              {/* Genuine portfolio count; no invented agency track record or indicators. */}
+              {tenantSlug && (
+                <div className="border-y border-white/15 py-4">
+                  <p className="text-3xl font-semibold">{properties.length}</p>
+                  <p className="text-sm text-stone-300">Inmuebles publicados por {publicCompanyName}</p>
                 </div>
-                <div>
-                  <p className="text-2xl md:text-3xl font-semibold text-white font-mono-tabular">99.4%</p>
-                  <p className="text-xs text-stone-300 mt-0.5">Cobranza puntual en rentas</p>
-                </div>
-                <div>
-                  <p className="text-2xl md:text-3xl font-semibold text-white font-mono-tabular">34 días</p>
-                  <p className="text-xs text-stone-300 mt-0.5">Promedio de colocación</p>
-                </div>
-                <div>
-                  <p className="text-2xl md:text-3xl font-semibold text-white font-mono-tabular">100%</p>
-                  <p className="text-xs text-stone-300 mt-0.5">Dictamen libre de gravamen</p>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Direct Interactive Search & Filter Console anchored at base of Hero */}
@@ -554,7 +561,7 @@ export default function App() {
                 No se encontraron propiedades con los filtros seleccionados.
               </p>
               <p className="text-xs text-stone-500 max-w-md mx-auto">
-                Restablece los criterios de búsqueda o solicita a nuestro comité comercial una búsqueda personalizada en nuestro inventario privado en {countryProfile.name}.
+                {publicCatalog.loading ? 'Consultando inventario…' : publicCatalog.error || 'Esta inmobiliaria aún no tiene inmuebles publicados con esos criterios.'}
               </p>
               <button
                 type="button"
@@ -610,7 +617,7 @@ export default function App() {
                           <span>{property.municipality}</span>
                           <span aria-hidden="true">·</span>
                           <span className="font-mono-tabular text-[#14532D] font-medium">
-                            +{property.annualAppreciationPct}% plusvalía
+                            {property.annualAppreciationPct > 0 ? `+${property.annualAppreciationPct}% plusvalía` : ''}
                           </span>
                         </div>
 
@@ -628,13 +635,13 @@ export default function App() {
                         <div className="pt-1">
                           <p className="text-xl font-semibold text-slate-900 font-mono-tabular">
                             {property.operation === 'Renta'
-                              ? `${formatMoney(property.monthlyRentEstimationCOP)} / mes`
-                              : formatMoney(property.priceCOP)}
+                              ? `${formatMoney(property.monthlyRentEstimationCOP, property.currency)} / mes`
+                              : formatMoney(property.priceCOP, property.currency)}
                           </p>
                           <p className="text-xs text-stone-500 font-mono-tabular mt-0.5">
                             {property.operation === 'Renta'
-                              ? `Protección contractual según condiciones · Mant. ${formatMoney(property.maintenanceFeeCOP)}`
-                              : `Renta estimada: ${formatMoney(property.monthlyRentEstimationCOP)}/mes · CAP ${property.rentalYieldPct}%`}
+                              ? (property.maintenanceFeeCOP ? `Administración: ${formatMoney(property.maintenanceFeeCOP, property.currency)}` : 'Solicita los detalles a la inmobiliaria')
+                              : (property.rentalYieldPct > 0 ? `Rentabilidad estimada: ${property.rentalYieldPct}%` : 'Precio publicado por la inmobiliaria')}
                           </p>
                         </div>
 
