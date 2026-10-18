@@ -7,3 +7,7 @@ supabase/.temp/
 *.log
 .env*
 !.env.example
+
+# Private release evidence, never commit backup metadata or billing records
+release-evidence.local.json
+release-evidence.*.local.json
