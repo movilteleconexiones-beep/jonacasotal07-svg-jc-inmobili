@@ -19,7 +19,7 @@ import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
 import { useTenantBranding } from './core/use-tenant-branding';
 import { usePublicTenantCatalog } from './core/use-public-tenant-catalog';
-import { safeBrandUrl } from './core/tenant-palette';
+import { safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY } from './core/tenant-palette';
 import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { getCountryOption } from './core/countries';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
@@ -81,6 +81,7 @@ export default function App() {
   const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
   const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
+  const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
   );
@@ -259,7 +260,7 @@ export default function App() {
   }
 
   return (
-    <div id="inicio" className="min-h-screen flex flex-col bg-[#F6F6F4] text-slate-900">
+    <div id="inicio" className="min-h-screen flex flex-col bg-[#F6F6F4] text-slate-900" style={{ '--tenant-primary': tenantPrimary } as React.CSSProperties}>
       {/* 2. TOP BAR CONTRACT: Strictly 1 row, 3 zones (Brand Wordmark — 5 Nav Links — Primary Actions) */}
       <header className="sticky top-0 z-40 bg-[#F6F6F4]/95 backdrop-blur-md border-b border-stone-200/90">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between gap-4">
@@ -324,7 +325,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsSubmitModalOpen(true)}
-              className="px-4 py-2 text-xs font-medium text-white bg-[#0F2942] hover:bg-[#163859] rounded-lg transition-colors whitespace-nowrap"
+              className="px-4 py-2 text-xs font-medium text-white bg-[var(--tenant-primary)] hover:brightness-110 rounded-lg transition-colors whitespace-nowrap"
             >
               Consignar Propiedad
             </button>
@@ -394,7 +395,7 @@ export default function App() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar por barrio, ciudad, código o acabado…"
                     aria-label="Buscar propiedades"
-                    className="w-full pl-10 pr-3 py-2.5 bg-[#F6F6F4] border border-stone-200 rounded-lg text-xs text-slate-900 placeholder:text-stone-500 focus:outline-none focus:border-[#0F2942]"
+                    className="w-full pl-10 pr-3 py-2.5 bg-[#F6F6F4] border border-stone-200 rounded-lg text-xs text-slate-900 placeholder:text-stone-500 focus:outline-none focus:border-[var(--tenant-primary)]"
                   />
                 </div>
 
@@ -407,7 +408,7 @@ export default function App() {
                       onClick={() => setOperationFilter(op)}
                       className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap truncate ${
                         operationFilter === op
-                          ? 'bg-[#0F2942] text-white shadow-2xs'
+                          ? 'bg-[var(--tenant-primary)] text-white shadow-2xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -422,7 +423,7 @@ export default function App() {
                 <div className="md:col-span-2">
                   <a
                     href="#catalogo"
-                    className="w-full py-2.5 px-4 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    className="w-full py-2.5 px-4 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
                   >
                     <span>Ver ({filteredProperties.length})</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -526,7 +527,7 @@ export default function App() {
                     {comparedProperties.map((cp) => (
                       <tr key={cp.id} className="hover:bg-stone-50">
                         <td className="py-3 pr-4 font-medium text-slate-900">
-                          <span className="font-mono-tabular text-[#0F2942] mr-1.5">{cp.code}</span>
+                          <span className="font-mono-tabular text-[var(--tenant-primary)] mr-1.5">{cp.code}</span>
                           {cp.title}
                         </td>
                         <td className="py-3 px-4 text-slate-600">{cp.neighborhood}</td>
@@ -571,7 +572,7 @@ export default function App() {
                   setLocationFilter({ region: '', locality: '' });
                   setSearchQuery('');
                 }}
-                className="px-4 py-2 bg-[#0F2942] text-white text-xs font-medium rounded-lg"
+                className="px-4 py-2 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
               >
                 Mostrar todas las propiedades ({properties.length})
               </button>
@@ -625,7 +626,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setSelectedProperty(property)}
-                            className="text-left hover:text-[#0F2942] transition-colors"
+                            className="text-left hover:text-[var(--tenant-primary)] transition-colors"
                           >
                             {property.title}
                           </button>
@@ -663,7 +664,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSelectedProperty(property)}
-                        className="flex-1 py-2.5 px-3 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                        className="flex-1 py-2.5 px-3 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                       >
                         Ver Expediente y Cita
                       </button>
@@ -719,7 +720,7 @@ export default function App() {
                 {/* Marquee Capability 01 (col-span-2) */}
                 <div className="lg:col-span-2 bg-white border border-stone-200/90 rounded-xl p-8 flex flex-col justify-between">
                   <div className="space-y-4">
-                    <p className="text-xs font-mono-tabular font-semibold text-[#0F2942]">
+                    <p className="text-xs font-mono-tabular font-semibold text-[var(--tenant-primary)]">
                       01. Administración Integral de Inmuebles y Arrendamiento Seguro
                     </p>
                     <h3 className="text-2xl font-semibold text-slate-900 balance-text">
@@ -733,7 +734,7 @@ export default function App() {
                     <span>Cobertura: residencial, corporativa y comercial</span>
                     <a
                       href="#calculadora"
-                      className="font-semibold text-[#0F2942] hover:underline flex items-center gap-1"
+                      className="font-semibold text-[var(--tenant-primary)] hover:underline flex items-center gap-1"
                     >
                       <span>Calcular rendimiento de mi renta</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -744,7 +745,7 @@ export default function App() {
                 {/* Capability 02 (col-span-1) */}
                 <div className="bg-white border border-stone-200/90 rounded-xl p-8 flex flex-col justify-between">
                   <div className="space-y-4">
-                    <p className="text-xs font-mono-tabular font-semibold text-[#0F2942]">
+                    <p className="text-xs font-mono-tabular font-semibold text-[var(--tenant-primary)]">
                       02. Promoción y Compraventa Notarial
                     </p>
                     <h3 className="text-xl font-semibold text-slate-900">
@@ -762,7 +763,7 @@ export default function App() {
                 {/* Capability 03 (col-span-1) */}
                 <div className="bg-white border border-stone-200/90 rounded-xl p-8 flex flex-col justify-between">
                   <div className="space-y-4">
-                    <p className="text-xs font-mono-tabular font-semibold text-[#0F2942]">
+                    <p className="text-xs font-mono-tabular font-semibold text-[var(--tenant-primary)]">
                       03. Dictaminación Jurídica y Fiscal
                     </p>
                     <h3 className="text-xl font-semibold text-slate-900">
@@ -829,7 +830,7 @@ export default function App() {
                         <span className="font-mono-tabular">{cs.timeframe}</span>
                       </div>
 
-                      <p className="text-xs font-medium text-[#0F2942]">{cs.serviceApplied}</p>
+                      <p className="text-xs font-medium text-[var(--tenant-primary)]">{cs.serviceApplied}</p>
 
                       <h3 className="text-lg font-semibold text-slate-900 font-mono-tabular leading-snug">
                         {cs.metricHeadline}
@@ -865,7 +866,7 @@ export default function App() {
         <PatrimonialSimulator onRequestDiagnostic={handleRequestDiagnosticFromSimulator} />
 
         {/* SECTION 4: JCO INMOBILEARNING (EXCLUSIVE REAL ESTATE ACADEMY) */}
-        <section id="inmobilearning" className="py-20 border-t border-stone-200/90 bg-[#0F2942] text-white">
+        <section id="inmobilearning" className="py-20 border-t border-stone-200/90 bg-[var(--tenant-primary)] text-white">
           <div className="max-w-[1200px] mx-auto px-6">
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
               <div className="max-w-2xl">
@@ -903,7 +904,7 @@ export default function App() {
                       }`}
                     >
                       <div className="flex items-center justify-between text-xs mb-1.5 font-mono-tabular">
-                        <span className={isSelected ? 'text-[#0F2942] font-semibold' : 'text-stone-300'}>
+                        <span className={isSelected ? 'text-[var(--tenant-primary)] font-semibold' : 'text-stone-300'}>
                           {mod.number} · {mod.durationHours} horas · {mod.modality}
                         </span>
                         <span className="font-semibold">
@@ -927,7 +928,7 @@ export default function App() {
               <div className="lg:col-span-7 bg-white text-slate-900 rounded-xl p-6 md:p-8 border border-stone-200 space-y-6">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 pb-4 border-b border-stone-200">
                   <div className="text-xs text-stone-500">
-                    <span className="font-mono-tabular font-semibold text-[#0F2942]">
+                    <span className="font-mono-tabular font-semibold text-[var(--tenant-primary)]">
                       {selectedAcademyModule.number}
                     </span>
                     <span className="mx-1.5" aria-hidden="true">·</span>
@@ -959,7 +960,7 @@ export default function App() {
                   <ul className="space-y-2 text-xs text-slate-700">
                     {selectedAcademyModule.topics.map((topic, i) => (
                       <li key={i} className="flex items-start gap-2.5">
-                        <span className="font-mono-tabular font-semibold text-[#0F2942]">
+                        <span className="font-mono-tabular font-semibold text-[var(--tenant-primary)]">
                           0{i + 1}.
                         </span>
                         <span>{topic}</span>
@@ -982,7 +983,7 @@ export default function App() {
                       placeholder="Nombre completo del participante"
                       value={academyStudentName}
                       onChange={(e) => setAcademyStudentName(e.target.value)}
-                      className="px-3.5 py-2 bg-[#F6F6F4] border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                      className="px-3.5 py-2 bg-[#F6F6F4] border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
                     />
                     <input
                       type="email"
@@ -990,7 +991,7 @@ export default function App() {
                       placeholder="Correo electrónico para temario y acceso"
                       value={academyStudentEmail}
                       onChange={(e) => setAcademyStudentEmail(e.target.value)}
-                      className="px-3.5 py-2 bg-[#F6F6F4] border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                      className="px-3.5 py-2 bg-[#F6F6F4] border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-4">
@@ -999,7 +1000,7 @@ export default function App() {
                     </span>
                     <button
                       type="submit"
-                      className="px-5 py-2.5 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                      className="px-5 py-2.5 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                     >
                       Inscribirme al {selectedAcademyModule.number}
                     </button>
@@ -1033,7 +1034,7 @@ export default function App() {
 
                 <div className="space-y-4 pt-4 border-t border-stone-200 text-sm">
                   <div className="flex items-start gap-3">
-                    <MapPin className="w-4 h-4 text-[#0F2942] mt-1 shrink-0" />
+                    <MapPin className="w-4 h-4 text-[var(--tenant-primary)] mt-1 shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-900">Dirección Corporativa</p>
                       <p className="text-xs text-slate-600 mt-0.5">
@@ -1043,27 +1044,27 @@ export default function App() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <Phone className="w-4 h-4 text-[#0F2942] mt-1 shrink-0" />
+                    <Phone className="w-4 h-4 text-[var(--tenant-primary)] mt-1 shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-900">Teléfono Directo y Recepción</p>
                       <a
-                        href={`tel:${(branding.phone || '+573001234567').replace(/\s+/g, '')}`}
-                        className="text-xs font-mono-tabular text-[#0F2942] hover:underline mt-0.5 inline-block"
+                        href={`tel:${(branding.phone || (tenantSlug ? '' : '+573001234567')).replace(/\s+/g, '')}`}
+                        className="text-xs font-mono-tabular text-[var(--tenant-primary)] hover:underline mt-0.5 inline-block"
                       >
-                        {branding.phone || '+57 300 123 4567'}
+                        {branding.phone || (tenantSlug ? 'Teléfono pendiente de configuración' : '+57 300 123 4567')}
                       </a>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <Mail className="w-4 h-4 text-[#0F2942] mt-1 shrink-0" />
+                    <Mail className="w-4 h-4 text-[var(--tenant-primary)] mt-1 shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-900">Correo Corporativo · {organizationBrand}</p>
                       <a
-                        href={`mailto:${branding.email || 'mkt.jcinmobili@gmail.com'}`}
-                        className="text-xs font-mono-tabular text-[#0F2942] hover:underline mt-0.5 inline-block"
+                        href={`mailto:${branding.email || (tenantSlug ? '' : 'mkt.jcinmobili@gmail.com')}`}
+                        className="text-xs font-mono-tabular text-[var(--tenant-primary)] hover:underline mt-0.5 inline-block"
                       >
-                        {branding.email || 'mkt.jcinmobili@gmail.com'}
+                        {branding.email || (tenantSlug ? 'Correo pendiente de configuración' : 'mkt.jcinmobili@gmail.com')}
                       </a>
                     </div>
                   </div>
@@ -1105,7 +1106,7 @@ export default function App() {
                     {branding.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email) && (
                       <a
                         href={`mailto:${branding.email}?subject=${encodeURIComponent(`Consulta web: ${contactService}`)}&body=${encodeURIComponent(`Nombre: ${contactName.trim()}\nCorreo: ${contactEmail.trim()}\nTeléfono: ${contactPhone.trim()}\nServicio: ${contactService}\nMensaje: ${contactNotes.trim()}`)}`}
-                        className="inline-flex items-center justify-center px-4 py-2 bg-[#0F2942] text-white text-xs font-medium rounded-lg"
+                        className="inline-flex items-center justify-center px-4 py-2 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
                       >
                         Abrir mi correo para enviar la consulta
                       </a>
@@ -1119,7 +1120,7 @@ export default function App() {
                         setContactSubmitted(false);
                         setContactNotes('');
                       }}
-                      className="px-4 py-2 bg-[#0F2942] text-white text-xs font-medium rounded-lg"
+                      className="px-4 py-2 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
                     >
                       Preparar otra consulta
                     </button>
@@ -1142,7 +1143,7 @@ export default function App() {
                           placeholder="Ej. Lic. Roberto Hernández"
                           value={contactName}
                           onChange={(e) => setContactName(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
                         />
                       </div>
 
@@ -1157,7 +1158,7 @@ export default function App() {
                           placeholder="33 2310 1060"
                           value={contactPhone}
                           onChange={(e) => setContactPhone(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 font-mono-tabular focus:outline-none focus:border-[#0F2942]"
+                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 font-mono-tabular focus:outline-none focus:border-[var(--tenant-primary)]"
                         />
                       </div>
                     </div>
@@ -1174,7 +1175,7 @@ export default function App() {
                           placeholder="nombre@empresa.com"
                           value={contactEmail}
                           onChange={(e) => setContactEmail(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
                         />
                       </div>
 
@@ -1186,7 +1187,7 @@ export default function App() {
                           id="c-service"
                           value={contactService}
                           onChange={(e) => setContactService(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                          className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
                         >
                           <option value="Administración Integral de Propiedad">
                             Administración Integral de Propiedad
@@ -1220,7 +1221,7 @@ export default function App() {
                         placeholder="Indica ciudad, barrio, tipo de inmueble o dudas específicas..."
                         value={contactNotes}
                         onChange={(e) => setContactNotes(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[#0F2942]"
+                        className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
                       />
                     </div>
 
@@ -1230,7 +1231,7 @@ export default function App() {
 
                     <button
                       type="submit"
-                      className="w-full py-3 px-5 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                      className="w-full py-3 px-5 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                     >
                       Agendar Consulta con {organizationBrand}
                     </button>
@@ -1318,7 +1319,7 @@ export default function App() {
                       className="p-4 border border-stone-200 rounded-lg bg-[#F9F9F7] space-y-2"
                     >
                       <div className="flex items-center justify-between text-xs text-stone-500">
-                        <span className="font-mono-tabular font-semibold text-[#0F2942]">
+                        <span className="font-mono-tabular font-semibold text-[var(--tenant-primary)]">
                           {sp.code} · {sp.neighborhood}
                         </span>
                         <button
@@ -1342,7 +1343,7 @@ export default function App() {
                             setIsPortfolioDrawerOpen(false);
                             setSelectedProperty(sp);
                           }}
-                          className="w-full py-1.5 px-3 bg-[#0F2942] text-white text-xs font-medium rounded"
+                          className="w-full py-1.5 px-3 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded"
                         >
                           Abrir Expediente y Agendar
                         </button>
@@ -1363,7 +1364,7 @@ export default function App() {
                     `Solicitud de dossier comparativo y recorridos para portafolio guardado: ${codes || 'Consulta general'}.`
                   );
                 }}
-                className="w-full py-2.5 px-4 bg-[#0F2942] text-white text-xs font-medium rounded-lg"
+                className="w-full py-2.5 px-4 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
               >
                 Solicitar Recorrido de mi Portafolio
               </button>
