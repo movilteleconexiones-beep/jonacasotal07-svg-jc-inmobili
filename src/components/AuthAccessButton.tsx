@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { LogIn, LogOut, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../core/auth-context';
+import { OrganizationRegistration } from './OrganizationRegistration';
 
 type AuthMode = 'SIGN_IN' | 'SIGN_UP';
 
@@ -70,7 +71,7 @@ export function AuthAccessButton() {
         }
 
         setMode('SIGN_IN');
-        setMessage('Cuenta creada. El acceso a una inmobiliaria requiere invitación o autorización de la plataforma.');
+        setMessage('Cuenta creada. Inicia sesión para registrar tu inmobiliaria y seleccionar un plan.');
         return;
       }
 
@@ -116,7 +117,8 @@ export function AuthAccessButton() {
 
         {needsOrganization && !isPlatformAdmin && !accessError && (
           <div className="flex max-w-xs flex-wrap items-center gap-2" role="status">
-            <span className="text-xs text-amber-800">No hay una membresía activa. Si ya recibiste una invitación, actualiza el acceso.</span>
+            <span className="text-xs text-amber-800">Crea tu inmobiliaria para elegir un plan o acepta una invitación existente.</span>
+            <OrganizationRegistration />
             <button type="button" disabled={refreshingAccess} onClick={async () => {
               setRefreshingAccess(true);
               try { await refreshMemberships(); } catch (error) { console.warn('Unable to refresh tenant access', error); } finally { setRefreshingAccess(false); }
@@ -172,7 +174,7 @@ export function AuthAccessButton() {
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
                   {mode === 'SIGN_UP'
-                    ? 'Registra tu usuario. Una inmobiliaria debe ser autorizada por la administración de JCO.'
+                    ? 'Registra tu usuario. Después podrás crear tu inmobiliaria, elegir un plan y realizar el pago.'
                     : 'Administradores, asesores y clientes ingresan desde la misma plataforma.'}
                 </p>
               </div>
