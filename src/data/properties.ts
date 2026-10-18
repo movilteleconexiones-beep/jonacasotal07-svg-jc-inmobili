@@ -17,6 +17,7 @@ export interface Property {
   operation: 'Venta' | 'Renta' | 'Administración';
   category: 'Residencial' | 'Departamento' | 'Comercial y Terreno';
   priceCOP: number;
+  currency?: string;
   monthlyRentEstimationCOP: number;
   maintenanceFeeCOP: number;
   landAreaM2: number;

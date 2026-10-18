@@ -35,12 +35,12 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const formatMoney = (val: number) =>
     new Intl.NumberFormat(branding.locale || 'es-CO', {
       style: 'currency',
-      currency: branding.currency || 'COP',
+      currency: property.currency || branding.currency || 'COP',
       maximumFractionDigits: 0
     }).format(val);
 
   const photos = [property.image, property.secondaryImage];
-  const pricePerM2 = Math.round(property.priceCOP / property.constructionAreaM2);
+  const pricePerM2 = property.constructionAreaM2 > 0 ? Math.round(property.priceCOP / property.constructionAreaM2) : null;
 
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,7 +148,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
             <div>
               <p className="text-xs text-stone-500 mb-1">
-                {property.coordinatesLabel} · Construida en {property.yearBuilt}
+                {property.coordinatesLabel}{property.yearBuilt > 0 ? ` · Construida en ${property.yearBuilt}` : ''}
               </p>
               <h2
                 id="modal-property-title"
@@ -184,7 +184,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               <div>
                 <p className="text-xs text-stone-500">Plusvalía Anual</p>
                 <p className="text-base font-semibold text-[#14532D] font-mono-tabular mt-0.5">
-                  +{property.annualAppreciationPct}% / año
+                  {property.annualAppreciationPct > 0 ? `+${property.annualAppreciationPct}% / año` : 'Sin estimación publicada'}
                 </p>
               </div>
             </div>
@@ -238,15 +238,15 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <p className="text-xs text-stone-500 mt-1 font-mono-tabular">
                   {property.operation === 'Renta'
                     ? `Valor patrimonial de referencia: ${formatMoney(property.priceCOP)}`
-                    : `Renta potencial estimada: ${formatMoney(property.monthlyRentEstimationCOP)} / mes · ${formatMoney(pricePerM2)} / m²`}
+                    : pricePerM2 !== null ? `Precio por m²: ${formatMoney(pricePerM2)}` : 'Consulta el área y las condiciones con la inmobiliaria'}
                 </p>
               </div>
 
               <div className="space-y-2 text-xs text-slate-700 pb-4 border-b border-stone-200">
                 <p className="font-semibold text-slate-900">Estatus Jurídico y Técnico</p>
-                <p className="text-slate-600">{property.legalStatus}</p>
+                <p className="text-slate-600">{property.legalStatus || 'Estado jurídico pendiente de publicación por la inmobiliaria.'}</p>
                 <p className="text-stone-500 font-mono-tabular">
-                  Cuota de cuota de administración: {formatMoney(property.maintenanceFeeCOP)} / mes · CAP Rate estimado: {property.rentalYieldPct}%
+                  {property.maintenanceFeeCOP > 0 ? `Cuota de administración: ${formatMoney(property.maintenanceFeeCOP)} / mes` : 'Cuota de administración no informada'}{property.rentalYieldPct > 0 ? ` · CAP Rate estimado: ${property.rentalYieldPct}%` : ''}
                 </p>
               </div>
 
