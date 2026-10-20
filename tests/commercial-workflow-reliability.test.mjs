@@ -41,7 +41,7 @@ test('server errors are not presented as legitimate empty data', () => {
 test('tenant access and independent SuperAdmin routes are preserved', () => {
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   const dashboard = readFileSync(new URL('../src/modules/dashboard/PrivateDashboard.tsx', import.meta.url), 'utf8');
-  assert.match(app, /window\.location\.assign\('\/app'\)/);
+  assert.match(app, /window\.location\.assign\(tenantPrivatePath\(activeMembership\?\.organization\.slug \|\| ''\)\)/);
   assert.match(app, /href="\/super-admin"/);
   assert.match(dashboard, /isPlatformAdmin && <a href="\/super-admin"/);
 });
