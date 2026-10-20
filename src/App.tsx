@@ -102,6 +102,11 @@ export default function App() {
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
   const publicAgencyServices = publicCatalog.brand?.publicServices || [];
   const agencyHeroUrl = safeBrandUrl(publicCatalog.brand?.publicHeroUrl);
+  React.useEffect(() => {
+    document.title = tenantSlug && publicCatalog.brand
+      ? publicCompanyName
+      : tenantSlug ? 'Portal inmobiliario' : 'INMOJCO';
+  }, [tenantSlug, publicCatalog.brand, publicCompanyName]);
   const [isPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
   );
@@ -146,7 +151,7 @@ export default function App() {
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [contactService, setContactService] = useState('Administración Integral de Propiedad');
+  const [contactService, setContactService] = useState('Consulta general');
   const [contactNotes, setContactNotes] = useState('');
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactError, setContactError] = useState('');
@@ -208,7 +213,7 @@ export default function App() {
   };
 
   const handleRequestDiagnosticFromSimulator = (summaryText: string) => {
-    setContactService('Diagnóstico Financiero y Patrimonial');
+    setContactService(tenantSlug ? 'Consulta general' : 'Diagnóstico Financiero y Patrimonial');
     setContactNotes(summaryText);
     const contactEl = document.getElementById('contacto');
     if (contactEl) {
@@ -279,6 +284,19 @@ export default function App() {
         onClose={() => window.location.assign(tenantPublicPath(activeMembership?.organization.slug || ''))}
       />
     </React.Suspense>;
+  }
+
+  if (window.location.pathname.startsWith('/inmobiliaria/') && !tenantSlug) {
+    return <main role="alert" className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
+      La dirección pública de esta inmobiliaria no es válida.
+    </main>;
+  }
+  // A suspended or unknown tenant must never show the platform-owner's site.
+  if (tenantSlug && (!publicCatalog.brand || publicCatalog.loading)) {
+    return <main role="status" className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
+      {publicCatalog.loading ? 'Cargando sitio de la inmobiliaria…' :
+        publicCatalog.error || 'El sitio de esta inmobiliaria no está disponible.'}
+    </main>;
   }
 
   return (
