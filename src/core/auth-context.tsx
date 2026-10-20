@@ -12,6 +12,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Organization, OrganizationMember, Role } from './types';
 import { parseBillingAccess, type BillingAccess } from './billing-access';
 import { canUseTenantPermission, hasVerifiedOperationalRole } from './portal-access-mode';
+import { tenantPrivatePath } from './tenant-links';
 
 export interface AuthMembership {
   member: OrganizationMember;
@@ -156,9 +157,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setIsPlatformAdmin(!adminError && admin?.user_id === userId);
     if (adminError) console.warn('Unable to verify platform administrator', adminError.message);
     const nextMemberships = await loadMemberships(userId);
-    setAccessError(adminError ? 'No se pudo verificar el acceso administrativo. Intenta actualizar el acceso.' : null);
+    const requestedSlug = window.location.pathname === '/app'
+      ? new URLSearchParams(window.location.search).get('inmobiliaria')
+      : null;
+    const requestedMembership = requestedSlug === null
+      ? null : nextMemberships.find(m => m.organization.slug === requestedSlug);
+    setAccessError(adminError
+      ? 'No se pudo verificar el acceso administrativo. Intenta actualizar el acceso.'
+      : requestedSlug !== null && !requestedMembership
+        ? 'No tienes acceso a la URL privada solicitada. Selecciona una inmobiliaria autorizada.'
+        : null);
     setMemberships(nextMemberships);
     setActiveOrganizationId((current) => {
+      if (requestedSlug !== null) return requestedMembership?.organization.id ?? null;
       if (current && nextMemberships.some((m) => m.organization.id === current)) return current;
       return nextMemberships[0]?.organization.id ?? null;
     });
@@ -280,6 +291,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [memberships, activeOrganizationId],
   );
 
+  const selectOrganization = useCallback((organizationId: string) => {
+    const membership = memberships.find(item => item.organization.id === organizationId);
+    if (!membership) return; // Never navigate to an organization outside the authenticated memberships.
+    setActiveOrganizationId(organizationId);
+    if (window.location.pathname === '/app') {
+      window.history.replaceState(window.history.state, '', tenantPrivatePath(membership.organization.slug));
+    }
+    setAccessError(null);
+  }, [memberships]);
+
   const can = useCallback(
     (permission: string) => Boolean(activeMembership &&
       canUseTenantPermission(activeMembership.roles, activeMembership.permissions, permission)),
@@ -301,7 +322,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signOut,
       createOrganization,
       refreshMemberships,
-      selectOrganization: setActiveOrganizationId,
+      selectOrganization,
       can,
     }),
     [
@@ -316,6 +337,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signOut,
       createOrganization,
       refreshMemberships,
+      selectOrganization,
       can,
     ],
   );
