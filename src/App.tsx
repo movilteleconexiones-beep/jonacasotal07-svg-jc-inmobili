@@ -775,7 +775,6 @@ export default function App() {
             </div>
           </section>
         ) : (
-        {/* SECTION 2: CORE CAPABILITIES & ADJACENT PROOF OF IMPACT (CASE STUDIES) */}
         <section id="servicios" className="py-20 border-t border-stone-200/90 bg-[#F2F2EE]">
           <div className="max-w-[1200px] mx-auto px-6 space-y-20">
             {/* Part A: Asymmetric Numbered Service Architecture */}
