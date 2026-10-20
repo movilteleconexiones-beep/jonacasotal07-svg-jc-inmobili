@@ -48,6 +48,7 @@ import { ReportsModule } from '../reports/ReportsModule';
 import { PortalHub } from '../portal/PortalHub';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { tenantPublicPath } from '../../core/public-tenant-route';
+import { tenantPrivatePath } from '../../core/tenant-links';
 import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
 
 type DashboardView =
@@ -399,6 +400,11 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
             </button>}
             {previewSelector}
+            <a href={tenantPrivatePath(activeMembership.organization.slug)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold"
+              title="Enlace privado exclusivo de esta inmobiliaria; requiere inicio de sesión">
+              Mi URL privada
+            </a>
             <a href={tenantPublicPath(activeMembership.organization.slug)}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold"
