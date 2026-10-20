@@ -24,6 +24,7 @@ import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { isPublicStorefrontPath, resolvePublicTenantSlug, tenantPublicPath } from './core/public-tenant-route';
 import { getCountryOption } from './core/countries';
 import { agencyHeroCopy, AGENCY_SERVICE_PROMPT } from './core/public-agency-content';
+import { DEFAULT_PUBLIC_PAGE } from './core/public-page-content';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
 import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
 import {
@@ -85,6 +86,7 @@ export default function App() {
     companyName: publicCatalog.brand?.companyName || 'Sistema Inmobiliario JCO',
     softwareName: 'Sistema Inmobiliario JCO',
     publicServices: publicCatalog.brand?.publicServices || [],
+    publicPage: publicCatalog.brand?.publicPage || DEFAULT_PUBLIC_PAGE,
     logoUrl: publicCatalog.brand?.logoUrl,
     primaryColor: publicCatalog.brand?.primaryColor,
     secondaryColor: publicCatalog.brand?.secondaryColor,
@@ -104,6 +106,7 @@ export default function App() {
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
   const publicAgencyServices = publicCatalog.brand?.publicServices || [];
+  const page = publicCatalog.brand?.publicPage || DEFAULT_PUBLIC_PAGE;
   const agencyHeroUrl = safeBrandUrl(publicCatalog.brand?.publicHeroUrl);
   React.useEffect(() => {
     document.title = tenantSlug && publicCatalog.brand
@@ -325,36 +328,36 @@ export default function App() {
             aria-label="Navegación principal"
             className="hidden min-w-0 items-center gap-4 text-sm font-medium text-slate-700 xl:flex 2xl:gap-7"
           >
-            <a
+            {(!tenantSlug || page.showCatalog) && <a
               href="#catalogo"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
             >
               Catálogo
-            </a>
-            <a
+            </a>}
+            {(!tenantSlug || page.showServices) && <a
               href="#servicios"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
             >
               Servicios
-            </a>
-            <a
+            </a>}
+            {(!tenantSlug || page.showCalculator) && <a
               href="#calculadora"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
             >
               Calculadora
-            </a>
+            </a>}
             {!tenantSlug && <a
               href="#inmobilearning"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
             >
               Academia Inmobiliaria
             </a>}
-            <a
+            {(!tenantSlug || page.showContact) && <a
               href="#contacto"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
             >
               Contacto
-            </a>
+            </a>}
           </nav>
 
           {/* Zone 3: 2 primary actions */}
@@ -417,7 +420,7 @@ export default function App() {
             <div className="max-w-3xl space-y-6">
               {/* Unboxed regional & heritage metadata with typographic separators */}
               <p className="text-xs md:text-sm font-medium text-stone-300 tracking-wide">
-                {countryProfile.name} · Gestión inmobiliaria especializada · Plataforma profesional
+                {tenantSlug ? (page.introLabel || countryProfile.name + ' · Portal inmobiliario') : countryProfile.name + ' · Gestión inmobiliaria especializada · Plataforma profesional'}
               </p>
 
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold tracking-tight leading-[1.08] text-white balance-text">
@@ -429,7 +432,7 @@ export default function App() {
               </p>
 
               {/* Genuine portfolio count; no invented agency track record or indicators. */}
-              {tenantSlug && (
+              {tenantSlug && page.showCatalog && (
                 <div className="border-y border-white/15 py-4">
                   <p className="text-3xl font-semibold">{properties.length}</p>
                   <p className="text-sm text-stone-300">Inmuebles publicados por {publicCompanyName}</p>
@@ -438,7 +441,7 @@ export default function App() {
             </div>
 
             {/* Direct Interactive Search & Filter Console anchored at base of Hero */}
-            <div className="mt-10 bg-white text-slate-900 p-4 md:p-5 rounded-xl border border-stone-200 shadow-xl">
+            {(!tenantSlug || page.showCatalog) && <div className="mt-10 bg-white text-slate-900 p-4 md:p-5 rounded-xl border border-stone-200 shadow-xl">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                 {/* Search input */}
                 <div className="md:col-span-3 relative">
@@ -489,19 +492,19 @@ export default function App() {
                   Ubicaciones: <a href="https://www.datos.gov.co/Mapas-Nacionales/DIVIPOLA-C-digos-municipios/gdxc-w37w" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">DANE · DIVIPOLA</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">CC BY-SA 4.0</a>
                 </p>
               )}
-            </div>
+            </div>}
           </div>
         </section>
 
         {/* SECTION 1: FEATURED PROPERTY CATALOG & COMPARISON MATRIX */}
-        <section id="catalogo" className="py-20 max-w-[1200px] mx-auto px-6">
+        {(!tenantSlug || page.showCatalog) && <section id="catalogo" className="py-20 max-w-[1200px] mx-auto px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
             <div>
               <p className="text-xs font-medium text-stone-500 tracking-wide mb-2">
                 Inventario inmobiliario · {countryProfile.name}
               </p>
               <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
-                Propiedades en Venta, Renta y Administración
+                {tenantSlug ? (page.catalogTitle || 'Propiedades en Venta, Renta y Administración') : 'Propiedades en Venta, Renta y Administración'}
               </h2>
             </div>
 
@@ -754,16 +757,16 @@ export default function App() {
               })}
             </div>
           )}
-        </section>
+        </section>}
 
         {/* Tenant offerings are per-agency: no global testimonials, guarantees or marketing claims. */}
-        {tenantSlug ? (
+        {tenantSlug ? (page.showServices ? (
           <section id="servicios" className="border-t border-stone-200/90 bg-[#F2F2EE] py-20">
             <div className="mx-auto max-w-[1200px] space-y-10 px-6">
               <div className="max-w-3xl">
                 <p className="mb-2 text-xs font-medium tracking-wide text-stone-500">Atención comercial · {publicCompanyName}</p>
-                <h2 className="text-3xl font-semibold text-slate-900 md:text-4xl">Servicios de {publicCompanyName}</h2>
-                <p className="mt-3 text-sm text-slate-600">Consulta directamente con esta inmobiliaria la disponibilidad, condiciones y alcance de los servicios publicados.</p>
+                <h2 className="text-3xl font-semibold text-slate-900 md:text-4xl">{page.servicesTitle || 'Servicios de ' + publicCompanyName}</h2>
+                <p className="mt-3 text-sm text-slate-600">{page.servicesDescription}</p>
               </div>
               {publicAgencyServices.length ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -774,21 +777,21 @@ export default function App() {
                         <h3 className="mt-3 text-xl font-semibold text-slate-900">{service.title}</h3>
                         <p className="mt-3 text-sm leading-relaxed text-slate-600">{service.description}</p>
                       </div>
-                      <a href="#contacto" onClick={() => setContactService(service.title)}
+                      {page.showContact && <a href="#contacto" onClick={() => setContactService(service.title)}
                         className="mt-7 inline-flex items-center gap-2 border-t border-stone-100 pt-4 text-sm font-semibold text-[var(--tenant-primary)]">
                         Consultar este servicio <ArrowRight className="h-4 w-4" />
-                      </a>
+                      </a>}
                     </article>
                   ))}
                 </div>
               ) : (
                 <div className="rounded-xl border border-stone-200 bg-white p-8 text-sm text-slate-600">
-                  {AGENCY_SERVICE_PROMPT} <a href="#contacto" className="font-semibold underline">Consultar a {publicCompanyName}</a>
+                  {AGENCY_SERVICE_PROMPT} {page.showContact && <a href="#contacto" className="font-semibold underline">Consultar a {publicCompanyName}</a>}
                 </div>
               )}
             </div>
           </section>
-        ) : (
+        ) : null) : (
         <section id="servicios" className="py-20 border-t border-stone-200/90 bg-[#F2F2EE]">
           <div className="max-w-[1200px] mx-auto px-6 space-y-20">
             {/* Part A: Asymmetric Numbered Service Architecture */}
@@ -951,7 +954,7 @@ export default function App() {
         )}
 
         {/* SECTION 3: INTERACTIVE PATRIMONIAL & RENTAL ADMINISTRATION SIMULATOR */}
-        <PatrimonialSimulator branding={branding} onRequestDiagnostic={handleRequestDiagnosticFromSimulator} />
+        {(!tenantSlug || page.showCalculator) && <PatrimonialSimulator branding={branding} onRequestDiagnostic={handleRequestDiagnosticFromSimulator} />}
 
         {/* SECTION 4: JCO INMOBILEARNING (EXCLUSIVE REAL ESTATE ACADEMY) */}
         {!tenantSlug && <section id="inmobilearning" className="py-20 border-t border-stone-200/90 bg-[var(--tenant-primary)] text-white">
@@ -1104,7 +1107,7 @@ export default function App() {
 
         {/* SECTION 5: CONTACT THE CURRENT AGENCY */}
 
-        <section id="contacto" className="py-20 bg-white border-t border-stone-200/90">
+        {(!tenantSlug || page.showContact) && <section id="contacto" className="py-20 bg-white border-t border-stone-200/90">
           <div className="max-w-[1200px] mx-auto px-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
               {/* Left 5 Cols: Real Zapopan Office Details */}
@@ -1342,7 +1345,7 @@ export default function App() {
               </div>
             </div>
           </div>
-        </section>
+        </section>}
       </main>
 
       {/* QUIET EDITORIAL FOOTER */}
