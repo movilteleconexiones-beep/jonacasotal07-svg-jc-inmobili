@@ -37,8 +37,10 @@ export function OrganizationRegistration() {
         setError('No se pudo registrar la inmobiliaria. Revisa si el identificador ya está en uso.');
         return;
       }
-      // Auth context will load the new organization and open the billing screen.
+      // Open the newly created organization's own private panel for plan
+      // selection. Public exposure remains gated by verified payment.
       setOpen(false);
+      window.location.assign(tenantPrivatePath(cleanSlug));
     } catch {
       setError('No fue posible completar el registro. Intenta nuevamente.');
     } finally {
