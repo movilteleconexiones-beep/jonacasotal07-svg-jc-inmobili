@@ -47,7 +47,7 @@ test('public branded storefront is not replaced with operating dashboard',()=>{
   assert.match(app,/resolvePublicTenantSlug\(\{/);
   assert.match(app,/const explicitlyPublic = isPublicStorefrontPath\(/);
   assert.match(app,/!explicitlyPublic &&/);
-  assert.match(app,/window\.location\.assign\('\/app'\)/);
+  assert.match(app,/window\.location\.assign\(tenantPrivatePath\(activeMembership\?\.organization\.slug \|\| ''\)\)/);
   assert.match(app,/publicCatalog\.brand\?\.companyName/);
   assert.doesNotMatch(app,/const tenantSlug = activeMembership\?\.organization\.slug\s*\|\|/);
   assert.doesNotMatch(app,/\.\.\.memberBranding/);
