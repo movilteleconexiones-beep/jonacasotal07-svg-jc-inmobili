@@ -7,6 +7,7 @@ import { useTenantBranding } from '../../core/use-tenant-branding';
 import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
 import { supabase } from '../../lib/supabase';
 import type { PublicAgencyService } from '../../core/public-agency-content';
+import { parsePublicPageContent, validPublicPageContent, type PublicPageContent } from '../../core/public-page-content';
 import { tenantPublicPath } from '../../core/public-tenant-route';
 
 interface ComplianceInfo {
@@ -29,6 +30,7 @@ export function SettingsModule() {
   const [publicHeroUrl, setPublicHeroUrl] = useState('');
   const [publicOfficeAddress, setPublicOfficeAddress] = useState('');
   const [publicServices, setPublicServices] = useState<PublicAgencyService[]>([]);
+  const [publicPage, setPublicPage] = useState<PublicPageContent>(parsePublicPageContent(null));
   const [website, setWebsite] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [primaryColor, setPrimaryColor] = useState(TENANT_DEFAULT_PRIMARY);
@@ -56,6 +58,7 @@ export function SettingsModule() {
     setPublicHeroUrl(branding.publicHeroUrl ?? '');
     setPublicOfficeAddress(branding.publicOfficeAddress ?? '');
     setPublicServices(branding.publicServices);
+    setPublicPage(branding.publicPage);
     setWebsite(branding.website ?? '');
     setLogoUrl(branding.logoUrl ?? '');
     setPrimaryColor(safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY));
@@ -138,6 +141,10 @@ export function SettingsModule() {
       setMessage('Revisa los límites del título (160), descripción (700) y dirección de atención (220).');
       return;
     }
+    if (!validPublicPageContent(publicPage)) {
+      setMessage('Revisa los límites de texto de las secciones de tu portal público.');
+      return;
+    }
     if (publicServices.length > 8 || publicServices.some(item =>
       !item.title.trim() || !item.description.trim() ||
       item.title.trim().length > 90 || item.description.trim().length > 420)) {
@@ -173,6 +180,7 @@ export function SettingsModule() {
           public_hero_url: publicHeroUrl.trim() ? safeBrandUrl(publicHeroUrl) : null,
           public_office_address: publicOfficeAddress.trim() || null,
           public_services: publicServices.map(s => ({ title: s.title.trim(), description: s.description.trim() })),
+          public_page_content: publicPage,
           software_name: softwareName.trim(),
           website: website.trim() ? safeBrandUrl(website) : null,
           logo_url: logoUrl.trim() ? safeBrandUrl(logoUrl) : null,
@@ -306,6 +314,66 @@ export function SettingsModule() {
           </label>
           <Field label="Imagen principal de la portada (URL HTTPS)" type="url" value={publicHeroUrl} onChange={setPublicHeroUrl} />
           <Field label="Dirección de atención pública (opcional)" value={publicOfficeAddress} onChange={setPublicOfficeAddress} />
+          <div className="space-y-4 rounded-xl border border-stone-200 bg-white p-4">
+            <div>
+              <h3 className="font-semibold">Secciones de tu portal público</h3>
+              <p className="mt-1 text-xs text-slate-600">Modifica títulos y textos, y decide qué secciones estarán visibles. Los cambios son exclusivos de tu inmobiliaria y se publican al guardar.</p>
+            </div>
+            <Field label="Lema sobre la portada (máx. 130)" value={publicPage.introLabel}
+              onChange={value => setPublicPage(current => ({...current, introLabel:value}))} maxLength={130} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                ['showCatalog','Catálogo de propiedades'],
+                ['showServices','Servicios ofrecidos'],
+                ['showCalculator','Calculadora de estimaciones'],
+                ['showContact','Información y formulario de contacto'],
+              ] as const).map(([key,title]) => (
+                <label key={key} className="flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-2 text-sm">
+                  <input type="checkbox" checked={publicPage[key]} disabled={!can('settings.edit')}
+                    onChange={event => setPublicPage(current => ({...current,[key]:event.target.checked}))}
+                    className="h-4 w-4" />
+                  <span>Mostrar {title.toLowerCase()}</span>
+                </label>
+              ))}
+            </div>
+            <Field label="Título del catálogo (máx. 130)" value={publicPage.catalogTitle}
+              onChange={value=>setPublicPage(current=>({...current,catalogTitle:value}))} maxLength={130} />
+            <Field label="Título de servicios (máx. 130)" value={publicPage.servicesTitle}
+              onChange={value=>setPublicPage(current=>({...current,servicesTitle:value}))} maxLength={130} />
+            <label className="block text-sm font-medium">Descripción de servicios
+              <textarea maxLength={420} rows={2} value={publicPage.servicesDescription}
+                onChange={event=>setPublicPage(current=>({...current,servicesDescription:event.target.value}))}
+                className="mt-2 block w-full rounded-xl border border-stone-300 p-3" />
+            </label>
+            <Field label="Título de contacto (máx. 130)" value={publicPage.contactTitle}
+              onChange={value=>setPublicPage(current=>({...current,contactTitle:value}))} maxLength={130} />
+            <label className="block text-sm font-medium">Presentación de contacto
+              <textarea maxLength={420} rows={2} value={publicPage.contactDescription}
+                onChange={event=>setPublicPage(current=>({...current,contactDescription:event.target.value}))}
+                className="mt-2 block w-full rounded-xl border border-stone-300 p-3" />
+            </label>
+            <label className="block text-sm font-medium">Texto comercial del pie de página (opcional)
+              <textarea maxLength={420} rows={2} value={publicPage.footerDescription}
+                onChange={event=>setPublicPage(current=>({...current,footerDescription:event.target.value}))}
+                className="mt-2 block w-full rounded-xl border border-stone-300 p-3" />
+              <span className="mt-1 block text-xs text-slate-500">El aviso de responsabilidad de la inmobiliaria seguirá visible.</span>
+            </label>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+            <div className="px-4 py-3 text-sm font-semibold">Vista previa antes de guardar</div>
+            <div className="space-y-2 p-5 text-white" style={{background:primaryColor}}>
+              <div className="text-xs">{publicPage.introLabel.trim() || selectedCountry.name+' · Portal inmobiliario'}</div>
+              <h3 className="text-xl font-bold">{publicHeadline.trim() || 'Bienvenido a '+companyName}</h3>
+              <p className="text-sm">{publicDescription.trim() || 'Explora el portafolio de '+companyName}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 p-4 text-xs font-medium">
+              {publicPage.showCatalog && <span className="rounded border px-3 py-2">{publicPage.catalogTitle || 'Catálogo'}</span>}
+              {publicPage.showServices && <span className="rounded border px-3 py-2">{publicPage.servicesTitle || 'Servicios'}</span>}
+              {publicPage.showCalculator && <span className="rounded border px-3 py-2">Calculadora</span>}
+              {publicPage.showContact && <span className="rounded border px-3 py-2">{publicPage.contactTitle || 'Contacto'}</span>}
+            </div>
+            <p className="px-4 pb-4 text-xs text-slate-500">Vista orientativa. Guarda y abre la portada pública para comprobar el resultado real.</p>
+          </div>
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="font-semibold">Servicios que realmente ofrece esta inmobiliaria</div>
@@ -331,8 +399,16 @@ export function SettingsModule() {
                   onChange={e => setPublicServices(items => items.map((item, i) => i === index ? { ...item, description: e.target.value } : item))}
                   className="mt-1 block w-full rounded-lg border px-3 py-2 text-sm" />
               </label>
-              <button type="button" onClick={() => setPublicServices(items => items.filter((_, i) => i !== index))}
-                className="text-xs font-semibold text-red-700 underline">Retirar servicio</button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" disabled={index===0} onClick={() => setPublicServices(items => {
+                  const next=[...items];[next[index-1],next[index]]=[next[index],next[index-1]];return next;
+                })} className="text-xs font-semibold underline disabled:opacity-40">Subir</button>
+                <button type="button" disabled={index===publicServices.length-1} onClick={() => setPublicServices(items => {
+                  const next=[...items];[next[index],next[index+1]]=[next[index+1],next[index]];return next;
+                })} className="text-xs font-semibold underline disabled:opacity-40">Bajar</button>
+                <button type="button" onClick={() => setPublicServices(items => items.filter((_, i) => i !== index))}
+                  className="text-xs font-semibold text-red-700 underline">Retirar servicio</button>
+              </div>
             </div>
           ))}
           <a href={tenantPublicPath(activeMembership?.organization.slug || '')} target="_blank" rel="noopener noreferrer"
@@ -443,6 +519,7 @@ function Field({
   type = 'text',
   required = false,
   disabled = false,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -450,6 +527,7 @@ function Field({
   type?: string;
   required?: boolean;
   disabled?: boolean;
+  maxLength?: number;
 }) {
   return (
     <label>
@@ -459,6 +537,7 @@ function Field({
         value={value}
         required={required}
         disabled={disabled}
+        maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-stone-300 px-3 py-2.5 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-slate-500"
       />
