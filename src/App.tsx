@@ -65,7 +65,7 @@ export default function App() {
   }, []);
 
 
-  const { user, activeMembership, isPlatformAdmin, loading: authLoading } = useAuth();
+  const { user, activeMembership, isPlatformAdmin, loading: authLoading, accessError } = useAuth();
   const agencyWorkspaceRequired = shouldOpenAgencyWorkspace({
     authenticated: Boolean(user),
     hasMembership: Boolean(activeMembership),
@@ -291,6 +291,16 @@ export default function App() {
         onClose={() => window.location.assign(tenantPublicPath(activeMembership?.organization.slug || ''))}
       />
     </React.Suspense>;
+  }
+
+  if (window.location.pathname === '/app' && user && !activeMembership && !isPlatformAdmin) {
+    return <main role="alert" className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
+      <div className="max-w-lg space-y-4 text-center">
+        <h1 className="text-xl font-semibold">Acceso privado no autorizado</h1>
+        <p>{accessError || 'No tienes una inmobiliaria activa asociada a este acceso.'}</p>
+        <a href="/app" className="inline-block rounded-lg border bg-white px-4 py-2 font-semibold">Volver a mis inmobiliarias</a>
+      </div>
+    </main>;
   }
 
   if (window.location.pathname.startsWith('/inmobiliaria/') && !tenantSlug) {
