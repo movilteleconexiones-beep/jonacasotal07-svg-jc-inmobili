@@ -6,6 +6,7 @@ import type { TenantBrandingState } from '../core/use-tenant-branding';
 
 interface PatrimonialSimulatorProps {
   onRequestDiagnostic: (summaryText: string) => void;
+  allowInquiry?: boolean;
   branding: Pick<TenantBrandingState, 'companyName' | 'locale' | 'currency' | 'country'>;
 }
 
@@ -14,6 +15,7 @@ type SimulatorTab = 'administracion' | 'hipoteca' | 'valuacion';
 export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
   onRequestDiagnostic,
   branding,
+  allowInquiry = true,
 }) => {
   const operatorName = branding.companyName || 'la inmobiliaria';
   const [activeTab, setActiveTab] = useState<SimulatorTab>('administracion');
@@ -344,7 +346,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                   </dl>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-stone-200">
+                {allowInquiry && <div className="pt-6 mt-6 border-t border-stone-200">
                   <button
                     type="button"
                     onClick={() =>
@@ -356,10 +358,10 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     }
                     className="w-full py-3 px-4 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                   >
-                    <span>Solicitar Propuesta de Administración</span>
+                    <span>Consultar propuesta de administración</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
-                </div>
+                </div>}
               </div>
             </div>
           )}
@@ -506,7 +508,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                   </dl>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-stone-200">
+                {allowInquiry && <div className="pt-6 mt-6 border-t border-stone-200">
                   <button
                     type="button"
                     onClick={() =>
@@ -521,7 +523,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     <span>Agendar Dictamen Financiero e Hipotecario</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
-                </div>
+                </div>}
               </div>
             </div>
           )}
@@ -668,7 +670,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                   </dl>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-stone-200">
+                {allowInquiry && <div className="pt-6 mt-6 border-t border-stone-200">
                   <button
                     type="button"
                     onClick={() =>
@@ -680,10 +682,10 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
                     }
                     className="w-full py-3 px-4 bg-[#0F2942] hover:bg-[#163859] text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                   >
-                    <span>Solicitar Visita de Valuación sin Costo</span>
+                    <span>Consultar valoración con la inmobiliaria</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
-                </div>
+                </div>}
               </div>
             </div>
           )}
