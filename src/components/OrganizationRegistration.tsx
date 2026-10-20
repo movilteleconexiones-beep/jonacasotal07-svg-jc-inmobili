@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Building2, X } from 'lucide-react';
 import { useAuth } from '../core/auth-context';
+import { normalizeTenantSlug, isValidTenantSlug, tenantPrivatePath } from '../core/tenant-links';
+import { tenantPublicPath } from '../core/public-tenant-route';
 
 /**
  * Creates a pending-payment tenant. Registration never activates a subscription.
@@ -12,6 +14,7 @@ export function OrganizationRegistration() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
+  const [slugEdited, setSlugEdited] = useState(false);
   const [country, setCountry] = useState('CO');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +25,7 @@ export function OrganizationRegistration() {
     setError('');
     const cleanName = name.trim();
     const cleanSlug = slug.trim().toLowerCase();
-    if (cleanName.length < 2 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(cleanSlug)) {
+    if (cleanName.length < 2 || !isValidTenantSlug(cleanSlug)) {
       setError('Ingresa el nombre y un identificador válido (letras, números y guiones).');
       return;
     }
@@ -34,8 +37,10 @@ export function OrganizationRegistration() {
         setError('No se pudo registrar la inmobiliaria. Revisa si el identificador ya está en uso.');
         return;
       }
-      // Auth context will load the new organization and open the billing screen.
+      // Open the newly created organization's own private panel for plan
+      // selection. Public exposure remains gated by verified payment.
       setOpen(false);
+      window.location.assign(tenantPrivatePath(cleanSlug));
     } catch {
       setError('No fue posible completar el registro. Intenta nuevamente.');
     } finally {
@@ -69,13 +74,22 @@ export function OrganizationRegistration() {
             <form onSubmit={e => void submit(e)} className="mt-5 space-y-4">
               <label className="block text-sm font-medium">Nombre de la inmobiliaria
                 <input required minLength={2} maxLength={160} autoComplete="organization"
-                  value={name} onChange={e => setName(e.target.value)}
+                  value={name} onChange={e => {
+                    setName(e.target.value);
+                    if (!slugEdited) setSlug(normalizeTenantSlug(e.target.value));
+                  }}
                   className="mt-1 w-full rounded-lg border p-3" />
               </label>
               <label className="block text-sm font-medium">Identificador único (URL)
                 <input required minLength={2} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                  value={slug} onChange={e => setSlug(e.target.value.toLowerCase())}
+                  value={slug} onChange={e => {
+                    setSlug(normalizeTenantSlug(e.target.value));
+                    setSlugEdited(true);
+                  }}
                   placeholder="mi-inmobiliaria" className="mt-1 w-full rounded-lg border p-3" />
+                <span className="mt-1 block break-all text-xs text-slate-600">Portada: {window.location.origin}{tenantPublicPath(slug)}</span>
+                <span className="mt-1 block break-all text-xs text-slate-600">Panel privado: {window.location.origin}{tenantPrivatePath(slug)}</span>
+                <span className="mt-1 block text-xs text-slate-600">Se genera automáticamente desde tu nombre. Puedes personalizarlo antes de registrarte; debe ser único.</span>
               </label>
               <label className="block text-sm font-medium">País
                 <select value={country} onChange={e => setCountry(e.target.value)}

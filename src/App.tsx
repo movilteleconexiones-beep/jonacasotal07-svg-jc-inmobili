@@ -22,6 +22,7 @@ import { usePublicTenantCatalog } from './core/use-public-tenant-catalog';
 import { safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY } from './core/tenant-palette';
 import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { isPublicStorefrontPath, resolvePublicTenantSlug, tenantPublicPath } from './core/public-tenant-route';
+import { tenantPrivatePath } from './core/tenant-links';
 import { getCountryOption } from './core/countries';
 import { agencyHeroCopy, AGENCY_SERVICE_PROMPT } from './core/public-agency-content';
 import { DEFAULT_PUBLIC_PAGE } from './core/public-page-content';
@@ -64,7 +65,7 @@ export default function App() {
   }, []);
 
 
-  const { user, activeMembership, isPlatformAdmin, loading: authLoading } = useAuth();
+  const { user, activeMembership, isPlatformAdmin, loading: authLoading, accessError } = useAuth();
   const agencyWorkspaceRequired = shouldOpenAgencyWorkspace({
     authenticated: Boolean(user),
     hasMembership: Boolean(activeMembership),
@@ -292,6 +293,16 @@ export default function App() {
     </React.Suspense>;
   }
 
+  if (window.location.pathname === '/app' && user && !activeMembership && !isPlatformAdmin) {
+    return <main role="alert" className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
+      <div className="max-w-lg space-y-4 text-center">
+        <h1 className="text-xl font-semibold">Acceso privado no autorizado</h1>
+        <p>{accessError || 'No tienes una inmobiliaria activa asociada a este acceso.'}</p>
+        <a href="/app" className="inline-block rounded-lg border bg-white px-4 py-2 font-semibold">Volver a mis inmobiliarias</a>
+      </div>
+    </main>;
+  }
+
   if (window.location.pathname.startsWith('/inmobiliaria/') && !tenantSlug) {
     return <main role="alert" className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
       La dirección pública de esta inmobiliaria no es válida.
@@ -379,7 +390,7 @@ export default function App() {
             {user && (activeMembership || isPlatformAdmin) && (
               <button
                 type="button"
-                onClick={() => window.location.assign('/app')}
+                onClick={() => window.location.assign(tenantPrivatePath(activeMembership?.organization.slug || ''))}
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
                 aria-label={activeMembership?.roles.length===1 && activeMembership.roles[0]?.key==='CLIENT' ? 'Abrir mi portal privado' : 'Abrir panel inmobiliario'}
               >

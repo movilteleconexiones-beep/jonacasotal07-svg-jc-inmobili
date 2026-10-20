@@ -22,7 +22,7 @@ test('public root remains public after sign-in; /app is authenticated backoffice
 test('marketing homepage cannot show before agency session hydration is complete',()=>{
   const app=read('src/App.tsx');
   const dashboard=read('src/modules/dashboard/PrivateDashboard.tsx');
-  assert.match(app,/const \{ user, activeMembership, isPlatformAdmin, loading: authLoading \} = useAuth\(\)/);
+  assert.match(app,/const \{ user, activeMembership, isPlatformAdmin, loading: authLoading, accessError \} = useAuth\(\)/);
   assert.match(app,/const agencyWorkspaceRequired = shouldOpenAgencyWorkspace\(/);
   const hydration=app.indexOf('if (authLoading) {');
   const dashboardDecision=app.indexOf('isPrivateDashboardOpen || agencyWorkspaceRequired');

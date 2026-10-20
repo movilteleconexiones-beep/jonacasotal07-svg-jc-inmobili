@@ -7,7 +7,7 @@ const dashboard = readFileSync(new URL('../src/modules/dashboard/PrivateDashboar
 const auth = readFileSync(new URL('../src/core/auth-context.tsx', import.meta.url), 'utf8');
 
 test('Panel and SuperAdmin remain distinct destinations', () => {
-  assert.match(app, /window\.location\.assign\('\/app'\)/);
+  assert.match(app, /window\.location\.assign\(tenantPrivatePath\(activeMembership\?\.organization\.slug \|\| ''\)\)/);
   assert.match(app, /tenantPublicPath\(activeMembership\?\.organization\.slug/);
   assert.match(app, /href="\/super-admin"/);
   assert.match(app, /'Mi portal' : 'Panel'/);

@@ -28,7 +28,7 @@ export interface TenantBrandingState {
 }
 
 const DEFAULTS: TenantBrandingState = {
-  companyName: 'Sistema Inmobiliario JCO',
+  companyName: 'Mi inmobiliaria',
   softwareName: 'Sistema Inmobiliario JCO',
   publicServices: [],
   publicPage: parsePublicPageContent(null),
