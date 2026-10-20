@@ -69,4 +69,8 @@ test('SQL function security definer checks owner identity, scopes writes, audits
   assert.match(sql,/REVOKE ALL ON FUNCTION .* FROM PUBLIC/);
   assert.match(sql,/GRANT EXECUTE .* TO authenticated/);
   assert.doesNotMatch(sql,/GRANT .* TO anon/);
+  const acl=read('supabase/migrations/20261020183500_owner_slug_strict_execute_acl.sql');
+  assert.match(acl,/FROM anon/);
+  assert.match(acl,/FROM service_role/);
+  assert.match(acl,/TO authenticated/);
 });
