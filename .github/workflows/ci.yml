@@ -94,6 +94,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_url_security_test -f security/tests/organization_custom_url_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_url_security_test -f supabase/migrations/20261020183000_owner_organization_public_slug.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_url_security_test -f supabase/migrations/20261020183000_owner_organization_public_slug.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_url_security_test -f supabase/migrations/20261020183500_owner_slug_strict_execute_acl.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_url_security_test -f supabase/migrations/20261020183500_owner_slug_strict_execute_acl.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_url_security_test -f security/tests/organization_custom_url_assertions.sql
       - name: Agency editable public portal section regression
         run: node --import tsx --test tests/agency-public-portal-editor.test.mjs
