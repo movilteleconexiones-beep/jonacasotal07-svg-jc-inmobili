@@ -1464,6 +1464,7 @@ export default function App() {
 
       {/* PROPERTY DETAIL MODAL */}
       <PropertyDetailModal
+        branding={branding}
         property={selectedProperty}
         onClose={() => setSelectedProperty(null)}
         isSaved={selectedProperty ? savedPropertyIds.includes(selectedProperty.id) : false}
@@ -1484,6 +1485,8 @@ export default function App() {
 
       {/* CONSIGNAR / SUBMIT NEW PROPERTY MODAL */}
       <SubmitPropertyModal
+        publicSiteSlug={tenantSlug}
+        branding={branding}
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
       />
