@@ -17,10 +17,11 @@ import { PropertyDetailModal } from './components/PropertyDetailModal.tsx';
 import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
 import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
-import { useTenantBranding } from './core/use-tenant-branding';
+import type { TenantBrandingState } from './core/use-tenant-branding';
 import { usePublicTenantCatalog } from './core/use-public-tenant-catalog';
 import { safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY } from './core/tenant-palette';
 import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
+import { isPublicStorefrontPath, resolvePublicTenantSlug, tenantPublicPath } from './core/public-tenant-route';
 import { getCountryOption } from './core/countries';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
 import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
@@ -69,20 +70,35 @@ export default function App() {
     pathname: window.location.pathname,
     publicConsignment: new URLSearchParams(window.location.search).get('consignar') === '1',
   });
-  const { branding: memberBranding } = useTenantBranding();
-  const tenantSlug = activeMembership?.organization.slug
-    || new URLSearchParams(window.location.search).get('inmobiliaria')
-    || import.meta.env.VITE_PUBLIC_SITE_SLUG || '';
+  const tenantSlug = resolvePublicTenantSlug({
+    pathname: window.location.pathname,
+    search: window.location.search,
+    membershipSlug: activeMembership?.organization.slug,
+    configuredSlug: import.meta.env.VITE_PUBLIC_SITE_SLUG,
+  });
   const publicCatalog = usePublicTenantCatalog(tenantSlug);
-  const branding = !activeMembership && publicCatalog.brand
-    ? { ...memberBranding, ...publicCatalog.brand }
-    : memberBranding;
+  // Public branding must NEVER be inherited from a different signed-in tenant.
+  // Only the server-scoped public catalog may supply public tenant identity.
+  const branding: TenantBrandingState = {
+    companyName: publicCatalog.brand?.companyName || 'Sistema Inmobiliario JCO',
+    softwareName: 'Sistema Inmobiliario JCO',
+    logoUrl: publicCatalog.brand?.logoUrl,
+    primaryColor: publicCatalog.brand?.primaryColor,
+    secondaryColor: publicCatalog.brand?.secondaryColor,
+    phone: publicCatalog.brand?.phone,
+    email: publicCatalog.brand?.email,
+    website: publicCatalog.brand?.website,
+    currency: publicCatalog.brand?.currency || 'COP',
+    country: publicCatalog.brand?.country || 'CO',
+    locale: publicCatalog.brand?.locale || 'es-CO',
+    timezone: 'America/Bogota',
+  };
   const countryProfile = getCountryOption(branding.country);
   const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
   const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
-  const [isPrivateDashboardOpen, setIsPrivateDashboardOpen] = useState(
+  const [isPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
   );
   // Catalog state
@@ -249,12 +265,14 @@ export default function App() {
     </main>;
   }
 
-  if (user && (activeMembership || isPlatformAdmin) &&
+  const explicitlyPublic = isPublicStorefrontPath(window.location.pathname) &&
+    new URLSearchParams(window.location.search).get('billing') !== 'return';
+  if (user && (activeMembership || isPlatformAdmin) && !explicitlyPublic &&
       (isPrivateDashboardOpen || agencyWorkspaceRequired)) {
     return <React.Suspense fallback={<p role="status" className="p-6">Cargando panel…</p>}>
       <PrivateDashboard
         key={activeMembership?.organization.id ?? 'platform-no-tenant'}
-        onClose={() => { if (isPlatformAdmin) setIsPrivateDashboardOpen(false); }}
+        onClose={() => window.location.assign(tenantPublicPath(activeMembership?.organization.slug || ''))}
       />
     </React.Suspense>;
   }
@@ -332,7 +350,7 @@ export default function App() {
             {user && (activeMembership || isPlatformAdmin) && (
               <button
                 type="button"
-                onClick={() => setIsPrivateDashboardOpen(true)}
+                onClick={() => window.location.assign('/app')}
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
                 aria-label={activeMembership?.roles.length===1 && activeMembership.roles[0]?.key==='CLIENT' ? 'Abrir mi portal privado' : 'Abrir panel inmobiliario'}
               >
