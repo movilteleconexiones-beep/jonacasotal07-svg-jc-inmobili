@@ -399,6 +399,13 @@ export default function App() {
             <AuthAccessButton showIdentity={false} />
           </div>
         </div>
+        <nav aria-label="Navegación móvil" className="flex gap-5 overflow-x-auto border-t border-stone-200 px-4 py-2 text-sm font-medium text-slate-700 xl:hidden">
+          {(!tenantSlug || page.showCatalog) && <a href="#catalogo" className="whitespace-nowrap">Catálogo</a>}
+          {(!tenantSlug || page.showServices) && <a href="#servicios" className="whitespace-nowrap">Servicios</a>}
+          {(!tenantSlug || page.showCalculator) && <a href="#calculadora" className="whitespace-nowrap">Calculadora</a>}
+          {(!tenantSlug || page.showContact) && <a href="#contacto" className="whitespace-nowrap">Contacto</a>}
+          {!tenantSlug && <a href="#inmobilearning" className="whitespace-nowrap">Academia</a>}
+        </nav>
       </header>
 
       <main className="flex-1">
