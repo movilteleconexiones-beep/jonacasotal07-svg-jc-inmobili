@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './auth-context';
 import { supabase } from '../lib/supabase';
+import { parsePublicAgencyServices, type PublicAgencyService } from './public-agency-content';
 
 export interface TenantBrandingState {
   companyName: string;
   softwareName: string;
+  publicHeadline?: string;
+  publicDescription?: string;
+  publicHeroUrl?: string;
+  publicOfficeAddress?: string;
+  publicServices: PublicAgencyService[];
   logoUrl?: string;
   faviconUrl?: string;
   primaryColor?: string;
@@ -22,6 +28,7 @@ export interface TenantBrandingState {
 const DEFAULTS: TenantBrandingState = {
   companyName: 'Sistema Inmobiliario JCO',
   softwareName: 'Sistema Inmobiliario JCO',
+  publicServices: [],
   currency: 'COP',
   country: 'CO',
   locale: 'es-CO',
@@ -49,7 +56,7 @@ export function useTenantBranding() {
     const [brandingResult, settingsResult] = await Promise.all([
       supabase
         .from('organization_branding')
-        .select('company_name, software_name, logo_url, favicon_url, primary_color, secondary_color, website, phone, whatsapp, email')
+        .select('company_name, software_name, logo_url, favicon_url, primary_color, secondary_color, website, phone, whatsapp, email, public_headline, public_description, public_hero_url, public_services, public_office_address')
         .eq('organization_id', organizationId)
         .maybeSingle(),
       supabase
@@ -65,6 +72,11 @@ export function useTenantBranding() {
         brandingResult.data?.company_name ||
         activeMembership.organization.name ||
         DEFAULTS.companyName,
+      publicHeadline: brandingResult.data?.public_headline ?? undefined,
+      publicDescription: brandingResult.data?.public_description ?? undefined,
+      publicHeroUrl: brandingResult.data?.public_hero_url ?? undefined,
+      publicOfficeAddress: brandingResult.data?.public_office_address ?? undefined,
+      publicServices: parsePublicAgencyServices(brandingResult.data?.public_services),
       softwareName:
         brandingResult.data?.software_name ||
         DEFAULTS.softwareName,

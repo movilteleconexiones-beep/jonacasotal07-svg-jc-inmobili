@@ -10,9 +10,7 @@ export interface PublicPropertyIntakeSite {
   currency: string;
 }
 
-const publicSiteSlug = (import.meta.env.VITE_PUBLIC_SITE_SLUG as string | undefined)?.trim();
-
-export function usePublicPropertyIntakeSite(enabled: boolean) {
+export function usePublicPropertyIntakeSite(enabled: boolean, publicSiteSlug?: string) {
   const [site, setSite] = useState<PublicPropertyIntakeSite | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +21,7 @@ export function usePublicPropertyIntakeSite(enabled: boolean) {
     setError('');
     setLoading(false);
     if (!enabled) return;
-    if (!isSupabaseConfigured || !publicSiteSlug) {
+    if (!isSupabaseConfigured || !publicSiteSlug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(publicSiteSlug)) {
       setError('La recepción de consignaciones aún no está configurada. Contacta directamente a la inmobiliaria.');
       return;
     }
@@ -44,7 +42,7 @@ export function usePublicPropertyIntakeSite(enabled: boolean) {
       }
     })();
     return () => { cancelled = true; };
-  }, [enabled]);
+  }, [enabled, publicSiteSlug]);
 
   return { site, loading, error };
 }

@@ -1,21 +1,29 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Property } from '../data/properties';
+import { parsePublicAgencyServices, type PublicAgencyService } from './public-agency-content';
 
 export interface PublicTenantBrand {
   companyName: string;
+  publicHeadline?: string;
+  publicDescription?: string;
+  publicHeroUrl?: string;
+  publicServices: PublicAgencyService[];
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
   phone?: string;
   email?: string;
   website?: string;
+  whatsapp?: string;
+  publicOfficeAddress?: string;
   country: string;
   currency: string;
   locale: string;
 }
 
 interface CatalogState {
+  requestedSlug?: string;
   properties: Property[];
   brand: PublicTenantBrand | null;
   loading: boolean;
@@ -99,35 +107,42 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
       return;
     }
     let live = true;
-    setState({ ...EMPTY, loading: true });
+    setState({ ...EMPTY, requestedSlug: slug, loading: true });
 
     void (async () => {
       const { data, error } = await supabase.rpc('tenant_public_catalog', { tenant_slug: slug });
       if (!live) return;
       if (error) {
-        setState({ ...EMPTY, error: 'No se pudo consultar el inventario de la inmobiliaria.' });
+        setState({ ...EMPTY, requestedSlug: slug, error: 'No se pudo consultar el inventario de la inmobiliaria.' });
         return;
       }
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        setState({ ...EMPTY, error: 'El catálogo no está disponible para esta inmobiliaria.' });
+        setState({ ...EMPTY, requestedSlug: slug, error: 'El catálogo no está disponible para esta inmobiliaria.' });
         return;
       }
 
       const value = data as Record<string, unknown>;
       const brand: PublicTenantBrand = {
         companyName: text(value.company_name),
+        publicHeadline: text(value.public_headline) || undefined,
+        publicDescription: text(value.public_description) || undefined,
+        publicHeroUrl: text(value.public_hero_url) || undefined,
+        publicServices: parsePublicAgencyServices(value.public_services),
         logoUrl: text(value.logo_url) || undefined,
         primaryColor: text(value.primary_color) || undefined,
         secondaryColor: text(value.secondary_color) || undefined,
         phone: text(value.phone) || undefined,
         email: text(value.email) || undefined,
         website: text(value.website) || undefined,
+        whatsapp: text(value.whatsapp) || undefined,
+        publicOfficeAddress: text(value.public_office_address) || undefined,
         country: text(value.country) || 'CO',
         currency: text(value.currency) || 'COP',
         locale: text(value.locale) || 'es-CO',
       };
 
       setState({
+        requestedSlug: slug,
         brand,
         properties: (Array.isArray(value.properties) ? value.properties : [])
           .filter((item): item is Row => Boolean(item && typeof item === 'object' && !Array.isArray(item)))
@@ -135,11 +150,15 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
         loading: false, error: null,
       });
     })().catch(() => {
-      if (live) setState({ ...EMPTY, error: 'No se pudo cargar el catálogo.' });
+      if (live) setState({ ...EMPTY, requestedSlug: slug, error: 'No se pudo cargar el catálogo.' });
     });
 
     return () => { live = false; };
   }, [tenantSlug]);
 
-  return state;
+  // Avoid showing previous tenant branding for one render before effect resets it.
+  const requestedSlug = tenantSlug?.trim().toLowerCase();
+  return requestedSlug && state.requestedSlug !== requestedSlug
+    ? { ...EMPTY, requestedSlug, loading: true }
+    : state;
 }

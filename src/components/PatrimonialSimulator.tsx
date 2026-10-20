@@ -2,18 +2,19 @@
 import React, { useState, useMemo } from 'react';
 import { ZONE_VALUATION_BENCHMARKS, Property } from '../data/properties';
 import { ArrowRight, Calculator, ShieldCheck, TrendingUp } from 'lucide-react';
-import { useTenantBranding } from '../core/use-tenant-branding';
+import type { TenantBrandingState } from '../core/use-tenant-branding';
 
 interface PatrimonialSimulatorProps {
   onRequestDiagnostic: (summaryText: string) => void;
+  branding: Pick<TenantBrandingState, 'companyName' | 'locale' | 'currency' | 'country'>;
 }
 
 type SimulatorTab = 'administracion' | 'hipoteca' | 'valuacion';
 
 export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
-  onRequestDiagnostic
+  onRequestDiagnostic,
+  branding,
 }) => {
-  const { branding } = useTenantBranding();
   const operatorName = branding.companyName || 'la inmobiliaria';
   const [activeTab, setActiveTab] = useState<SimulatorTab>('administracion');
 

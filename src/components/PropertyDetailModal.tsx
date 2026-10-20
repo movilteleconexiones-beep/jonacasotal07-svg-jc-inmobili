@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { Property } from '../data/properties';
 import { ResilientImage } from './ResilientImage';
 import { X, Check, Calendar, PhoneCall, Bookmark } from 'lucide-react';
-import { useTenantBranding } from '../core/use-tenant-branding';
+import type { TenantBrandingState } from '../core/use-tenant-branding';
 
 interface PropertyDetailModalProps {
   property: Property | null;
+  branding: Pick<TenantBrandingState, 'companyName' | 'locale' | 'currency'>;
   onClose: () => void;
   isSaved: boolean;
   onToggleSave: (id: string) => void;
@@ -15,12 +16,12 @@ interface PropertyDetailModalProps {
 
 export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   property,
+  branding,
   onClose,
   isSaved,
   onToggleSave,
   onScheduleVisit
 }) => {
-  const { branding } = useTenantBranding();
   const operatorName = branding.companyName || 'la inmobiliaria';
   const [activePhotoIndex, setActivePhotoIndex] = useState<0 | 1>(0);
   const [visitorName, setVisitorName] = useState('');
@@ -227,7 +228,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               <div className="pb-4 border-b border-stone-200">
                 <p className="text-xs text-stone-500 mb-1">
                   {property.operation === 'Renta'
-                    ? `Renta mensual con protección gestionada por ${operatorName}`
+                    ? `Renta mensual publicada por ${operatorName}`
                     : 'Valor de Operación / Lista'}
                 </p>
                 <p className="text-3xl font-semibold text-slate-900 font-mono-tabular">
