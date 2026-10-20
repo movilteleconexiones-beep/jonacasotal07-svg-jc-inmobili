@@ -6,6 +6,8 @@ import { getCountryOption, LATAM_COUNTRIES } from '../../core/countries';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
 import { supabase } from '../../lib/supabase';
+import type { PublicAgencyService } from '../../core/public-agency-content';
+import { tenantPublicPath } from '../../core/public-tenant-route';
 
 interface ComplianceInfo {
   status: string;
@@ -22,6 +24,10 @@ export function SettingsModule() {
 
   const [companyName, setCompanyName] = useState('');
   const [softwareName, setSoftwareName] = useState('');
+  const [publicHeadline, setPublicHeadline] = useState('');
+  const [publicDescription, setPublicDescription] = useState('');
+  const [publicHeroUrl, setPublicHeroUrl] = useState('');
+  const [publicServices, setPublicServices] = useState<PublicAgencyService[]>([]);
   const [website, setWebsite] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [primaryColor, setPrimaryColor] = useState(TENANT_DEFAULT_PRIMARY);
@@ -44,6 +50,10 @@ export function SettingsModule() {
   useEffect(() => {
     setCompanyName(branding.companyName);
     setSoftwareName(branding.softwareName);
+    setPublicHeadline(branding.publicHeadline ?? '');
+    setPublicDescription(branding.publicDescription ?? '');
+    setPublicHeroUrl(branding.publicHeroUrl ?? '');
+    setPublicServices(branding.publicServices);
     setWebsite(branding.website ?? '');
     setLogoUrl(branding.logoUrl ?? '');
     setPrimaryColor(safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY));
@@ -118,6 +128,16 @@ export function SettingsModule() {
       setMessage('El logo debe estar alojado en una dirección HTTPS válida.');
       return;
     }
+    if (publicHeroUrl.trim() && !safeBrandUrl(publicHeroUrl)) {
+      setMessage('La portada necesita una imagen HTTPS pública válida.');
+      return;
+    }
+    if (publicServices.length > 8 || publicServices.some(item =>
+      !item.title.trim() || !item.description.trim() ||
+      item.title.trim().length > 90 || item.description.trim().length > 420)) {
+      setMessage('Cada servicio requiere título (máximo 90 caracteres) y descripción (máximo 420). Admite hasta 8 servicios.');
+      return;
+    }
     setSaving(true);
     setMessage('');
 
@@ -142,6 +162,10 @@ export function SettingsModule() {
         .upsert({
           organization_id: organizationId,
           company_name: companyName.trim(),
+          public_headline: publicHeadline.trim() || null,
+          public_description: publicDescription.trim() || null,
+          public_hero_url: publicHeroUrl.trim() ? safeBrandUrl(publicHeroUrl) : null,
+          public_services: publicServices.map(s => ({ title: s.title.trim(), description: s.description.trim() })),
           software_name: softwareName.trim(),
           website: website.trim() ? safeBrandUrl(website) : null,
           logo_url: logoUrl.trim() ? safeBrandUrl(logoUrl) : null,
@@ -263,6 +287,48 @@ export function SettingsModule() {
           <div className="mt-4 rounded-xl p-4 text-sm font-semibold" style={{ backgroundColor: secondaryColor, color: primaryColor, borderLeft: '5px solid ' + primaryColor }}>
             Vista previa de la identidad de tu inmobiliaria
           </div>
+        </div>
+        <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-4">
+          <div className="font-semibold">Portada pública de esta inmobiliaria</div>
+          <p className="text-xs text-slate-600">Estos textos y servicios aparecen solo en el sitio público de tu inmobiliaria. Si no declaras un servicio, no se anunciará. El panel de SuperAdmin no se modifica.</p>
+          <Field label="Título principal de la portada" value={publicHeadline} onChange={setPublicHeadline} />
+          <label className="block text-sm font-medium">Presentación comercial de tu inmobiliaria
+            <textarea aria-label="Descripción de la portada pública" maxLength={700} rows={3}
+              className="mt-2 block w-full rounded-xl border border-stone-300 px-3 py-2.5"
+              value={publicDescription} onChange={e => setPublicDescription(e.target.value)} />
+          </label>
+          <Field label="Imagen principal de la portada (URL HTTPS)" type="url" value={publicHeroUrl} onChange={setPublicHeroUrl} />
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="font-semibold">Servicios que realmente ofrece esta inmobiliaria</div>
+              <p className="text-xs text-slate-500">Hasta ocho, con descripciones propias. No se publican promesas, casos de éxito ni capacitaciones de otras empresas.</p>
+            </div>
+            <button type="button" disabled={!can('settings.edit') || publicServices.length >= 8}
+              onClick={() => setPublicServices(current => [...current, { title: '', description: '' }])}
+              className="shrink-0 rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-40">
+              Añadir servicio
+            </button>
+          </div>
+          {publicServices.length === 0 && <p className="text-xs text-amber-800">Todavía no has publicado servicios. La portada invitará al visitante a consultar directamente.</p>}
+          {publicServices.map((service, index) => (
+            <div key={index} className="space-y-2 rounded-xl border bg-white p-3">
+              <label className="block text-xs font-semibold">Servicio {index + 1}
+                <input maxLength={90} value={service.title}
+                  onChange={e => setPublicServices(items => items.map((item, i) => i === index ? { ...item, title: e.target.value } : item))}
+                  placeholder="Ej. Administración de arriendos"
+                  className="mt-1 block w-full rounded-lg border px-3 py-2 text-sm" />
+              </label>
+              <label className="block text-xs font-semibold">Descripción que se mostrará al público
+                <textarea maxLength={420} rows={2} value={service.description}
+                  onChange={e => setPublicServices(items => items.map((item, i) => i === index ? { ...item, description: e.target.value } : item))}
+                  className="mt-1 block w-full rounded-lg border px-3 py-2 text-sm" />
+              </label>
+              <button type="button" onClick={() => setPublicServices(items => items.filter((_, i) => i !== index))}
+                className="text-xs font-semibold text-red-700 underline">Retirar servicio</button>
+            </div>
+          ))}
+          <a href={tenantPublicPath(activeMembership?.organization.slug || '')} target="_blank" rel="noopener noreferrer"
+            className="inline-block text-sm font-semibold underline">Ver mi portada pública</a>
         </div>
         <Field label="Correo comercial" value={email} onChange={setEmail} type="email" />
         <Field label="Teléfono" value={phone} onChange={setPhone} />
