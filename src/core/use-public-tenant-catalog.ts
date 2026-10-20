@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Property } from '../data/properties';
+import { parsePublicAgencyServices, type PublicAgencyService } from './public-agency-content';
 
 export interface PublicTenantBrand {
   companyName: string;
+  publicHeadline?: string;
+  publicDescription?: string;
+  publicHeroUrl?: string;
+  publicServices: PublicAgencyService[];
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
@@ -16,6 +21,7 @@ export interface PublicTenantBrand {
 }
 
 interface CatalogState {
+  requestedSlug?: string;
   properties: Property[];
   brand: PublicTenantBrand | null;
   loading: boolean;
@@ -99,7 +105,7 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
       return;
     }
     let live = true;
-    setState({ ...EMPTY, loading: true });
+    setState({ ...EMPTY, requestedSlug: slug, loading: true });
 
     void (async () => {
       const { data, error } = await supabase.rpc('tenant_public_catalog', { tenant_slug: slug });
@@ -116,6 +122,10 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
       const value = data as Record<string, unknown>;
       const brand: PublicTenantBrand = {
         companyName: text(value.company_name),
+        publicHeadline: text(value.public_headline) || undefined,
+        publicDescription: text(value.public_description) || undefined,
+        publicHeroUrl: text(value.public_hero_url) || undefined,
+        publicServices: parsePublicAgencyServices(value.public_services),
         logoUrl: text(value.logo_url) || undefined,
         primaryColor: text(value.primary_color) || undefined,
         secondaryColor: text(value.secondary_color) || undefined,
@@ -128,6 +138,7 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
       };
 
       setState({
+        requestedSlug: slug,
         brand,
         properties: (Array.isArray(value.properties) ? value.properties : [])
           .filter((item): item is Row => Boolean(item && typeof item === 'object' && !Array.isArray(item)))
@@ -141,5 +152,9 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
     return () => { live = false; };
   }, [tenantSlug]);
 
-  return state;
+  // Avoid showing previous tenant branding for one render before effect resets it.
+  const requestedSlug = tenantSlug?.trim().toLowerCase();
+  return requestedSlug && state.requestedSlug !== requestedSlug
+    ? { ...EMPTY, requestedSlug, loading: true }
+    : state;
 }
