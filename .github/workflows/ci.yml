@@ -84,6 +84,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261018162000_strict_private_property_read_boundary.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
+      - name: Tenant public marketing and service branding isolation
+        run: node --import tsx --test tests/tenant-public-content-isolation.test.mjs
       - name: Public agency storefront and private dashboard route regression
         run: node --import tsx --test tests/public-private-tenant-routing.test.mjs
       - name: External portal navigation and no internal CRM data regression
