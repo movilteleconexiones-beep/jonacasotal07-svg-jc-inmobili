@@ -400,13 +400,16 @@ export default function App() {
 
       <main className="flex-1">
         {/* HERO SECTION: Single dominant 16:9 architectural focal carrier */}
-        <section className="relative bg-slate-950 text-white overflow-hidden">
+        <section className="relative overflow-hidden bg-slate-950 text-white"
+          style={tenantSlug && !agencyHeroUrl ? { backgroundColor: tenantPrimary } : undefined}>
           <div className="absolute inset-0">
-            <ResilientImage
-              src={agencyHeroUrl || HERO_IMAGE}
-              alt={`Residencia de arquitectura contemporánea en ${countryProfile.name}`}
-              className="w-full h-full object-cover opacity-65"
-            />
+            {(!tenantSlug || agencyHeroUrl) && (
+              <ResilientImage
+                src={agencyHeroUrl || HERO_IMAGE}
+                alt={agencyHeroUrl ? `Portada de ${publicCompanyName}` : 'Imagen principal de la plataforma'}
+                className="h-full w-full object-cover opacity-65"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-slate-950/30" />
           </div>
 
