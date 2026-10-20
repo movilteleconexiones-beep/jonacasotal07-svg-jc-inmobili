@@ -281,6 +281,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (error) return { error: error.message };
 
       await loadForUser(session.user.id);
+      // A new agency must become the selected workspace immediately, even
+      // when its owner already belongs to other organizations.
+      setActiveOrganizationId(data as string);
       return { organizationId: data as string };
     },
     [loadForUser, session?.user],
