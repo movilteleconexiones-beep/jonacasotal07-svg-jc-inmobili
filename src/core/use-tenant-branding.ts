@@ -9,6 +9,7 @@ export interface TenantBrandingState {
   publicHeadline?: string;
   publicDescription?: string;
   publicHeroUrl?: string;
+  publicOfficeAddress?: string;
   publicServices: PublicAgencyService[];
   logoUrl?: string;
   faviconUrl?: string;
@@ -55,7 +56,7 @@ export function useTenantBranding() {
     const [brandingResult, settingsResult] = await Promise.all([
       supabase
         .from('organization_branding')
-        .select('company_name, software_name, logo_url, favicon_url, primary_color, secondary_color, website, phone, whatsapp, email, public_headline, public_description, public_hero_url, public_services')
+        .select('company_name, software_name, logo_url, favicon_url, primary_color, secondary_color, website, phone, whatsapp, email, public_headline, public_description, public_hero_url, public_services, public_office_address')
         .eq('organization_id', organizationId)
         .maybeSingle(),
       supabase
@@ -74,6 +75,7 @@ export function useTenantBranding() {
       publicHeadline: brandingResult.data?.public_headline ?? undefined,
       publicDescription: brandingResult.data?.public_description ?? undefined,
       publicHeroUrl: brandingResult.data?.public_hero_url ?? undefined,
+      publicOfficeAddress: brandingResult.data?.public_office_address ?? undefined,
       publicServices: parsePublicAgencyServices(brandingResult.data?.public_services),
       softwareName:
         brandingResult.data?.software_name ||
