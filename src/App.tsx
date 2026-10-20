@@ -1117,10 +1117,10 @@ export default function App() {
                     Atención Patrimonial Personalizada
                   </p>
                   <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight balance-text">
-                    Oficina y atención en {countryProfile.name}
+                    {tenantSlug ? (page.contactTitle || `Oficina y atención de ${publicCompanyName}`) : `Oficina y atención en ${countryProfile.name}`}
                   </h2>
                   <p className="text-sm text-slate-600 mt-3 leading-relaxed">
-                    Contacta directamente a {publicCompanyName} para conocer sus opciones de atención y los términos de los servicios que haya publicado.
+                    {tenantSlug ? (page.contactDescription || `Contacta directamente a ${publicCompanyName} para conocer sus horarios y servicios publicados.`) : `Contacta directamente a ${publicCompanyName} para conocer sus opciones de atención y los términos de los servicios que haya publicado.`}
                   </p>
                 </div>
 
@@ -1354,7 +1354,7 @@ export default function App() {
           <div className="space-y-1">
             <p className="text-lg font-display font-bold text-slate-900">{tenantSlug ? publicCompanyName : softwareBrand}</p>
             <p>
-              {tenantSlug ? `Sitio público de ${publicCompanyName}` : 'Datos de contacto configurables por cada inmobiliaria'}
+              {tenantSlug ? (page.footerDescription || `Sitio público de ${publicCompanyName}`) : 'Datos de contacto configurables por cada inmobiliaria'}
             </p>
           </div>
 
@@ -1365,15 +1365,18 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
-            <a href="#catalogo" className="hover:text-slate-900">
+            {(!tenantSlug || page.showCatalog) && <a href="#catalogo" className="hover:text-slate-900">
               Catálogo
-            </a>
-            <a href="#servicios" className="hover:text-slate-900">
-              Administración
-            </a>
-            <a href="#calculadora" className="hover:text-slate-900">
+            </a>}
+            {(!tenantSlug || page.showServices) && <a href="#servicios" className="hover:text-slate-900">
+              Servicios
+            </a>}
+            {(!tenantSlug || page.showCalculator) && <a href="#calculadora" className="hover:text-slate-900">
               Simulador
-            </a>
+            </a>}
+            {(!tenantSlug || page.showContact) && <a href="#contacto" className="hover:text-slate-900">
+              Contacto
+            </a>}
             {!tenantSlug && <a href="#inmobilearning" className="hover:text-slate-900">
               Academia Inmobiliaria
             </a>}
