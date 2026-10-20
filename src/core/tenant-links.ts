@@ -15,5 +15,7 @@ export function isValidTenantSlug(input: string): boolean {
 
 /** Private entry is only a navigation hint: membership + RLS authorize all data. */
 export function tenantPrivatePath(slug: string): string {
-  return isValidTenantSlug(slug) ? `/app?inmobiliaria=${encodeURIComponent(slug)}` : '/app';
+  // Legacy registered slugs can be 61-80 characters; preserve their links.
+  return slug.length >= 2 && slug.length <= 80 && SLUG.test(slug)
+    ? `/app?inmobiliaria=${encodeURIComponent(slug)}` : '/app';
 }
