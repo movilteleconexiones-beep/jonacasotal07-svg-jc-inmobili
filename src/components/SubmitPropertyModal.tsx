@@ -575,9 +575,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               <span>Autorizo a {branding.companyName} a usar mi nombre y teléfono para atender esta solicitud de consignación.</span>
             </label>
             <p className="text-[11px] leading-relaxed text-stone-500">
-              La inmobiliaria usuaria es responsable de la información publicada, validaciones, contratos,
-              seguros, pólizas, avalúos y servicios profesionales asociados al inmueble. INMOJCO actúa como
-              proveedor de la plataforma tecnológica.
+              {branding.companyName} es responsable de la atención de esta solicitud y de los servicios, contratos, pólizas, avalúos y verificaciones que decida ofrecer. La plataforma tecnológica no garantiza esos servicios.
             </p>
 
             {error && <p role="alert" className="text-xs text-red-700 font-medium">{error}</p>}
