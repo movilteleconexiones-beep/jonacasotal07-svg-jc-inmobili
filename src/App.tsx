@@ -23,6 +23,7 @@ import { safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY } from './core/te
 import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { isPublicStorefrontPath, resolvePublicTenantSlug, tenantPublicPath } from './core/public-tenant-route';
 import { getCountryOption } from './core/countries';
+import { agencyHeroCopy, AGENCY_SERVICE_PROMPT } from './core/public-agency-content';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
 import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
 import {
@@ -98,6 +99,9 @@ export default function App() {
   const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
   const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
+  const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
+  const publicAgencyServices = publicCatalog.brand?.publicServices || [];
+  const agencyHeroUrl = safeBrandUrl(publicCatalog.brand?.publicHeroUrl);
   const [isPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
   );
@@ -317,12 +321,12 @@ export default function App() {
             >
               Calculadora
             </a>
-            <a
+            {!tenantSlug && <a
               href="#inmobilearning"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
             >
               Academia Inmobiliaria
-            </a>
+            </a>}
             <a
               href="#contacto"
               className="hover:text-slate-950 hover:underline underline-offset-4 transition-colors whitespace-nowrap"
@@ -370,7 +374,7 @@ export default function App() {
         <section className="relative bg-slate-950 text-white overflow-hidden">
           <div className="absolute inset-0">
             <ResilientImage
-              src={HERO_IMAGE}
+              src={agencyHeroUrl || HERO_IMAGE}
               alt={`Residencia de arquitectura contemporánea en ${countryProfile.name}`}
               className="w-full h-full object-cover opacity-65"
             />
@@ -385,11 +389,11 @@ export default function App() {
               </p>
 
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold tracking-tight leading-[1.08] text-white balance-text">
-                Comercialización, Administración Integral y Blindaje Inmobiliario.
+                {tenantSlug ? agencyCopy.title : 'Comercialización, Administración Integral y Blindaje Inmobiliario.'}
               </h1>
 
               <p className="text-base md:text-lg text-stone-200 max-w-2xl leading-relaxed font-normal">
-                Gestionamos tu patrimonio inmobiliario en {countryProfile.name} mediante procesos comerciales, administrativos y documentales centralizados en una sola plataforma.
+                {tenantSlug ? agencyCopy.description : `Gestionamos tu patrimonio inmobiliario en ${countryProfile.name} mediante procesos comerciales, administrativos y documentales centralizados en una sola plataforma.`}
               </p>
 
               {/* Genuine portfolio count; no invented agency track record or indicators. */}
@@ -720,6 +724,39 @@ export default function App() {
           )}
         </section>
 
+        {/* Tenant offerings are per-agency: no global testimonials, guarantees or marketing claims. */}
+        {tenantSlug ? (
+          <section id="servicios" className="border-t border-stone-200/90 bg-[#F2F2EE] py-20">
+            <div className="mx-auto max-w-[1200px] space-y-10 px-6">
+              <div className="max-w-3xl">
+                <p className="mb-2 text-xs font-medium tracking-wide text-stone-500">Atención comercial · {publicCompanyName}</p>
+                <h2 className="text-3xl font-semibold text-slate-900 md:text-4xl">Servicios de {publicCompanyName}</h2>
+                <p className="mt-3 text-sm text-slate-600">Consulta directamente con esta inmobiliaria la disponibilidad, condiciones y alcance de los servicios publicados.</p>
+              </div>
+              {publicAgencyServices.length ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {publicAgencyServices.map((service, index) => (
+                    <article key={`${index}-${service.title}`} className="flex flex-col justify-between rounded-xl border border-stone-200 bg-white p-7">
+                      <div>
+                        <p className="text-xs font-semibold text-[var(--tenant-primary)]">{String(index + 1).padStart(2, '0')}.</p>
+                        <h3 className="mt-3 text-xl font-semibold text-slate-900">{service.title}</h3>
+                        <p className="mt-3 text-sm leading-relaxed text-slate-600">{service.description}</p>
+                      </div>
+                      <a href="#contacto" onClick={() => setContactService(service.title)}
+                        className="mt-7 inline-flex items-center gap-2 border-t border-stone-100 pt-4 text-sm font-semibold text-[var(--tenant-primary)]">
+                        Consultar este servicio <ArrowRight className="h-4 w-4" />
+                      </a>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-stone-200 bg-white p-8 text-sm text-slate-600">
+                  {AGENCY_SERVICE_PROMPT} <a href="#contacto" className="font-semibold underline">Consultar a {publicCompanyName}</a>
+                </div>
+              )}
+            </div>
+          </section>
+        ) : (
         {/* SECTION 2: CORE CAPABILITIES & ADJACENT PROOF OF IMPACT (CASE STUDIES) */}
         <section id="servicios" className="py-20 border-t border-stone-200/90 bg-[#F2F2EE]">
           <div className="max-w-[1200px] mx-auto px-6 space-y-20">
@@ -880,11 +917,13 @@ export default function App() {
           </div>
         </section>
 
+        )}
+
         {/* SECTION 3: INTERACTIVE PATRIMONIAL & RENTAL ADMINISTRATION SIMULATOR */}
         <PatrimonialSimulator onRequestDiagnostic={handleRequestDiagnosticFromSimulator} />
 
         {/* SECTION 4: JCO INMOBILEARNING (EXCLUSIVE REAL ESTATE ACADEMY) */}
-        <section id="inmobilearning" className="py-20 border-t border-stone-200/90 bg-[var(--tenant-primary)] text-white">
+        {!tenantSlug && <section id="inmobilearning" className="py-20 border-t border-stone-200/90 bg-[var(--tenant-primary)] text-white">
           <div className="max-w-[1200px] mx-auto px-6">
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
               <div className="max-w-2xl">
@@ -1030,9 +1069,10 @@ export default function App() {
               </div>
             </div>
           </div>
-        </section>
+        </section>}
 
-        {/* SECTION 5: INTERACTIVE LEAD CAPTURE & ZAPOPAN HEADQUARTERS CONTACT */}
+        {/* SECTION 5: CONTACT THE CURRENT AGENCY */}
+
         <section id="contacto" className="py-20 bg-white border-t border-stone-200/90">
           <div className="max-w-[1200px] mx-auto px-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
@@ -1046,7 +1086,7 @@ export default function App() {
                     Oficina y atención en {countryProfile.name}
                   </h2>
                   <p className="text-sm text-slate-600 mt-3 leading-relaxed">
-                    Agenda una sesión privada con nuestra dirección comercial o jurídica para evaluar la venta, administración en renta o mantenimiento integral de tus propiedades.
+                    Contacta directamente a {publicCompanyName} para conocer sus opciones de atención y los términos de los servicios que haya publicado.
                   </p>
                 </div>
 
@@ -1054,7 +1094,7 @@ export default function App() {
                   <div className="flex items-start gap-3">
                     <MapPin className="w-4 h-4 text-[var(--tenant-primary)] mt-1 shrink-0" />
                     <div>
-                      <p className="font-semibold text-slate-900">Dirección Corporativa</p>
+                      <p className="font-semibold text-slate-900">Oficina y atención de {publicCompanyName}</p>
                       <p className="text-xs text-slate-600 mt-0.5">
                         Datos de sede configurables por cada inmobiliaria
                       </p>
@@ -1069,7 +1109,7 @@ export default function App() {
                         href={`tel:${(branding.phone || (tenantSlug ? '' : '+573001234567')).replace(/\s+/g, '')}`}
                         className="text-xs font-mono-tabular text-[var(--tenant-primary)] hover:underline mt-0.5 inline-block"
                       >
-                        {branding.phone || (tenantSlug ? 'Teléfono pendiente de configuración' : '+57 300 123 4567')}
+                        {branding.phone || (tenantSlug ? 'Teléfono no publicado' : '+57 300 123 4567')}
                       </a>
                     </div>
                   </div>
@@ -1082,7 +1122,7 @@ export default function App() {
                         href={`mailto:${branding.email || (tenantSlug ? '' : 'mkt.jcinmobili@gmail.com')}`}
                         className="text-xs font-mono-tabular text-[var(--tenant-primary)] hover:underline mt-0.5 inline-block"
                       >
-                        {branding.email || (tenantSlug ? 'Correo pendiente de configuración' : 'mkt.jcinmobili@gmail.com')}
+                        {branding.email || (tenantSlug ? 'Correo no publicado' : 'mkt.jcinmobili@gmail.com')}
                       </a>
                     </div>
                   </div>
@@ -1146,7 +1186,7 @@ export default function App() {
                 ) : (
                   <form onSubmit={handleContactSubmit} className="space-y-4">
                     <h3 className="text-lg font-semibold text-slate-900">
-                      Solicitar Asesoría, Administración o Avalúo Comercial
+                      {tenantSlug ? `Consulta para ${publicCompanyName}` : 'Solicitar Asesoría, Administración o Avalúo Comercial'}
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1207,6 +1247,12 @@ export default function App() {
                           onChange={(e) => setContactService(e.target.value)}
                           className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
                         >
+                          {tenantSlug ? (
+                            <>
+                              <option value="Consulta general">Consulta general</option>
+                              {publicAgencyServices.map(service => <option key={service.title} value={service.title}>{service.title}</option>)}
+                            </>
+                          ) : (<>
                           <option value="Administración Integral de Propiedad">
                             Administración Integral de Propiedad
                           </option>
@@ -1224,7 +1270,7 @@ export default function App() {
                           </option>
                           <option value="Inscripción en Academia Inmobiliaria">
                             Inscripción en Academia Inmobiliaria
-                          </option>
+                          </option></>)}
                         </select>
                       </div>
                     </div>
@@ -1265,17 +1311,16 @@ export default function App() {
       <footer className="bg-[#F6F6F4] border-t border-stone-200/90 py-12 text-xs text-stone-600">
         <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="space-y-1">
-            <p className="text-lg font-display font-bold text-slate-900">{softwareBrand}</p>
+            <p className="text-lg font-display font-bold text-slate-900">{tenantSlug ? publicCompanyName : softwareBrand}</p>
             <p>
-              Datos de contacto configurables por cada inmobiliaria
+              {tenantSlug ? `Sitio público de ${publicCompanyName}` : 'Datos de contacto configurables por cada inmobiliaria'}
             </p>
           </div>
 
           <div className="max-w-3xl text-xs leading-relaxed text-slate-500">
-            INMOJCO provee tecnología de gestión. La operación inmobiliaria, contratos, pólizas, seguros,
-            avalúos, manejo de recursos y servicios profesionales son responsabilidad de la inmobiliaria usuaria
-            y/o del proveedor que ésta contrate. El uso de la plataforma no constituye asesoría jurídica,
-            financiera, tributaria, aseguradora, notarial ni inmobiliaria por parte de INMOJCO.
+            {tenantSlug
+              ? `Las publicaciones, servicios y datos comerciales son responsabilidad de ${publicCompanyName}. Las condiciones se confirman directamente con la inmobiliaria.`
+              : 'INMOJCO provee tecnología de gestión. La operación inmobiliaria y los servicios profesionales son responsabilidad de cada inmobiliaria usuaria, no del proveedor tecnológico.'}
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
@@ -1288,10 +1333,10 @@ export default function App() {
             <a href="#calculadora" className="hover:text-slate-900">
               Simulador
             </a>
-            <a href="#inmobilearning" className="hover:text-slate-900">
+            {!tenantSlug && <a href="#inmobilearning" className="hover:text-slate-900">
               Academia Inmobiliaria
-            </a>
-            <span>© {new Date().getFullYear()} {softwareBrand}. Todos los derechos reservados.</span>
+            </a>}
+            <span>© {new Date().getFullYear()} {tenantSlug ? publicCompanyName : softwareBrand}.</span>
           </div>
         </div>
       </footer>
