@@ -83,6 +83,7 @@ export default function App() {
   const branding: TenantBrandingState = {
     companyName: publicCatalog.brand?.companyName || 'Sistema Inmobiliario JCO',
     softwareName: 'Sistema Inmobiliario JCO',
+    publicServices: publicCatalog.brand?.publicServices || [],
     logoUrl: publicCatalog.brand?.logoUrl,
     primaryColor: publicCatalog.brand?.primaryColor,
     secondaryColor: publicCatalog.brand?.secondaryColor,
