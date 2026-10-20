@@ -63,7 +63,7 @@ test('public catalogue function exposes only public marketing keys and scoped da
   assert.doesNotMatch(sql, /'software_name', b\.software_name/);
   assert.equal((sql.match(/^BEGIN;$/gm) || []).length, 1);
   assert.equal((sql.match(/^COMMIT;$/gm) || []).length, 1);
-  assert.equal((sql.match(/CREATE OR REPLACE FUNCTION public\\.tenant_public_catalog/g) || []).length, 1);
+  assert.equal((sql.match(/CREATE OR REPLACE FUNCTION public\.tenant_public_catalog/g) || []).length, 1);
   assert.match(sql, /ADD CONSTRAINT jco_public_services_array/);
   assert.match(sql, /ADD CONSTRAINT jco_public_hero_url_safe/);
 
