@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import type { PublicAgencyService } from '../../core/public-agency-content';
 import { parsePublicPageContent, validPublicPageContent, type PublicPageContent } from '../../core/public-page-content';
 import { tenantPublicPath } from '../../core/public-tenant-route';
+import { isValidTenantSlug, normalizeTenantSlug, tenantPrivatePath } from '../../core/tenant-links';
 
 interface ComplianceInfo {
   status: string;
@@ -19,11 +20,13 @@ interface ComplianceInfo {
 }
 
 export function SettingsModule() {
-  const { activeMembership, can } = useAuth();
+  const { activeMembership, can, refreshMemberships } = useAuth();
   const { branding, refresh } = useTenantBranding();
   const organizationId = activeMembership?.organization.id;
 
   const [companyName, setCompanyName] = useState('');
+  const [publicSlug, setPublicSlug] = useState('');
+  const [slugSaving, setSlugSaving] = useState(false);
   const [softwareName, setSoftwareName] = useState('');
   const [publicHeadline, setPublicHeadline] = useState('');
   const [publicDescription, setPublicDescription] = useState('');
@@ -49,6 +52,10 @@ export function SettingsModule() {
   const [whiteLabelAllowed, setWhiteLabelAllowed] = useState(false);
 
   const selectedCountry = useMemo(() => getCountryOption(country), [country]);
+  const isOwner = Boolean(activeMembership?.roles.some(role => role.key === 'ORGANIZATION_OWNER' && role.active));
+  const currentSlug = activeMembership?.organization.slug || '';
+
+  useEffect(() => { setPublicSlug(currentSlug); }, [organizationId, currentSlug]);
 
   useEffect(() => {
     setCompanyName(branding.companyName);
@@ -120,6 +127,41 @@ export function SettingsModule() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'No fue posible analizar el logo.');
     } finally { setSampling(false); }
+  }
+
+  async function savePublicSlug() {
+    if (!organizationId || !isOwner || !can('settings.edit') || slugSaving) return;
+    const desiredSlug = publicSlug.trim().toLowerCase();
+    if (!isValidTenantSlug(desiredSlug)) {
+      setMessage('La dirección debe tener de 2 a 60 caracteres y usar letras minúsculas, números y guiones.');
+      return;
+    }
+    if (desiredSlug === currentSlug) {
+      setMessage('La URL ya corresponde a esta inmobiliaria.');
+      return;
+    }
+    if (!window.confirm('Cambiar la URL invalidará los enlaces públicos anteriores. ¿Deseas continuar?')) return;
+    setSlugSaving(true);
+    setMessage('');
+    try {
+      const { data, error } = await supabase.rpc('set_organization_public_slug', {
+        target_org: organizationId,
+        desired_slug: desiredSlug,
+      });
+      if (error) throw error;
+      const confirmedSlug = String(data);
+      // Keep the user's private shortcut consistent before reloading memberships.
+      if (window.location.pathname === '/app') {
+        window.history.replaceState(window.history.state, '', tenantPrivatePath(confirmedSlug));
+      }
+      await refreshMemberships();
+      setPublicSlug(confirmedSlug);
+      setMessage('URL actualizada. Usa el nuevo enlace para compartir tu portal.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No se pudo actualizar la URL.');
+    } finally {
+      setSlugSaving(false);
+    }
   }
 
   async function save(event: FormEvent) {
@@ -210,6 +252,7 @@ export function SettingsModule() {
     } else {
       setMessage('Identidad, país y configuración regional guardados correctamente.');
       await refresh();
+      await refreshMemberships();
       window.dispatchEvent(new Event('tenant-branding-updated'));
 
       const { data } = await supabase
@@ -267,6 +310,28 @@ export function SettingsModule() {
               ? 'Tu licencia permite marca blanca y personalización del nombre visible del software.'
               : `La modalidad ${licenseType} conserva la marca del software INMOJCO/JCO. La marca de tu inmobiliaria sí es personalizable.`}
           </span>
+        </div>
+        <div className="md:col-span-2 space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
+          <div className="font-semibold">Mis direcciones de acceso</div>
+          <p className="text-xs text-slate-600">Estas URLs pertenecen exclusivamente a tu inmobiliaria. El acceso al panel privado requiere iniciar sesión y tener una membresía autorizada.</p>
+          <div className="space-y-1 text-xs">
+            <p className="break-all"><strong>Portada pública:</strong> <a className="underline" target="_blank" rel="noopener noreferrer" href={tenantPublicPath(currentSlug)}>{window.location.origin}{tenantPublicPath(currentSlug)}</a></p>
+            <p className="break-all"><strong>Panel privado:</strong> <a className="underline" href={tenantPrivatePath(currentSlug)}>{window.location.origin}{tenantPrivatePath(currentSlug)}</a></p>
+          </div>
+          <label className="block text-sm font-medium">Personalizar el identificador de tu URL
+            <input value={publicSlug} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              onChange={event=>setPublicSlug(normalizeTenantSlug(event.target.value))}
+              disabled={!isOwner || !can('settings.edit') || slugSaving}
+              className="mt-2 block w-full rounded-xl border border-stone-300 p-3 disabled:bg-stone-100"
+              aria-label="Identificador público de la inmobiliaria" />
+          </label>
+          <p className="text-xs text-slate-600">El identificador debe ser único. Modificarlo deshabilita los enlaces anteriores; no cambia los registros ni los permisos internos.</p>
+          <button type="button" onClick={()=>void savePublicSlug()}
+            disabled={!isOwner || !can('settings.edit') || slugSaving || publicSlug===currentSlug}
+            className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">
+            {slugSaving ? 'Actualizando URL…' : 'Guardar dirección personalizada'}
+          </button>
+          {!isOwner && <p className="text-xs text-amber-700">Solo el titular de la inmobiliaria puede modificar esta URL.</p>}
         </div>
         <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-4">
           <div className="font-semibold">Sitio web y dominio propio</div>
