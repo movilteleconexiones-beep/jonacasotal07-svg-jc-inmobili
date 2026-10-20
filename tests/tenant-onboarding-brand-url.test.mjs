@@ -14,6 +14,9 @@ test('new agency name creates its own readable slug and canonical links',()=>{
   assert.equal(tenantPrivatePath(slug),'/app?inmobiliaria='+slug);
   assert.equal(isValidTenantSlug('hola/../jco'),false);
   assert.equal(tenantPrivatePath('hola/../jco'),'/app');
+  const legacySlug='comercializacion-administracion-integral-y-blindaje-inmobiliario';
+  assert.equal(legacySlug.length,64);
+  assert.equal(tenantPrivatePath(legacySlug),'/app?inmobiliaria='+legacySlug);
   assert.equal(isValidTenantSlug('a'),false);
   assert.equal(normalizeTenantSlug('  '),'');
 });
