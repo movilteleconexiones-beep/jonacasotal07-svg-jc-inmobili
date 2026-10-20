@@ -111,11 +111,11 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
       const { data, error } = await supabase.rpc('tenant_public_catalog', { tenant_slug: slug });
       if (!live) return;
       if (error) {
-        setState({ ...EMPTY, error: 'No se pudo consultar el inventario de la inmobiliaria.' });
+        setState({ ...EMPTY, requestedSlug: slug, error: 'No se pudo consultar el inventario de la inmobiliaria.' });
         return;
       }
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        setState({ ...EMPTY, error: 'El catálogo no está disponible para esta inmobiliaria.' });
+        setState({ ...EMPTY, requestedSlug: slug, error: 'El catálogo no está disponible para esta inmobiliaria.' });
         return;
       }
 
@@ -146,7 +146,7 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
         loading: false, error: null,
       });
     })().catch(() => {
-      if (live) setState({ ...EMPTY, error: 'No se pudo cargar el catálogo.' });
+      if (live) setState({ ...EMPTY, requestedSlug: slug, error: 'No se pudo cargar el catálogo.' });
     });
 
     return () => { live = false; };
