@@ -961,7 +961,7 @@ export default function App() {
         )}
 
         {/* SECTION 3: INTERACTIVE PATRIMONIAL & RENTAL ADMINISTRATION SIMULATOR */}
-        {(!tenantSlug || page.showCalculator) && <PatrimonialSimulator branding={branding} onRequestDiagnostic={handleRequestDiagnosticFromSimulator} />}
+        {(!tenantSlug || page.showCalculator) && <PatrimonialSimulator branding={branding} allowInquiry={!tenantSlug || page.showContact} onRequestDiagnostic={handleRequestDiagnosticFromSimulator} />}
 
         {/* SECTION 4: JCO INMOBILEARNING (EXCLUSIVE REAL ESTATE ACADEMY) */}
         {!tenantSlug && <section id="inmobilearning" className="py-20 border-t border-stone-200/90 bg-[var(--tenant-primary)] text-white">
