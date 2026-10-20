@@ -333,11 +333,18 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
   if (mode.portalOnly || (mode.clientLinkedRole&&clientPortalMode)) {
     return <div className="min-h-screen bg-stone-100 text-slate-900">
-      <header className="border-b border-stone-200 bg-white px-6 py-4">
+      <header className="border-b border-stone-200 bg-white px-6 py-4"
+        style={{ borderBottomColor: tenantPrimary }}>
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-bold">{activeMembership.organization.name} · Portal privado</h1>
-            <p className="text-sm text-slate-600">{activeMembership.organization.name} · Cliente / propietario de inmueble</p>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-xl border bg-white" aria-label="Logo de la inmobiliaria">
+              {logoUrl ? <img src={logoUrl} alt={'Logo de ' + activeMembership.organization.name}
+                className="max-h-full max-w-full object-contain p-1.5" /> : <Building2 className="h-7 w-7 text-slate-500" />}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold">{activeMembership.organization.name} · Portal privado</h1>
+              <p className="text-sm text-slate-600">{activeMembership.organization.name} · Cliente / propietario de inmueble</p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {previewSelector}
