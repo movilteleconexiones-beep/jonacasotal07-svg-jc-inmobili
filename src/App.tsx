@@ -87,6 +87,7 @@ export default function App() {
     primaryColor: publicCatalog.brand?.primaryColor,
     secondaryColor: publicCatalog.brand?.secondaryColor,
     phone: publicCatalog.brand?.phone,
+    whatsapp: publicCatalog.brand?.whatsapp,
     email: publicCatalog.brand?.email,
     website: publicCatalog.brand?.website,
     currency: publicCatalog.brand?.currency || 'COP',
@@ -1113,7 +1114,7 @@ export default function App() {
                     <div>
                       <p className="font-semibold text-slate-900">Oficina y atención de {publicCompanyName}</p>
                       <p className="text-xs text-slate-600 mt-0.5">
-                        Datos de sede configurables por cada inmobiliaria
+                        {tenantSlug ? (publicCatalog.brand?.publicOfficeAddress || 'Dirección no publicada; consulta con la inmobiliaria.') : 'Datos de sede configurables por cada inmobiliaria'}
                       </p>
                     </div>
                   </div>
@@ -1145,7 +1146,14 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Scheduled Visits Log if user booked any property tour during session */}
+                {tenantSlug && branding.whatsapp && /^\+?[0-9\s()-]{7,24}$/.test(branding.whatsapp) && (
+                  <a href={`https://wa.me/${branding.whatsapp.replace(/\D/g, '')}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex rounded-lg border px-4 py-2 text-sm font-semibold text-[var(--tenant-primary)]">
+                    WhatsApp de {publicCompanyName}
+                  </a>
+                )}
+                                {/* Scheduled Visits Log if user booked any property tour during session */}
                 {scheduledVisitsLog.length > 0 && (
                   <div className="p-4 bg-[#F6F6F4] border border-stone-200 rounded-xl space-y-2">
                     <p className="text-xs font-semibold text-slate-900">
