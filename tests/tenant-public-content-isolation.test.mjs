@@ -37,7 +37,7 @@ test('tenant page uses its own copy, services and contact and hides central clai
   assert.match(app, /tenantSlug \? publicCompanyName : softwareBrand/);
   assert.match(app, /tenantSlug \? \(page\.footerDescription \|\| [`']Sitio público/);
   assert.match(app, /contactService/);
-  assert.match(app, /<PatrimonialSimulator branding=\{branding\}/);
+  assert.match(app, /<PatrimonialSimulator branding=\{branding\} allowInquiry=\{!tenantSlug \|\| page\.showContact\}/);
   assert.match(app, /<SubmitPropertyModal[\s\S]*?publicSiteSlug=\{tenantSlug\}/);
   assert.match(app, /tenantSlug && \(!publicCatalog\.brand \|\| publicCatalog\.loading\)/);
 });
