@@ -15,6 +15,8 @@ export interface PublicTenantBrand {
   phone?: string;
   email?: string;
   website?: string;
+  whatsapp?: string;
+  publicOfficeAddress?: string;
   country: string;
   currency: string;
   locale: string;
@@ -132,6 +134,8 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
         phone: text(value.phone) || undefined,
         email: text(value.email) || undefined,
         website: text(value.website) || undefined,
+        whatsapp: text(value.whatsapp) || undefined,
+        publicOfficeAddress: text(value.public_office_address) || undefined,
         country: text(value.country) || 'CO',
         currency: text(value.currency) || 'COP',
         locale: text(value.locale) || 'es-CO',
