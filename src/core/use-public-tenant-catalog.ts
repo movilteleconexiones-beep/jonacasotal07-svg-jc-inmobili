@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Property } from '../data/properties';
 import { parsePublicAgencyServices, type PublicAgencyService } from './public-agency-content';
+import { parsePublicPageContent, type PublicPageContent } from './public-page-content';
 
 export interface PublicTenantBrand {
   companyName: string;
@@ -9,6 +10,7 @@ export interface PublicTenantBrand {
   publicDescription?: string;
   publicHeroUrl?: string;
   publicServices: PublicAgencyService[];
+  publicPage: PublicPageContent;
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
@@ -128,6 +130,7 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
         publicDescription: text(value.public_description) || undefined,
         publicHeroUrl: text(value.public_hero_url) || undefined,
         publicServices: parsePublicAgencyServices(value.public_services),
+        publicPage: parsePublicPageContent(value.public_page_content),
         logoUrl: text(value.logo_url) || undefined,
         primaryColor: text(value.primary_color) || undefined,
         secondaryColor: text(value.secondary_color) || undefined,
