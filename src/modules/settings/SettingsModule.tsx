@@ -27,6 +27,7 @@ export function SettingsModule() {
   const [publicHeadline, setPublicHeadline] = useState('');
   const [publicDescription, setPublicDescription] = useState('');
   const [publicHeroUrl, setPublicHeroUrl] = useState('');
+  const [publicOfficeAddress, setPublicOfficeAddress] = useState('');
   const [publicServices, setPublicServices] = useState<PublicAgencyService[]>([]);
   const [website, setWebsite] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -53,6 +54,7 @@ export function SettingsModule() {
     setPublicHeadline(branding.publicHeadline ?? '');
     setPublicDescription(branding.publicDescription ?? '');
     setPublicHeroUrl(branding.publicHeroUrl ?? '');
+    setPublicOfficeAddress(branding.publicOfficeAddress ?? '');
     setPublicServices(branding.publicServices);
     setWebsite(branding.website ?? '');
     setLogoUrl(branding.logoUrl ?? '');
@@ -132,6 +134,10 @@ export function SettingsModule() {
       setMessage('La portada necesita una imagen HTTPS pública válida.');
       return;
     }
+    if (publicHeadline.trim().length > 160 || publicDescription.trim().length > 700 || publicOfficeAddress.trim().length > 220) {
+      setMessage('Revisa los límites del título (160), descripción (700) y dirección de atención (220).');
+      return;
+    }
     if (publicServices.length > 8 || publicServices.some(item =>
       !item.title.trim() || !item.description.trim() ||
       item.title.trim().length > 90 || item.description.trim().length > 420)) {
@@ -165,6 +171,7 @@ export function SettingsModule() {
           public_headline: publicHeadline.trim() || null,
           public_description: publicDescription.trim() || null,
           public_hero_url: publicHeroUrl.trim() ? safeBrandUrl(publicHeroUrl) : null,
+          public_office_address: publicOfficeAddress.trim() || null,
           public_services: publicServices.map(s => ({ title: s.title.trim(), description: s.description.trim() })),
           software_name: softwareName.trim(),
           website: website.trim() ? safeBrandUrl(website) : null,
@@ -298,6 +305,7 @@ export function SettingsModule() {
               value={publicDescription} onChange={e => setPublicDescription(e.target.value)} />
           </label>
           <Field label="Imagen principal de la portada (URL HTTPS)" type="url" value={publicHeroUrl} onChange={setPublicHeroUrl} />
+          <Field label="Dirección de atención pública (opcional)" value={publicOfficeAddress} onChange={setPublicOfficeAddress} />
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="font-semibold">Servicios que realmente ofrece esta inmobiliaria</div>
