@@ -6,7 +6,7 @@ import type { TenantBrandingState } from '../core/use-tenant-branding';
 
 interface PatrimonialSimulatorProps {
   onRequestDiagnostic: (summaryText: string) => void;
-  branding: Pick<TenantBrandingState, 'companyName' | 'locale' | 'currency'>;
+  branding: Pick<TenantBrandingState, 'companyName' | 'locale' | 'currency' | 'country'>;
 }
 
 type SimulatorTab = 'administracion' | 'hipoteca' | 'valuacion';
