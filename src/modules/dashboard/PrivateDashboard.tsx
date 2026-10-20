@@ -47,6 +47,7 @@ import { CommissionsModule } from '../commissions/CommissionsModule';
 import { ReportsModule } from '../reports/ReportsModule';
 import { PortalHub } from '../portal/PortalHub';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { tenantPublicPath } from '../../core/public-tenant-route';
 import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
 
 type DashboardView =
@@ -340,6 +341,10 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           </div>
           <div className="flex flex-wrap gap-2">
             {previewSelector}
+            <a href={tenantPublicPath(activeMembership.organization.slug)} target="_blank" rel="noopener noreferrer"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium">
+              Ver portada pública
+            </a>
             {mode.hasOperationalRole&&!previewAsTenant&&<button type="button" onClick={()=>{setClientPortalMode(false);setView('DASHBOARD');}}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
               Cambiar a administración
@@ -387,6 +392,12 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
               <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
             </button>}
             {previewSelector}
+            <a href={tenantPublicPath(activeMembership.organization.slug)}
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold"
+              aria-label="Ver portada pública de esta inmobiliaria (se abre en otra pestaña)">
+              <ExternalLink className="h-4 w-4" /> Ver portada pública
+            </a>
             {mode.clientLinkedRole&&!previewAsTenant&&<button type="button" onClick={()=>setClientPortalMode(true)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium">
               Abrir mi portal privado
