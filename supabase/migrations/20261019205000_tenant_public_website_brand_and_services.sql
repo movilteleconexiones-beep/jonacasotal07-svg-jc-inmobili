@@ -5,9 +5,11 @@ ALTER TABLE public.organization_branding
   ADD COLUMN IF NOT EXISTS public_headline text,
   ADD COLUMN IF NOT EXISTS public_description text,
   ADD COLUMN IF NOT EXISTS public_hero_url text,
+  ADD COLUMN IF NOT EXISTS public_office_address text,
   ADD COLUMN IF NOT EXISTS public_services jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 ALTER TABLE public.organization_branding
+  ADD CONSTRAINT jco_public_office_address_length CHECK (public_office_address IS NULL OR length(public_office_address) <= 220),
   ADD CONSTRAINT jco_public_headline_length CHECK (public_headline IS NULL OR length(public_headline) <= 160),
   ADD CONSTRAINT jco_public_description_length CHECK (public_description IS NULL OR length(public_description) <= 700),
   ADD CONSTRAINT jco_public_hero_url_safe CHECK (public_hero_url IS NULL OR (length(public_hero_url) <= 1500 AND public_hero_url ~ '^https://[^[:space:]]+CREATE OR REPLACE FUNCTION public.tenant_public_catalog(tenant_slug text)
@@ -28,6 +30,8 @@ AS $function$
    'public_description', b.public_description,
    'public_hero_url', b.public_hero_url,
    'public_services', b.public_services,
+   'public_office_address', b.public_office_address,
+   'whatsapp', b.whatsapp,
    'country', s.country,
    'currency', s.default_currency,
    'locale', s.locale,
