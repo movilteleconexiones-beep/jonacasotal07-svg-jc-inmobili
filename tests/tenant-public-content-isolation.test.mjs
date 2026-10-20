@@ -35,7 +35,7 @@ test('tenant page uses its own copy, services and contact and hides central clai
   assert.match(app, /!tenantSlug && <section id="inmobilearning"/);
   assert.match(app, /!tenantSlug && <a[\s\S]*?href="#inmobilearning"/);
   assert.match(app, /tenantSlug \? publicCompanyName : softwareBrand/);
-  assert.match(app, /tenantSlug \? [`']Sitio público/);
+  assert.match(app, /tenantSlug \? \(page\.footerDescription \|\| [`']Sitio público/);
   assert.match(app, /contactService/);
   assert.match(app, /<PatrimonialSimulator branding=\{branding\}/);
   assert.match(app, /<SubmitPropertyModal[\s\S]*?publicSiteSlug=\{tenantSlug\}/);
