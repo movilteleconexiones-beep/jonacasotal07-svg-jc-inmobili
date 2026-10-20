@@ -5,16 +5,18 @@ import {shouldOpenAgencyWorkspace} from '../src/core/agency-workspace-entry.ts';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
-test('ordinary agency owners enter their own workspace directly',()=>{
+test('public root remains public after sign-in; /app is authenticated backoffice',()=>{
   const base={authenticated:true,hasMembership:true,platformAdmin:false,pathname:'/',publicConsignment:false};
-  assert.equal(shouldOpenAgencyWorkspace(base),true);
-  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app'}),true);
-  assert.equal(shouldOpenAgencyWorkspace({...base,authenticated:false}),false);
-  assert.equal(shouldOpenAgencyWorkspace({...base,hasMembership:false}),false);
-  assert.equal(shouldOpenAgencyWorkspace({...base,platformAdmin:true}),false);
-  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/super-admin'}),false);
+  assert.equal(shouldOpenAgencyWorkspace(base),false);
   assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/inmobiliaria/tenant-a'}),false);
-  assert.equal(shouldOpenAgencyWorkspace({...base,publicConsignment:true}),false);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app'}),true);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app/'}),true);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app',platformAdmin:true}),true);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app',platformAdmin:true,hasMembership:false}),true);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app',authenticated:false}),false);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app',hasMembership:false}),false);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/super-admin'}),false);
+  assert.equal(shouldOpenAgencyWorkspace({...base,pathname:'/app',publicConsignment:true}),false);
 });
 
 test('marketing homepage cannot show before agency session hydration is complete',()=>{
