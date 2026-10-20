@@ -16,9 +16,13 @@ export function isPublicStorefrontPath(pathname: string): boolean {
 }
 
 /**
- * Explicit public tenant URLs win over session and deployment defaults.
- * A malformed explicit slug must fail closed rather than leak the signed-in
- * agency's inventory/brand in a different URL.
+ * An explicit agency URL (path or query) always identifies that agency even
+ * for a logged-in member of another organization. On the unqualified root,
+ * the *selected* membership takes priority over the deployment's default
+ * public tenant. Visitors without an agency session keep the default site.
+ *
+ * This is navigation only. Public catalogue RPC controls published content.
+ * An invalid explicit slug must fail closed, not fall back to another tenant.
  */
 export function resolvePublicTenantSlug({
   pathname,
@@ -39,7 +43,7 @@ export function resolvePublicTenantSlug({
   const params = new URLSearchParams(search);
   if (params.has('inmobiliaria')) return validSlug(params.get('inmobiliaria'));
 
-  return validSlug(configuredSlug) || validSlug(membershipSlug);
+  return validSlug(membershipSlug) || validSlug(configuredSlug);
 }
 
 /** Direct public link; safe for rendering in any authenticated panel. */

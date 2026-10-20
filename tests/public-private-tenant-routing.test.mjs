@@ -25,7 +25,9 @@ test('public links are tied to the URL, never the signed-in agency',()=>{
   assert.equal(slug('/?not-a-route','?inmobiliaria=tenant-b','tenant-a'),'tenant-b');
   assert.equal(slug('/','?inmobiliaria=tenant-b','tenant-a'),'tenant-b');
   assert.equal(slug('/','','tenant-a'),'tenant-a');
-  assert.equal(slug('/','','tenant-a','deployment-brand'),'deployment-brand');
+  assert.equal(slug('/','','tenant-a','deployment-brand'),'tenant-a');
+  assert.equal(slug('/','','','deployment-brand'),'deployment-brand');
+  assert.equal(slug('/','?inmobiliaria=tenant-b','tenant-a','deployment-brand'),'tenant-b');
   assert.equal(slug('/inmobiliaria/tenant-b','','tenant-a','deployment-brand'),'tenant-b');
   assert.equal(tenantPublicPath(' Tenant-A '),'/inmobiliaria/tenant-a');
 });
@@ -36,6 +38,7 @@ test('invalid tenant URLs fail closed and never show logged-in tenant instead',(
   assert.equal(slug('/inmobiliaria/tenant-a%2Fb','','tenant-a'),'');
   assert.equal(slug('/','?inmobiliaria=<bad>','tenant-a'),'');
   assert.equal(tenantPublicPath('../app'),'/');
+  assert.equal(slug('/','?inmobiliaria=<bad>','own-agency','deployment-brand'),'');
 });
 
 test('public branded storefront is not replaced with operating dashboard',()=>{

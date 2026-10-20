@@ -78,6 +78,7 @@ export default function App() {
     configuredSlug: import.meta.env.VITE_PUBLIC_SITE_SLUG,
   });
   const publicCatalog = usePublicTenantCatalog(tenantSlug);
+  const viewingAnotherAgency = Boolean(activeMembership?.organization.slug && tenantSlug && tenantSlug !== activeMembership.organization.slug);
   // Public branding must NEVER be inherited from a different signed-in tenant.
   // Only the server-scoped public catalog may supply public tenant identity.
   const branding: TenantBrandingState = {
@@ -305,23 +306,24 @@ export default function App() {
     <div id="inicio" className="min-h-screen flex flex-col bg-[#F6F6F4] text-slate-900" style={{ '--tenant-primary': tenantPrimary } as React.CSSProperties}>
       {/* 2. TOP BAR CONTRACT: Strictly 1 row, 3 zones (Brand Wordmark — 5 Nav Links — Primary Actions) */}
       <header className="sticky top-0 z-40 bg-[#F6F6F4]/95 backdrop-blur-md border-b border-stone-200/90">
-        <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <div className="mx-auto flex min-h-16 max-w-[1500px] flex-wrap items-center justify-between gap-3 px-4 py-2 lg:flex-nowrap lg:px-6">
           {/* Zone 1: Single text element wordmark */}
           <a
             href="#inicio"
-            className="text-2xl font-display font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
+            className="flex min-w-0 max-w-full items-center gap-2 font-display text-lg font-bold tracking-tight text-slate-900 sm:text-xl lg:max-w-[34%] xl:max-w-[38%]"
+            title={publicCompanyName}
           >
             {publicCatalog.brand?.logoUrl && safeBrandUrl(publicCatalog.brand.logoUrl) && (
               <img src={safeBrandUrl(publicCatalog.brand.logoUrl) || ''} alt={`Logo de ${publicCompanyName}`}
-                className="mr-3 inline-block h-9 max-w-20 object-contain align-middle" />
+                className="h-9 max-w-16 shrink-0 object-contain" />
             )}
-            {publicCatalog.brand ? publicCompanyName : softwareBrand}
+            <span className="min-w-0 truncate">{publicCatalog.brand ? publicCompanyName : softwareBrand}</span>
           </a>
 
           {/* Zone 2: 5 clean text navigation links */}
           <nav
             aria-label="Navegación principal"
-            className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-700"
+            className="hidden min-w-0 items-center gap-4 text-sm font-medium text-slate-700 xl:flex 2xl:gap-7"
           >
             <a
               href="#catalogo"
@@ -356,7 +358,7 @@ export default function App() {
           </nav>
 
           {/* Zone 3: 2 primary actions */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setIsPortfolioDrawerOpen(true)}
@@ -381,23 +383,33 @@ export default function App() {
                 {activeMembership?.roles.length===1 && activeMembership.roles[0]?.key==='CLIENT' ? 'Mi portal' : 'Panel'}
               </button>
             )}
+            {viewingAnotherAgency && (
+              <a href={tenantPublicPath(activeMembership?.organization.slug || '')}
+                className="rounded-lg border border-[var(--tenant-primary)] px-3 py-2 text-xs font-semibold text-[var(--tenant-primary)]"
+                title="Abrir el portal público de la inmobiliaria seleccionada en tu sesión">
+                Mi inmobiliaria
+              </a>
+            )}
             {user && isPlatformAdmin && (
               <a href="/super-admin" className="rounded-lg border border-slate-900 px-3 py-2 text-xs font-semibold text-slate-900">Administración central</a>
             )}
-            <AuthAccessButton />
+            <AuthAccessButton showIdentity={false} />
           </div>
         </div>
       </header>
 
       <main className="flex-1">
         {/* HERO SECTION: Single dominant 16:9 architectural focal carrier */}
-        <section className="relative bg-slate-950 text-white overflow-hidden">
+        <section className="relative overflow-hidden bg-slate-950 text-white"
+          style={tenantSlug && !agencyHeroUrl ? { backgroundColor: tenantPrimary } : undefined}>
           <div className="absolute inset-0">
-            <ResilientImage
-              src={agencyHeroUrl || HERO_IMAGE}
-              alt={`Residencia de arquitectura contemporánea en ${countryProfile.name}`}
-              className="w-full h-full object-cover opacity-65"
-            />
+            {(!tenantSlug || agencyHeroUrl) && (
+              <ResilientImage
+                src={agencyHeroUrl || HERO_IMAGE}
+                alt={agencyHeroUrl ? `Portada de ${publicCompanyName}` : 'Imagen principal de la plataforma'}
+                className="h-full w-full object-cover opacity-65"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-slate-950/30" />
           </div>
 

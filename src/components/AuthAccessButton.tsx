@@ -6,7 +6,8 @@ import { OrganizationRegistration } from './OrganizationRegistration';
 
 type AuthMode = 'SIGN_IN' | 'SIGN_UP';
 
-export function AuthAccessButton() {
+/** Anonymous-facing headers never display the signed-in account's private identity. */
+export function AuthAccessButton({ showIdentity = true }: { showIdentity?: boolean } = {}) {
   const {
     configured,
     loading,
@@ -104,12 +105,12 @@ export function AuthAccessButton() {
 
     return (
       <div className="flex items-center gap-2">
-        <div className="hidden lg:block text-right leading-tight">
+        {showIdentity && <div className="hidden lg:block text-right leading-tight">
           <div className="text-xs font-semibold text-slate-900">
             {isPlatformAdmin ? 'Administración central JCO' : activeMembership?.organization.name ?? 'Cuenta sin inmobiliaria'}
           </div>
           <div className="text-[11px] text-slate-500">{user.email}</div>
-        </div>
+        </div>}
 
         {accessError && (
           <span className="max-w-xs text-xs text-red-700" role="alert">{accessError}</span>
@@ -128,7 +129,7 @@ export function AuthAccessButton() {
           </div>
         )}
 
-        {isPlatformAdmin && (
+        {showIdentity && isPlatformAdmin && (
           <span className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white"><ShieldCheck className="h-4 w-4" /> Superadministrador</span>
         )}
 
