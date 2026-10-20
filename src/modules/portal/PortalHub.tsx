@@ -3,6 +3,8 @@ import {Building2,FileCheck2,Home,KeyRound} from 'lucide-react';
 import {useAuth} from '../../core/auth-context';
 import {supabase} from '../../lib/supabase';
 import {etiquetaES} from '../../core/etiquetas-es';
+import { tenantPublicPath } from '../../core/public-tenant-route';
+import { useTenantBranding } from '../../core/use-tenant-branding';
 
 type LinkRow={owner_id:string|null;contact_id:string|null};
 type PropertyRow={id:string;code:string;title:string;status:string;city:string|null};
@@ -10,8 +12,8 @@ type LeaseRow={id:string;property_id:string;owner_id:string;status:string;monthl
 type PaymentRow={id:string;lease_id:string;period_month:string;paid_amount:number;status:string};
 type StatementRow={id:string;owner_id:string;period_month:string;net_amount:number;status:string};
 
-const money=(value:number|null)=>value===null?'—':
-  new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(value);
+const money=(value:number|null,locale:string,currency:string)=>value===null?'—':
+  new Intl.NumberFormat(locale,{style:'currency',currency,maximumFractionDigits:0}).format(value);
 
 /**
  * External account presentation is not an authorization boundary.
@@ -23,6 +25,8 @@ const money=(value:number|null)=>value===null?'—':
 export function PortalHub(){
   const {activeMembership,user}=useAuth();
   const organizationId=activeMembership?.organization.id;
+  const storefrontPath=tenantPublicPath(activeMembership?.organization.slug??'');
+  const { branding } = useTenantBranding();
   const [owners,setOwners]=useState<string[]>([]);
   const [contacts,setContacts]=useState<string[]>([]);
   const [properties,setProperties]=useState<PropertyRow[]>([]);
@@ -105,17 +109,17 @@ export function PortalHub(){
   const isTenant=leases.length>0&&contacts.length>0;
   return <section className="space-y-5" aria-label="Portal privado externo">
     <div className="rounded-2xl border border-stone-200 bg-white p-5">
-      <h1 className="text-xl font-bold">Mi portal · INMOJCO</h1>
+      <h1 className="text-xl font-bold">Mi portal · {activeMembership?.organization.name || 'Mi inmobiliaria'}</h1>
       <p className="mt-2 text-sm text-slate-700">
         {isOwner?'Consulta únicamente tus propiedades vinculadas y liquidaciones emitidas.':
           isTenant?'Consulta solamente tu contrato y los pagos relacionados.':
           'Acceso público: consulta el catálogo y consigna una propiedad. Los expedientes privados requieren una vinculación comprobada.'}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <a href="/#catalogo" className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+        <a href={`${storefrontPath}#catalogo`} className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
           <Home className="h-4 w-4"/> Ver catálogo de propiedades
         </a>
-        <a href="/?consignar=1" className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold">
+        <a href={`${storefrontPath}?consignar=1`} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold">
           <Building2 className="h-4 w-4"/> Consignar mi propiedad
         </a>
       </div>
@@ -131,7 +135,7 @@ export function PortalHub(){
       <h2 className="flex items-center gap-2 font-bold"><KeyRound className="h-4 w-4"/> Mis contratos vinculados</h2>
       <div className="mt-3 divide-y">{leases.map(lease=><div key={lease.id} className="py-3 text-sm">
         <p className="font-semibold">{properties.find(p=>p.id===lease.property_id)?.title??'Inmueble vinculado'}</p>
-        <p>Estado: {etiquetaES(lease.status)} · Canon: {money(lease.monthly_rent)}</p>
+        <p>Estado: {etiquetaES(lease.status)} · Canon: {money(lease.monthly_rent,branding.locale,branding.currency)}</p>
         <p className="text-xs text-slate-600">Inicio: {lease.start_date} · Terminación: {lease.end_date??'Sin fecha registrada'}</p>
       </div>)}</div>
     </section>}
@@ -139,13 +143,13 @@ export function PortalHub(){
       <h2 className="font-bold">Pagos de mis contratos</h2>
       <div className="mt-3 divide-y">{payments.map(payment=><div key={payment.id} className="flex justify-between gap-2 py-3 text-sm">
         <span>{payment.period_month} · {etiquetaES(payment.status)}</span>
-        <strong>{money(payment.paid_amount)}</strong>
+        <strong>{money(payment.paid_amount,branding.locale,branding.currency)}</strong>
       </div>)}</div>
     </section>}
     {statements.length>0&&<section className="rounded-2xl border bg-white p-5">
       <h2 className="flex items-center gap-2 font-bold"><FileCheck2 className="h-4 w-4"/> Liquidaciones emitidas de mis inmuebles</h2>
       <div className="mt-3 divide-y">{statements.map(s=><div key={s.id} className="flex justify-between gap-2 py-3 text-sm">
-        <span>{s.period_month} · {etiquetaES(s.status)}</span><strong>{money(s.net_amount)}</strong>
+        <span>{s.period_month} · {etiquetaES(s.status)}</span><strong>{money(s.net_amount,branding.locale,branding.currency)}</strong>
       </div>)}</div>
     </section>}
     {!isOwner&&!isTenant&&<p className="rounded-lg bg-stone-50 p-4 text-sm text-slate-600">
