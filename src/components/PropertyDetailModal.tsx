@@ -228,7 +228,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
               <div className="pb-4 border-b border-stone-200">
                 <p className="text-xs text-stone-500 mb-1">
                   {property.operation === 'Renta'
-                    ? `Renta mensual con protección gestionada por ${operatorName}`
+                    ? `Renta mensual publicada por ${operatorName}`
                     : 'Valor de Operación / Lista'}
                 </p>
                 <p className="text-3xl font-semibold text-slate-900 font-mono-tabular">
