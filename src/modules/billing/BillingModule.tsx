@@ -51,6 +51,10 @@ export function BillingModule() {
           attempts.current.delete(planId);
           throw new Error('La orden venció. Vuelve a elegir el plan para iniciar un nuevo intento.');
         }
+        if (detail?.error === 'plan_change_review_required') {
+          attempts.current.delete(planId);
+          throw new Error('Ya existe un plan o período de prueba que requiere revisión para cambiar de plan. Solicita autorización al superadministrador antes de intentar pagar.');
+        }
         throw new Error('El pago no está disponible. Verifica la activación, los términos y la configuración del comercio.');
       }
       if (data.status) { attempts.current.delete(planId); await refresh(); return; }
