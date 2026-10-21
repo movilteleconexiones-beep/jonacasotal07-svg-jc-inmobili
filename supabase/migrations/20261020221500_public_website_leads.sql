@@ -54,7 +54,62 @@ BEGIN
   SELECT o.id INTO v_org
   FROM public.organizations o
   JOIN public.organization_settings s ON s.organization_id = o.id
+  JOIN public.organization_branding b ON b.organization_id = o.id
   WHERE o.slug = p_slug
+    AND char_length(COALESCE(b.public_page_content->>'privacyPolicyUrl','')) BETWEEN 9 AND 1500
+    AND (b.public_page_content->>'privacyPolicyUrl') ~ '^https://[^[:space:]]+
+    AND o.status = 'ACTIVE'
+    AND s.enable_public_website IS TRUE
+    AND jco_private.operational_access(o.id)
+  LIMIT 1;
+  IF v_org IS NULL THEN
+    RAISE EXCEPTION 'El formulario no está disponible actualmente.'
+      USING ERRCODE='P0001';
+  END IF;
+
+  -- Serialize the two cheap bounds by target tenant; concurrent requests
+  -- cannot bypass the check-and-insert window.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('jco-public-contact:' || v_org::text, 0)
+  );
+  IF (SELECT count(*) FROM public.contacts c
+      WHERE c.organization_id = v_org AND c.source='WEBSITE'
+        AND c.created_at >= now() - interval '1 hour') >= 40 OR
+     (SELECT count(*) FROM public.contacts c
+      WHERE c.organization_id = v_org AND c.source='WEBSITE'
+        AND lower(c.email) = v_email
+        AND c.created_at >= now() - interval '24 hours') >= 4
+  THEN
+    RAISE EXCEPTION 'Hay demasiadas solicitudes recientes. Intenta más tarde.'
+      USING ERRCODE='P0001';
+  END IF;
+
+  INSERT INTO public.contacts (
+    organization_id, first_name, email, phone, source, notes
+  ) VALUES (
+    v_org, v_name, v_email, v_phone, 'WEBSITE',
+    'Contacto desde la portada pública. Servicio: ' || v_service
+  ) RETURNING id INTO v_contact;
+
+  INSERT INTO public.leads (
+    organization_id, contact_id, status, priority, notes
+  ) VALUES (
+    v_org, v_contact, 'NEW', 'MEDIUM',
+    'Consulta de la portada pública. Servicio: ' || v_service ||
+    CASE WHEN v_message = '' THEN '' ELSE E'\nMensaje: ' || v_message END
+  );
+  RETURN true;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.submit_public_website_lead(text,text,text,text,text,text,boolean,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.submit_public_website_lead(text,text,text,text,text,text,boolean,text) FROM service_role;
+GRANT EXECUTE ON FUNCTION public.submit_public_website_lead(text,text,text,text,text,text,boolean,text) TO anon, authenticated;
+COMMENT ON FUNCTION public.submit_public_website_lead(text,text,text,text,text,text,boolean,text)
+ IS 'Rate-limited, consented public CRM intake restricted to an active published operational agency. Returns no private data.';
+
+COMMIT;
+
     AND o.status = 'ACTIVE'
     AND s.enable_public_website IS TRUE
     AND jco_private.operational_access(o.id)
