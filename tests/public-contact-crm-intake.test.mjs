@@ -57,3 +57,16 @@ test('agency settings explain the missing privacy-policy dependency without publ
  assert.match(settings, /Política de datos personales/);
  assert.doesNotMatch(settings, /https:\/\/www\.inmojco\.com\/politica-de-datos\/\$\{?currentSlug/);
 });
+
+
+test('web intake keeps a private, tenant-scoped receipt of the accepted policy URL', () => {
+ const sql=read('supabase/migrations/20261021041500_public_website_contact_consent_receipts.sql');
+ assert.match(sql,/CREATE TABLE private\.website_contact_consents/);
+ assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
+ assert.match(sql,/REVOKE ALL ON private\.website_contact_consents FROM PUBLIC, anon, authenticated, service_role/);
+ assert.match(sql,/SELECT o\.id, b\.public_page_content->>'privacyPolicyUrl' INTO v_org, v_policy_url/);
+ assert.match(sql,/INSERT INTO private\.website_contact_consents/);
+ assert.match(sql,/policy_url text NOT NULL/);
+ assert.match(sql,/consented_at timestamptz NOT NULL DEFAULT now\(\)/);
+ assert.match(sql,/INSERT INTO public\.leads/);
+});
