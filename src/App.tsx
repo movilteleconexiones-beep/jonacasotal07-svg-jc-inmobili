@@ -26,6 +26,7 @@ import { tenantPrivatePath } from './core/tenant-links';
 import { getCountryOption } from './core/countries';
 import { agencyHeroCopy, AGENCY_SERVICE_PROMPT } from './core/public-agency-content';
 import { DEFAULT_PUBLIC_PAGE } from './core/public-page-content';
+import { supabase } from './lib/supabase';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
 import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
 import {
@@ -162,6 +163,14 @@ export default function App() {
   const [contactNotes, setContactNotes] = useState('');
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactError, setContactError] = useState('');
+  const [contactConsent, setContactConsent] = useState(false);
+  const [contactTrap, setContactTrap] = useState('');
+  const [contactBusy, setContactBusy] = useState(false);
+  React.useEffect(() => {
+    setContactSubmitted(false);
+    setContactConsent(false);
+    setContactError('');
+  }, [tenantSlug]);
 
   const formatMoney = (val: number, sourceCurrency?: string) => {
     const safeValue = Number.isFinite(val) ? val : 0;
@@ -242,8 +251,9 @@ export default function App() {
     );
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (contactBusy) return;
     if (contactName.trim().length < 3) {
       setContactError('Por favor ingresa tu nombre completo.');
       return;
@@ -265,8 +275,38 @@ export default function App() {
       setContactError('El mensaje no puede superar 2000 caracteres.');
       return;
     }
+    if (tenantSlug && !contactConsent) {
+      setContactError('Autoriza el uso de tus datos para recibir respuesta de esta inmobiliaria.');
+      return;
+    }
     setContactError('');
-    setContactSubmitted(true);
+    if (!tenantSlug) {
+      // Central site without a bound agency keeps its honest email-only mode.
+      setContactSubmitted(true);
+      return;
+    }
+    setContactBusy(true);
+    try {
+      const { data, error } = await supabase.rpc('submit_public_website_lead', {
+        p_slug: tenantSlug,
+        p_name: contactName.trim(),
+        p_email: contactEmail.trim(),
+        p_phone: contactPhone.trim(),
+        p_service: contactService,
+        p_message: contactNotes.trim(),
+        p_consent: contactConsent,
+        p_trap: contactTrap,
+      });
+      if (error || data !== true) {
+        throw new Error('No fue posible registrar la consulta. Intenta nuevamente o utiliza los datos de contacto publicados.');
+      }
+      setContactSubmitted(true);
+      setContactConsent(false);
+    } catch (error) {
+      setContactError(error instanceof Error ? error.message : 'No fue posible enviar la consulta.');
+    } finally {
+      setContactBusy(false);
+    }
   };
 
   if (isSuperAdminRoute) {
@@ -1212,15 +1252,14 @@ export default function App() {
                       <Check className="w-5 h-5" />
                     </div>
                     <h3 className="text-2xl font-semibold text-slate-900">
-                      Consulta preparada — envío pendiente
+                      {tenantSlug ? 'Consulta registrada correctamente' : 'Consulta preparada — envío pendiente'}
                     </h3>
                     <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                      Gracias, <strong>{contactName}</strong>. Los datos de tu consulta sobre{' '}
-                      <strong>{contactService}</strong> están disponibles únicamente en esta pantalla. No se ha enviado una solicitud al equipo ni se ha confirmado atención al{' '}
-                      <span className="font-mono-tabular">{contactPhone}</span> y al correo{' '}
-                      <span className="font-mono-tabular">{contactEmail}</span>. Comunícate mediante los datos de contacto publicados para solicitar atención.
+                      {tenantSlug
+                        ? <>Gracias, <strong>{contactName}</strong>. Tu consulta de <strong>{contactService}</strong> quedó registrada en el CRM de <strong>{publicCompanyName}</strong>. La inmobiliaria podrá responderte a los datos facilitados; todavía no se ha confirmado una cita ni un tiempo de respuesta.</>
+                        : <>Gracias, <strong>{contactName}</strong>. Tu consulta está preparada, pero aún no se ha enviado. Utiliza el correo publicado para solicitar atención.</>}
                     </p>
-                    {branding.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email) && (
+                    {!tenantSlug && branding.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email) && (
                       <a
                         href={`mailto:${branding.email}?subject=${encodeURIComponent(`Consulta web: ${contactService}`)}&body=${encodeURIComponent(`Nombre: ${contactName.trim()}\nCorreo: ${contactEmail.trim()}\nTeléfono: ${contactPhone.trim()}\nServicio: ${contactService}\nMensaje: ${contactNotes.trim()}`)}`}
                         className="inline-flex items-center justify-center px-4 py-2 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
@@ -1228,14 +1267,15 @@ export default function App() {
                         Abrir mi correo para enviar la consulta
                       </a>
                     )}
-                    <p className="text-xs text-slate-500">
-                      El envío depende de tu aplicación de correo. Verifica el destinatario y pulsa Enviar allí; esta página no registra la solicitud automáticamente.
-                    </p>
+                    {!tenantSlug && <p className="text-xs text-slate-500">
+                      El envío depende de tu aplicación de correo. Verifica el destinatario y pulsa Enviar allí.
+                    </p>}
                     <button
                       type="button"
                       onClick={() => {
                         setContactSubmitted(false);
                         setContactNotes('');
+                        setContactTrap('');
                       }}
                       className="px-4 py-2 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
                     >
@@ -1257,7 +1297,7 @@ export default function App() {
                           id="c-name"
                           type="text"
                           required
-                          placeholder="Ej. Lic. Roberto Hernández"
+                          placeholder="Nombre y apellido"
                           value={contactName}
                           onChange={(e) => setContactName(e.target.value)}
                           className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-[var(--tenant-primary)]"
@@ -1266,13 +1306,13 @@ export default function App() {
 
                       <div>
                         <label htmlFor="c-phone" className="block text-xs font-medium text-slate-700 mb-1">
-                          Teléfono / WhatsApp (10 dígitos)
+                          Teléfono / WhatsApp
                         </label>
                         <input
                           id="c-phone"
                           type="tel"
                           required
-                          placeholder="33 2310 1060"
+                          placeholder="Número con indicativo"
                           value={contactPhone}
                           onChange={(e) => setContactPhone(e.target.value)}
                           className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-slate-900 font-mono-tabular focus:outline-none focus:border-[var(--tenant-primary)]"
@@ -1348,15 +1388,30 @@ export default function App() {
                       />
                     </div>
 
+                    {/* Hidden field frustrates simple automated posting; SQL adds request throttling. */}
+                    <div className="absolute -left-[10000px]" aria-hidden="true">
+                      <label htmlFor="c-company-website">Deja este campo vacío</label>
+                      <input id="c-company-website" type="text" tabIndex={-1} autoComplete="off"
+                        value={contactTrap} onChange={(event) => setContactTrap(event.target.value)} />
+                    </div>
+                    {tenantSlug && (
+                      <label className="flex items-start gap-3 text-xs leading-relaxed text-slate-700">
+                        <input type="checkbox" required checked={contactConsent}
+                          onChange={(event) => setContactConsent(event.target.checked)}
+                          className="mt-1 h-4 w-4 shrink-0" />
+                        <span>Autorizo a <strong>{publicCompanyName}</strong> a utilizar mi nombre, correo, teléfono y mensaje para responder esta consulta. La inmobiliaria es responsable de su tratamiento.</span>
+                      </label>
+                    )}
                     {contactError && (
-                      <p className="text-xs text-red-700 font-medium">{contactError}</p>
+                      <p role="alert" className="text-xs text-red-700 font-medium">{contactError}</p>
                     )}
 
                     <button
                       type="submit"
-                      className="w-full py-3 px-5 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                      disabled={contactBusy}
+                      className="w-full py-3 px-5 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
                     >
-                      Agendar Consulta con {organizationBrand}
+                      {contactBusy ? 'Registrando consulta…' : tenantSlug ? `Enviar consulta a ${publicCompanyName}` : 'Preparar correo de consulta'}
                     </button>
                   </form>
                 )}
