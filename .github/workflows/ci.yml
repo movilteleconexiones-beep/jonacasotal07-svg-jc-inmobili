@@ -157,6 +157,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f security/tests/rent_receipt_supports_assertions.sql
+      - name: Future Supabase public table RLS and explicit API grants compatibility
+        run: node --test tests/supabase-future-public-api-grants.test.mjs
       - name: Supabase configuration regression tests
         run: node --test tests/supabase-config.test.mjs
       - name: Platform admin access regression tests
