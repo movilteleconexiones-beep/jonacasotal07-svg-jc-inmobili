@@ -16,7 +16,7 @@ AS $function$
   where s.slug = p_slug and s.enabled
     and coalesce(os.enable_public_website, true)
     and jco_private.operational_access(o.id);
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.submit_property_consignment(p_site_slug text, p_request_id uuid, p_payload jsonb)
@@ -134,6 +134,6 @@ begin
     returning reference into v_reference;
   return jsonb_build_object('reference', v_reference);
 end;
-$function$
+$function$;
 
 COMMIT;
