@@ -277,9 +277,9 @@ export function SettingsModule() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Identidad y configuración</h1>
+        <h1 className="text-2xl font-bold">Personaliza tu inmobiliaria</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Personaliza el software para tu inmobiliaria y adapta automáticamente la operación al país.
+          Empieza por el nombre, el logo y tu portada. Todo lo demás es opcional.
         </p>
       </div>
 
@@ -289,57 +289,25 @@ export function SettingsModule() {
             <Palette className="h-5 w-5" />
           </div>
           <div>
-            <div className="font-bold">Marca del cliente</div>
+            <div className="font-bold">Tu marca</div>
             <div className="text-sm text-slate-500">
-              Aplica tanto para SaaS mensual como para licencia dedicada.
+              El nombre y la identidad que verán tus clientes.
             </div>
           </div>
         </div>
 
-        <Field label="Nombre de la inmobiliaria" value={companyName} onChange={setCompanyName} required />
-        <div>
-          <Field
-            label="Nombre del software"
-            value={softwareName}
-            onChange={setSoftwareName}
-            required
-            disabled={!whiteLabelAllowed}
-          />
-          <span className="mt-1 block text-xs text-slate-500">
-            {whiteLabelAllowed
-              ? 'Tu licencia permite marca blanca y personalización del nombre visible del software.'
-              : `La modalidad ${licenseType} conserva la marca del software INMOJCO/JCO. La marca de tu inmobiliaria sí es personalizable.`}
-          </span>
-        </div>
-        <div className="md:col-span-2 space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
-          <div className="font-semibold">Mis direcciones de acceso</div>
-          <p className="text-xs text-slate-600">Estas URLs pertenecen exclusivamente a tu inmobiliaria. El acceso al panel privado requiere iniciar sesión y tener una membresía autorizada.</p>
-          <div className="space-y-1 text-xs">
-            <p className="break-all"><strong>Portada pública:</strong> <a className="underline" target="_blank" rel="noopener noreferrer" href={tenantPublicPath(currentSlug)}>{window.location.origin}{tenantPublicPath(currentSlug)}</a></p>
-            <p className="break-all"><strong>Panel privado:</strong> <a className="underline" href={tenantPrivatePath(currentSlug)}>{window.location.origin}{tenantPrivatePath(currentSlug)}</a></p>
-          </div>
-          <label className="block text-sm font-medium">Personalizar el identificador de tu URL
-            <input value={publicSlug} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*"
-              onChange={event=>setPublicSlug(normalizeTenantSlug(event.target.value))}
-              disabled={!isOwner || !can('settings.edit') || slugSaving}
-              className="mt-2 block w-full rounded-xl border border-stone-300 p-3 disabled:bg-stone-100"
-              aria-label="Identificador público de la inmobiliaria" />
-          </label>
-          <p className="text-xs text-slate-600">El identificador debe ser único. Modificarlo deshabilita los enlaces anteriores; no cambia los registros ni los permisos internos.</p>
-          <button type="button" onClick={()=>void savePublicSlug()}
-            disabled={!isOwner || !can('settings.edit') || slugSaving || publicSlug===currentSlug}
-            className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">
-            {slugSaving ? 'Actualizando URL…' : 'Guardar dirección personalizada'}
-          </button>
-          {!isOwner && <p className="text-xs text-amber-700">Solo el titular de la inmobiliaria puede modificar esta URL.</p>}
-        </div>
+        <div className="md:col-span-2"><Field label="Nombre de la inmobiliaria" value={companyName} onChange={setCompanyName} required /></div>
         <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-4">
-          <div className="font-semibold">Sitio web y dominio propio</div>
-          <p className="mt-1 text-xs text-slate-600">Registra la dirección HTTPS pública de tu inmobiliaria. Aparecerá como enlace en la cabecera del panel. Conectar el dominio directamente a INMOJCO exige verificar su propiedad, DNS y certificado HTTPS en una etapa independiente.</p>
-          <div className="mt-3">
-            <Field label="Dirección de tu sitio web (https://...)" value={website} onChange={setWebsite} type="url" />
-          </div>
+          <div className="font-semibold">Tu enlace público</div>
+          <p className="mt-1 text-xs text-slate-600">INMOJCO lo administra automáticamente. Compártelo con tus clientes cuando tu portal esté activo.</p>
+          <a href={tenantPublicPath(currentSlug)} target="_blank" rel="noopener noreferrer"
+             className="mt-2 inline-block max-w-full break-all text-sm font-semibold text-slate-900 underline underline-offset-4">
+            {window.location.origin}{tenantPublicPath(currentSlug)}
+          </a>
         </div>
+
+
+
         <div className="md:col-span-2 rounded-xl border border-stone-200 bg-white p-4">
           <div className="font-semibold">Logo y colores de tu inmobiliaria</div>
           <p className="mt-1 text-xs text-slate-600">Tu logo se mostrará en la cabecera del panel inmobiliario, sin cambiar la marca de INMOJCO ni la administración central.</p>
@@ -556,6 +524,41 @@ export function SettingsModule() {
           </div>
         </div>
 
+        <details className="md:col-span-2 rounded-xl border border-stone-200 bg-white p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-800">Opciones avanzadas (opcionales)</summary>
+          <p className="mt-2 text-xs text-slate-600">No necesitas cambiar estos datos para usar tu inmobiliaria. Modificar la URL puede invalidar enlaces compartidos.</p>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-3 rounded-lg bg-stone-50 p-4">
+              <h3 className="font-semibold">Administrar mis direcciones</h3>
+              <p className="break-all text-xs"><strong>Acceso privado:</strong> <a className="underline" href={tenantPrivatePath(currentSlug)}>{window.location.origin}{tenantPrivatePath(currentSlug)}</a></p>
+              <label className="block text-sm font-medium">Cambiar identificador del enlace
+                <input value={publicSlug} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                  onChange={event=>setPublicSlug(normalizeTenantSlug(event.target.value))}
+                  disabled={!isOwner || !can('settings.edit') || slugSaving}
+                  className="mt-2 block w-full rounded-xl border border-stone-300 p-3 disabled:bg-stone-100"
+                  aria-label="Identificador público de la inmobiliaria" />
+              </label>
+              <button type="button" onClick={()=>void savePublicSlug()}
+                disabled={!isOwner || !can('settings.edit') || slugSaving || publicSlug===currentSlug}
+                className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">
+                {slugSaving ? 'Actualizando URL…' : 'Cambiar URL pública'}
+              </button>
+              {!isOwner && <p className="text-xs text-slate-600">Solo el titular de la inmobiliaria puede cambiar esta URL.</p>}
+            </div>
+            <div className="space-y-2 rounded-lg bg-stone-50 p-4">
+              <h3 className="font-semibold">Sitio web externo</h3>
+              <Field label="Dirección HTTPS de tu sitio web (opcional)" value={website} onChange={setWebsite} type="url" />
+              <p className="text-xs text-slate-600">Añadir un enlace no conecta automáticamente un dominio externo. Para hacerlo se debe verificar su propiedad, DNS y certificado HTTPS.</p>
+            </div>
+            <div className="space-y-2 rounded-lg bg-stone-50 p-4">
+              <Field label="Nombre del software (marca blanca)" value={softwareName} onChange={setSoftwareName} disabled={!whiteLabelAllowed} />
+              <p className="text-xs text-slate-600">
+                {whiteLabelAllowed ? 'Tu licencia permite editar la marca del software.' :
+                 `Tu licencia ${licenseType} mantiene la marca de INMOJCO; el nombre de tu inmobiliaria sí es personalizable.`}
+              </p>
+            </div>
+          </div>
+        </details>
         {message && (
           <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm">
             {message}

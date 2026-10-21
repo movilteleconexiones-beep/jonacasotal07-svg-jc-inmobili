@@ -15,7 +15,8 @@ export function OrganizationRegistration() {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugEdited, setSlugEdited] = useState(false);
-  const [country, setCountry] = useState('CO');
+  const [showUrlOptions, setShowUrlOptions] = useState(false);
+  const country = 'CO';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,7 +27,8 @@ export function OrganizationRegistration() {
     const cleanName = name.trim();
     const cleanSlug = slug.trim().toLowerCase();
     if (cleanName.length < 2 || !isValidTenantSlug(cleanSlug)) {
-      setError('Ingresa el nombre y un identificador válido (letras, números y guiones).');
+      setShowUrlOptions(true);
+      setError('Escribe el nombre de la inmobiliaria; el enlace generado debe tener de 2 a 60 caracteres.');
       return;
     }
 
@@ -34,7 +36,10 @@ export function OrganizationRegistration() {
     try {
       const result = await createOrganization(cleanName, cleanSlug, country);
       if (result.error) {
-        setError('No se pudo registrar la inmobiliaria. Revisa si el identificador ya está en uso.');
+        if (/slug|identificador|duplicad|duplicate|unique|existe|registrado/i.test(result.error)) {
+          setShowUrlOptions(true);
+        }
+        setError('No se pudo completar el registro. Si el enlace ya está ocupado, personalízalo en Opciones de enlace.');
         return;
       }
       // Open the newly created organization's own private panel for plan
@@ -80,23 +85,32 @@ export function OrganizationRegistration() {
                   }}
                   className="mt-1 w-full rounded-lg border p-3" />
               </label>
-              <label className="block text-sm font-medium">Identificador único (URL)
-                <input required minLength={2} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                  value={slug} onChange={e => {
-                    setSlug(normalizeTenantSlug(e.target.value));
-                    setSlugEdited(true);
-                  }}
-                  placeholder="mi-inmobiliaria" className="mt-1 w-full rounded-lg border p-3" />
-                <span className="mt-1 block break-all text-xs text-slate-600">Portada: {window.location.origin}{tenantPublicPath(slug)}</span>
-                <span className="mt-1 block break-all text-xs text-slate-600">Panel privado: {window.location.origin}{tenantPrivatePath(slug)}</span>
-                <span className="mt-1 block text-xs text-slate-600">Se genera automáticamente desde tu nombre. Puedes personalizarlo antes de registrarte; debe ser único.</span>
-              </label>
-              <label className="block text-sm font-medium">País
-                <select value={country} onChange={e => setCountry(e.target.value)}
-                  className="mt-1 w-full rounded-lg border p-3">
-                  <option value="CO">Colombia</option>
-                </select>
-              </label>
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm">
+                <p className="font-semibold text-slate-900">Tu portal se crea automáticamente</p>
+                <p className="mt-1 text-slate-600">Tendrá el nombre de tu inmobiliaria y un enlace exclusivo. Podrás añadir el logo, los colores y los inmuebles desde el panel.</p>
+                <button type="button" aria-expanded={showUrlOptions} aria-controls="register-tenant-url-options"
+                  className="mt-3 text-sm font-semibold text-slate-800 underline underline-offset-4"
+                  onClick={() => setShowUrlOptions(open => !open)}>
+                  {showUrlOptions ? 'Ocultar opciones de enlace' : 'Opciones de enlace (opcional)'}
+                </button>
+                {showUrlOptions && (
+                  <div id="register-tenant-url-options" className="mt-3 space-y-2">
+                    <label className="block font-medium">Enlace personalizado
+                      <input minLength={2} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                        value={slug} onChange={e => {
+                          setSlug(normalizeTenantSlug(e.target.value));
+                          setSlugEdited(true);
+                        }}
+                        aria-label="Enlace público personalizado"
+                        placeholder="mi-inmobiliaria" className="mt-1 w-full rounded-lg border bg-white p-3" />
+                    </label>
+                    {isValidTenantSlug(slug) && <p className="break-all text-xs text-slate-600">
+                      {window.location.origin}{tenantPublicPath(slug)}
+                    </p>}
+                    <p className="text-xs text-slate-600">Es opcional. Si no lo cambias, se genera usando el nombre. El acceso privado siempre requiere iniciar sesión.</p>
+                  </div>
+                )}
+              </div>
               {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
               <button type="submit" disabled={busy}
                 className="w-full rounded-lg bg-slate-900 p-3 font-semibold text-white disabled:opacity-60">

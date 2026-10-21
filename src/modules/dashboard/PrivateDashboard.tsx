@@ -291,6 +291,31 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     [can, billingOwner, termsRequired],
   );
 
+  // Keep frequently used tools visible; everything else is one click away.
+  // This grouping never changes permissions, available modules or navigation guards.
+  const secondaryMenu = new Set<string>(['REPORTS', 'PORTAL', 'USERS', 'IMPORT', 'SETTINGS', 'LICENSE']);
+
+  function renderMenuItem(item: (typeof menuItems)[number]) {
+    const Icon = item.icon;
+    const active = view === item.id ||
+      (view === 'CONSIGNMENTS' && item.id === 'PROPERTIES') ||
+      (view === 'BILLING' && item.id === 'LICENSE');
+    return (
+      <button key={item.id} type="button" disabled={!item.available}
+        title={!item.available ? termsRequired ? 'Acepta la licencia para continuar' : 'Módulo fuera de tus permisos actuales' : undefined}
+        onClick={() => navigateToOperationalPanel(item.id)}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+          active ? 'bg-slate-900 text-white'
+          : 'text-slate-600 hover:bg-stone-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50'
+        }`}
+        style={active && branding.primaryColor ? { backgroundColor: tenantPrimary } : undefined}>
+        <Icon className="h-5 w-5 shrink-0" />
+        <span>{item.label}</span>
+        {!item.available && <LockKeyhole className="ml-auto h-3 w-3" aria-hidden="true" />}
+      </button>
+    );
+  }
+
   // Cards and sidebar must go through the same permission-checked navigation.
   function navigateToOperationalPanel(target: DashboardView) {
     const destination = menuItems.find(item => item.id === target);
@@ -396,15 +421,31 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {can(PERMISSIONS.SETTINGS_EDIT) && logoUrl && <button type="button" onClick={() => void applyLogoPalette()} disabled={applyingLogoPalette} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold disabled:opacity-50" title="Guardar únicamente los colores de esta inmobiliaria">
-              <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
-            </button>}
             {previewSelector}
-            <a href={tenantPrivatePath(activeMembership.organization.slug)}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold"
-              title="Enlace privado exclusivo de esta inmobiliaria; requiere inicio de sesión">
-              Mi URL privada
-            </a>
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium">
+                Más opciones <span aria-hidden="true">⌄</span>
+              </summary>
+              <div className="absolute right-0 top-full z-50 mt-2 w-64 space-y-2 rounded-xl border border-stone-200 bg-white p-3 shadow-xl">
+                {can(PERMISSIONS.SETTINGS_EDIT) && logoUrl && (
+                  <button type="button" onClick={() => void applyLogoPalette()} disabled={applyingLogoPalette}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-stone-100 disabled:opacity-50">
+                    <Palette className="h-4 w-4" /> {applyingLogoPalette ? 'Analizando…' : 'Adaptar colores al logo'}
+                  </button>
+                )}
+                <a href={tenantPrivatePath(activeMembership.organization.slug)}
+                  className="block rounded-lg px-2 py-2 text-sm hover:bg-stone-100"
+                  title="Acceso privado de esta inmobiliaria; requiere iniciar sesión">
+                  Mi enlace privado
+                </a>
+                {can(PERMISSIONS.SETTINGS_VIEW) && (
+                  <button type="button" onClick={() => navigateToOperationalPanel('SETTINGS')}
+                    className="block w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-stone-100">
+                    Personalizar mi inmobiliaria
+                  </button>
+                )}
+              </div>
+            </details>
             <a href={tenantPublicPath(activeMembership.organization.slug)}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold"
@@ -460,29 +501,20 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       <div className="mx-auto grid max-w-[1500px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-2">
           <nav className="space-y-1" aria-label="Módulos del sistema">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const active = view === item.id || (view === 'CONSIGNMENTS' && item.id === 'PROPERTIES') || (view === 'BILLING' && item.id === 'LICENSE');
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  disabled={!item.available}
-                  title={!item.available ? termsRequired ? 'Acepta la licencia para continuar' : 'Módulo fuera de tus permisos actuales' : undefined}
-                  onClick={() => navigateToOperationalPanel(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    active
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-stone-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50'
-                  }`}
-                  style={active && branding.primaryColor ? { backgroundColor: tenantPrimary } : undefined}
-                >
-                  <Icon className="w-5 h-5 shrink-0" />
-                  <span>{item.label}</span>
-                  {!item.available && <LockKeyhole className="ml-auto h-3 w-3" aria-hidden="true" />}
-                </button>
-              );
-            })}
+            <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Trabajo diario</p>
+            {menuItems.filter(item => !secondaryMenu.has(item.id)).map(renderMenuItem)}
+            {menuItems.some(item => secondaryMenu.has(item.id)) && (
+              <details key={organizationId + (secondaryMenu.has(view) ? '-open' : '-closed')}
+                open={secondaryMenu.has(view) ? true : undefined}
+                className="mt-2 rounded-xl border border-stone-200">
+                <summary className="cursor-pointer px-3 py-3 text-sm font-semibold text-slate-700">
+                  Administración y ajustes
+                </summary>
+                <div className="space-y-1 border-t border-stone-100 p-1">
+                  {menuItems.filter(item => secondaryMenu.has(item.id)).map(renderMenuItem)}
+                </div>
+              </details>
+            )}
           </nav>
 
         </aside>
@@ -595,6 +627,14 @@ function DashboardHome({
     value: stats[shortcut.metric],
     icon: shortcutIcons[shortcut.target],
   }));
+  // A first-use guide is useful for new customers, not for everyday work.
+  const isNewAgency = !loading && stats.properties === 0 && stats.contacts === 0
+    && stats.leads === 0 && stats.deals === 0;
+  const firstActions = [
+    { label: 'Personalizar marca', target: 'SETTINGS' as const, allowed: can(PERMISSIONS.SETTINGS_VIEW) },
+    { label: 'Registrar un inmueble', target: 'PROPERTIES' as const, allowed: can(PERMISSIONS.PROPERTIES_VIEW) },
+    { label: 'Agregar un cliente', target: 'CONTACTS' as const, allowed: can(PERMISSIONS.CLIENTS_VIEW) },
+  ].filter(action => action.allowed);
 
   return (
     <div className="space-y-5">
@@ -641,46 +681,28 @@ function DashboardHome({
         })}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-stone-200 bg-white p-5">
-          <h2 className="font-bold">Primeros pasos</h2>
-          <div className="mt-4 space-y-3 text-sm">
-            <Step number="1" text="Completa los datos y branding de la inmobiliaria." />
-            <Step number="2" text="Crea administradores, asesores y clientes según sea necesario." />
-            <Step number="3" text="Registra propiedades o importa información existente." />
-            <Step number="4" text="Empieza a recibir y gestionar leads desde el CRM." />
+      {isNewAgency && firstActions.length > 0 && (
+        <section className="rounded-2xl border border-stone-200 bg-white p-5">
+          <h2 className="font-bold">Empieza en pocos pasos</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Configura tu marca y empieza a trabajar. Las demás opciones están disponibles en el menú.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {firstActions.map(action => (
+              <button key={action.target} type="button" onClick={() => onNavigate(action.target)}
+                className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold hover:border-slate-600 hover:bg-stone-50">
+                {action.label} <ArrowUpRight className="ml-1 inline h-4 w-4" aria-hidden="true" />
+              </button>
+            ))}
+            {(can(PERMISSIONS.CLIENTS_CREATE) || can(PERMISSIONS.PROPERTIES_CREATE)) && (
+              <button type="button" onClick={() => onNavigate('IMPORT')}
+                className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold hover:border-slate-600 hover:bg-stone-50">
+                <FileSpreadsheet className="mr-1 inline h-4 w-4" /> Importar Excel o CSV
+              </button>
+            )}
           </div>
-        </div>
-
-        {(can(PERMISSIONS.CLIENTS_CREATE) || can(PERMISSIONS.PROPERTIES_CREATE)) && (
-          <div className="rounded-2xl border border-stone-200 bg-white p-5">
-            <h2 className="font-bold">¿Ya tienes información?</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Puedes empezar desde cero o migrar clientes y propiedades desde Excel o CSV cuando quieras.
-            </p>
-            <button
-              type="button"
-              onClick={() => onNavigate('IMPORT')}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
-              style={themed ? { backgroundColor: tenantPrimary } : undefined}
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Importar datos
-            </button>
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function Step({ number, text }: { number: string; text: string }) {
-  return (
-    <div className="flex gap-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
-        {number}
-      </div>
-      <div className="pt-1 text-slate-700">{text}</div>
+        </section>
+      )}
     </div>
   );
 }
