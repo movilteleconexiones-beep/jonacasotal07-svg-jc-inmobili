@@ -107,6 +107,16 @@ jobs:
         run: node --import tsx --test tests/tenant-own-portal-branding.test.mjs
       - name: Public agency storefront and private dashboard route regression
         run: node --import tsx --test tests/public-private-tenant-routing.test.mjs
+      - name: Public website CRM contact and consent regression
+        run: node --import tsx --test tests/public-contact-crm-intake.test.mjs
+      - name: Public CRM website intake SQL tenant and anti-spam enforcement
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_public_lead_intake_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/tests/public_website_leads_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f supabase/migrations/20261020221500_public_website_leads.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/tests/public_website_leads_assertions.sql
       - name: External portal navigation and no internal CRM data regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Private agency home vs platform landing regression
