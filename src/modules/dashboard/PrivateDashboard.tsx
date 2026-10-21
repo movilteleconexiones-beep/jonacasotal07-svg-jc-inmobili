@@ -627,6 +627,14 @@ function DashboardHome({
     value: stats[shortcut.metric],
     icon: shortcutIcons[shortcut.target],
   }));
+  // A first-use guide is useful for new customers, not for everyday work.
+  const isNewAgency = !loading && stats.properties === 0 && stats.contacts === 0
+    && stats.leads === 0 && stats.deals === 0;
+  const firstActions = [
+    { label: 'Personalizar marca', target: 'SETTINGS' as const, allowed: can(PERMISSIONS.SETTINGS_VIEW) },
+    { label: 'Registrar un inmueble', target: 'PROPERTIES' as const, allowed: can(PERMISSIONS.PROPERTIES_VIEW) },
+    { label: 'Agregar un cliente', target: 'CONTACTS' as const, allowed: can(PERMISSIONS.CLIENTS_VIEW) },
+  ].filter(action => action.allowed);
 
   return (
     <div className="space-y-5">
@@ -673,46 +681,28 @@ function DashboardHome({
         })}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-stone-200 bg-white p-5">
-          <h2 className="font-bold">Primeros pasos</h2>
-          <div className="mt-4 space-y-3 text-sm">
-            <Step number="1" text="Completa los datos y branding de la inmobiliaria." />
-            <Step number="2" text="Crea administradores, asesores y clientes según sea necesario." />
-            <Step number="3" text="Registra propiedades o importa información existente." />
-            <Step number="4" text="Empieza a recibir y gestionar leads desde el CRM." />
+      {isNewAgency && firstActions.length > 0 && (
+        <section className="rounded-2xl border border-stone-200 bg-white p-5">
+          <h2 className="font-bold">Empieza en pocos pasos</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Configura tu marca y empieza a trabajar. Las demás opciones están disponibles en el menú.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {firstActions.map(action => (
+              <button key={action.target} type="button" onClick={() => onNavigate(action.target)}
+                className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold hover:border-slate-600 hover:bg-stone-50">
+                {action.label} <ArrowUpRight className="ml-1 inline h-4 w-4" aria-hidden="true" />
+              </button>
+            ))}
+            {(can(PERMISSIONS.CLIENTS_CREATE) || can(PERMISSIONS.PROPERTIES_CREATE)) && (
+              <button type="button" onClick={() => onNavigate('IMPORT')}
+                className="rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold hover:border-slate-600 hover:bg-stone-50">
+                <FileSpreadsheet className="mr-1 inline h-4 w-4" /> Importar Excel o CSV
+              </button>
+            )}
           </div>
-        </div>
-
-        {(can(PERMISSIONS.CLIENTS_CREATE) || can(PERMISSIONS.PROPERTIES_CREATE)) && (
-          <div className="rounded-2xl border border-stone-200 bg-white p-5">
-            <h2 className="font-bold">¿Ya tienes información?</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Puedes empezar desde cero o migrar clientes y propiedades desde Excel o CSV cuando quieras.
-            </p>
-            <button
-              type="button"
-              onClick={() => onNavigate('IMPORT')}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
-              style={themed ? { backgroundColor: tenantPrimary } : undefined}
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Importar datos
-            </button>
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function Step({ number, text }: { number: string; text: string }) {
-  return (
-    <div className="flex gap-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
-        {number}
-      </div>
-      <div className="pt-1 text-slate-700">{text}</div>
+        </section>
+      )}
     </div>
   );
 }
