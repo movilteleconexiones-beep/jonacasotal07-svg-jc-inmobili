@@ -9,6 +9,9 @@ test('tenant contact page registers a CRM prospect only after explicit consent',
  assert.match(app,/p_slug: tenantSlug/);
  assert.match(app,/p_consent: contactConsent/);
  assert.match(app,/p_trap: contactTrap/);
+ assert.match(app,/const automaticContactEnabled = Boolean\(tenantSlug && privacyPolicyUrl\)/);
+ assert.match(app,/política de tratamiento de datos/);
+ assert.match(app,/La inmobiliaria aún no ha publicado su política/);
  assert.match(app,/contactBusy/);
  assert.match(app,/disabled=\{contactBusy\}/);
  assert.match(app,/type="checkbox" required checked=\{contactConsent\}/);
@@ -28,6 +31,7 @@ test('public CRM function has bounded inputs, operational tenant selection and n
  assert.match(sql,/SET search_path TO ''/);
  assert.match(sql,/p_consent IS DISTINCT FROM true/);
  assert.match(sql,/s\.enable_public_website IS TRUE/);
+ assert.match(sql,/public_page_content->>'privacyPolicyUrl'/);
  assert.match(sql,/jco_private\.operational_access\(o\.id\)/);
  assert.match(sql,/WHERE o\.slug = p_slug/);
  assert.match(sql,/pg_advisory_xact_lock/);
