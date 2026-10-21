@@ -54,6 +54,7 @@ export function SettingsModule() {
   const selectedCountry = useMemo(() => getCountryOption(country), [country]);
   const isOwner = Boolean(activeMembership?.roles.some(role => role.key === 'ORGANIZATION_OWNER' && role.active));
   const currentSlug = activeMembership?.organization.slug || '';
+  const hasPublishedPrivacyPolicy = /^https:\/\/[^\s]+$/.test(branding.publicPage.privacyPolicyUrl || '');
 
   useEffect(() => { setPublicSlug(currentSlug); }, [organizationId, currentSlug]);
 
@@ -283,6 +284,13 @@ export function SettingsModule() {
         </p>
       </div>
 
+      {!hasPublishedPrivacyPolicy && publicPage.showContact && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          <p>Para recibir consultas directamente en el CRM, publica la política de tratamiento de datos de esta inmobiliaria.</p>
+          <a href="#politica-datos" className="shrink-0 font-semibold underline underline-offset-2">Configurar política de datos</a>
+        </div>
+      )}
+
       <form onSubmit={save} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
         <div className="md:col-span-2 flex items-center gap-3 border-b border-stone-100 pb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
@@ -392,7 +400,7 @@ export function SettingsModule() {
               <span className="mt-1 block text-xs text-slate-500">El aviso de responsabilidad de la inmobiliaria seguirá visible.</span>
             </label>
           </div>
-          <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-2">
+          <div id="politica-datos" className="rounded-xl border border-stone-200 bg-white p-4 space-y-2">
             <h3 className="font-semibold">Política de datos personales</h3>
             <p className="text-xs text-slate-600">Publica la dirección HTTPS de tu política de tratamiento de datos. Es necesaria para que el formulario público registre consultas automáticamente en tu CRM; sin ella, los visitantes solo podrán preparar un correo manual.</p>
             <Field label="Enlace HTTPS a tu política de privacidad" type="url"
