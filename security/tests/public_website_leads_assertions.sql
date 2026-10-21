@@ -38,6 +38,14 @@ BEGIN
 
   blocked:=false;
   BEGIN
+    PERFORM public.submit_public_website_lead('policyless-agency','Nombre Prueba','n@example.test',
+      '+57 300 123 4567','Consulta','No',true,'');
+  EXCEPTION WHEN SQLSTATE 'P0001' THEN blocked:=true;
+  END;
+  IF NOT blocked THEN RAISE EXCEPTION 'An agency without a data policy received a web lead'; END IF;
+
+  blocked:=false;
+  BEGIN
     PERFORM public.submit_public_website_lead('suspended-agency','Nombre Prueba','n@example.test',
       '+57 300 123 4567','Consulta','No',true,'');
   EXCEPTION WHEN SQLSTATE 'P0001' THEN blocked:=true;
