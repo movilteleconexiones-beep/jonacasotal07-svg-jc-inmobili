@@ -19,9 +19,9 @@ create table public.organizations(id uuid primary key, name text not null, statu
 create schema jco_private;
 create table public.consignment_test_operational_access(organization_id uuid primary key, allowed boolean not null);
 create function jco_private.operational_access(target_org uuid) returns boolean language sql stable security definer
-set search_path to '' as $
+set search_path to '' as $body$
   select exists (select 1 from public.consignment_test_operational_access a where a.organization_id=target_org and a.allowed)
-$;
+$body$;
 revoke all on table public.consignment_test_operational_access from anon, authenticated, public;
 create table public.organization_settings(organization_id uuid primary key references public.organizations,
   country text, default_currency text, enable_public_website boolean);
