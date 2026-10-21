@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 import { LicenseModule } from '../license/LicenseModule';
-import { paymentDisplayLabel } from '../../core/payment-display';
+import { paymentDisplayLabel, paymentReviewNotice } from '../../core/payment-display';
 
 interface Plan { id: string; name: string; price: number; currency: string; billing_cycle: string; max_users: number | null; max_properties: number | null }
-interface Order { id: string; reference: string; status: string; fulfillment_status: string; environment: string; created_at: string; amount_in_cents: number }
+interface Order { id: string; reference: string; status: string; fulfillment_status: string; review_reason: string | null; environment: string; created_at: string; amount_in_cents: number }
 const money = (amount: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount);
 
 export function BillingModule() {
@@ -24,7 +24,7 @@ export function BillingModule() {
     if (!orgId || !billing?.can_manage_billing) return;
     const [catalog, history, config, perpetual] = await Promise.all([
       supabase.from('plans').select('id,name,price,currency,billing_cycle,max_users,max_properties').eq('active', true).in('billing_cycle', ['MONTHLY', 'ANNUAL']).eq('currency', 'COP').order('price'),
-      supabase.from('payment_orders').select('id,reference,status,fulfillment_status,environment,created_at,amount_in_cents').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10),
+      supabase.from('payment_orders').select('id,reference,status,fulfillment_status,review_reason,environment,created_at,amount_in_cents').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10),
       supabase.from('billing_activation_settings').select('sandbox_enabled,production_enabled,activation_mode').single(),
       supabase.from('plans').select('id,code,billing_cycle').eq('active',true).eq('code','LIFETIME').eq('billing_cycle','ONE_TIME').maybeSingle(),
     ]);
@@ -106,6 +106,7 @@ export function BillingModule() {
         <button type="button" disabled={busy} onClick={() => void refresh()} className="rounded-lg border px-4 py-2 text-sm">Comprobar estado</button></div>
         <ul className="mt-4 space-y-3">{orders.map(order => <li key={order.id} className="rounded-lg bg-stone-50 p-3 text-sm">
           <p className="font-semibold">{paymentLabel(order)}</p><p>{money(order.amount_in_cents / 100)} · {order.environment === 'sandbox' ? 'Prueba' : 'Producción'}</p>
+          {paymentReviewNotice(order) && <p role="status" className="mt-2 text-xs text-amber-900">{paymentReviewNotice(order)}</p>}
           <p className="break-all text-xs text-slate-500">{order.reference}</p>
         </li>)}</ul>{!orders.length && <p className="mt-4 text-sm text-slate-500">Aún no hay pagos registrados.</p>}
       </div>
