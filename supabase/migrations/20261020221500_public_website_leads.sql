@@ -57,7 +57,7 @@ BEGIN
   JOIN public.organization_branding b ON b.organization_id = o.id
   WHERE o.slug = p_slug
     AND char_length(COALESCE(b.public_page_content->>'privacyPolicyUrl','')) BETWEEN 9 AND 1500
-    AND (b.public_page_content->>'privacyPolicyUrl') ~ '^https://[^[:space:]]+
+    AND (b.public_page_content->>'privacyPolicyUrl') ~ '^https://[^[:space:]]+$'
     AND o.status = 'ACTIVE'
     AND s.enable_public_website IS TRUE
     AND jco_private.operational_access(o.id)
