@@ -16,6 +16,13 @@ alter default privileges in schema public grant all on tables to anon, authentic
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 
 create table public.organizations(id uuid primary key, name text not null, status text not null);
+create schema jco_private;
+create table public.consignment_test_operational_access(organization_id uuid primary key, allowed boolean not null);
+create function jco_private.operational_access(target_org uuid) returns boolean language sql stable security definer
+set search_path to '' as $body$
+  select exists (select 1 from public.consignment_test_operational_access a where a.organization_id=target_org and a.allowed)
+$body$;
+revoke all on table public.consignment_test_operational_access from anon, authenticated, public;
 create table public.organization_settings(organization_id uuid primary key references public.organizations,
   country text, default_currency text, enable_public_website boolean);
 create table public.consignment_test_permissions(user_id uuid, organization_id uuid, permission_key text);
@@ -46,6 +53,10 @@ create policy properties_read on public.properties for select to authenticated u
 insert into public.organizations values('11111111-1111-1111-1111-111111111111','Tenant A','ACTIVE'),
   ('22222222-2222-2222-2222-222222222222','Tenant B','ACTIVE'),
   ('33333333-3333-3333-3333-333333333333','Disabled','INACTIVE');
+insert into public.consignment_test_operational_access values
+ ('11111111-1111-1111-1111-111111111111',true),
+ ('22222222-2222-2222-2222-222222222222',false),
+ ('33333333-3333-3333-3333-333333333333',false);
 insert into auth.users values('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
   ('cccccccc-cccc-cccc-cccc-cccccccccccc');
 insert into public.consignment_test_permissions

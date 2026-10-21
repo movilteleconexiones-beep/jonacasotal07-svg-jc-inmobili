@@ -265,6 +265,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_consignment_test"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_consignment_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261010212630_property_consignment_intake.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261021033500_gate_public_consignment_operational_access.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_consignment_assertions.sql
           bash security/tests/property_consignment_concurrency.sh
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_fixture.sql

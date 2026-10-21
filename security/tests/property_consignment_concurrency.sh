@@ -4,7 +4,7 @@ task_test_dir=$(mktemp -d)
 trap 'rm -rf "$task_test_dir"' EXIT
 task_psql=(psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test)
 
-"${task_psql[@]}" -q -c "UPDATE public.organizations SET status='ACTIVE' WHERE id='33333333-3333-3333-3333-333333333333'; UPDATE private.property_intake_sites SET hourly_limit=2 WHERE slug='disabled';"
+"${task_psql[@]}" -q -c "UPDATE public.organizations SET status='ACTIVE' WHERE id='33333333-3333-3333-3333-333333333333'; UPDATE public.consignment_test_operational_access SET allowed=true WHERE organization_id='33333333-3333-3333-3333-333333333333'; UPDATE private.property_intake_sites SET hourly_limit=2 WHERE slug='disabled';"
 
 task_submit() {
   "${task_psql[@]}" -q -c "BEGIN; SET LOCAL ROLE anon; SELECT public.submit_property_consignment('disabled','$1',public.consignment_test_payload() || '{\"owner_phone\":\"1234567\"}'::jsonb); SELECT pg_sleep(0.5); COMMIT;"
