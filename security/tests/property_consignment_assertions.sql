@@ -9,6 +9,11 @@ set role anon;
 do $$ declare first_receipt jsonb; repeat_receipt jsonb; bad jsonb; begin
   perform public.consignment_test_assert(public.get_public_property_intake_site('tenant-a')->>'company_name'='Tenant A','public site');
   perform public.consignment_test_assert(public.get_public_property_intake_site('disabled') is null,'inactive site blocked');
+  perform public.consignment_test_assert(public.get_public_property_intake_site('tenant-b') is null,'unlicensed agency site is hidden');
+  begin
+    perform public.submit_property_consignment('tenant-b',gen_random_uuid(),public.consignment_test_payload());
+    raise exception 'non-operational tenant accepted website consignment';
+  exception when no_data_found then null; end;
   first_receipt := public.submit_property_consignment('tenant-a','10000000-0000-0000-0000-000000000001',public.consignment_test_payload());
   repeat_receipt := public.submit_property_consignment('tenant-a','10000000-0000-0000-0000-000000000001',public.consignment_test_payload());
   perform public.consignment_test_assert(first_receipt=repeat_receipt,'retry is idempotent');
