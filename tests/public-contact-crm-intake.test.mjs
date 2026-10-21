@@ -44,3 +44,16 @@ test('public CRM function has bounded inputs, operational tenant selection and n
  assert.match(sql,/GRANT EXECUTE ON FUNCTION .* TO anon, authenticated/);
  assert.doesNotMatch(sql,/GRANT (?:INSERT|SELECT|UPDATE|DELETE) ON (?:public\.)?(?:contacts|leads) TO anon/);
 });
+
+
+test('agency settings explain the missing privacy-policy dependency without publishing legal terms', () => {
+ const settings = read('src/modules/settings/SettingsModule.tsx');
+ assert.match(settings, /const hasPublishedPrivacyPolicy =/);
+ assert.match(settings, /!hasPublishedPrivacyPolicy && publicPage\.showContact/);
+ assert.match(settings, /role="status"/);
+ assert.match(settings, /Para recibir consultas directamente en el CRM/);
+ assert.match(settings, /href="#politica-datos"/);
+ assert.match(settings, /id="politica-datos"/);
+ assert.match(settings, /Política de datos personales/);
+ assert.doesNotMatch(settings, /https:\/\/www\.inmojco\.com\/politica-de-datos\/\$\{?currentSlug/);
+});
