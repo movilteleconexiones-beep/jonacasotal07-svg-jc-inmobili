@@ -548,7 +548,7 @@ export function SettingsModule() {
             <div className="space-y-2 rounded-lg bg-stone-50 p-4">
               <h3 className="font-semibold">Sitio web externo</h3>
               <Field label="Dirección HTTPS de tu sitio web (opcional)" value={website} onChange={setWebsite} type="url" />
-              <p className="text-xs text-slate-600">Añadir un enlace no conecta automáticamente un dominio externo. Eso requiere verificar DNS y HTTPS.</p>
+              <p className="text-xs text-slate-600">Añadir un enlace no conecta automáticamente un dominio externo. Para hacerlo se debe verificar su propiedad, DNS y certificado HTTPS.</p>
             </div>
             <div className="space-y-2 rounded-lg bg-stone-50 p-4">
               <Field label="Nombre del software (marca blanca)" value={softwareName} onChange={setSoftwareName} disabled={!whiteLabelAllowed} />
