@@ -484,6 +484,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_deductions_test"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f supabase/migrations/20261021040000_optimize_owner_deduction_rls_initplan.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_assertions.sql
           bash security/tests/owner_deductions_concurrency.sh
       - name: Production build
