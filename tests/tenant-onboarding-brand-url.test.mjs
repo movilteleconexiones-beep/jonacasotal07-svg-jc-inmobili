@@ -27,7 +27,7 @@ test('registration proposes agency identifier but allows business owner to edit'
   assert.match(registration,/!slugEdited/);
   assert.match(registration,/isValidTenantSlug\(cleanSlug\)/);
   assert.match(registration,/tenantPublicPath\(slug\)/);
-  assert.match(registration,/tenantPrivatePath\(slug\)/);
+  assert.match(registration,/window\.location\.assign\(tenantPrivatePath\(cleanSlug\)\)/);
   assert.match(registration,/Continuar a planes y pago/);
 });
 
