@@ -505,7 +505,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             {menuItems.filter(item => !secondaryMenu.has(item.id)).map(renderMenuItem)}
             {menuItems.some(item => secondaryMenu.has(item.id)) && (
               <details key={organizationId + (secondaryMenu.has(view) ? '-open' : '-closed')}
-                defaultOpen={secondaryMenu.has(view)}
+                open={secondaryMenu.has(view) ? true : undefined}
                 className="mt-2 rounded-xl border border-stone-200">
                 <summary className="cursor-pointer px-3 py-3 text-sm font-semibold text-slate-700">
                   Administración y ajustes
