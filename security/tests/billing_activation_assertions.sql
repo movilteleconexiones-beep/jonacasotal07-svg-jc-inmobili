@@ -54,6 +54,31 @@ DO $checkout_guard$ BEGIN
 END $checkout_guard$;
 SELECT pg_temp.assert((SELECT count(*)=0 FROM public.payment_orders),
   'trial plan mismatch must not create a payable order');
+-- A terminal subscription must not create a payable same-plan checkout either.
+UPDATE public.subscriptions SET status='SUSPENDED', plan_id=(SELECT id FROM public.plans WHERE code='BASIC')
+ WHERE organization_id='20000000-0000-0000-0000-000000000002';
+DO $suspended_guard$ BEGIN
+  BEGIN
+    PERFORM public.billing_create_order('20000000-0000-0000-0000-000000000002',
+      (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',gen_random_uuid());
+    RAISE EXCEPTION 'FAIL: suspended subscription accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE '%Plan change requires administrative review%' THEN RAISE; END IF;
+  END;
+END $suspended_guard$;
+UPDATE public.subscriptions SET status='CANCELLED'
+ WHERE organization_id='20000000-0000-0000-0000-000000000002';
+DO $cancelled_guard$ BEGIN
+  BEGIN
+    PERFORM public.billing_create_order('20000000-0000-0000-0000-000000000002',
+      (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',gen_random_uuid());
+    RAISE EXCEPTION 'FAIL: cancelled subscription accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE '%Plan change requires administrative review%' THEN RAISE; END IF;
+  END;
+END $cancelled_guard$;
+SELECT pg_temp.assert((SELECT count(*)=0 FROM public.payment_orders),
+  'terminal subscription must not create a payable order');
 -- Simulate trial expiry before the standard happy-path checkout.
 DELETE FROM public.subscriptions WHERE organization_id='20000000-0000-0000-0000-000000000002';
 SELECT public.billing_create_order('20000000-0000-0000-0000-000000000002',(SELECT id FROM public.plans WHERE code='BASIC'),'sandbox','50000000-0000-0000-0000-000000000001');
