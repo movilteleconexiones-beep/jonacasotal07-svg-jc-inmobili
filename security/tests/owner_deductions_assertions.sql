@@ -1,4 +1,18 @@
 -- Run only after fixture + migration in an isolated PostgreSQL 17 database.
+-- Supabase initplan fix must preserve policy semantics and be used in CI.
+DO $plan$
+BEGIN
+ IF NOT EXISTS (
+   SELECT 1 FROM pg_policies
+    WHERE schemaname='public' AND tablename='owner_statement_deductions'
+      AND policyname='owner_deductions_insert'
+      AND with_check ~* 'SELECT[[:space:]]+auth[.]uid[(][)]'
+ ) THEN
+   RAISE EXCEPTION 'Owner deduction INSERT policy must cache auth.uid() in a SELECT initplan';
+ END IF;
+END;
+$plan$;
+
 -- Each anticipated rejection is checked by SQLSTATE; unexpected errors fail CI.
 CREATE FUNCTION pg_temp.expect_failure(statement text, expected_code text)
 RETURNS void LANGUAGE plpgsql AS $fn$
