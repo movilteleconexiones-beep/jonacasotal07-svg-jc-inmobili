@@ -6,6 +6,7 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role; END IF;
 END $roles$;
 CREATE SCHEMA jco_private;
+CREATE SCHEMA private;
 CREATE TABLE public.organizations (id uuid PRIMARY KEY,slug text UNIQUE NOT NULL,status text NOT NULL);
 CREATE TABLE public.organization_settings (organization_id uuid PRIMARY KEY,enable_public_website boolean NOT NULL);
 CREATE TABLE public.organization_branding (organization_id uuid PRIMARY KEY, public_page_content jsonb NOT NULL DEFAULT '{}'::jsonb);
