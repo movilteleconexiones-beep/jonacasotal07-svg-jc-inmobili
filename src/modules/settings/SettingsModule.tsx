@@ -392,6 +392,14 @@ export function SettingsModule() {
               <span className="mt-1 block text-xs text-slate-500">El aviso de responsabilidad de la inmobiliaria seguirá visible.</span>
             </label>
           </div>
+          <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-2">
+            <h3 className="font-semibold">Política de datos personales</h3>
+            <p className="text-xs text-slate-600">Publica la dirección HTTPS de tu política de tratamiento de datos. Es necesaria para que el formulario público registre consultas automáticamente en tu CRM; sin ella, los visitantes solo podrán preparar un correo manual.</p>
+            <Field label="Enlace HTTPS a tu política de privacidad" type="url"
+              value={publicPage.privacyPolicyUrl}
+              onChange={value => setPublicPage(current => ({ ...current, privacyPolicyUrl: value }))}
+              maxLength={1500} />
+          </div>
           <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
             <div className="px-4 py-3 text-sm font-semibold">Vista previa antes de guardar</div>
             <div className="space-y-2 p-5 text-white" style={{background:primaryColor}}>

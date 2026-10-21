@@ -10,6 +10,7 @@ export interface PublicPageContent {
   contactTitle: string;
   contactDescription: string;
   footerDescription: string;
+  privacyPolicyUrl: string;
   showCatalog: boolean;
   showServices: boolean;
   showCalculator: boolean;
@@ -24,6 +25,7 @@ export const DEFAULT_PUBLIC_PAGE: PublicPageContent = {
   contactTitle: '',
   contactDescription: '',
   footerDescription: '',
+  privacyPolicyUrl: '',
   showCatalog: true,
   showServices: true,
   showCalculator: true,
@@ -38,6 +40,7 @@ const STRING_LIMITS: Record<string, number> = {
   contactTitle: 130,
   contactDescription: 420,
   footerDescription: 420,
+  privacyPolicyUrl: 1500,
 };
 const TOGGLES = ['showCatalog','showServices','showCalculator','showContact'] as const;
 
@@ -61,5 +64,6 @@ export function validPublicPageContent(value: PublicPageContent): boolean {
   return Object.entries(STRING_LIMITS).every(([key, length]) => {
     const item = (value as unknown as Record<string, unknown>)[key];
     return typeof item === 'string' && item.length <= length;
-  }) && TOGGLES.every(key => typeof value[key] === 'boolean');
+  }) && TOGGLES.every(key => typeof value[key] === 'boolean')
+    && (!value.privacyPolicyUrl || /^https:\/\/[^\s]+$/.test(value.privacyPolicyUrl));
 }
