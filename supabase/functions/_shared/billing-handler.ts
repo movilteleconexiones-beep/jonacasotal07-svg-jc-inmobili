@@ -129,6 +129,10 @@ export function createBillingHandler(config: BillingConfig, deps: BillingDepende
         return response(400, { error: 'invalid_checkout_request' });
       const { data: order, error } = await deps.createOrder(token, { target_org: body.organizationId,
         target_plan: body.planId, target_environment: config.environment, request_key: body.requestKey });
+      // Only disclose this exact, non-sensitive business decision after a verified
+      // user session. All other database errors remain generic.
+      if (record(error) && error.message === 'Plan change requires administrative review')
+        return response(409, { error: 'plan_change_review_required' });
       if (error || !record(order)) return response(409, { error: 'checkout_unavailable' });
       if (order.status !== 'PENDING') return response(200, { orderId: order.id, status: order.status });
       const expirationMillis = Date.parse(order.expires_at);
