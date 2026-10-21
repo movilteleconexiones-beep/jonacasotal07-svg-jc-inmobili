@@ -120,3 +120,31 @@ test('canonical app.inmojco.com origin is enabled in the deployed billing entryp
     { authorization: 'Bearer fixture', origin: 'https://malicious.example' });
   assert.equal(forbidden.status, 403);
 });
+
+test('plan conflict displays a safe, specific response before any checkout URL exists', async()=> {
+  const f=fixture({createOrder:async()=>({data:null,error:{message:'Plan change requires administrative review',code:'P0001'}})});
+  const body={organizationId:'20000000-0000-0000-0000-000000000002',
+    planId:'60000000-0000-0000-0000-000000000001',
+    requestKey:'50000000-0000-0000-0000-000000000001'};
+  const response=await f.request(body,'/checkout',{authorization:'Bearer fixture'});
+  assert.equal(response.status,409);
+  assert.deepEqual(await response.json(),{error:'plan_change_review_required'});
+  assert.equal(response.headers.get('cache-control'),'no-store');
+});
+
+test('unrecognized payment database errors do not leak internal details', async()=> {
+  const f=fixture({createOrder:async()=>({data:null,error:{message:'database query and private details'}})});
+  const body={organizationId:'20000000-0000-0000-0000-000000000002',
+    planId:'60000000-0000-0000-0000-000000000001',
+    requestKey:'50000000-0000-0000-0000-000000000001'};
+  const response=await f.request(body,'/checkout',{authorization:'Bearer fixture'});
+  assert.equal(response.status,409);
+  assert.deepEqual(await response.json(),{error:'checkout_unavailable'});
+});
+
+test('billing UI gives actionable Spanish guidance for verified plan conflicts',()=>{
+  const src=readFileSync('src/modules/billing/BillingModule.tsx','utf8');
+  assert.match(src,/detail\?\.error === 'plan_change_review_required'/);
+  assert.match(src,/Solicita autorización al superadministrador antes de intentar pagar/);
+  assert.match(src,/attempts\.current\.delete\(planId\)/);
+});
