@@ -19,6 +19,8 @@ CREATE TABLE public.leads (
   contact_id uuid REFERENCES public.contacts(id),status text NOT NULL,
   priority text NOT NULL,notes text
 );
+-- Emulate broad legacy production grants that must be explicitly revoked.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.contacts, public.leads TO anon;
 CREATE OR REPLACE FUNCTION jco_private.operational_access(target_org uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $$
  SELECT EXISTS(SELECT 1 FROM public.organizations WHERE id=target_org AND status='ACTIVE')
