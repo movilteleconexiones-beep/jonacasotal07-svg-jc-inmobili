@@ -37,6 +37,25 @@ SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003'
 SELECT public.billing_admin_action('20000000-0000-0000-0000-000000000002','MARK_TEST','Isolated Sandbox test');
 UPDATE public.billing_activation_settings SET sandbox_enabled=true;
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+-- A valid, in-progress TRIAL subscription on PRO must not accept a BASIC
+-- checkout that the verified webhook would later retain as contract_review.
+INSERT INTO public.subscriptions (organization_id,plan_id,status,billing_mode,current_period_start,current_period_end)
+VALUES ('20000000-0000-0000-0000-000000000002',
+        (SELECT id FROM public.plans WHERE code='PRO'),'TRIAL','SAAS_MONTHLY',
+        now()-interval '1 day',now()+interval '5 days');
+DO $checkout_guard$ BEGIN
+  BEGIN
+    PERFORM public.billing_create_order('20000000-0000-0000-0000-000000000002',
+      (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',gen_random_uuid());
+    RAISE EXCEPTION 'FAIL: conflicting trial plan checkout accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE '%Plan change requires administrative review%' THEN RAISE; END IF;
+  END;
+END $checkout_guard$;
+SELECT pg_temp.assert((SELECT count(*)=0 FROM public.payment_orders),
+  'trial plan mismatch must not create a payable order');
+-- Simulate trial expiry before the standard happy-path checkout.
+DELETE FROM public.subscriptions WHERE organization_id='20000000-0000-0000-0000-000000000002';
 SELECT public.billing_create_order('20000000-0000-0000-0000-000000000002',(SELECT id FROM public.plans WHERE code='BASIC'),'sandbox','50000000-0000-0000-0000-000000000001');
 SELECT public.billing_create_order('20000000-0000-0000-0000-000000000002',(SELECT id FROM public.plans WHERE code='BASIC'),'sandbox','50000000-0000-0000-0000-000000000001');
 SELECT pg_temp.assert((SELECT count(*)=1 FROM public.payment_orders),'checkout retry does not duplicate order');
