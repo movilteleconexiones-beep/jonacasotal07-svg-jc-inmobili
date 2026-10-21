@@ -84,6 +84,15 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261018162000_strict_private_property_read_boundary.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
+      - name: Tenant foreign-key lookup index regression (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_fk_index_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_fk_index_test -f security/tests/critical_tenant_relationship_indexes_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_fk_index_test -f supabase/migrations/20261021152000_index_critical_tenant_relationships.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_fk_index_test -f supabase/migrations/20261021152000_index_critical_tenant_relationships.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_fk_index_test -f security/tests/critical_tenant_relationship_indexes_assertions.sql
       - name: Simplified agency onboarding and operational workbench regression
         run: node --import tsx --test tests/simplified-agency-experience.test.mjs
       - name: Tenant onboarding brand URL and membership regression
