@@ -109,6 +109,8 @@ export default function App() {
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
   const publicAgencyServices = publicCatalog.brand?.publicServices || [];
   const page = publicCatalog.brand?.publicPage || DEFAULT_PUBLIC_PAGE;
+  const privacyPolicyUrl = safeBrandUrl(page.privacyPolicyUrl);
+  const automaticContactEnabled = Boolean(tenantSlug && privacyPolicyUrl);
   const agencyHeroUrl = safeBrandUrl(publicCatalog.brand?.publicHeroUrl);
   React.useEffect(() => {
     document.title = tenantSlug && publicCatalog.brand
@@ -275,13 +277,13 @@ export default function App() {
       setContactError('El mensaje no puede superar 2000 caracteres.');
       return;
     }
-    if (tenantSlug && !contactConsent) {
+    if (automaticContactEnabled && !contactConsent) {
       setContactError('Autoriza el uso de tus datos para recibir respuesta de esta inmobiliaria.');
       return;
     }
     setContactError('');
-    if (!tenantSlug) {
-      // Central site without a bound agency keeps its honest email-only mode.
+    if (!automaticContactEnabled) {
+      // Without a published privacy notice, use a transparent email-only mode.
       setContactSubmitted(true);
       return;
     }
@@ -1252,14 +1254,14 @@ export default function App() {
                       <Check className="w-5 h-5" />
                     </div>
                     <h3 className="text-2xl font-semibold text-slate-900">
-                      {tenantSlug ? 'Consulta registrada correctamente' : 'Consulta preparada — envío pendiente'}
+                      {automaticContactEnabled ? 'Consulta registrada correctamente' : 'Consulta preparada — envío pendiente'}
                     </h3>
                     <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                      {tenantSlug
+                      {automaticContactEnabled
                         ? <>Gracias, <strong>{contactName}</strong>. Tu consulta de <strong>{contactService}</strong> quedó registrada en el CRM de <strong>{publicCompanyName}</strong>. La inmobiliaria podrá responderte a los datos facilitados; todavía no se ha confirmado una cita ni un tiempo de respuesta.</>
                         : <>Gracias, <strong>{contactName}</strong>. Tu consulta está preparada, pero aún no se ha enviado. Utiliza el correo publicado para solicitar atención.</>}
                     </p>
-                    {!tenantSlug && branding.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email) && (
+                    {!automaticContactEnabled && branding.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email) && (
                       <a
                         href={`mailto:${branding.email}?subject=${encodeURIComponent(`Consulta web: ${contactService}`)}&body=${encodeURIComponent(`Nombre: ${contactName.trim()}\nCorreo: ${contactEmail.trim()}\nTeléfono: ${contactPhone.trim()}\nServicio: ${contactService}\nMensaje: ${contactNotes.trim()}`)}`}
                         className="inline-flex items-center justify-center px-4 py-2 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
@@ -1267,7 +1269,7 @@ export default function App() {
                         Abrir mi correo para enviar la consulta
                       </a>
                     )}
-                    {!tenantSlug && <p className="text-xs text-slate-500">
+                    {!automaticContactEnabled && <p className="text-xs text-slate-500">
                       El envío depende de tu aplicación de correo. Verifica el destinatario y pulsa Enviar allí.
                     </p>}
                     <button
@@ -1394,13 +1396,18 @@ export default function App() {
                       <input id="c-company-website" type="text" tabIndex={-1} autoComplete="off"
                         value={contactTrap} onChange={(event) => setContactTrap(event.target.value)} />
                     </div>
-                    {tenantSlug && (
+                    {automaticContactEnabled && (
                       <label className="flex items-start gap-3 text-xs leading-relaxed text-slate-700">
                         <input type="checkbox" required checked={contactConsent}
                           onChange={(event) => setContactConsent(event.target.checked)}
                           className="mt-1 h-4 w-4 shrink-0" />
-                        <span>Autorizo a <strong>{publicCompanyName}</strong> a utilizar mi nombre, correo, teléfono y mensaje para responder esta consulta. La inmobiliaria es responsable de su tratamiento.</span>
+                        <span>He leído la <a href={privacyPolicyUrl || '#'} target="_blank" rel="noopener noreferrer" className="font-semibold underline">política de tratamiento de datos</a> de <strong>{publicCompanyName}</strong> y autorizo el uso de mi nombre, correo, teléfono y mensaje para responder esta consulta. La inmobiliaria es responsable de su tratamiento.</span>
                       </label>
+                    )}
+                    {tenantSlug && !automaticContactEnabled && (
+                      <p className="text-xs text-amber-900" role="status">
+                        La inmobiliaria aún no ha publicado su política de datos personales. Por ahora podrás preparar un correo y enviarlo manualmente; este formulario no guardará la consulta en el CRM.
+                      </p>
                     )}
                     {contactError && (
                       <p role="alert" className="text-xs text-red-700 font-medium">{contactError}</p>
@@ -1411,7 +1418,7 @@ export default function App() {
                       disabled={contactBusy}
                       className="w-full py-3 px-5 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {contactBusy ? 'Registrando consulta…' : tenantSlug ? `Enviar consulta a ${publicCompanyName}` : 'Preparar correo de consulta'}
+                      {contactBusy ? 'Registrando consulta…' : automaticContactEnabled ? `Enviar consulta a ${publicCompanyName}` : 'Preparar correo de consulta'}
                     </button>
                   </form>
                 )}
