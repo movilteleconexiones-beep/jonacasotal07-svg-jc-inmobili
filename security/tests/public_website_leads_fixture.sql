@@ -27,7 +27,8 @@ INSERT INTO public.organizations(id,slug,status) VALUES
   ('00000000-0000-4000-8000-000000000001','alpha-agency','ACTIVE'),
   ('00000000-0000-4000-8000-000000000002','bravo-agency','ACTIVE'),
   ('00000000-0000-4000-8000-000000000003','disabled-agency','ACTIVE'),
-  ('00000000-0000-4000-8000-000000000004','suspended-agency','SUSPENDED');
+  ('00000000-0000-4000-8000-000000000004','suspended-agency','SUSPENDED'),
+  ('00000000-0000-4000-8000-000000000005','policyless-agency','ACTIVE');
 INSERT INTO public.organization_settings(organization_id,enable_public_website)
  SELECT id, slug <> 'disabled-agency' FROM public.organizations;
 INSERT INTO public.organization_branding(organization_id,public_page_content)
