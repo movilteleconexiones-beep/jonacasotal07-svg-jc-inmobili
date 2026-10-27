@@ -78,7 +78,7 @@ test('rejects substituted Storage path even when object counts still match',asyn
 test('requires SQL version 2 inventory with a valid path fingerprint',async t=>{
   const f=await fixture(t);
   delete f.inventory.object_keys_sha256;await f.save();
-  await assert.rejects(run(f),/inventario remoto de proyecto no válido/);
+  await assert.rejects(run(f),/Inventario remoto de proyecto no válido/);
   f.inventory.object_keys_sha256='a'.repeat(64);await f.save();
   await assert.rejects(run(f),/Identidades de Storage diferentes/);
 });
