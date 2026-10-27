@@ -58,3 +58,36 @@
 - GitHub: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository
 
 **Nota:** Supabase indica que los backups de la base **no contienen los bytes de Storage**. No activar PITR, crear proyectos ni asumir costos sin autorización específica.
+
+
+## Verificación offline de integridad SHA-256 (sin conexión)
+
+Una vez que un operador autorizado cree y almacene fuera de Git un respaldo cifrado y el contenido de Storage,
+la herramienta del repositorio **solo verifica los bytes listados**. No crea copias ni ejecuta restauraciones.
+
+Comando: \`node scripts/recovery/verify-backup-integrity.mjs <manifiesto-privado.json> <directorio-privado-de-respaldo>\`
+
+Estructura esperada del directorio de respaldo:
+
+- \`postgres.dump.enc\` (nombre ilustrativo; **el archivo real no se incluye en Git**).
+- \`storage/<bucket>/<ruta-interna>\` (bytes originales, preservando la jerarquía de Storage).
+
+Ejemplo de **esquema**, con hashes y rutas **ficticios** (no constituye respaldo):
+
+\`\`\`json
+{
+  "version": 1,
+  "project_ref": "cuitgyqrjibgwuniapmk",
+  "created_at_utc": "2026-10-27T17:45:00Z",
+  "database": {"file": "postgres.dump.enc", "sha256": "<sha256-real-64-caracteres>"},
+  "buckets": [{"id": "jco-inventory-private", "object_count": 1}],
+  "objects": [{"bucket": "jco-inventory-private", "path": "org/archivo-ficticio.jpg", "sha256": "<sha256-real-64-caracteres>"}]
+}
+\`\`\`
+
+Antes de afirmar cobertura, el operador debe comparar el inventario de buckets y objetos del momento de la copia
+con un inventario autorizado de producción. El manifiesto también debe mantenerse privado, por contener rutas reales.
+Una coincidencia SHA-256 **no** prueba que el dump sea descifrable, que PostgreSQL arranque, que los esquemas y roles
+se reconstruyan, ni que los archivos sean servidos bajo RLS correcto. El ensayo real de restauración aislada es
+obligatorio y separado. CI solo usa contenido ficticio y rechaza hashes erróneos, duplicados, enlaces simbólicos,
+rutas que escapen del directorio y proyecto de origen incorrecto.
