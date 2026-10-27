@@ -91,3 +91,15 @@ Una coincidencia SHA-256 **no** prueba que el dump sea descifrable, que PostgreS
 se reconstruyan, ni que los archivos sean servidos bajo RLS correcto. El ensayo real de restauración aislada es
 obligatorio y separado. CI solo usa contenido ficticio y rechaza hashes erróneos, duplicados, enlaces simbólicos,
 rutas que escapen del directorio y proyecto de origen incorrecto.
+
+### Completitud local del paquete de archivos
+
+El verificador comprueba ahora que los directorios de buckets enumerados en el manifiesto estén realmente
+presentes, que no existan buckets adicionales en la copia local y que **todos los archivos físicos**
+bajo `storage/` estén enumerados en el manifiesto. También rechaza enlaces simbólicos y evita
+usar un archivo de Storage como supuesto dump de PostgreSQL.
+
+Esto reduce el riesgo de aceptar un paquete local con archivos no inventariados, **pero no
+demuestra que la captura desde Supabase incluya todos los objetos remotos** ni garantiza
+la restauración. El operador debe comparar los resultados contra un inventario independiente,
+tomado en el momento de exportación, y completar una restauración aislada.
