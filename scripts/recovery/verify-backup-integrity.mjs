@@ -2,7 +2,7 @@
 // Offline file-integrity checks only. Never uploads backups or claims restore success.
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, readFile, realpath } from 'node:fs/promises';
+import { lstat, readdir, readFile, realpath } from 'node:fs/promises';
 import { resolve, relative, isAbsolute, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -31,6 +31,43 @@ async function fileHash(root, name) {
   return hash.digest('hex');
 }
 
+/**
+ * Require exact local Storage inventory: a correctly hashed *subset* is not a
+ * complete local copy. Reject unlisted files, extra buckets and symlinks.
+ * The remote inventory must still be compared independently at backup time.
+ */
+async function verifyLocalInventory(root, buckets, expectedPaths) {
+  const storage = resolve(root, 'storage');
+  const storageStat = await lstat(storage);
+  if (!storageStat.isDirectory() || storageStat.isSymbolicLink())
+    throw new Error('El directorio Storage debe ser real y estar presente.');
+
+  const bucketIds = new Set(buckets);
+  const found = new Set();
+  for (const item of await readdir(storage, { withFileTypes: true })) {
+    if (!item.isDirectory() || item.isSymbolicLink() || !bucketIds.has(item.name))
+      throw new Error('Bucket local desconocido o entrada no válida.');
+    const pending = [{ absolute: resolve(storage, item.name), prefix: item.name }];
+    while (pending.length) {
+      const current = pending.pop();
+      for (const entry of await readdir(current.absolute, { withFileTypes: true })) {
+        if (entry.isSymbolicLink()) throw new Error('Storage contiene enlaces simbólicos.');
+        const relPath = current.prefix + '/' + entry.name;
+        if (entry.isDirectory()) {
+          pending.push({ absolute: resolve(current.absolute, entry.name), prefix: relPath });
+        } else if (entry.isFile()) {
+          if (!expectedPaths.has(relPath)) throw new Error('Storage contiene archivos no inventariados.');
+          found.add(relPath);
+        } else {
+          throw new Error('Entrada no regular en el respaldo de Storage.');
+        }
+      }
+    }
+  }
+  if (found.size !== expectedPaths.size || bucketIds.size !== (await readdir(storage)).length)
+    throw new Error('Inventario de archivos o buckets incompleto.');
+}
+
 function validateDigest(hash) {
   if (typeof hash !== 'string' || !HEX_SHA256.test(hash))
     throw new Error('Huella SHA-256 inválida en el manifiesto.');
@@ -47,8 +84,11 @@ export async function verifyBackupIntegrity(manifestPath, backupRoot) {
       !manifest.database || !Array.isArray(manifest.buckets) || !Array.isArray(manifest.objects))
     throw new Error('Manifiesto de respaldo no válido.');
 
+  const dbPath = relativeName(manifest.database.file);
+  if (dbPath === 'storage' || dbPath.startsWith('storage/'))
+    throw new Error('El archivo PostgreSQL debe estar fuera de Storage.');
   const expected = validateDigest(manifest.database.sha256);
-  if (await fileHash(root, relativeName(manifest.database.file)) !== expected)
+  if (await fileHash(root, dbPath) !== expected)
     throw new Error('Huella SHA-256 de PostgreSQL no coincide.');
 
   const counts = new Map();
@@ -72,6 +112,7 @@ export async function verifyBackupIntegrity(manifestPath, backupRoot) {
   for (const entry of counts.values()) {
     if (entry.actual !== entry.expected) throw new Error('Conteo de objetos no coincide con el manifiesto.');
   }
+  await verifyLocalInventory(root, counts.keys(), seen);
   return { objects_verified: seen.size, buckets_verified: counts.size, db_verified: true };
 }
 
