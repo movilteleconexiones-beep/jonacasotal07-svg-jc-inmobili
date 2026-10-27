@@ -112,6 +112,16 @@ export async function verifyBackupIntegrity(manifestPath, backupRoot) {
   for (const entry of counts.values()) {
     if (entry.actual !== entry.expected) throw new Error('Conteo de objetos no coincide con el manifiesto.');
   }
+  // Manifests generated from a remote v2 snapshot must preserve exact key identity
+  // during subsequent offline verification. This is NOT a signed remote attestation.
+  if (manifest.source_object_keys_sha256 !== undefined) {
+    const sourceHash = validateDigest(manifest.source_object_keys_sha256);
+    const localKeyHex = [...seen].map(key => Buffer.from(key, 'utf8').toString('hex'))
+      .sort((a,b) => a < b ? -1 : a > b ? 1 : 0);
+    const localKeyHash = createHash('sha256').update(localKeyHex.join('|'), 'utf8').digest('hex');
+    if (sourceHash !== localKeyHash)
+      throw new Error('Rutas Storage no coinciden con la huella del inventario fuente.');
+  }
   await verifyLocalInventory(root, counts.keys(), seen);
   return { objects_verified: seen.size, buckets_verified: counts.size, db_verified: true };
 }
