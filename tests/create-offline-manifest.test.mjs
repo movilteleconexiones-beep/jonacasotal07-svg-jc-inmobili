@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm, symlink, rename } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, symlink, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
@@ -81,4 +81,13 @@ test('requires SQL version 2 inventory with a valid path fingerprint',async t=>{
   await assert.rejects(run(f),/Inventario remoto de proyecto no válido/);
   f.inventory.object_keys_sha256='a'.repeat(64);await f.save();
   await assert.rejects(run(f),/Identidades de Storage diferentes/);
+});
+
+test('rejects a manifest whose recorded source-key hash has been altered',async t=>{
+  const f=await fixture(t);
+  const result=await run(f);
+  const manifest=JSON.parse(await readFile(result.manifestPath,'utf8'));
+  manifest.source_object_keys_sha256='0'.repeat(64);
+  await writeFile(result.manifestPath,JSON.stringify(manifest));
+  await assert.rejects(verifyBackupIntegrity(result.manifestPath,f.root),/Rutas Storage no coinciden/);
 });
