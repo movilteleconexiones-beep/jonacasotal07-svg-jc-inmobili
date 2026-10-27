@@ -12,7 +12,7 @@ fi
 unset PGHOSTADDR PGSERVICE PGDATABASE PGOPTIONS PGCONNECT_TIMEOUT
 export PGHOST="127.0.0.1" PGPORT="5432" PGUSER="postgres"
 
-for program in psql createdb dropdb pg_dump pg_restore sha256sum; do
+for program in psql createdb dropdb docker sha256sum; do
   command -v "$program" >/dev/null || { echo "Missing $program" >&2; exit 66; }
 done
 
@@ -22,7 +22,16 @@ if ! psql -X -v ON_ERROR_STOP=1 -d postgres -Atc "select exists(select 1 from pg
   exit 67
 fi
 
-suffix="${RANDOM}${RANDOM}$$"
+# The GitHub Ubuntu image has a PostgreSQL 16 client. Keep dump and restore on
+# the isolated postgres:17 service to match the server's archive format.
+mapfile -t postgres_containers < <(docker ps --filter "ancestor=postgres:17" --format "{{.ID}}")
+if [[ "${#postgres_containers[@]}" -ne 1 ]]; then
+  echo "Expected exactly one local CI PostgreSQL 17 container" >&2
+  exit 68
+fi
+postgres_container="${postgres_containers[0]}"
+
+suffix="${RANDOM}${RANDOM}$"
 source_db="jco_fake_source_${suffix}"
 restore_db="jco_fake_restore_${suffix}"
 role="jco_fake_reader_${suffix}"
@@ -53,12 +62,15 @@ INSERT INTO public.recovery_fixture (organization_id, memo) VALUES
 ('22222222-2222-2222-2222-222222222222', 'FAKE TENANT B');
 SQL
 
-pg_dump --format=custom --no-owner --no-acl --file="$dir/source.dump" "$source_db"
+docker exec -i -e PGPASSWORD=postgres "$postgres_container" \
+  pg_dump -h 127.0.0.1 -U postgres --format=custom --no-owner --no-acl "$source_db" > "$dir/source.dump"
 sha256sum "$dir/source.dump" | awk '{print $1}' > "$dir/original.sha256"
-pg_restore --list "$dir/source.dump" > "$dir/dump.toc"
+docker exec -i "$postgres_container" pg_restore --list < "$dir/source.dump" > "$dir/dump.toc"
 grep -q 'TABLE.*recovery_fixture' "$dir/dump.toc"
 
-pg_restore --exit-on-error --no-owner --no-acl --dbname="$restore_db" "$dir/source.dump"
+docker exec -i -e PGPASSWORD=postgres "$postgres_container" \
+  pg_restore -h 127.0.0.1 -U postgres --exit-on-error --no-owner --no-acl \
+  --dbname="$restore_db" < "$dir/source.dump"
 sha256sum "$dir/source.dump" | awk '{print $1}' > "$dir/restored.sha256"
 cmp "$dir/original.sha256" "$dir/restored.sha256" >/dev/null
 
