@@ -22,6 +22,7 @@ function completeEvidence() {
       restore_verified_at: '2030-03-10T10:00:00.000Z',
     },
     security: {
+      backup_branch_protected: true,
       agency_a_b_isolation: true,
       client_and_staff_permissions: true,
       platform_admin_exclusive: true,
@@ -66,6 +67,16 @@ test('unreconciled migration history blocks release even if objects and backup c
   evidence.database.migration_history_reconciled=false;
   assert.equal(readiness(evidence).ready,false);
   evidence.database.migration_history_reconciled=true;
+  assert.equal(readiness(evidence).ready,true);
+});
+
+test('an unprotected or deletable backup reference blocks release', () => {
+  const evidence=completeEvidence();
+  delete evidence.security.backup_branch_protected;
+  assert.match(readiness(evidence).errors.join(' '), /respaldo GitHub protegida/);
+  evidence.security.backup_branch_protected=false;
+  assert.equal(readiness(evidence).ready,false);
+  evidence.security.backup_branch_protected=true;
   assert.equal(readiness(evidence).ready,true);
 });
 
