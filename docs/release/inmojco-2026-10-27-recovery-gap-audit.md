@@ -175,3 +175,24 @@ del lanzamiento.
 
 Referencias oficiales: https://supabase.com/docs/guides/platform/backups y
 https://supabase.com/docs/guides/storage/management/download-objects
+
+
+### Huella de identidades de archivos remotos (v2)
+
+La consulta `security/diagnostics/recovery_storage_inventory_json_readonly.sql` incluye ahora:
+`format_version: 2`, `object_keys_sha256`, fecha UTC y conteo por bucket.
+**No devuelve rutas individuales**. SQL calcula el SHA-256 sobre los nombres
+bucket/ruta convertidos a UTF-8 hexadecimal, ordenados binariamente y unidos
+mediante `|`; el generador local replica exactamente esa operación y falla si
+las rutas descargadas son distintas, incluso cuando los conteos coinciden.
+
+Solo se aceptan inventarios de versión 2 con SHA-256 correctamente formado.
+No copiar la huella ni el inventario real a Git: su contenido sigue siendo
+metadato privado. Deben capturarse y compararse junto con la descarga, ya que
+Storage podría recibir nuevas escrituras o eliminaciones durante la operación.
+
+La huella no identifica versiones de los **bytes** de archivos remotos y no
+puede detectar que el contenido cambió manteniendo el nombre. Por eso se exige
+además descargar bytes de forma autorizada, calcular su SHA-256 real y ejecutar
+una restauración aislada. Esta validación tampoco demuestra que el volcado
+de PostgreSQL esté cifrado o restaurable.
