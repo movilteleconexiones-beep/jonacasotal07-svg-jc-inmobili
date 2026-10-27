@@ -39,6 +39,11 @@ jobs:
         run: npm run lint
       - name: Recovery artifact integrity offline checks (fictional fixtures)
         run: node --test tests/recovery-backup-integrity.test.mjs
+      - name: PostgreSQL isolated dump/restore rehearsal (fictional data only)
+        env:
+          PGPASSWORD: postgres
+          JCO_RECOVERY_FIXTURE_CI: '1'
+        run: bash scripts/recovery/isolated-dump-restore-smoke.sh
       - name: Approved COP monthly prices and immutable perpetual license SQL
         env:
           PGPASSWORD: postgres
