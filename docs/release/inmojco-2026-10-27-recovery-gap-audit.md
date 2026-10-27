@@ -103,3 +103,26 @@ Esto reduce el riesgo de aceptar un paquete local con archivos no inventariados,
 demuestra que la captura desde Supabase incluya todos los objetos remotos** ni garantiza
 la restauración. El operador debe comparar los resultados contra un inventario independiente,
 tomado en el momento de exportación, y completar una restauración aislada.
+
+## Reconciliación SQL y bloqueos de publicación verificados
+
+El diagnóstico `security/diagnostics/migration_reconciliation_readonly.sql` fue ejecutado
+contra el Supabase de producción el 27/oct/2026 dentro de una transacción `READ ONLY`.
+En ambos casos el historial no registra la migración, aunque los efectos revisados sí coinciden:
+
+| Versión | Estado de historial | Efecto |
+| --- | --- | --- |
+| `20261021114500` | Sin registrar | Cuerpo normalizado de `billing_create_order` coincide con GitHub |
+| `20261021152000` | Sin registrar | Los 5 índices tienen la definición esperada y `indisvalid/indisready/indislive=true` |
+
+**Limitación del diagnóstico:** para el cuerpo SQL se compara una huella MD5 sobre el
+texto ignorando espacios; sirve para detectar discrepancias evidentes, pero la comparación
+no equivale a una auditoría semántica o criptográfica ni debe habilitar automáticamente
+una reparación. No ejecutar de nuevo DDL ni escribir artificialmente el historial hasta
+contar con respaldo/restauración reales y análisis específico de dependencias.
+
+El control local `scripts/release-readiness.mjs` ahora requiere expresamente evidencia
+de `database.migration_history_reconciled=true` y de
+`security.backup_branch_protected=true` además de los respaldos restaurados y la CI.
+En el estado real observado **ambas condiciones siguen siendo falsas**.
+Los tests usan solo evidencia ficticia positiva o negativa; ningún paso publica cambios.
