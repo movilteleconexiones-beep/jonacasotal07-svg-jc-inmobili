@@ -78,7 +78,9 @@ export async function createOfflineManifest(rootDir, encryptedDumpName, remoteIn
     throw new Error('Se requiere un archivo de respaldo cifrado .age, .gpg o .enc.');
   const dump = await normalFile(root, encryptedDumpName);
   const inventory = JSON.parse(await readFile(resolve(remoteInventoryPath), 'utf8'));
-  if (inventory.project_ref !== PROJECT_REF || !Array.isArray(inventory.buckets))
+  if (inventory.format_version !== 2 || inventory.project_ref !== PROJECT_REF ||
+      !/^[0-9a-f]{64}$/i.test(inventory.object_keys_sha256 ?? '') ||
+      !Array.isArray(inventory.buckets))
     throw new Error('Inventario remoto de proyecto no válido.');
   const timestamp = Date.parse(inventory.observed_at_utc);
   const age = now.getTime() - timestamp;
@@ -109,8 +111,18 @@ export async function createOfflineManifest(rootDir, encryptedDumpName, remoteIn
       objects.push({...entry,sha256:await sha256(local)});
     }
   }
+  // Compare exact path identities without printing private Storage names.
+  // SQL uses UTF-8 hex keys, ASCII '|' delimiting and C-sorted ordering.
+  const keyHex = objects.map(({bucket,path}) =>
+    Buffer.from(bucket + '/' + path, 'utf8').toString('hex'))
+    .sort((a,b) => a < b ? -1 : a > b ? 1 : 0);
+  const localKeysSha256 = createHash('sha256').update(keyHex.join('|'),'utf8').digest('hex');
+  if (localKeysSha256 !== inventory.object_keys_sha256.toLowerCase())
+    throw new Error('Identidades de Storage diferentes del inventario remoto, aun con conteos iguales.');
   const manifest = {
     version:1, project_ref:PROJECT_REF, created_at_utc:now.toISOString(),
+    source_inventory_observed_at_utc: inventory.observed_at_utc,
+    source_object_keys_sha256: localKeysSha256,
     database:{file:encryptedDumpName, sha256:await sha256(dump)},
     buckets:REQUIRED_BUCKETS.map(id=>({id,object_count:expected.get(id)})), objects,
   };
