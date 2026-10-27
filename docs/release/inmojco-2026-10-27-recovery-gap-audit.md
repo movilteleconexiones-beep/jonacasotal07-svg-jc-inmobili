@@ -126,3 +126,52 @@ de `database.migration_history_reconciled=true` y de
 `security.backup_branch_protected=true` además de los respaldos restaurados y la CI.
 En el estado real observado **ambas condiciones siguen siendo falsas**.
 Los tests usan solo evidencia ficticia positiva o negativa; ningún paso publica cambios.
+
+
+## Preparación local de manifiesto privado (sin introducir credenciales en ChatGPT)
+
+Estas herramientas preparan evidencias para respaldos **obtenidos previamente por un operador autorizado**.
+No descargan archivos, no crean respaldos reales, no comprueban el cifrado y no restauran producción.
+No guardar ningún volcado, manifiesto ni secretos dentro del repositorio Git.
+
+1. Exportar PostgreSQL desde un equipo del propietario mediante la documentación oficial
+   de Supabase (comandos CLI de exportación vigentes), y cifrar localmente el resultado
+   con una herramienta fiable antes de conservarlo fuera de Supabase y GitHub.
+   La extensión .age/.gpg/.enc es solo una comprobación de nombre: **no prueba que
+   el contenido realmente esté cifrado**. Verificar cifrado y capacidad de descifrado
+   por separado, sin subir contraseñas ni claves a GitHub ni a esta conversación.
+2. Descargar de forma autorizada **los bytes reales** de los objetos privados,
+   conservando cuatro directorios incluso cuando no contienen archivos.
+   La estructura local es: directorio_privado/storage/<bucket>/<ruta-original>.
+3. Al momento de la exportación, ejecutar la consulta de solo lectura
+   security/diagnostics/recovery_storage_inventory_json_readonly.sql en el proyecto
+   cuitgyqrjibgwuniapmk. Guardar ÚNICAMENTE el objeto JSON retornado (sin
+   envoltorios del SQL Editor) en source-inventory.local.json, fuera del repositorio.
+   La consulta no devuelve rutas ni nombres de los archivos y no modifica datos.
+4. Desde la carpeta de código (sin mover datos privados allí) ejecutar:
+
+    node scripts/recovery/create-offline-manifest.mjs "D:\INMOJCO-Privado\Copia" postgres.dump.age "D:\INMOJCO-Privado\Copia\source-inventory.local.json"
+
+5. El comando anterior genera backup-manifest.local.json con rutas relativas y
+   SHA-256, siempre dentro del directorio privado. Rechaza conteos distintos,
+   buckets incompletos, inventario de más de 24 horas y reescritura de manifiestos.
+   Comprobarlo nuevamente desde el código con:
+
+    node scripts/recovery/verify-backup-integrity.mjs "D:\INMOJCO-Privado\Copia\backup-manifest.local.json" "D:\INMOJCO-Privado\Copia"
+
+6. Guardar el manifiesto cifrado junto al respaldo fuera de producción, protegendo
+   datos personales incluidos en rutas internas. Verificar la identidad de cada
+   archivo remoto y la consistencia del snapshot de manera independiente.
+7. Restaurar PostgreSQL **y los objetos Storage** en infraestructura aislada, sin
+   usar credenciales de producción durante la restauración. Comparar huellas, permisos,
+   funciones, restricciones, datos y flujos multiinmobiliaria; registrar evidencia privada.
+
+**Advertencias:** comparar conteos no garantiza que se hayan descargado los objetos
+correctos: faltas y duplicaciones pueden compensarse. El generador no verifica
+que PostgreSQL sea restaurable ni que el cifrado funcione; ninguna confirmación
+de sus comandos permite declarar un respaldo integral. La protección de ramas Git
+y la reconciliación del historial de migraciones siguen siendo puertas independientes
+del lanzamiento.
+
+Referencias oficiales: https://supabase.com/docs/guides/platform/backups y
+https://supabase.com/docs/guides/storage/management/download-objects
