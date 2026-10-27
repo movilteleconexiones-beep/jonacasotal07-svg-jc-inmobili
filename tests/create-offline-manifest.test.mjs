@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, symlink, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { createOfflineManifest, REQUIRED_BUCKETS, PROJECT_REF } from '../scripts/recovery/create-offline-manifest.mjs';
 import { verifyBackupIntegrity } from '../scripts/recovery/verify-backup-integrity.mjs';
@@ -13,7 +14,15 @@ async function fixture(t) {
   await writeFile(join(root,'postgres.dump.age'),'fictitious encrypted dump');
   for(const bucket of REQUIRED_BUCKETS) await mkdir(join(root,'storage',bucket),{recursive:true});
   await writeFile(join(root,'storage','jco-inventory-private','fictitious.jpg'),'fictitious image bytes');
-  const inventory={project_ref:PROJECT_REF,observed_at_utc:now.toISOString(),buckets:REQUIRED_BUCKETS.map(id=>({id,object_count:id==='jco-inventory-private'?1:0}))};
+  const inventory={
+    format_version:2,
+    project_ref:PROJECT_REF,
+    observed_at_utc:now.toISOString(),
+    object_keys_sha256:createHash('sha256')
+      .update(Buffer.from('jco-inventory-private/fictitious.jpg','utf8').toString('hex'),'utf8')
+      .digest('hex'),
+    buckets:REQUIRED_BUCKETS.map(id=>({id,object_count:id==='jco-inventory-private'?1:0}))
+  };
   const inventoryPath=join(root,'inventory-input.json');
   const save=()=>writeFile(inventoryPath,JSON.stringify(inventory));
   await save();
@@ -59,4 +68,17 @@ test('will not overwrite existing manifest',async t=>{
 test('refuses backups saved inside a Git working tree',async t=>{
   const f=await fixture(t);await mkdir(join(f.root,'.git'));
   await assert.rejects(run(f),/repositorio Git/);
+});
+test('rejects substituted Storage path even when object counts still match',async t=>{
+  const f=await fixture(t);
+  await rename(join(f.root,'storage','jco-inventory-private','fictitious.jpg'),
+    join(f.root,'storage','jco-inventory-private','substitute.jpg'));
+  await assert.rejects(run(f),/Identidades de Storage diferentes/);
+});
+test('requires SQL version 2 inventory with a valid path fingerprint',async t=>{
+  const f=await fixture(t);
+  delete f.inventory.object_keys_sha256;await f.save();
+  await assert.rejects(run(f),/inventario remoto de proyecto no válido/);
+  f.inventory.object_keys_sha256='a'.repeat(64);await f.save();
+  await assert.rejects(run(f),/Identidades de Storage diferentes/);
 });
