@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, symlink, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { verifyBackupIntegrity } from '../scripts/recovery/verify-backup-integrity.mjs';
@@ -80,4 +80,40 @@ test('rejects incorrect source project and invalid hash format', async t => {
   f.manifest.database.sha256 = 'wrong';
   await f.save();
   await assert.rejects(verifyBackupIntegrity(f.path, f.root), /SHA-256 inválida/);
+});
+
+test('rejects files not listed in manifest even when listed hashes match', async t => {
+  const f = await fixture(t);
+  await writeFile(join(f.root, 'storage', 'jco-inventory-private', 'org', 'extra.jpg'), 'extra bytes');
+  await assert.rejects(verifyBackupIntegrity(f.path, f.root), /no inventariados/);
+});
+
+test('rejects extra empty buckets that are not in the manifest', async t => {
+  const f = await fixture(t);
+  await mkdir(join(f.root, 'storage', 'unlisted-bucket'));
+  await assert.rejects(verifyBackupIntegrity(f.path, f.root), /Bucket local desconocido/);
+});
+
+test('rejects missing bucket directories even if expected count is zero', async t => {
+  const f = await fixture(t);
+  await unlink(join(f.root, 'storage', 'jco-inventory-private', 'org', 'photo.jpg'));
+  f.manifest.objects = [];
+  f.manifest.buckets[0].object_count = 0;
+  await f.save();
+  await rm(join(f.root, 'storage', 'jco-inventory-private'), { recursive: true });
+  await assert.rejects(verifyBackupIntegrity(f.path, f.root), /incompleto/);
+});
+
+test('rejects symlinks hidden inside Storage tree', async t => {
+  const f = await fixture(t);
+  await symlink(join(f.root, 'postgres.dump.enc'), join(f.root, 'storage', 'jco-inventory-private', 'org', 'linked.txt'));
+  await assert.rejects(verifyBackupIntegrity(f.path, f.root), /enlaces simbólicos/);
+});
+
+test('rejects database dump declared as a Storage file', async t => {
+  const f = await fixture(t);
+  f.manifest.database.file = 'storage/jco-inventory-private/org/photo.jpg';
+  f.manifest.database.sha256 = hash('fake photo');
+  await f.save();
+  await assert.rejects(verifyBackupIntegrity(f.path, f.root), /fuera de Storage/);
 });
