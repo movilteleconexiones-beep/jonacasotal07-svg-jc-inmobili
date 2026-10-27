@@ -65,16 +65,16 @@
 Una vez que un operador autorizado cree y almacene fuera de Git un respaldo cifrado y el contenido de Storage,
 la herramienta del repositorio **solo verifica los bytes listados**. No crea copias ni ejecuta restauraciones.
 
-Comando: \`node scripts/recovery/verify-backup-integrity.mjs <manifiesto-privado.json> <directorio-privado-de-respaldo>\`
+Comando: `node scripts/recovery/verify-backup-integrity.mjs <manifiesto-privado.json> <directorio-privado-de-respaldo>`
 
 Estructura esperada del directorio de respaldo:
 
-- \`postgres.dump.enc\` (nombre ilustrativo; **el archivo real no se incluye en Git**).
-- \`storage/<bucket>/<ruta-interna>\` (bytes originales, preservando la jerarquía de Storage).
+- `postgres.dump.enc` (nombre ilustrativo; **el archivo real no se incluye en Git**).
+- `storage/<bucket>/<ruta-interna>` (bytes originales, preservando la jerarquía de Storage).
 
 Ejemplo de **esquema**, con hashes y rutas **ficticios** (no constituye respaldo):
 
-\`\`\`json
+```json
 {
   "version": 1,
   "project_ref": "cuitgyqrjibgwuniapmk",
@@ -83,7 +83,7 @@ Ejemplo de **esquema**, con hashes y rutas **ficticios** (no constituye respaldo
   "buckets": [{"id": "jco-inventory-private", "object_count": 1}],
   "objects": [{"bucket": "jco-inventory-private", "path": "org/archivo-ficticio.jpg", "sha256": "<sha256-real-64-caracteres>"}]
 }
-\`\`\`
+```
 
 Antes de afirmar cobertura, el operador debe comparar el inventario de buckets y objetos del momento de la copia
 con un inventario autorizado de producción. El manifiesto también debe mantenerse privado, por contener rutas reales.
