@@ -11,3 +11,18 @@ supabase/.temp/
 # Private release evidence, never commit backup metadata or billing records
 release-evidence.local.json
 release-evidence.*.local.json
+
+# Disaster-recovery exports and private manifests must never enter source control
+backup-manifest.local.json
+source-inventory.local.json
+remote-inventory.local.json
+private-backups/
+backups/
+*.dump
+*.dump.enc
+*.backup
+*.sql.gz
+*.sql.enc
+*.age
+*.gpg
+*.pgpass
