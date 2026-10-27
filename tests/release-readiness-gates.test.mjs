@@ -12,6 +12,7 @@ function completeEvidence() {
     ci: { passed: true, commit_sha: sha },
     database: {
       migrations_reviewed: true,
+      migration_history_reconciled: true,
       backup_sha256: 'b'.repeat(64),
       restored_backup_sha256: 'b'.repeat(64),
       restore_target: 'local:inmojco-recovery-ci',
@@ -56,6 +57,16 @@ test('wrong Supabase instance, mismatched CI SHA or missing external tenant chec
   assert.equal(readiness(changedHead).ready,false);
   const missing=completeEvidence();missing.security.external_owner_tenant=false;
   assert.equal(readiness(missing).ready,false);
+});
+
+test('unreconciled migration history blocks release even if objects and backup checks pass', () => {
+  const evidence=completeEvidence();
+  delete evidence.database.migration_history_reconciled;
+  assert.match(readiness(evidence).errors.join(' '), /Historial de migraciones/);
+  evidence.database.migration_history_reconciled=false;
+  assert.equal(readiness(evidence).ready,false);
+  evidence.database.migration_history_reconciled=true;
+  assert.equal(readiness(evidence).ready,true);
 });
 
 test('an old backup, expired restore, or restore predating the backup cannot authorize release', () => {
