@@ -58,6 +58,8 @@ export async function snapshotStorage(storage, requestedRoot, {listLimit=100}={}
   await outsideGit(root);
   await mkdir(root, {recursive:false,mode:0o700});
   const canonical=await realpath(root);
+  // Also inspect the canonical path: a parent directory may be a symlink.
+  await outsideGit(canonical);
   const counts={};
   const records=[];
   let completed=false;
@@ -108,8 +110,11 @@ export async function snapshotStorage(storage, requestedRoot, {listLimit=100}={}
               await rm(dest,{force:true});
               throw new Error('Descarga fallida; copia privada incompleta.');
             }
+            const actualSize=(await lstat(dest)).size;
+            if (Number.isSafeInteger(entry.metadata?.size) && actualSize!==entry.metadata.size)
+              throw new Error('El tamaño descargado no coincide con los metadatos remotos.');
             const sha256=await digest(dest);
-            records.push({bucket,path:relative,sha256});
+            records.push({bucket,path:relative,sha256,size:actualSize});
             total++;
             if(records.length>100000) throw new Error('Máximo permitido de objetos superado.');
           }
