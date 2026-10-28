@@ -33,7 +33,8 @@ BEGIN
         AND jco_private.operational_access(o.id)
     ), visible_properties AS (
       SELECT catalogs.organization_id,
-             listing.value->>'id' AS property_id
+             listing.value->>'id' AS property_id,
+             listing.value->>'description' AS previous_description
       FROM catalogs
       CROSS JOIN LATERAL jsonb_array_elements(
         coalesce(catalogs.existing_catalog->'properties','[]'::jsonb)
@@ -45,8 +46,12 @@ BEGIN
       ON approval.property_id::text=visible.property_id
      AND approval.organization_id=visible.organization_id
     WHERE approval.published IS DISTINCT FROM true
+       OR (
+         nullif(btrim(coalesce(visible.previous_description,'')),'') IS NOT NULL
+         AND nullif(btrim(coalesce(approval.public_description,'')),'') IS NULL
+       )
   ) THEN
-    RAISE EXCEPTION 'Cannot cut over public catalog: existing live listings still lack agency approval'
+    RAISE EXCEPTION 'Cannot cut over public catalog: current listings lack approved publication or reviewed description'
       USING ERRCODE='P0001';
   END IF;
 END;
