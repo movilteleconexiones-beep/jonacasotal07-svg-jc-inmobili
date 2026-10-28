@@ -49,6 +49,9 @@ export function PropertyPublishingControls({property,organizationId}: {
     if(published && property.status!=='AVAILABLE'){
       setMessage('El inmueble debe estar Disponible para publicarse.');return;
     }
+    if(published && !description.trim()){
+      setMessage('Para autorizar un anuncio, escribe primero una descripción comercial pública.');return;
+    }
     const url=imageUrl.trim();
     if(url){
       try{
