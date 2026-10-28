@@ -294,6 +294,8 @@ jobs:
         run: node --test tests/billing-plan-entitlements.test.mjs
       - name: Two-plan offer and tenant-scoped billing history
         run: node --test tests/billing-commercial-catalog-two-plans.test.mjs
+      - name: Production checkout never trusts obsolete sandbox prototype tariffs
+        run: node --test tests/live-checkout-does-not-trust-legacy-quotes.test.mjs
       - name: Dual Panel and SuperAdmin navigation regression
         run: node --test tests/dual-panel-navigation-regression.test.mjs
       - name: Consignment photo retry regression
