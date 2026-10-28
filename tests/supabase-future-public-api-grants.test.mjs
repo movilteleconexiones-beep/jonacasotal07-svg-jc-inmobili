@@ -87,8 +87,8 @@ test('REVOKE cannot be bypassed by a later broad grant to anonymous or PUBLIC', 
     'GRANT SELECT ON public.future_records TO PUBLIC;',
     'GRANT TRUNCATE ON public.future_records TO PUBLIC, anon;',
   ]) {
-    assert.match(findUnsafePublicTables(safe + statement).join(' '),
-      /unsafe public\\/anon GRANT/, statement);
+    assert.ok(findUnsafePublicTables(safe + statement)
+      .some(issue => issue.includes('unsafe public/anon GRANT')), statement);
   }
   // A public listing endpoint can explicitly grant only SELECT to anon,
   // provided that the same table has RLS and an appropriate restrictive policy.
