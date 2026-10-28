@@ -184,6 +184,8 @@ jobs:
         run: node --test tests/platform-billing-access-review.test.mjs
       - name: Wompi release readiness preflight checks
         run: node --test tests/wompi-release-readiness.test.mjs
+      - name: Exact migration fingerprint and read-only reconciliation contract
+        run: node --test tests/exact-two-migrations-preflight.test.mjs
       - name: Commercial launch GO-NO-GO safety gates
         run: node --test tests/release-readiness-gates.test.mjs
       - name: Owner deduction administrator approval regression
