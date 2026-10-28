@@ -19,6 +19,7 @@ import { AuthAccessButton } from './components/AuthAccessButton.tsx';
 import { useAuth } from './core/auth-context.tsx';
 import type { TenantBrandingState } from './core/use-tenant-branding';
 import { usePublicTenantCatalog } from './core/use-public-tenant-catalog';
+import { PublicContactRequestScope } from './core/public-contact-request-scope';
 import { safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY } from './core/tenant-palette';
 import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
 import { isPublicStorefrontPath, resolvePublicTenantSlug, tenantPublicPath } from './core/public-tenant-route';
@@ -158,6 +159,7 @@ export default function App() {
   const [academyNotice, setAcademyNotice] = useState('');
 
   // Contact / Lead Form state
+  const [contactRequestScope] = useState(() => new PublicContactRequestScope());
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -168,11 +170,22 @@ export default function App() {
   const [contactConsent, setContactConsent] = useState(false);
   const [contactTrap, setContactTrap] = useState('');
   const [contactBusy, setContactBusy] = useState(false);
-  React.useEffect(() => {
+  // Public contact details/consent belong only to the agency and policy
+  // under which they were entered. Flush all personal fields BEFORE paint
+  // when either changes, and invalidate the response of any older RPC.
+  React.useLayoutEffect(() => {
+    contactRequestScope.update(tenantSlug, privacyPolicyUrl);
+    setContactName('');
+    setContactEmail('');
+    setContactPhone('');
+    setContactService(tenantSlug ? 'Consulta general' : 'Administración Integral de Propiedad');
+    setContactNotes('');
     setContactSubmitted(false);
     setContactConsent(false);
+    setContactTrap('');
+    setContactBusy(false);
     setContactError('');
-  }, [tenantSlug]);
+  }, [tenantSlug, privacyPolicyUrl, contactRequestScope]);
 
   const formatMoney = (val: number, sourceCurrency?: string) => {
     const safeValue = Number.isFinite(val) ? val : 0;
@@ -287,6 +300,9 @@ export default function App() {
       setContactSubmitted(true);
       return;
     }
+    // Capture the submission's original agency/policy scope; a response
+    // arriving after navigation must never confirm under a different brand.
+    const requestGeneration = contactRequestScope.capture();
     setContactBusy(true);
     try {
       const { data, error } = await supabase.rpc('submit_public_website_lead', {
@@ -299,15 +315,18 @@ export default function App() {
         p_consent: contactConsent,
         p_trap: contactTrap,
       });
+      if (!contactRequestScope.isCurrent(requestGeneration)) return;
       if (error || data !== true) {
         throw new Error('No fue posible registrar la consulta. Intenta nuevamente o utiliza los datos de contacto publicados.');
       }
       setContactSubmitted(true);
       setContactConsent(false);
     } catch (error) {
-      setContactError(error instanceof Error ? error.message : 'No fue posible enviar la consulta.');
+      if (contactRequestScope.isCurrent(requestGeneration))
+        setContactError(error instanceof Error ? error.message : 'No fue posible enviar la consulta.');
     } finally {
-      setContactBusy(false);
+      if (contactRequestScope.isCurrent(requestGeneration))
+        setContactBusy(false);
     }
   };
 
