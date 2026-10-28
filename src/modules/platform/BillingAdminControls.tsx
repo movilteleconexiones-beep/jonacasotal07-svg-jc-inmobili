@@ -15,7 +15,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   useEffect(() => {
     void Promise.all([
       supabase.from('billing_activation_settings').select('activation_mode').single(),
-      supabase.from('plans').select('id,name,code,billing_cycle,currency').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL']).order('price'),
+      supabase.from('plans').select('id,name,code,billing_cycle,currency').eq('active',true).eq('billing_cycle','MONTHLY').eq('currency','COP').in('code',['BASIC','PRO']).order('price'),
       supabase.from('plan_features').select('plan_id').eq('enabled',true).like('feature_key','permission:%'),
     ]).then(([config,catalog,features]) => { if (config.error || catalog.error || features.error) { setMessage('No se pudo consultar la configuración comercial y los permisos de los planes.'); return; }
       setMode(config.data.activation_mode); setPlans(catalog.data ?? []); setConfiguredPlanIds([...new Set((features.data ?? []).map(f => f.plan_id))]); });
@@ -30,7 +30,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   }
   async function apply() {
     if (!tenant || busy) return;
-    if (action==='APPROVE' && !configuredPlanIds.includes(plan)) {
+    if (action==='APPROVE' && (!plans.some(item => item.id === plan) || !configuredPlanIds.includes(plan))) {
       setMessage('Este plan no tiene permisos comerciales configurados. Debe revisarse el catálogo antes de autorizar acceso.');
       return;
     }
@@ -63,7 +63,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
           </select></label>}
       </div>{action==='APPROVE' && plans.length>0 && configuredPlanIds.length===0 && <p role="status" className="mt-3 text-sm text-amber-800">Los planes existen, pero todavía no tienen permisos habilitados en el catálogo comercial. No se puede autorizar un período nuevo hasta completar esa configuración.</p>}<label className="mt-3 block text-sm">Motivo (queda en auditoría)
         <textarea aria-label="Motivo del cambio" value={reason} minLength={10} maxLength={1000} onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <button type="button" disabled={busy || reason.trim().length<10 || (action==='APPROVE' && (!plan || !configuredPlanIds.includes(plan)))} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
+      <button type="button" disabled={busy || reason.trim().length<10 || (action==='APPROVE' && (!plans.some(item => item.id === plan) || !configuredPlanIds.includes(plan)))} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
     </div>}
     {message && <p role="status" className="mt-3 text-sm">{message}</p>}
   </section>;

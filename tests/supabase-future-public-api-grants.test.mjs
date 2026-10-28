@@ -30,6 +30,38 @@ function findUnsafePublicTables(raw) {
       new RegExp('(?:^|[,\\s])'+role+'(?:[,\\s]|$)','i').test(item[1])
     ));
     if (!safe) issues.push(match[2] + ': missing explicit REVOKE ALL FROM PUBLIC, anon, authenticated');
+
+    // A later GRANT can undo the preceding REVOKE, silently exposing the
+    // table through PostgREST. RLS alone is not a substitute for API grants.
+    // Authenticated permissions are separately governed by RLS policies;
+    // anonymous access is restricted to explicit SELECT with RLS.
+    const grants = [...sql.matchAll(new RegExp(
+      '\\bGRANT\\s+([^;]+?)\\s+ON\\s+(?:TABLE\\s+)?'+qualified+
+      '\\s+TO\\s+([^;]+);', 'gi'
+    ))];
+    for (const grant of grants) {
+      const privileges = grant[1];
+      const roles = grant[2].replace(/\s+WITH\s+GRANT\s+OPTION[\s\S]*/i, '');
+      const anonymous = /(?:^|[,\s])anon(?:$|[,\s])/i.test(roles);
+      const publicRole = /(?:^|[,\s])PUBLIC(?:$|[,\s])/i.test(roles);
+      const dangerous = /(?:^|[,\s])(?:ALL|INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)(?:$|[,\s])/i.test(privileges);
+      if (publicRole || (anonymous && dangerous)) {
+        issues.push(match[2] + ': unsafe public/anon GRANT overrides private API boundary');
+      }
+    }
+  }
+  // Reject grants that implicitly cover every present/future public table,
+  // even when a migration has no CREATE TABLE statement of its own.
+  const blanket = [...sql.matchAll(
+    /\bGRANT\s+[^;]+?\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+TO\s+([^;]+);/gi
+  )];
+  const defaults = [...sql.matchAll(
+    /\bALTER\s+DEFAULT\s+PRIVILEGES\b[^;]*?\bGRANT\s+[^;]+?\bON\s+TABLES\s+TO\s+([^;]+);/gi
+  )];
+  for (const grant of [...blanket, ...defaults]) {
+    const roles = grant[1].replace(/\s+WITH\s+GRANT\s+OPTION[\s\S]*/i, '');
+    if (/(?:^|[,\s])(?:PUBLIC|anon)(?:$|[,\s])/i.test(roles))
+      issues.push('unsafe global/default public/anon table grant');
   }
   return issues;
 }
@@ -53,4 +85,43 @@ test('migration guard rejects unsafe legacy grants, but permits internal tables'
   assert.deepEqual(findUnsafePublicTables('CREATE TABLE private.receipts (id uuid);'),[]);
   assert.equal(findUnsafePublicTables(good.replace(/REVOKE ALL[^;]+;/,'')).length,1);
   assert.equal(findUnsafePublicTables(good.replace(/ALTER TABLE[^;]+;/,'')).length,1);
+});
+
+test('REVOKE cannot be bypassed by a later broad grant to anonymous or PUBLIC', () => {
+  const safe = `CREATE TABLE public.future_records(id uuid PRIMARY KEY);
+    ALTER TABLE public.future_records ENABLE ROW LEVEL SECURITY;
+    REVOKE ALL ON public.future_records FROM PUBLIC, anon, authenticated;`;
+  for (const statement of [
+    'GRANT ALL ON public.future_records TO anon;',
+    'GRANT ALL PRIVILEGES ON TABLE public.future_records TO anon;',
+    'GRANT SELECT, INSERT ON public.future_records TO anon;',
+    'GRANT UPDATE ON public.future_records TO anon;',
+    'GRANT DELETE ON public.future_records TO anon, authenticated;',
+    'GRANT SELECT ON public.future_records TO PUBLIC;',
+    'GRANT TRUNCATE ON public.future_records TO PUBLIC, anon;',
+    'GRANT SELECT,\nINSERT ON public.future_records TO anon;',
+  ]) {
+    assert.ok(findUnsafePublicTables(safe + statement)
+      .some(issue => issue.includes('unsafe public/anon GRANT')), statement);
+  }
+  // A public listing endpoint can explicitly grant only SELECT to anon,
+  // provided that the same table has RLS and an appropriate restrictive policy.
+  assert.deepEqual(findUnsafePublicTables(safe +
+    'GRANT SELECT ON public.future_records TO anon;'), []);
+  assert.deepEqual(findUnsafePublicTables(safe +
+    'GRANT SELECT, INSERT ON public.future_records TO authenticated;'), []);
+});
+
+test('global and default privileges cannot bypass private API grants', () => {
+  for (const sql of [
+    'GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;',
+    'GRANT SELECT ON ALL TABLES IN SCHEMA public TO PUBLIC;',
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon;',
+    'ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO PUBLIC;',
+  ]) {
+    assert.ok(findUnsafePublicTables(sql).some(issue =>
+      issue.includes('unsafe global/default public/anon table grant')), sql);
+  }
+  assert.deepEqual(findUnsafePublicTables(
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO authenticated;'), []);
 });
