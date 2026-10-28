@@ -1,12 +1,12 @@
 -- Fake schema extension for opt-in tenant catalogue integration, no production data.
-CREATE SCHEMA private;
-CREATE SCHEMA jco_private;
+CREATE SCHEMA IF NOT EXISTS private;
+CREATE SCHEMA IF NOT EXISTS jco_private;
 GRANT USAGE ON SCHEMA private,jco_private TO authenticated;
 CREATE FUNCTION jco_private.is_internal_staff(target_org uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
  SELECT public.has_org_permission(target_org,'properties.edit')
 $$;
-CREATE FUNCTION jco_private.operational_access(target_org uuid)
+CREATE OR REPLACE FUNCTION jco_private.operational_access(target_org uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
  SELECT EXISTS(SELECT 1 FROM public.organizations o WHERE o.id=target_org AND o.status='ACTIVE')
 $$;
@@ -22,7 +22,9 @@ ALTER TABLE public.properties
 CREATE TABLE public.organization_branding(
  organization_id uuid PRIMARY KEY REFERENCES public.organizations(id),
  company_name text,logo_url text,primary_color text,secondary_color text,
- phone text,email text,website text
+ phone text,email text,website text,whatsapp text,
+ public_headline text,public_description text,public_hero_url text,
+ public_office_address text,public_services jsonb,public_page_content jsonb
 );
 INSERT INTO public.organization_settings(organization_id,country,default_currency,enable_public_website,locale)
  SELECT id,'CO','COP',true,'es-CO' FROM public.organizations;
