@@ -1,4 +1,5 @@
 import type { Property } from '../data/properties';
+import { COLOMBIA_DIVIPOLA } from '../data/colombia-divipola';
 
 export interface CatalogLocationSelection {
   region: string;
@@ -19,6 +20,22 @@ function locationKey(value: string) {
   return ['bogota', 'bogota d c', 'bogota dc'].includes(key) ? 'bogota' : key;
 }
 
+// Some legacy published properties have a city but no department. The DANE
+// snapshot lets us infer a department ONLY for municipality names unique across
+// Colombia. Homonymous municipalities fail closed rather than mislabel inventory.
+const uniqueColombianRegionByMunicipality = new Map<string, string | null>();
+for (const region of COLOMBIA_DIVIPOLA.regions) {
+  for (const municipality of region.localities) {
+    const key = locationKey(municipality.name);
+    if (!key) continue;
+    if (!uniqueColombianRegionByMunicipality.has(key)) {
+      uniqueColombianRegionByMunicipality.set(key, region.name);
+    } else if (uniqueColombianRegionByMunicipality.get(key) !== region.name) {
+      uniqueColombianRegionByMunicipality.set(key, null);
+    }
+  }
+}
+
 function propertyLocation(property: LocatedProperty) {
   const [legacyCity = '', ...legacyRegion] = (property.municipality || '').split(',');
   const city = property.city?.trim() || legacyCity.trim();
@@ -36,7 +53,11 @@ export function matchesCatalogLocation(
   if (!selection.region && !selection.locality) return true;
   if (property.countryCode && property.countryCode.toUpperCase() !== countryCode.toUpperCase()) return false;
   const location = propertyLocation(property);
-  return (!selection.region || locationKey(location.region) === locationKey(selection.region))
+  const inferredRegion = countryCode.toUpperCase() === 'CO' && !location.region
+    ? uniqueColombianRegionByMunicipality.get(locationKey(location.city)) ?? ''
+    : '';
+  const effectiveRegion = location.region || inferredRegion;
+  return (!selection.region || locationKey(effectiveRegion) === locationKey(selection.region))
     && (!selection.locality || locationKey(location.city) === locationKey(selection.locality));
 }
 
