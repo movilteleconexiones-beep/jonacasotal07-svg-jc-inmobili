@@ -22,5 +22,5 @@ test('ruleset JSON is only an operator recipe and not treated as an installed co
   assert.match(notes,/Administration: write/);
   assert.match(notes,/gh api --method POST/);
   assert.match(notes,/enforcement: active/);
-  assert.match(notes,/no constituyen un backup completo/);
+  assert.match(notes,/no\s+constituyen un backup completo/);
 });
