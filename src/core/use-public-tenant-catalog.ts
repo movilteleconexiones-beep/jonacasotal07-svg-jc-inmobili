@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Property } from '../data/properties';
+import { safePublicPropertyPhoto } from './public-property-photo';
 import { parsePublicAgencyServices, type PublicAgencyService } from './public-agency-content';
 import { parsePublicPageContent, type PublicPageContent } from './public-page-content';
 
@@ -83,7 +84,7 @@ function asProperty(row: Row): Property {
     parkingSpaces: numeric(row.parking_spaces),
     annualAppreciationPct: 0,
     rentalYieldPct: 0,
-    image: '',
+    image: safePublicPropertyPhoto(row.image_url),
     secondaryImage: '',
     legalStatus: '',
     architecturalSummary: text(row.description),
