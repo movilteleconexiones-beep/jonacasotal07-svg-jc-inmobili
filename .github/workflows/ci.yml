@@ -41,6 +41,8 @@ jobs:
         run: node --test tests/recovery-backup-integrity.test.mjs
       - name: Offline private manifest generator checks (fictional files only)
         run: node --test tests/create-offline-manifest.test.mjs
+      - name: Local private Storage downloader checks (fictional bytes only)
+        run: node --test tests/download-private-storage.test.mjs
       - name: PostgreSQL isolated dump/restore rehearsal (fictional data only)
         env:
           PGPASSWORD: postgres
