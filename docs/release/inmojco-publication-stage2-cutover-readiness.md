@@ -43,3 +43,31 @@ y de Storage, con procedimiento de reversión y ventana autorizada.
 un anuncio visible y una inmobiliaria afectada. Antes de aprobar etapa 2,
 validar nuevamente el número y la autorización de anuncios; los datos
 pueden cambiar.
+
+
+## Protección adicional de contenido ya publicado
+
+El ensayo anónimo de solo lectura confirma que el anuncio actualmente
+visible en INMOJCO incluye una descripción pública. Una simple autorización
+booleana sin texto comercial revisado podría haberlo mantenido visible, pero
+con la descripción en blanco. Este caso se ha bloqueado en dos niveles:
+
+- La etapa 1 exige una descripción pública no vacía para guardar
+  `published=true`, tanto en la interfaz como mediante restricción de
+  PostgreSQL. No se aceptan espacios en blanco como descripción.
+- La barrera transaccional de la etapa 2 comprueba, antes de sustituir la
+  función pública, que todo anuncio ya visible cuya descripción anterior
+  no esté vacía conserva una descripción aprobada no vacía.
+- En una base **ficticia descartable** CI prueba también una fila malformada
+  con `published=true` y descripción NULL, simulando un dato heredado
+  defectuoso: el cambio de catálogo debe fallar íntegramente hasta
+  que el texto comercial se apruebe de nuevo.
+
+No se copia automáticamente la descripción privada del inventario a la
+proyección pública. La inmobiliaria debe redactar y aprobar su texto.
+Las fotografías se someten a autorización separada: se rechazan enlaces
+privados o firmados y no se extraen fotos internas de forma implícita.
+
+Estas barreras evitan desapariciones accidentales del contenido textual
+visible, pero **no sustituyen** la revisión del administrador ni certifican
+que los textos sean apropiados, legales o comercialmente correctos.
