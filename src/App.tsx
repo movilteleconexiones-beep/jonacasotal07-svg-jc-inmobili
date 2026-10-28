@@ -1581,13 +1581,17 @@ export default function App() {
         }}
       />
 
-      {/* CONSIGNAR / SUBMIT NEW PROPERTY MODAL */}
-      <SubmitPropertyModal
-        publicSiteSlug={tenantSlug}
-        branding={branding}
-        isOpen={isSubmitModalOpen}
-        onClose={() => setIsSubmitModalOpen(false)}
-      />
+      {/* Never retain owner contact details, private photos or the request ID
+          after closing a public consignment or navigating to another agency. */}
+      {isSubmitModalOpen && (
+        <SubmitPropertyModal
+          key={tenantSlug || 'public-consignment-no-agency'}
+          publicSiteSlug={tenantSlug}
+          branding={branding}
+          isOpen={isSubmitModalOpen}
+          onClose={() => setIsSubmitModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
