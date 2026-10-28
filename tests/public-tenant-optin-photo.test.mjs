@@ -29,3 +29,26 @@ test('public catalogue RPC requires explicit publication and never returns priva
   assert.match(module, /<PropertyPublishingControls property=\{row\}/);
   assert.match(hook, /safePublicPropertyPhoto\(row\.image_url\)/);
 });
+
+
+test('opt-in publication RPC preserves current public brand/page contract', () => {
+  const migration = readFileSync(new URL('../supabase/migrations/20261018174000_opt_in_public_property_catalog.sql', import.meta.url), 'utf8');
+  const consumedByCurrentApp = [
+    'public_headline',
+    'public_description',
+    'public_hero_url',
+    'public_office_address',
+    'public_services',
+    'public_page_content',
+    'whatsapp',
+  ];
+  for (const field of consumedByCurrentApp) {
+    assert.ok(migration.includes("'" + field + "', b." + field),
+      'publishing must preserve agency public branding: ' + field);
+  }
+  assert.match(migration,/JOIN public\.property_publications approved/);
+  assert.match(migration,/approved\.published IS TRUE/);
+  assert.match(migration,/prop\.status='AVAILABLE'/);
+  assert.match(migration,/SET published=false/);
+  assert.doesNotMatch(migration,/INSERT INTO public\.property_publications\s*\(/i);
+});
