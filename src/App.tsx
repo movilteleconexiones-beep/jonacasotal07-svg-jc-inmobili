@@ -129,9 +129,16 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-desc' | 'price-asc' | 'yield-desc'>('featured');
 
+  // Public catalog filters belong to one tenant storefront, not the signed-in
+  // account. Visiting another agency in the same country must not inherit a
+  // hidden department, municipality, query, operation or category selection.
   React.useEffect(() => {
+    setOperationFilter('Todas');
+    setCategoryFilter('Todas');
     setLocationFilter({ region: '', locality: '' });
-  }, [countryProfile.code]);
+    setSearchQuery('');
+    setSortBy('featured');
+  }, [tenantSlug, countryProfile.code]);
 
   // Interactive modals & portfolio state
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
