@@ -235,3 +235,22 @@ formularios públicos reales.
 
 Ninguno de estos dos diagnósticos modifica registros, realiza migraciones
 ni acredita un respaldo restaurable de PostgreSQL o Storage.
+
+
+### Control de funciones públicas con privilegios elevados
+
+El diagnóstico `security/diagnostics/public_anon_rpc_allowlist_readonly.sql`
+examina únicamente metadatos de las funciones `SECURITY DEFINER` que el rol
+`anon` puede ejecutar. El conjunto aprobado de cuatro firmas corresponde
+a la consulta de catálogos, la configuración pública de consignación,
+la recepción de consignaciones y la recepción de consultas públicas.
+
+La última comprobación de producción reportó **4 funciones aprobadas,
+0 funciones adicionales y 0 funciones sin `search_path` aislado**.
+El diagnóstico de control de acceso directo a tablas detectó **0 permisos
+anónimos directos inesperados** sobre siete tablas sensibles.
+
+**No equivale a ausencia de vulnerabilidades.** Las dos funciones de recepción
+son deliberadamente públicas y modifican datos. Deben conservar límites de
+entrada, controles de abuso, cuotas, registros de auditoría y pruebas aisladas.
+No ejecutar RPC de recepción contra producción con datos de prueba.
