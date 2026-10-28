@@ -29,6 +29,8 @@ test('first-stage approval editor keeps current storefront and cannot publish au
   assert.match(module, /<PropertyPublishingControls property=\{row\}/);
   assert.match(editor, /property_publications/);
   assert.match(editor, /property\.status!=='AVAILABLE'/);
+  assert.match(editor, /published && !description\.trim\(\)/);
+  assert.match(migration, /property_publication_requires_copy CHECK/);
 });
 
 test('public photo rendering only accepts vetted HTTPS publication URLs', () => {
