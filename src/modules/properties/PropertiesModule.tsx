@@ -6,6 +6,7 @@ import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { MAX_PHOTOS, validateInventoryPhotos, saveInventoryPhotos, loadInventoryPhotos, type InventoryPhoto } from '../../lib/property-private-photos';
+import { PropertyPublishingControls } from './PropertyPublishingControls';
 
 interface PropertyRow {
   id: string;
@@ -266,14 +267,14 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
               <th className="px-4 py-3">Operación</th>
               <th className="px-4 py-3">Ubicación</th>
               <th className="px-4 py-3">Precio</th>
-              <th className="px-4 py-3">Estado</th><th className="px-4 py-3">Fotos</th>
+              <th className="px-4 py-3">Estado</th><th className="px-4 py-3">Fotos</th><th className="px-4 py-3">Publicación</th>
                {onSelect&&<th className="px-4 py-3">Elegir</th>}
             </tr>
           </thead>
           <tbody>
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={onSelect?8:7} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={onSelect?9:8} className="px-4 py-10 text-center text-slate-500">
                   <Building2 className="mx-auto mb-2 h-6 w-6" />
                   Aún no hay propiedades registradas.
                 </td>
@@ -293,6 +294,9 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
                 </td>
                 <td className="px-4 py-3">{occupiedPropertyIds.has(row.id)?'Arrendado · contrato activo':etiquetaES(row.status)}</td>
                 <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
+                <td className="px-4 py-3">{organizationId && can(PERMISSIONS.PROPERTIES_EDIT) && (
+                  <PropertyPublishingControls property={row} organizationId={organizationId} />
+                )}</td>
                 {onSelect&&<td className="px-4 py-3">
                   <button type="button" aria-pressed={selectedPropertyId===row.id}
                     disabled={occupancyError}
