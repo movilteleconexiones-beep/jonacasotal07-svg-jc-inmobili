@@ -30,7 +30,10 @@ export function usePublicPropertyIntakeSite(enabled: boolean, publicSiteSlug?: s
       try {
         const { data, error: rpcError } = await supabase.rpc('get_public_property_intake_site', { p_slug: publicSiteSlug });
         if (cancelled) return;
-        if (rpcError || !data?.slug || !data?.company_name || !data?.country || !data?.currency) {
+        // Never show or submit against a different agency even if a stale
+        // or unexpected RPC response happens to contain valid brand fields.
+        if (rpcError || data?.slug !== publicSiteSlug ||
+            !data?.company_name || !data?.country || !data?.currency) {
           setError('La recepción de consignaciones no está disponible. Contacta directamente a la inmobiliaria.');
         } else {
           setSite(data as PublicPropertyIntakeSite);
