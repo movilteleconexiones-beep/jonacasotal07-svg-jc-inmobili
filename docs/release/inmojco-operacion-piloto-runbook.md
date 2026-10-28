@@ -107,3 +107,33 @@ No publicar un inmueble sin autorización de su inmobiliaria; no activar
 Wompi de producción ni contratar servicios adicionales sin decisión
 comercial correspondiente; no extraer secretos o documentos de clientes
 a GitHub/ChatGPT. Los permisos de conectores no sustituyen estas barreras.
+
+
+## 7. Conciliación SQL exacta y fuentes de precios
+
+El diagnóstico `security/diagnostics/exact_two_migrations_readonly.sql`
+verifica contra Supabase **sin modificar datos** el hash del cuerpo real de
+`billing_create_order`, su firma, `SECURITY DEFINER`, el `search_path`
+restringido y los cinco índices (tipo, columnas ordenadas, validez,
+expresiones, predicado y columnas incluidas). Las pruebas en
+`tests/exact-two-migrations-preflight.test.mjs` garantizan que la huella
+procede del archivo de migración correcto y que la consulta es de
+**solo lectura**.
+
+Resultado del 28/oct/2026: **todos los objetos corresponden** a los
+efectos previstos y **ambas versiones aún faltan en el historial remoto**.
+No ejecutar `supabase db push`, `migration repair` ni repetir DDL sin
+copias auténticas de PostgreSQL+Storage restauradas y revisión previa.
+La huella MD5 se usa para detectar divergencias de versión; no es una
+firma criptográfica de respaldo. La comparación byte por byte se verificó
+independientemente en una transacción de solo lectura.
+
+`src/core/jco-pricing-tax-policy.ts` y
+`server/wompi-sandbox-order-quote.ts` conservan **tarifas históricas de
+prototipo**. No son el catálogo comercial vigente: los planes reales
+BASIC y PRO proceden de `public.plans` con $129.900 COP y $299.900 COP
+mensuales. El pago de producción se deriva del precio de la fila del
+plan **en el RPC `billing_create_order`** y no puede utilizar ese
+prototipo. La prueba `tests/live-checkout-does-not-trust-legacy-quotes.test.mjs`
+bloquea regresiones que reconecten el prototipo al checkout real.
+No declarar ingresos por órdenes sandbox.
