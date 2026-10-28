@@ -208,8 +208,8 @@ jobs:
         run: node --test tests/wompi-atomic-order-sql.test.mjs
       - name: Billing revocation concurrency release-gate checks
         run: node --test tests/wompi-billing-revocation-contract.test.mjs
-      - name: Property consignment validation tests
-        run: node --import tsx --test tests/property-consignment.test.mjs
+      - name: Property consignment validation and tenant isolation tests
+        run: node --import tsx --test tests/property-consignment.test.mjs tests/public-consignment-tenant-isolation.test.mjs
       - name: Verified checkout and webhook tests
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
       - name: Sandbox payment labels cannot imply real sales
