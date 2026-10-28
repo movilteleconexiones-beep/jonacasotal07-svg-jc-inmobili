@@ -39,6 +39,8 @@ jobs:
         run: npm run lint
       - name: Recovery artifact integrity offline checks (fictional fixtures)
         run: node --test tests/recovery-backup-integrity.test.mjs
+      - name: Immutable GitHub backup refs admin recipe (no admin call)
+        run: node --test tests/backup-refs-ruleset-recipe.test.mjs
       - name: Offline private manifest generator checks (fictional files only)
         run: node --test tests/create-offline-manifest.test.mjs
       - name: Local private Storage downloader checks (fictional bytes only)
