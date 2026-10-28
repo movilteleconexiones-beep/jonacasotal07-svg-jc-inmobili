@@ -41,10 +41,10 @@ function findUnsafePublicTables(raw) {
     ))];
     for (const grant of grants) {
       const privileges = grant[1];
-      const roles = grant[2].replace(/\\s+WITH\\s+GRANT\\s+OPTION[\\s\\S]*/i, '');
-      const anonymous = /(?:^|[,\\s])anon(?:$|[,\\s])/i.test(roles);
-      const publicRole = /(?:^|[,\\s])PUBLIC(?:$|[,\\s])/i.test(roles);
-      const dangerous = /(?:^|[,\\s])(?:ALL|INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)(?:$|[,\\s])/i.test(privileges);
+      const roles = grant[2].replace(/\s+WITH\s+GRANT\s+OPTION[\s\S]*/i, '');
+      const anonymous = /(?:^|[,\s])anon(?:$|[,\s])/i.test(roles);
+      const publicRole = /(?:^|[,\s])PUBLIC(?:$|[,\s])/i.test(roles);
+      const dangerous = /(?:^|[,\s])(?:ALL|INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)(?:$|[,\s])/i.test(privileges);
       if (publicRole || (anonymous && dangerous)) {
         issues.push(match[2] + ': unsafe public/anon GRANT overrides private API boundary');
       }
