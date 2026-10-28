@@ -16,6 +16,11 @@ test('read-only preflight pins exact billing migration function body, not a fuzz
   assert.match(diagnostic, /md5\(p\.prosrc\)/);
   assert.ok(diagnostic.includes(md5));
   assert.match(diagnostic, /to_regprocedure\('public\.billing_create_order\(uuid,uuid,text,uuid\)'\)/);
+  assert.match(diagnostic, /p\.prosecdef/);
+  assert.match(diagnostic, /l\.lanname='plpgsql'/);
+  assert.match(diagnostic, /pg_get_function_result\(p\.oid\)='jsonb'/);
+  assert.ok(diagnostic.includes("p.proconfig=ARRAY['search_path=\"\"']::text[]"));
+  assert.match(diagnostic, /checkout_contract_matches IS DISTINCT FROM true/);
 });
 
 test('every expected tenant index must be proven by exact ordered keys and B-tree constraints', () => {
