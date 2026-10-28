@@ -26,7 +26,18 @@ async function fixture(t) {
   const inventoryPath=join(root,'inventory-input.json');
   const save=()=>writeFile(inventoryPath,JSON.stringify(inventory));
   await save();
-  return {root,inventory,inventoryPath,save};
+  const storageAudit={
+    project_ref:PROJECT_REF,
+    downloaded_at_utc:now.toISOString(),
+    buckets:REQUIRED_BUCKETS.map(id=>({id,object_count:id==='jco-inventory-private'?1:0})),
+    objects:[{bucket:'jco-inventory-private',path:'fictitious.jpg',
+      sha256:createHash('sha256').update('fictitious image bytes').digest('hex'),
+      size:Buffer.byteLength('fictitious image bytes')}]
+  };
+  const auditPath=join(root,'storage-download-audit.local.json');
+  const saveAudit=()=>writeFile(auditPath,JSON.stringify(storageAudit));
+  await saveAudit();
+  return {root,inventory,inventoryPath,save,storageAudit,auditPath,saveAudit};
 }
 async function run(f){return createOfflineManifest(f.root,'postgres.dump.age',f.inventoryPath,{now});}
 
@@ -90,4 +101,40 @@ test('rejects a manifest whose recorded source-key hash has been altered',async 
   manifest.source_object_keys_sha256='0'.repeat(64);
   await writeFile(result.manifestPath,JSON.stringify(manifest));
   await assert.rejects(verifyBackupIntegrity(result.manifestPath,f.root),/Rutas Storage no coinciden/);
+});
+
+test('refuses Storage bytes altered after the original downloader audit',async t=>{
+  const f=await fixture(t);
+  await writeFile(join(f.root,'storage','jco-inventory-private','fictitious.jpg'),'new spoofed image bytes');
+  await assert.rejects(run(f),/bytes actuales difieren/);
+});
+test('rejects an audit report for a different Storage content hash or byte count',async t=>{
+  const f=await fixture(t);
+  f.storageAudit.objects[0].sha256='0'.repeat(64);
+  await f.saveAudit();
+  await assert.rejects(run(f),/bytes actuales difieren/);
+  f.storageAudit.objects[0].sha256=createHash('sha256').update('fictitious image bytes').digest('hex');
+  f.storageAudit.objects[0].size+=1;
+  await f.saveAudit();
+  await assert.rejects(run(f),/tamaño local difiere/);
+});
+test('refuses a missing download audit or an explicitly incomplete Storage export',async t=>{
+  const f=await fixture(t);
+  await rm(f.auditPath);
+  await assert.rejects(run(f),/ENOENT/);
+  await f.saveAudit();
+  await writeFile(join(f.root,'STORAGE-COPIA-INCOMPLETA.txt'),'INCOMPLETE');
+  await assert.rejects(run(f),/marcada incompleta/);
+});
+test('rejects a stale or unconnected original downloader audit',async t=>{
+  const f=await fixture(t);
+  f.storageAudit.downloaded_at_utc='2026-10-25T11:00:00.000Z';
+  await f.saveAudit();
+  await assert.rejects(run(f),/fuera de la ventana/);
+});
+test('rejects a partial audit inventory, even with remote counts matching downloaded files',async t=>{
+  const f=await fixture(t);
+  f.storageAudit.objects=[];
+  await f.saveAudit();
+  await assert.rejects(run(f),/no contiene todos/);
 });
