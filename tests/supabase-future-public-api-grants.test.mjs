@@ -50,6 +50,19 @@ function findUnsafePublicTables(raw) {
       }
     }
   }
+  // Reject grants that implicitly cover every present/future public table,
+  // even when a migration has no CREATE TABLE statement of its own.
+  const blanket = [...sql.matchAll(
+    /\bGRANT\s+[^;]+?\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+TO\s+([^;]+);/gi
+  )];
+  const defaults = [...sql.matchAll(
+    /\bALTER\s+DEFAULT\s+PRIVILEGES\b[^;]*?\bGRANT\s+[^;]+?\bON\s+TABLES\s+TO\s+([^;]+);/gi
+  )];
+  for (const grant of [...blanket, ...defaults]) {
+    const roles = grant[1].replace(/\s+WITH\s+GRANT\s+OPTION[\s\S]*/i, '');
+    if (/(?:^|[,\s])(?:PUBLIC|anon)(?:$|[,\s])/i.test(roles))
+      issues.push('unsafe global/default public/anon table grant');
+  }
   return issues;
 }
 
@@ -97,4 +110,18 @@ test('REVOKE cannot be bypassed by a later broad grant to anonymous or PUBLIC', 
     'GRANT SELECT ON public.future_records TO anon;'), []);
   assert.deepEqual(findUnsafePublicTables(safe +
     'GRANT SELECT, INSERT ON public.future_records TO authenticated;'), []);
+});
+
+test('global and default privileges cannot bypass private API grants', () => {
+  for (const sql of [
+    'GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;',
+    'GRANT SELECT ON ALL TABLES IN SCHEMA public TO PUBLIC;',
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon;',
+    'ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO PUBLIC;',
+  ]) {
+    assert.ok(findUnsafePublicTables(sql).some(issue =>
+      issue.includes('unsafe global/default public/anon table grant')), sql);
+  }
+  assert.deepEqual(findUnsafePublicTables(
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO authenticated;'), []);
 });
