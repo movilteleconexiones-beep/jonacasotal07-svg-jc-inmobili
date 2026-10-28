@@ -13,8 +13,10 @@ const SHA256 = /^[0-9a-f]{64}$/i;
 const checks = [
   ['ci.passed', 'CI combinada aprobada'],
   ['database.migrations_reviewed', 'Migraciones y prerrequisitos revisados'],
+  ['database.migration_history_reconciled', 'Historial de migraciones conciliado con los objetos efectivos de Supabase'],
   ['database.backup_restored_isolated', 'Respaldo restaurado y verificado en entorno aislado'],
   ['database.storage_objects_restored', 'Fotos, contratos y soportes de Storage restaurados y comprobados'],
+  ['security.backup_branch_protected', 'Referencia de respaldo GitHub protegida contra actualización y eliminación'],
   ['security.agency_a_b_isolation', 'Aislamiento de dos inmobiliarias autenticadas'],
   ['security.client_and_staff_permissions', 'Usuarios CLIENT, asesor y administrador comprobados'],
   ['security.platform_admin_exclusive', 'SuperAdmin exclusivo y lectura global comprobados'],
