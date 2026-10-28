@@ -13,6 +13,11 @@ CREATE TABLE public.property_publications (
  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
  published boolean NOT NULL DEFAULT false,
  public_description text CHECK (public_description IS NULL OR char_length(public_description) <= 600),
+ -- Publishing is a conscious commercial decision: no empty public listing.
+ -- Unpublished drafts may remain without descriptive copy.
+ CONSTRAINT property_publication_requires_copy CHECK (
+   NOT published OR nullif(btrim(public_description),'') IS NOT NULL
+ ),
  public_photo_url text CHECK (
    public_photo_url IS NULL OR (
      char_length(public_photo_url) <= 1500
