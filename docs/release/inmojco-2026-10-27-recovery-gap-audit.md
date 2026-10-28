@@ -254,3 +254,62 @@ anónimos directos inesperados** sobre siete tablas sensibles.
 son deliberadamente públicas y modifican datos. Deben conservar límites de
 entrada, controles de abuso, cuotas, registros de auditoría y pruebas aisladas.
 No ejecutar RPC de recepción contra producción con datos de prueba.
+
+
+## Diagnóstico NO-GO reproducible del 28 de octubre de 2026
+
+`security/diagnostics/prelaunch_live_readonly.sql` genera un resumen JSON
+con **solo contadores y parámetros no secretos**, sin exponer nombres de clientes,
+inmuebles, rutas de Storage, credenciales ni importes de pago. Se ejecuta
+exclusivamente en modo `REPEATABLE READ READ ONLY` y jamás aprueba un
+lanzamiento por sí mismo: los controles externos **siempre** quedan como
+`NOT_VERIFIED_BY_SQL`.
+
+**Ejecución comprobada (Supabase cuitgyqrjibgwuniapmk, 2026-10-28 16:01 UTC):**
+
+- PostgreSQL 17.11; **58/58 tablas `public` con RLS**.
+- 7 tablas sensibles revisadas: cero sin RLS y cero permisos directos inesperados
+  a `anon`; `anon` y `authenticated` no pueden crear en esquema `public`.
+- Licencias: configuración `VERIFIED_PAYMENT`; Wompi **sandbox habilitado**
+  y producción **deshabilitada**. No modificar hasta autorización comercial y
+  prueba de recuperación real.
+- Storage: **4 buckets privados, 5 objetos inventariados**; esta cifra
+  solo muestra metadatos, no equivale a copiar los archivos.
+- Migraciones `20261021114500` y `20261021152000`: siguen sin figurar
+  en historial, aunque auditorías anteriores verificaron efectos relevantes.
+- **Resultado: `NO_GO_UNTIL_EXTERNAL_BACKUP_RESTORE_AND_ALL_GATES_VERIFIED`**.
+
+**Railway (verificación externa, mismo día):** dos servicios `online`, sin
+fallos de despliegue recientes; 1.559 solicitudes HTTP del servicio web en
+7 días y **0 errores 5xx**. El dominio `www.inmojco.com` muestra DNS
+propagado y certificado TLS válido. El despliegue web es de 2026-10-21
+(`a614edab544c311d6fbf4c0c01a662f8e38de58a`): `main` conserva
+cuatro commits adicionales sin desplegar, con cambios en facturación,
+migraciones e índices. **No asumir que la salud HTTP prueba la funcionalidad
+completa**.
+
+**Supabase Security Advisor:** siguen señaladas cuatro funciones RPC públicas
+`SECURITY DEFINER` usadas deliberadamente por el catálogo/formularios;
+los diagnósticos de `anon` ya comprobaron su lista y `search_path`
+aislado. Existen asimismo RPC autenticadas privilegiadas que requieren
+revisión contextual; **no revocar permisos en bloque** ni alterar funciones
+financieras sin pruebas y copia restaurable. Se notificó la protección
+contra contraseñas filtradas: según la documentación oficial Supabase es
+una opción del **plan Pro o superior**; no actualizar el plan ni contratar
+servicios sin aprobación específica.
+
+**Pasos que no pueden ejecutarse por estos conectores sin intervención de
+administración:**
+
+1. Proteger `backup/**` con GitHub Rulesets (bloquear actualizaciones,
+   force-push y eliminación; revisar excepciones). Luego verificar el SHA
+   de las ramas ya creadas.
+2. Crear dump PostgreSQL real cifrado y copia separada de **bytes** Storage
+   fuera de GitHub/Supabase; restaurar **la misma copia** en un entorno
+   aislado, comparar SHA-256, permisos y datos; no enviar claves al chat.
+3. Solo entonces conciliar formalmente el historial de migraciones
+   sin ejecutar de nuevo migraciones cuyos efectos ya existen, y evaluar
+   publicación controlada con plan de rollback.
+
+**Nota:** este documento y el script viven en un PR **en borrador**;
+no se fusionaron, desplegaron ni se ejecutaron cambios en producción.
