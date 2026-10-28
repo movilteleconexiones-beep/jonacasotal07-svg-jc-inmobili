@@ -196,3 +196,42 @@ puede detectar que el contenido cambió manteniendo el nombre. Por eso se exige
 además descargar bytes de forma autorizada, calcular su SHA-256 real y ejecutar
 una restauración aislada. Esta validación tampoco demuestra que el volcado
 de PostgreSQL esté cifrado o restaurable.
+
+
+## Comprobación del portal anónimo y ACL de tablas sensibles
+
+Se añadieron los diagnósticos no destructivos
+`security/diagnostics/public_anonymous_tenant_boundary_readonly.sql` y
+`security/diagnostics/public_anonymous_sensitive_table_acl_readonly.sql`.
+Ambos se ejecutaron contra Supabase producción en transacciones de solo
+lectura y no devuelven datos personales ni nombres de propiedades.
+
+Resultado observado en octubre de 2026:
+
+| Comprobación | Resultado |
+| --- | ---: |
+| Inmobiliarias incluidas en la evaluación pública | 2 |
+| Catálogos públicos accesibles | 2 |
+| Inmuebles publicados examinados | 1 |
+| Inmuebles devueltos fuera de la inmobiliaria o sin estado AVAILABLE | 0 |
+| Campos privados identificados en inmuebles públicos | 0 |
+| Formularios públicos de consignación revisados | 1 |
+| Formulario indebido o faltante según estado de disponibilidad | 0 |
+| Campos privados identificados en formularios públicos | 0 |
+| Respuestas no nulas para slugs públicos inexistentes | 0 |
+| Tablas sensibles con RLS o permisos anónimos inesperados | 0 de 7 |
+
+**Interpretación:** los resultados respaldan que la función de catálogo público
+mantiene el aislamiento entre las organizaciones presentes en esa inspección,
+y que el rol `anon` carece de privilegios directos SELECT/INSERT/UPDATE/DELETE
+en las siete tablas evaluadas. NO representan una auditoría exhaustiva:
+las salidas son agregadas y dependen de los datos presentes en la fecha de
+ejecución; otros perfiles, roles, objetos, rutas de Storage y funciones aún
+requieren pruebas independientes. Las RPC anónimas de captura de
+consignaciones y consultas **escriben datos**, por lo que intencionalmente
+no se ejecutaron en producción y siguen cubiertas por pruebas aisladas CI.
+No revocar sus permisos `EXECUTE` indiscriminadamente, pues alimentan
+formularios públicos reales.
+
+Ninguno de estos dos diagnósticos modifica registros, realiza migraciones
+ni acredita un respaldo restaurable de PostgreSQL o Storage.
