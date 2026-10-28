@@ -119,8 +119,59 @@ export async function createOfflineManifest(rootDir, encryptedDumpName, remoteIn
   const localKeysSha256 = createHash('sha256').update(keyHex.join('|'),'utf8').digest('hex');
   if (localKeysSha256 !== inventory.object_keys_sha256.toLowerCase())
     throw new Error('Identidades de Storage diferentes del inventario remoto, aun con conteos iguales.');
+  // Link the local byte hashes to the downloader's original audit. A renamed
+  // or overwritten file is NOT acceptable merely because the SQL path count matches.
+  // This audit is ordinary private evidence, not a signed remote attestation.
+  const auditFile = await normalFile(root, 'storage-download-audit.local.json');
+  const audit = JSON.parse(await readFile(auditFile,'utf8'));
+  if (audit.project_ref !== PROJECT_REF || !Array.isArray(audit.objects) ||
+      !Array.isArray(audit.buckets) || !Number.isFinite(Date.parse(audit.downloaded_at_utc)))
+    throw new Error('La auditoría original de descarga Storage es inválida o no existe.');
+  const auditTime = Date.parse(audit.downloaded_at_utc);
+  if (auditTime > now.getTime()+10*60*1000 || now.getTime()-auditTime > 24*60*60*1000 ||
+      Math.abs(auditTime-timestamp)>60*60*1000)
+    throw new Error('Auditoría Storage fuera de la ventana del inventario remoto.');
+  try {
+    await lstat(join(root,'STORAGE-COPIA-INCOMPLETA.txt'));
+    throw new Error('Copia Storage marcada incompleta: no puede generar un manifiesto.');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const auditBuckets = new Map();
+  for (const bucket of audit.buckets) {
+    if (!bucket || !REQUIRED_BUCKETS.includes(bucket.id) ||
+        auditBuckets.has(bucket.id) || !Number.isSafeInteger(bucket.object_count) ||
+        bucket.object_count < 0)
+      throw new Error('Buckets inválidos en auditoría Storage.');
+    auditBuckets.set(bucket.id,bucket.object_count);
+  }
+  if (auditBuckets.size !== expected.size ||
+      [...expected].some(([id,count])=>auditBuckets.get(id)!==count))
+    throw new Error('Auditoría y SQL remoto no concuerdan en buckets o cantidades.');
+  const originalHashes = new Map();
+  for (const obj of audit.objects) {
+    if (!obj || !REQUIRED_BUCKETS.includes(obj.bucket) || !safeName(obj.path) ||
+        !/^[0-9a-f]{64}$/i.test(obj.sha256) ||
+        !Number.isSafeInteger(obj.size) || obj.size < 0)
+      throw new Error('Objeto inválido en auditoría original de descarga.');
+    const key=obj.bucket+'/'+obj.path;
+    if (originalHashes.has(key)) throw new Error('Objeto repetido en auditoría Storage.');
+    originalHashes.set(key,obj);
+  }
+  if (originalHashes.size!==objects.length)
+    throw new Error('La auditoría original no contiene todos los objetos descargados.');
+  for (const obj of objects) {
+    const original=originalHashes.get(obj.bucket+'/'+obj.path);
+    if (!original || original.sha256.toLowerCase()!==obj.sha256)
+      throw new Error('Los bytes actuales difieren de la auditoría original de descarga.');
+    const path=await normalFile(root,'storage/'+obj.bucket+'/'+obj.path);
+    if ((await lstat(path)).size !== original.size)
+      throw new Error('El tamaño local difiere de la auditoría original de descarga.');
+  }
   const manifest = {
     version:1, project_ref:PROJECT_REF, created_at_utc:now.toISOString(),
+    source_storage_download_at_utc: audit.downloaded_at_utc,
+    source_storage_download_audit_sha256: await sha256(auditFile),
     source_inventory_observed_at_utc: inventory.observed_at_utc,
     source_object_keys_sha256: localKeysSha256,
     database:{file:encryptedDumpName, sha256:await sha256(dump)},
