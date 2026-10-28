@@ -63,9 +63,29 @@ Evitar escrituras/remociones de Storage durante el proceso o utilizar
 una ventana de mantenimiento aprobada.
 
 La salida del downloader contiene el SHA-256 de los bytes descargados.
-El generador `create-offline-manifest.mjs` puede comparar rutas y
-conteos contra el inventario SQL independiente, pero **exige además**
-un archivo de PostgreSQL cifrado previamente: no es un método de descarga.
+El generador `create-offline-manifest.mjs` ahora **exige** el informe original
+`storage-download-audit.local.json` de esa misma descarga y verifica
+rutas, hashes y tamaños contra los archivos locales. Rechaza evidencia
+alterada, ausencia del informe y la marca `STORAGE-COPIA-INCOMPLETA.txt`.
+También compara rutas y conteos con el inventario SQL independiente, que
+debe haberse tomado a menos de una hora del informe de descarga.
+
+Después de guardar una exportación **realmente cifrada y verificablemente
+descifrable** de PostgreSQL con el nombre `postgres.dump.age` en el
+mismo directorio privado, y guardar el JSON del SQL remoto como
+`source-inventory.local.json`, ejecutar:
+
+```powershell
+node scripts/recovery/create-offline-manifest.mjs "D:\\INMOJCO-Privado\\Copia-001" postgres.dump.age "D:\\INMOJCO-Privado\\Copia-001\\source-inventory.local.json"
+node scripts/recovery/verify-backup-integrity.mjs "D:\\INMOJCO-Privado\\Copia-001\\backup-manifest.local.json" "D:\\INMOJCO-Privado\\Copia-001"
+```
+
+El manifiesto resultante incluye también el SHA-256 del informe original
+de descarga para detectar cambios posteriores. **Esto sigue siendo
+evidencia local, no una firma remota ni una prueba de restauración.**
+El generador no descarga PostgreSQL ni cifra archivos por sí mismo.
+Si pasan más de 24 horas o cambian los objetos remotos, repetir
+la exportación completa en un directorio nuevo.
 
 ## Respaldar PostgreSQL por separado
 
