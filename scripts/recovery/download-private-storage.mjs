@@ -16,7 +16,7 @@ export const REQUIRED_BUCKETS = [
 ];
 
 function safeComponent(value) {
-  if (typeof value !== 'string' || !value || value === '.' || value === '..' ||
+  if (typeof value !== 'string' || !value || value === '.' || value === '..' || value.includes('/') ||
       /[\\\\\x00-\x1f<>:"|?*]/.test(value) || /[. ]$/.test(value) ||
       /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value))
     throw new Error('Storage contiene un nombre no seguro para el sistema local.');
