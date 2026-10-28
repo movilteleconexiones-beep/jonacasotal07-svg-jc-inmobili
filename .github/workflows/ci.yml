@@ -153,16 +153,27 @@ jobs:
             echo "ERROR: cutover succeeded with no agency approvals"
             exit 1
           fi
-          echo "$output" | grep -q 'existing live listings still lack agency approval'
+          echo "$output" | grep -q 'current listings lack approved publication or reviewed description'
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_cutover_approval_a.sql
           # Next: partially approved. The cutover must still refuse.
           if output=$(psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f "$cutover" 2>&1); then
             echo "ERROR: cutover succeeded with partial agency approvals"
             exit 1
           fi
-          echo "$output" | grep -q 'existing live listings still lack agency approval'
+          echo "$output" | grep -q 'current listings lack approved publication or reviewed description'
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_cutover_approval_b.sql
-          # Finally: every CURRENT public listing is approved. Atomic cutover succeeds.
+          # Simulate legacy/corrupt approval without reviewed text in this disposable
+          # database only. The cutover MUST still refuse despite published=true.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -c "ALTER TABLE public.property_publications DROP CONSTRAINT property_publication_requires_copy; UPDATE public.property_publications SET public_description=NULL WHERE property_id='11111111-aaaa-4111-8111-111111111111'"
+          if output=$(psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f "$cutover" 2>&1); then
+            echo "ERROR: cutover succeeded without reviewed public description"
+            exit 1
+          fi
+          echo "$output" | grep -q 'current listings lack approved publication or reviewed description'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -c "UPDATE public.property_publications SET public_description='Descripcion A aprobada' WHERE property_id='11111111-aaaa-4111-8111-111111111111'"
+          # Finally: every CURRENT public listing is approved with valid text.
+          # Re-enable the same integrity constraint after the corrupt-fixture test.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -c "ALTER TABLE public.property_publications ADD CONSTRAINT property_publication_requires_copy CHECK (NOT published OR nullif(btrim(public_description),'') IS NOT NULL)"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f "$cutover"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_stage2_assertions.sql
       - name: Public portfolio photo and release opt-in tests
