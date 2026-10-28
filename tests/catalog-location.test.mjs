@@ -68,3 +68,26 @@ test('new agency in the same country resets storefront filters to reveal its inv
   assert.equal(matchesCatalogLocation(tenantBProperty, 'CO', tenantASelection), false);
   assert.equal(matchesCatalogLocation(tenantBProperty, 'CO', { region: '', locality: '' }), true);
 });
+
+
+test('city-only legacy Guarne is placed in Antioquia without changing production rows', () => {
+  // Production may contain properties with city filled but department absent.
+  const property = { municipality: 'guarne', region: '', city: 'guarne', countryCode: 'CO' };
+  assert.equal(matchesCatalogLocation(property, 'CO', { region: 'Antioquia', locality: 'Guarne' }), true);
+  assert.equal(matchesCatalogLocation(property, 'CO', { region: 'Antioquia', locality: '' }), true);
+  assert.equal(matchesCatalogLocation(property, 'CO', { region: 'Cundinamarca', locality: 'Guarne' }), false);
+  assert.equal(matchesCatalogLocation(property, 'CO', { region: '', locality: 'Guarne' }), true);
+});
+
+test('ambiguous names or explicit departments never infer a wrong Colombian location', () => {
+  // La Unión exists in multiple Colombian departments. Do not guess.
+  const ambiguous = { municipality: 'La Unión', region: '', city: 'La Unión', countryCode: 'CO' };
+  assert.equal(matchesCatalogLocation(ambiguous, 'CO', { region: 'Nariño', locality: 'La Unión' }), false);
+  assert.equal(matchesCatalogLocation(ambiguous, 'CO', { region: 'Valle del Cauca', locality: 'La Unión' }), false);
+
+  const explicit = { municipality: 'Guarne, Cundinamarca', region: 'Cundinamarca', city: 'Guarne', countryCode: 'CO' };
+  assert.equal(matchesCatalogLocation(explicit, 'CO', { region: 'Antioquia', locality: 'Guarne' }), false);
+
+  const foreign = { municipality: 'Guarne', region: '', city: 'Guarne', countryCode: 'MX' };
+  assert.equal(matchesCatalogLocation(foreign, 'CO', { region: 'Antioquia', locality: 'Guarne' }), false);
+});
