@@ -69,8 +69,9 @@ export function PropertyPublishingControls({property,organizationId}: {
     if(generation!==requestGeneration.current)return;
     setBusy(false);
     if(error){setMessage('No fue posible actualizar la publicación. Comprueba tus permisos y la publicación del módulo.');return;}
-    setMessage(published?'Anuncio guardado. Solo se mostrará en el sitio habilitado de esta inmobiliaria.':
-      'Inmueble retirado de su catálogo público.');
+    setMessage(published
+      ? 'Autorización guardada. El anuncio aparecerá según la etapa de activación y la disponibilidad del inmueble.'
+      : 'Autorización retirada. Durante la transición, comprueba si la portada anterior todavía muestra el anuncio.');
   }
 
   return <>
@@ -81,7 +82,8 @@ export function PropertyPublishingControls({property,organizationId}: {
         className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white p-6 text-left shadow-2xl">
         <h2 className="text-xl font-semibold">Publicar inmueble: {property.title}</h2>
         <p className="mt-2 text-sm text-stone-600">
-          El catálogo solo mostrará inmuebles disponibles de esta inmobiliaria, aprobados explícitamente.
+          Esta aprobación prepara el catálogo público protegido. Durante la transición,
+          la portada anterior puede seguir mostrando el anuncio hasta activar el nuevo sistema.
           No publiques direcciones exactas, información de propietarios, documentos ni imágenes del bucket privado.
         </p>
         {loaded&&<>
