@@ -25,17 +25,18 @@ test('existing permanent license cannot be re-priced or changed by monthly catal
   assert.doesNotMatch(sql,/THEN [0-9]+\s*WHEN 'LIFETIME'/);
 });
 
-test('runtime continues to restrict checkout to monthly or annual recurring plans',()=>{
-  assert.match(ui,/\.in\('billing_cycle', \['MONTHLY', 'ANNUAL'\]\)/);
+test('checkout offers only recurring Basic and Pro plans, not historical contracts',()=>{
+  assert.match(ui,/\.eq\('billing_cycle', 'MONTHLY'\)/);
   assert.match(ui,/\.eq\('currency', 'COP'\)/);
-  assert.match(ui,/\.eq\('code','LIFETIME'\)\.eq\('billing_cycle','ONE_TIME'\)/);
-  assert.match(ui,/INMOJCO Vitalicio · pago único/);
-  assert.match(ui,/Precio vitalicio pendiente de aprobación/);
-  assert.match(ui,/No está habilitado para compra automática/);
+  assert.match(ui,/\.in\('code', \['BASIC', 'PRO'\]\)/);
+  assert.doesNotMatch(ui,/INMOJCO Vitalicio|lifetimeAvailable|Precio vitalicio pendiente/);
+  assert.match(ui,/No se pudo iniciar el pago/);
 });
 
-test('perpetual access is separate from code ownership and indefinite external infrastructure services',()=>{
+test('historical perpetual contracts retain legal protection but are not advertised at checkout',()=>{
   assert.match(terms,/licencia perpetua o de pago único no constituye cesión de derechos de autor/);
   assert.match(terms,/Una licencia perpetua no implica soporte, alojamiento, mantenimiento/);
-  assert.match(ui,/sin transferencia de derechos de autor, reventa ni sublicenciamiento/);
+  assert.match(ui,/no puede revender, sublicenciar ni redistribuir INMOJCO/);
+  // A commercial UI change must not rewrite or remove historical license contracts.
+  assert.match(sql,/Lifetime plan must remain untouched/);
 });
