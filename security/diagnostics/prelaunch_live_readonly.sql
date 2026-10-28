@@ -63,9 +63,10 @@ SELECT jsonb_pretty(jsonb_build_object(
      'production_payments_enabled',b.any_production_payments_enabled,
      'verified_payment_only',b.verified_payment_only),
   'storage_inventory',jsonb_build_object('private_buckets',s.private_buckets,'objects',s.object_count),
-  'unreconciled_migrations',jsonb_build_array(
-     CASE WHEN v.billing_contract_history=0 THEN '20261021114500' ELSE NULL END,
-     CASE WHEN v.tenant_index_history=0 THEN '20261021152000' ELSE NULL END),
+  'unreconciled_migrations',to_jsonb(array_remove(ARRAY[
+     CASE WHEN v.billing_contract_history=0 THEN '20261021114500'::text ELSE NULL END,
+     CASE WHEN v.tenant_index_history=0 THEN '20261021152000'::text ELSE NULL END
+  ],NULL)),
   'external_evidence',jsonb_build_object(
      'postgresql_real_dump_and_isolated_restore','NOT_VERIFIED_BY_SQL',
      'storage_bytes_backup_and_restore','NOT_VERIFIED_BY_SQL',
