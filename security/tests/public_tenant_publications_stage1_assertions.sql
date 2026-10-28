@@ -18,6 +18,25 @@ SELECT public.consignment_test_assert(
  jsonb_array_length(public.tenant_public_catalog('tenant-a')->'properties')=1,
  'preapproval does not change legacy storefront visibility');
 
+-- A published listing must have human-reviewed public copy; a null/empty
+-- description cannot silently replace the description of a live listing.
+DO $verify_nonempty_copy$
+BEGIN
+  BEGIN
+    UPDATE public.property_publications
+       SET public_description='   '
+     WHERE property_id='11111111-aaaa-4111-8111-111111111111';
+    RAISE EXCEPTION 'empty public description was wrongly accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END
+$verify_nonempty_copy$;
+SELECT public.consignment_test_assert(
+ (SELECT published AND public_description='Aprobada antes del cambio'
+  FROM public.property_publications
+  WHERE property_id='11111111-aaaa-4111-8111-111111111111'),
+ 'invalid description update leaves reviewed copy intact');
+
 SET ROLE anon;
 SELECT public.consignment_test_assert(
  NOT has_table_privilege('anon','public.property_publications','SELECT'),
