@@ -138,6 +138,33 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_approval_test -f security/tests/public_tenant_publications_legacy_catalog_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_approval_test -f supabase/migrations/20261028172000_property_publication_approval_stage1.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_approval_test -f security/tests/public_tenant_publications_stage1_assertions.sql
+      - name: Stage-two cutover rejects unapproved currently public listings
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_public_cutover_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_legacy_catalog_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f supabase/migrations/20261028172000_property_publication_approval_stage1.sql
+          cutover=supabase/migrations/20261028182000_property_publication_cutover_stage2.sql
+          # First: no approved listings. The cutover MUST refuse and preserve the old RPC.
+          if output=$(psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f "$cutover" 2>&1); then
+            echo "ERROR: cutover succeeded with no agency approvals"
+            exit 1
+          fi
+          echo "$output" | grep -q 'existing live listings still lack agency approval'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_cutover_approval_a.sql
+          # Next: partially approved. The cutover must still refuse.
+          if output=$(psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f "$cutover" 2>&1); then
+            echo "ERROR: cutover succeeded with partial agency approvals"
+            exit 1
+          fi
+          echo "$output" | grep -q 'existing live listings still lack agency approval'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_cutover_approval_b.sql
+          # Finally: every CURRENT public listing is approved. Atomic cutover succeeds.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f "$cutover"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_cutover_test -f security/tests/public_tenant_publications_stage2_assertions.sql
       - name: Public portfolio photo and release opt-in tests
         run: node --import tsx --test tests/public-tenant-optin-photo.test.mjs
       - name: External portal navigation and no internal CRM data regression
