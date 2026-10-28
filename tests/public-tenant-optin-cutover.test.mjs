@@ -8,9 +8,9 @@ test('cutover is atomic and refuses existing live listings without explicit appr
   assert.match(sql,/BEGIN;[\s\S]*LOCK TABLE public\.properties, public\.property_publications/);
   assert.match(sql,/public\.tenant_public_catalog\(o\.slug\)/);
   assert.match(sql,/jsonb_array_elements\(/);
-  assert.match(sql,/approval\\.published IS DISTINCT FROM true/);
-  assert.match(sql,/visible\\.previous_description/);
-  assert.match(sql,/approval\\.public_description/);
+  assert.match(sql,/approval\.published IS DISTINCT FROM true/);
+  assert.match(sql,/visible\.previous_description/);
+  assert.match(sql,/approval\.public_description/);
   assert.match(sql,/RAISE EXCEPTION 'Cannot cut over public catalog: current listings lack approved publication or reviewed description'/);
   const check = sql.indexOf('approval.published IS DISTINCT FROM true');
   const replacement = sql.indexOf('CREATE OR REPLACE FUNCTION public.tenant_public_catalog');
