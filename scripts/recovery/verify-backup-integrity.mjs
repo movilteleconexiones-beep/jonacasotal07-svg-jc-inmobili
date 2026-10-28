@@ -84,6 +84,16 @@ export async function verifyBackupIntegrity(manifestPath, backupRoot) {
       !manifest.database || !Array.isArray(manifest.buckets) || !Array.isArray(manifest.objects))
     throw new Error('Manifiesto de respaldo no válido.');
 
+  if ((manifest.source_storage_download_audit_sha256 === undefined) !==
+      (manifest.source_storage_download_at_utc === undefined))
+    throw new Error('Metadatos de auditoría de descarga incompletos.');
+  if (manifest.source_storage_download_audit_sha256 !== undefined) {
+    if (!Number.isFinite(Date.parse(manifest.source_storage_download_at_utc)))
+      throw new Error('Fecha de auditoría de descarga inválida.');
+    const expectedAudit=validateDigest(manifest.source_storage_download_audit_sha256);
+    if (await fileHash(root,'storage-download-audit.local.json') !== expectedAudit)
+      throw new Error('Auditoría de descarga Storage modificada desde el manifiesto.');
+  }
   const dbPath = relativeName(manifest.database.file);
   if (dbPath === 'storage' || dbPath.startsWith('storage/'))
     throw new Error('El archivo PostgreSQL debe estar fuera de Storage.');
