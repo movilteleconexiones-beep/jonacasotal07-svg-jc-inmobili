@@ -36,7 +36,7 @@ function findUnsafePublicTables(raw) {
     // Authenticated permissions are separately governed by RLS policies;
     // anonymous access is restricted to explicit SELECT with RLS.
     const grants = [...sql.matchAll(new RegExp(
-      '\\bGRANT\\s+(.+?)\\s+ON\\s+(?:TABLE\\s+)?'+qualified+
+      '\\bGRANT\\s+([^;]+?)\\s+ON\\s+(?:TABLE\\s+)?'+qualified+
       '\\s+TO\\s+([^;]+);', 'gi'
     ))];
     for (const grant of grants) {
@@ -86,6 +86,7 @@ test('REVOKE cannot be bypassed by a later broad grant to anonymous or PUBLIC', 
     'GRANT DELETE ON public.future_records TO anon, authenticated;',
     'GRANT SELECT ON public.future_records TO PUBLIC;',
     'GRANT TRUNCATE ON public.future_records TO PUBLIC, anon;',
+    'GRANT SELECT,\nINSERT ON public.future_records TO anon;',
   ]) {
     assert.ok(findUnsafePublicTables(safe + statement)
       .some(issue => issue.includes('unsafe public/anon GRANT')), statement);
