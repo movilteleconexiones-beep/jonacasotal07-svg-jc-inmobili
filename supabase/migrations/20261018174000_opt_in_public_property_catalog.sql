@@ -122,6 +122,15 @@ AS $function$
    'phone', b.phone,
    'email', b.email,
    'website', b.website,
+   -- Preserve the full multi-tenant storefront branding contract already
+   -- consumed by the current public React application.
+   'public_headline', b.public_headline,
+   'public_description', b.public_description,
+   'public_hero_url', b.public_hero_url,
+   'public_office_address', b.public_office_address,
+   'public_services', b.public_services,
+   'public_page_content', b.public_page_content,
+   'whatsapp', b.whatsapp,
    'country', s.country,
    'currency', s.default_currency,
    'locale', s.locale,
