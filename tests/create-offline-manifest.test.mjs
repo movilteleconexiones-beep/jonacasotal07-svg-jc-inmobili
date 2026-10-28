@@ -138,3 +138,12 @@ test('rejects a partial audit inventory, even with remote counts matching downlo
   await f.saveAudit();
   await assert.rejects(run(f),/no contiene todos/);
 });
+
+test('detects a mutated original download audit during later manifest verification',async t=>{
+  const f=await fixture(t);
+  const result=await run(f);
+  f.storageAudit.downloaded_at_utc='2026-10-27T22:29:55.000Z';
+  await f.saveAudit();
+  await assert.rejects(verifyBackupIntegrity(result.manifestPath,f.root),
+    /Auditoría de descarga Storage modificada/);
+});
