@@ -11,7 +11,7 @@ async function temp(t) {
   t.after(()=>rm(parent,{recursive:true,force:true}));
   return {parent, root:join(parent,'new-export')};
 }
-function makeClient({failList=false,failDownload=false,evilEntry=null}={}) {
+function makeClient({failList=false,failDownload=false,evilEntry=null,mismatchSize=false}={}) {
   const objects={
     'jco-inventory-private':[
       {key:'folder/a.jpg',data:'fake byte content A'},
@@ -33,7 +33,12 @@ function makeClient({failList=false,failDownload=false,evilEntry=null}={}) {
             const first=rest.split('/')[0];
             names.set(first,rest.includes('/')?{name:first,id:null}:{name:first,id:'fake-object-id'});
           }
-          const entries=[...names.values()].sort((a,b)=>a.name.localeCompare(b.name));
+          const entries=[...names.values()].map(entry=>{
+            if(entry.id===null) return entry;
+            const fullKey=prefix ? prefix+'/'+entry.name : entry.name;
+            const source=files.find(x=>x.key===fullKey);
+            return {...entry,metadata:{size:Buffer.byteLength(source.data)+(mismatchSize?1:0)}};
+          }).sort((a,b)=>a.name.localeCompare(b.name));
           return {data:entries.slice(offset,offset+limit),error:null};
         },
         async download(key) {
@@ -87,4 +92,10 @@ test('never runs from a private directory within a git checkout',async t=>{
   const {parent,root}=await temp(t);
   await mkdir(join(parent,'.git'));
   await assert.rejects(snapshotStorage(makeClient(),root),/repositorio Git/);
+});
+
+test('rejects a downloaded byte count different from remote object metadata',async t=>{
+  const {root}=await temp(t);
+  await assert.rejects(snapshotStorage(makeClient({mismatchSize:true}),root),/tamaño descargado/);
+  assert.match(await readFile(join(root,'STORAGE-COPIA-INCOMPLETA.txt'),'utf8'),/NO UTILIZAR/);
 });
