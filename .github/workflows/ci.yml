@@ -290,6 +290,8 @@ jobs:
         run: node --test tests/private-inventory-photos.test.mjs
       - name: Billing plan entitlement safety tests
         run: node --test tests/billing-plan-entitlements.test.mjs
+      - name: Two-plan offer and tenant-scoped billing history
+        run: node --test tests/billing-commercial-catalog-two-plans.test.mjs
       - name: Dual Panel and SuperAdmin navigation regression
         run: node --test tests/dual-panel-navigation-regression.test.mjs
       - name: Consignment photo retry regression
