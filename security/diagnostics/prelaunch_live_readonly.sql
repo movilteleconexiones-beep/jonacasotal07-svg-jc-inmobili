@@ -46,6 +46,36 @@ WITH public_tables AS (
   SELECT has_schema_privilege('anon','public','CREATE')
     OR has_schema_privilege('authenticated','public','CREATE')
     AS public_schema_create_allowed
+), expected_indexes(name, table_name, key_columns) AS (
+  VALUES
+   ('deals_org_contact_fk_fast_idx','deals',ARRAY['organization_id','contact_id']),
+   ('deals_org_property_fk_fast_idx','deals',ARRAY['organization_id','property_id']),
+   ('maintenance_requests_org_fk_fast_idx','maintenance_requests',ARRAY['organization_id']),
+   ('portal_links_contact_fk_fast_idx','portal_access_links',ARRAY['contact_id']),
+   ('portal_links_owner_fk_fast_idx','portal_access_links',ARRAY['owner_id'])
+), live_indexes AS (
+  SELECT e.name, e.table_name, e.key_columns,
+         c.oid AS index_oid, t.relname AS actual_table_name,
+         i.indisvalid, i.indisready,
+         (SELECT array_agg(a.attname::text ORDER BY ord.ordinality)
+            FROM unnest(i.indkey) WITH ORDINALITY ord(attnum,ordinality)
+            JOIN pg_attribute a ON a.attrelid=t.oid AND a.attnum=ord.attnum)
+            AS actual_key_columns
+  FROM expected_indexes e
+  LEFT JOIN pg_class c ON c.relname=e.name AND c.relnamespace='public'::regnamespace
+  LEFT JOIN pg_index i ON i.indexrelid=c.oid
+  LEFT JOIN pg_class t ON t.oid=i.indrelid AND t.relnamespace='public'::regnamespace
+), index_summary AS (
+  SELECT count(*) AS expected_count,
+    count(*) FILTER (
+       WHERE index_oid IS NOT NULL AND indisvalid AND indisready
+         AND table_name=actual_table_name
+         AND key_columns IS NOT DISTINCT FROM actual_key_columns
+    ) AS matching_valid_count
+  FROM live_indexes
+), checkout_definition AS (
+  SELECT pg_get_functiondef(
+     to_regprocedure('public.billing_create_order(uuid,uuid,text,uuid)')) AS fn
 )
 SELECT jsonb_pretty(jsonb_build_object(
   'project_ref','cuitgyqrjibgwuniapmk',
@@ -63,6 +93,18 @@ SELECT jsonb_pretty(jsonb_build_object(
      'production_payments_enabled',b.any_production_payments_enabled,
      'verified_payment_only',b.verified_payment_only),
   'storage_inventory',jsonb_build_object('private_buckets',s.private_buckets,'objects',s.object_count),
+  -- This is partial forensic evidence of effects, NOT migration repair:
+  -- function text checks do not prove byte-for-byte code identity.
+  'migration_effects',jsonb_build_object(
+    'expected_indexes',i.expected_count,
+    'matching_valid_indexes',i.matching_valid_count,
+    'all_expected_indexes_match',i.expected_count=5 AND i.matching_valid_count=5,
+    'checkout_has_contract_review',coalesce(c.fn LIKE '%Plan change requires administrative review%',false),
+    'checkout_has_existing_subscription_window',coalesce(c.fn LIKE '%current_period_end%',false),
+    'checkout_has_idempotency_key',coalesce(c.fn LIKE '%idempotency_key=request_key%',false),
+    'checkout_has_tax_gate_2027',coalesce(c.fn LIKE '%2027-01-01%',false),
+    'migration_history_still_requires_verified_repair',true
+  ),
   'unreconciled_migrations',to_jsonb(array_remove(ARRAY[
      CASE WHEN v.billing_contract_history=0 THEN '20261021114500'::text ELSE NULL END,
      CASE WHEN v.tenant_index_history=0 THEN '20261021152000'::text ELSE NULL END
@@ -75,6 +117,7 @@ SELECT jsonb_pretty(jsonb_build_object(
   'release_decision','NO_GO_UNTIL_EXTERNAL_BACKUP_RESTORE_AND_ALL_GATES_VERIFIED'
 )) AS readonly_prelaunch_snapshot
 FROM access_summary a CROSS JOIN version_check v
-CROSS JOIN storage_summary s CROSS JOIN billing_summary b CROSS JOIN roles_summary r;
+CROSS JOIN storage_summary s CROSS JOIN billing_summary b CROSS JOIN roles_summary r
+CROSS JOIN index_summary i CROSS JOIN checkout_definition c;
 
 COMMIT;
