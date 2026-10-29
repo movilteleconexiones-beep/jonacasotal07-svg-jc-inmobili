@@ -23,9 +23,13 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
+  const [editContact, setEditContact] = useState<ContactRow|null>(null);
+  const [contactBusy, setContactBusy] = useState(false);
   const loadVersion = useRef(0);
 
   const organizationId = activeMembership?.organization.id;
+  const adminMayCorrect=Boolean(activeMembership?.roles.some(r=>r.key==='ADMIN')) &&
+    can(PERMISSIONS.CLIENTS_EDIT);
 
   async function load() {
     const version = ++loadVersion.current;
@@ -76,6 +80,10 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
       setMessage('Ingresa un correo electrónico válido.');
       return;
     }
+    if(email && rows.some(row=>row.email?.trim().toLowerCase()===email.toLowerCase())){
+      setMessage('Ya existe una ficha con este correo. Utiliza «Editar cliente» para corregirla en lugar de crear otra.');
+      return;
+    }
     for (const number of [phone, whatsapp]) {
       const length = number.replace(/\D/g, '').length;
       if (number && (length < 7 || length > 15)) {
@@ -108,6 +116,63 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
     setShowCreate(false);
     formElement.reset();
     await load();
+  }
+
+  async function correctContact(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if(!editContact||!organizationId||!adminMayCorrect||contactBusy)return;
+    const data=new FormData(event.currentTarget);
+    const reason=String(data.get('reason')||'').trim();
+    const fields={
+      new_first_name:String(data.get('first_name')||'').trim(),
+      new_last_name:String(data.get('last_name')||'').trim(),
+      new_email:String(data.get('email')||'').trim(),
+      new_phone:String(data.get('phone')||'').trim(),
+      new_whatsapp:String(data.get('whatsapp')||'').trim(),
+    };
+    if(fields.new_first_name.length<2||reason.length<12||reason.length>500||
+       !(fields.new_email||fields.new_phone||fields.new_whatsapp)){
+      setMessage('Completa el nombre, un contacto válido y el motivo (12-500 caracteres).');
+      return;
+    }
+    if(fields.new_email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.new_email)){
+      setMessage('Correo electrónico inválido.');return;
+    }
+    for(const value of [fields.new_phone,fields.new_whatsapp]){
+      if(value&&(value.replace(/\D/g,'').length<7||value.replace(/\D/g,'').length>15)){
+        setMessage('Teléfonos de 7 a 15 dígitos.');return;
+      }
+    }
+    if(!window.confirm('¿Guardar correcciones en esta ficha? Quedarán en auditoría con el motivo.'))return;
+    setContactBusy(true);
+    try{
+      const {error}=await supabase.rpc('admin_correct_client_contact',{
+        target_org:organizationId,target_contact:editContact.id,...fields,reason,
+      });
+      if(error){setMessage('No se pudo corregir: '+error.message);return;}
+      setEditContact(null);
+      await load();
+      setMessage('Ficha corregida y auditada, sin crear otro cliente.');
+    }catch{setMessage('No se confirmó la corrección. Actualiza antes de reintentar.');}
+    finally{setContactBusy(false);}
+  }
+
+  async function deleteUnlinkedContact(contact:ContactRow){
+    if(!organizationId||!adminMayCorrect||contactBusy)return;
+    const reason=window.prompt('Motivo de eliminación (12-500 caracteres). Si existe cualquier contrato, negocio o vínculo, se bloqueará.')?.trim();
+    if(!reason)return;
+    if(reason.length<12||reason.length>500){setMessage('Motivo obligatorio de 12-500 caracteres.');return;}
+    if(!window.confirm('¿Eliminar esta ficha SOLO si nunca tuvo operaciones vinculadas? No se eliminará ningún contrato, abono ni prospecto.'))return;
+    setContactBusy(true);
+    try{
+      const {error}=await supabase.rpc('admin_delete_unlinked_contact',{
+        target_org:organizationId,target_contact:contact.id,reason,
+      });
+      if(error){setMessage('No se puede eliminar esta ficha: '+error.message);return;}
+      setEditContact(null);await load();
+      setMessage('Ficha sin relaciones eliminada con auditoría. No se modificó ningún contrato ni pago.');
+    }catch{setMessage('No se confirmó la eliminación. Consulta los registros antes de reintentar.');}
+    finally{setContactBusy(false);}
   }
 
   return (
@@ -161,6 +226,28 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
         </form>
       )}
 
+      {editContact&&adminMayCorrect&&<form key={editContact.id} onSubmit={event=>void correctContact(event)}
+        aria-label="Corregir ficha de cliente"
+        className="grid gap-4 rounded-2xl border border-sky-300 bg-sky-50 p-5 md:grid-cols-2">
+        <h2 className="font-semibold md:col-span-2">Corregir cliente: {editContact.first_name} {editContact.last_name||''}</h2>
+        <Field name="first_name" label="Nombre" required defaultValue={editContact.first_name}/>
+        <Field name="last_name" label="Apellido" defaultValue={editContact.last_name||''}/>
+        <Field name="email" label="Correo" type="email" defaultValue={editContact.email||''}/>
+        <Field name="phone" label="Teléfono" defaultValue={editContact.phone||''}/>
+        <Field name="whatsapp" label="WhatsApp" defaultValue={editContact.whatsapp||''}/>
+        <label className="md:col-span-2 text-sm font-medium">Motivo de corrección
+          <textarea name="reason" minLength={12} maxLength={500} required
+            placeholder="Explica el dato equivocado (mínimo 12 caracteres)"
+            className="mt-1 block w-full rounded-xl border p-3"/>
+        </label>
+        <div className="md:col-span-2 flex justify-end gap-2">
+          <button type="button" onClick={()=>setEditContact(null)}
+            className="rounded-xl border px-4 py-2">Cancelar</button>
+          <button type="submit" disabled={contactBusy}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50">Guardar corrección</button>
+        </div>
+      </form>}
+
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
       {!contactsOnly && organizationId && <TenantRentEntry key={'entry-'+organizationId} organizationId={organizationId} />}
@@ -175,12 +262,13 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
               <th className="px-4 py-3">Teléfono</th>
               <th className="px-4 py-3">WhatsApp</th>
               <th className="px-4 py-3">Origen</th>
+              {adminMayCorrect&&<th className="px-4 py-3">Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={adminMayCorrect?6:5} className="px-4 py-10 text-center text-slate-500">
                   <ContactRound className="mx-auto mb-2 h-6 w-6" />
                   Aún no hay clientes o contactos registrados.
                 </td>
@@ -193,6 +281,18 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
                 <td className="px-4 py-3">{row.phone || '—'}</td>
                 <td className="px-4 py-3">{row.whatsapp || '—'}</td>
                 <td className="px-4 py-3">{row.source}</td>
+                {adminMayCorrect&&<td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" disabled={contactBusy}
+                      onClick={()=>{setEditContact(row);setMessage('');}}
+                      className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Editar cliente</button>
+                    <button type="button" disabled={contactBusy}
+                      onClick={()=>void deleteUnlinkedContact(row)}
+                      className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-800">
+                      Eliminar si no está vinculado
+                    </button>
+                  </div>
+                </td>}
               </tr>
             ))}
           </tbody>
