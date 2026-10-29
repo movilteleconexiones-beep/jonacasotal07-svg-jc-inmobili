@@ -143,12 +143,15 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
     finally{setBusy(false);}
   }
 
-  async function saveUnpaidCorrection(event:FormEvent<HTMLFormElement>,payment:RentPayment) {
+  async function saveUnpaidCorrection(event:FormEvent<HTMLFormElement>,payment:RentPayment,verifySignedCanon:boolean) {
     event.preventDefault();
     if(!canCorrect||busy)return;
     const form=new FormData(event.currentTarget);
     const expected=parseMoneyInput(String(form.get('expected_amount')??''));
     const reason=String(form.get('reason')??'').trim();
+    if(verifySignedCanon && form.get('verified_canon') !== 'yes'){
+      setFeedback('Antes de corregir, confirma que verificaste el contrato firmado y los otrosíes vigentes.');return;
+    }
     if(!Number.isFinite(expected)||expected<=0||expected>999999999999.99||
        reason.length<10||reason.length>500){
       setFeedback('Ingresa un canon válido y un motivo de corrección de 10 a 500 caracteres.');return;
@@ -304,12 +307,12 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
                   {canEditThisPayment&&<button type="button" disabled={busy}
                     onClick={()=>{setEditPayment(editPayment===payment.id?null:payment.id);setEditLease(null);setFeedback('');}}
                     className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40">
-                    {unpaid?'Corregir cobro':'Solicitar revisión'}
+                    {unpaid ? (difference?'Revisar canon y corregir':'Corregir cobro') : 'Solicitar revisión'}
                   </button>}
                 </td>
               </tr>
               {editPayment===payment.id&&<tr><td colSpan={7} className="border-b bg-slate-50 p-3">
-                <form onSubmit={event=>void (unpaid?saveUnpaidCorrection(event,payment):requestPaidReview(event,payment))}
+                <form onSubmit={event=>void (unpaid?saveUnpaidCorrection(event,payment,Boolean(difference)):requestPaidReview(event,payment))}
                   className="grid gap-3 md:grid-cols-2">
                   <h4 className="md:col-span-2 font-semibold">
                     {unpaid?'Corregir canon de período sin abonos':'Solicitar revisión de pago registrado'}
@@ -318,9 +321,17 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
                     Este período tiene pagos registrados. La solicitud deja constancia en auditoría,
                     pero no altera importes pagados, recibos ni liquidaciones.
                   </p>}
+                  {unpaid&&difference&&<p className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Importe propuesto según {difference.reference==='OTROSI'?'otrosí vigente':'contrato firmado'} para {difference.period}: {cop(difference.referenceCanon)}.
+                    Comprueba el documento original: la propuesta es editable y no se guardará automáticamente.
+                  </p>}
                   {unpaid&&<label className="text-sm">Nuevo importe a pagar (COP)
                     <input required type="number" name="expected_amount" step="0.01" min="0.01"
-                      defaultValue={payment.expected_amount} className="mt-1 w-full rounded-lg border p-2" />
+                      defaultValue={difference?.referenceCanon ?? payment.expected_amount} className="mt-1 w-full rounded-lg border p-2" />
+                  </label>}
+                  {unpaid&&difference&&<label className="md:col-span-2 flex items-start gap-2 text-sm">
+                    <input required type="checkbox" name="verified_canon" value="yes" className="mt-1" />
+                    <span>Verifiqué el contrato firmado y sus otrosíes para este mes y confirmo que el importe propuesto corresponde al acuerdo aplicable.</span>
                   </label>}
                   <label className="text-sm">Motivo / justificación de la corrección
                     <textarea required name="reason" minLength={unpaid?10:15} maxLength={500}
