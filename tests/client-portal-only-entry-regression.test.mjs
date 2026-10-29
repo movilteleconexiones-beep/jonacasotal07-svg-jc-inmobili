@@ -45,7 +45,12 @@ test('portal queries are always scoped to the current authenticated user and lin
  assert.match(portal,/\.in\('owner_id',ownerIds\)/);
  assert.match(portal,/\.in\('tenant_id',contactIds\)/);
  assert.match(portal,/\.in\('id',propertyIds\)/);
- assert.doesNotMatch(portal,/\.from\('(deals|leads|appointments|activities|documents)'\)/);
+ // Contracts are now an explicit personal-document exception; internal CRM stays blocked.
+ assert.doesNotMatch(portal,/\.from\('(deals|leads|appointments|activities)'\)/);
+ assert.match(portal,/\.from\('documents'\)/);
+ assert.match(portal,/\.eq\('document_type','CONTRACT'\)/);
+ assert.match(portal,/\.in\('entity_id',leaseIds\)/);
+ assert.match(portal,/isSignedLeaseDocument\(document,organizationId,lease\.id\)/);
  assert.match(portal,/Ver catálogo de propiedades/);
  assert.match(portal,/Consignar mi propiedad/);
  assert.match(portal,/Sin fecha registrada/);
