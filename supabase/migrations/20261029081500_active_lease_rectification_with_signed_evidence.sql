@@ -35,14 +35,26 @@ BEGIN
     END IF;
   END IF;
   IF OLD.status NOT IN ('ACTIVE','RENEWAL') THEN RETURN NEW; END IF;
-  -- A termination/cancellation cannot rewrite previously signed terms.
-  IF NEW.status NOT IN ('ACTIVE','RENEWAL') AND
-     ROW(NEW.monthly_rent,NEW.end_date,NEW.contract_number,NEW.tenant_id,NEW.owner_id,
-         NEW.property_id,NEW.start_date,NEW.payment_day,NEW.adjustment_type,NEW.adjustment_percentage)
-     IS DISTINCT FROM
-     ROW(OLD.monthly_rent,OLD.end_date,OLD.contract_number,OLD.tenant_id,OLD.owner_id,
-         OLD.property_id,OLD.start_date,OLD.payment_day,OLD.adjustment_type,OLD.adjustment_percentage) THEN
-    RAISE EXCEPTION 'Terminating a lease must not rewrite signed terms'
+  -- The existing audited FINISHED workflow records physical handover and
+  -- changes end_date to terminated_on. Preserve that authorized operation,
+  -- while forbidding any simultaneous rewrite of signed rent/parties/terms.
+  IF NEW.status='FINISHED' THEN
+    IF ROW(NEW.monthly_rent,NEW.contract_number,NEW.tenant_id,NEW.owner_id,
+           NEW.property_id,NEW.start_date,NEW.payment_day,NEW.adjustment_type,
+           NEW.adjustment_percentage)
+       IS DISTINCT FROM
+       ROW(OLD.monthly_rent,OLD.contract_number,OLD.tenant_id,OLD.owner_id,
+           OLD.property_id,OLD.start_date,OLD.payment_day,OLD.adjustment_type,
+           OLD.adjustment_percentage) THEN
+      RAISE EXCEPTION 'Finishing a lease cannot rewrite signed terms'
+        USING ERRCODE='23514';
+    END IF;
+    -- guard_lease_lifecycle_transition validates handover, actor,
+    -- termination date, pending financials and NEW.end_date.
+    RETURN NEW;
+  END IF;
+  IF NEW.status NOT IN ('ACTIVE','RENEWAL') THEN
+    RAISE EXCEPTION 'Use the audited lease finish procedure'
       USING ERRCODE='23514';
   END IF;
 
