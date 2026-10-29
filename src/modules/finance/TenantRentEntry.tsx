@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
+import { rentalCanonDifference, rentalCanonWarning } from '../../core/rental-canon-reference';
 import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
 import { SignedLeaseDocuments } from './SignedLeaseDocuments';
@@ -13,6 +14,7 @@ import { RentReceiptEvidenceHistory } from './RentReceiptEvidenceHistory';
 
 export type RentalEntryMode='STANDARD'|'DRAFT'|'SIGNED_PDF'|'APPROVAL'|'BILLING';
 type Option={id:string;label:string};
+type PropertyOption=Option&{price:number|null;operation_type:string};
 type Lease={id:string;contract_number:string|null;monthly_rent:number;status:string;
   property_id:string;tenant_id:string|null;owner_id:string|null;start_date:string;end_date:string|null};
 type Period={id:string;lease_id:string;period_month:string;expected_amount:number;paid_amount:number;status:string};
@@ -30,7 +32,11 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     (activeMembership?.roles.some(role=>role.key==='ADMIN')??false);
   const paymentAllowed=can(PERMISSIONS.RENT_PAYMENTS_CREATE);
   const canReadRent=can(PERMISSIONS.RENT_PAYMENTS_VIEW);
-  const [properties,setProperties]=useState<Option[]>([]);
+  const [properties,setProperties]=useState<PropertyOption[]>([]);
+  const [newPropertyId,setNewPropertyId]=useState(preferredPropertyId||'');
+  const [newRent,setNewRent]=useState('');
+  const [draftPropertyId,setDraftPropertyId]=useState('');
+  const [draftRent,setDraftRent]=useState('');
   const [tenants,setTenants]=useState<Option[]>([]);
   const [owners,setOwners]=useState<Option[]>([]);
   const [leases,setLeases]=useState<Lease[]>([]);
@@ -51,12 +57,13 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   useEffect(()=>{
     let cancelled=false;
     setProperties([]);setTenants([]);setOwners([]);setLeases([]);setPeriods([]);
-    setDraftEditor(null);setError('');
+    setDraftEditor(null);setError('');setNewPropertyId(preferredPropertyId||'');
+    setNewRent('');setDraftPropertyId('');setDraftRent('');
     setLoading(true);
     void(async()=>{
       try {
         const [p,t,o,l,r]=await Promise.all([
-          supabase.from('properties').select('id,code,title').eq('organization_id',organizationId).limit(501),
+          supabase.from('properties').select('id,code,title,price,operation_type').eq('organization_id',organizationId).limit(501),
           supabase.from('contacts').select('id,first_name,last_name').eq('organization_id',organizationId).limit(501),
           supabase.from('property_owners').select('id,first_name,last_name').eq('organization_id',organizationId).eq('agency_status','ACTIVE').limit(501),
           supabase.from('leases').select('id,contract_number,monthly_rent,status,property_id,tenant_id,owner_id,start_date,end_date').eq('organization_id',organizationId).limit(501),
@@ -67,7 +74,8 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         if(cancelled)return;
         if(p.error||t.error||o.error||l.error||r.error||[p,t,o,l,r].some(x=>(x.data?.length??0)>500))
           throw Error('No se pudieron cargar todos los registros autorizados. Revisa permisos y volumen.');
-        setProperties((p.data??[]).map(x=>({id:x.id,label:[x.code,x.title].filter(Boolean).join(' · ')})));
+        setProperties((p.data??[]).map(x=>({id:x.id,label:[x.code,x.title].filter(Boolean).join(' · '),
+          price:x.price==null?null:Number(x.price),operation_type:x.operation_type})));
         setTenants((t.data??[]).map(x=>({id:x.id,label:[x.first_name,x.last_name].filter(Boolean).join(' ')})));
         setOwners((o.data??[]).map(x=>({id:x.id,label:[x.first_name,x.last_name].filter(Boolean).join(' ')})));
         setLeases((l.data??[]) as Lease[]);
@@ -77,6 +85,13 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     })();
     return()=>{cancelled=true;};
   },[organizationId,revision]);
+
+  const newProperty=properties.find(p=>p.id===newPropertyId);
+  const newCanonMismatch=rentalCanonDifference(
+    newProperty?.price,newRent.trim()?Number(newRent):null,newProperty?.operation_type);
+  const draftProperty=properties.find(p=>p.id===draftPropertyId);
+  const draftCanonMismatch=rentalCanonDifference(
+    draftProperty?.price,draftRent.trim()?Number(draftRent):null,draftProperty?.operation_type);
 
   async function createContract(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(!contractAllowed||busy)return;
@@ -94,7 +109,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         // Read-only preflight: never trust a visual owner name or a property inventory code.
         // Activation is still protected by database constraints and administrator approval.
         const [propertyCheck,occupationCheck]=await Promise.all([
-          supabase.from('properties').select('id,status,operation_type')
+          supabase.from('properties').select('id,status,operation_type,price')
             .eq('organization_id',organizationId).eq('id',propertyId).maybeSingle(),
           supabase.from('leases').select('id',{count:'exact',head:true})
             .eq('organization_id',organizationId).eq('property_id',propertyId)
@@ -106,6 +121,11 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         if(!canPrepareRental({...propertyCheck.data,code:'',title:'',
           has_active_lease:occupationCheck.count>0})){
           setError('Este inmueble ya tiene un contrato en borrador o vigente. Corrige el existente en vez de crear otro.');return;
+        }
+        const priceCheck=rentalCanonDifference(
+          propertyCheck.data.price==null?null:Number(propertyCheck.data.price),rent,propertyCheck.data.operation_type);
+        if(priceCheck&&!window.confirm(rentalCanonWarning(priceCheck)+'\n\n¿Confirmas que el canon diferente fue acordado?')){
+          setError('Revisa el canon del inmueble antes de guardar el contrato.');return;
         }
         if(ownerId){
           const {data:link,error:linkError}=await supabase.from('property_ownerships')
@@ -121,7 +141,8 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         contract_number:String(f.get('contract_number')||'').trim().slice(0,100)||null,status:'DRAFT',
       }).select('id').single();
       if(failure||!created){setError('No se pudo guardar el contrato: '+(failure?.message??'No hubo confirmación de la fila.'));return;}
-      element.reset();setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
+      element.reset();setNewPropertyId('');setNewRent('');
+      setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
       window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
       onDraftCreated?.(created.id);
     } catch {
@@ -154,6 +175,17 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     if(!window.confirm('¿Guardar corrección del borrador? Se registrarán los datos anteriores, nuevos y el motivo en auditoría.'))return;
     setDraftWorking(true);setError('');
     try{
+      const currentProperty=await supabase.from('properties')
+        .select('price,operation_type').eq('organization_id',organizationId).eq('id',targetProperty).maybeSingle();
+      if(currentProperty.error||!currentProperty.data){
+        setError('No pudimos verificar el canon publicado. Actualiza la información.');return;
+      }
+      const difference=rentalCanonDifference(
+        currentProperty.data.price==null?null:Number(currentProperty.data.price),rent,
+        currentProperty.data.operation_type);
+      if(difference&&!window.confirm(rentalCanonWarning(difference)+'\n\n¿Guardar este canon justificado?')){
+        setError('Revisa el canon antes de corregir el borrador.');return;
+      }
       const {error:failure}=await supabase.rpc('admin_correct_lease_draft',{
         target_org:organizationId,target_lease:lease.id,target_property:targetProperty,
         target_tenant:targetTenant,target_owner:targetOwner||null,
@@ -331,13 +363,20 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     </div>
     {loading?<p role="status">Cargando información…</p>:<>
       {action==='CONTRACT'&&mode!=='APPROVAL'&&<form onSubmit={e=>void createContract(e)} className="grid gap-3 md:grid-cols-2">
-        <label className="text-sm">Inmueble<select name="property_id" required defaultValue={preferredPropertyId||''} className={fieldClass}><option value="">Seleccionar inmueble</option>
+        <label className="text-sm">Inmueble<select name="property_id" required value={newPropertyId}
+          onChange={event=>setNewPropertyId(event.target.value)} className={fieldClass}><option value="">Seleccionar inmueble</option>
           {properties.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
         <label className="text-sm">Inquilino<select name="tenant_id" required defaultValue={preferredTenantId||''} className={fieldClass}><option value="">Seleccionar cliente</option>
           {tenants.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
         <label className="text-sm">Propietario<select name="owner_id" defaultValue={preferredOwnerId||''} className={fieldClass}><option value="">Sin vincular aún</option>
           {owners.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
-        <label className="text-sm">Canon mensual (COP)<input type="number" name="monthly_rent" required min="0.01" step="0.01" className={fieldClass}/></label>
+        <label className="text-sm">Canon mensual (COP)<input type="number" name="monthly_rent" required min="0.01" step="0.01"
+          value={newRent} onChange={event=>setNewRent(event.target.value)} className={fieldClass}/></label>
+        {newProperty?.operation_type==='RENT'&&newProperty.price!=null&&newProperty.price>0&&
+          <p className="md:col-span-2 text-xs text-slate-700">Canon publicado para el inmueble: <strong>
+            {Number(newProperty.price).toLocaleString('es-CO',{style:'currency',currency:'COP'})} mensuales</strong></p>}
+        {newCanonMismatch&&<p role="alert" className="md:col-span-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          {rentalCanonWarning(newCanonMismatch)}</p>}
         <label className="text-sm">Número de contrato<input name="contract_number" maxLength={100} className={fieldClass}/></label>
         <label className="text-sm">Inicio<input type="date" name="start_date" required className={fieldClass}/></label>
         <label className="text-sm">Finalización<input type="date" name="end_date" className={fieldClass}/></label>
@@ -382,7 +421,9 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
                 <span>{lease.contract_number||lease.id} · {Number(lease.monthly_rent).toLocaleString('es-CO')} COP</span>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" disabled={draftWorking||busy}
-                    onClick={()=>setDraftEditor(draftEditor===lease.id?null:lease.id)}
+                    onClick={()=>{const opening=draftEditor!==lease.id;setDraftEditor(opening?lease.id:null);
+                      setDraftPropertyId(opening?lease.property_id:'');
+                      setDraftRent(opening?String(lease.monthly_rent):'');}}
                     className="rounded-lg border px-3 py-1.5 font-semibold">Corregir borrador</button>
                   <button type="button" disabled={draftWorking||busy}
                     onClick={()=>void cancelDraft(lease)}
@@ -391,7 +432,8 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
               </div>
               {draftEditor===lease.id&&<form key={lease.id} onSubmit={e=>void correctDraft(e,lease)}
                 className="grid gap-3 rounded-lg bg-slate-50 p-3 md:grid-cols-2">
-                <label>Inmueble<select name="property_id" required defaultValue={lease.property_id} className={fieldClass}>
+                <label>Inmueble<select name="property_id" required value={draftPropertyId}
+                  onChange={event=>setDraftPropertyId(event.target.value)} className={fieldClass}>
                   {properties.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label>
                 <label>Inquilino<select name="tenant_id" required defaultValue={lease.tenant_id||''} className={fieldClass}>
                   <option value="">Seleccionar inquilino</option>
@@ -400,7 +442,9 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
                   <option value="">Sin propietario vinculado</option>
                   {owners.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
                 <label>Canon mensual (COP)<input name="monthly_rent" type="number" min="0.01" step="0.01"
-                  required defaultValue={lease.monthly_rent} className={fieldClass}/></label>
+                  required value={draftRent} onChange={event=>setDraftRent(event.target.value)} className={fieldClass}/></label>
+                {draftCanonMismatch&&<p role="alert" className="md:col-span-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                  {rentalCanonWarning(draftCanonMismatch)}</p>}
                 <label>Número de contrato<input name="contract_number" maxLength={100}
                   defaultValue={lease.contract_number||''} className={fieldClass}/></label>
                 <label>Inicio<input name="start_date" type="date" required defaultValue={lease.start_date}
