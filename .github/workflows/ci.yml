@@ -282,6 +282,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029034500_reconcile_verified_sandbox_trial_payment.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f security/tests/billing_trial_to_paid_assertions.sql
       - name: Property consignment SQL security and atomicity tests
         env:
