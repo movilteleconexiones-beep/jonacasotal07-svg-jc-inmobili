@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { printInternalDocument } from '../../core/financial-documents';
 import { financialAmount as amount, rentalBalance, ownerNetFromDeductions, parseMoneyInput } from '../../core/rent-owner-money';
+import { rentPeriodCanonDiscrepancy } from '../../core/rent-period-canon-audit';
 
 interface Lease {
   id: string;
@@ -188,10 +189,22 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
   if (!allowed) return null;
   const byLease = new Map(leases.map(item => [item.id, item]));
   const byContact = new Map(contacts.map(item => [item.id, item]));
+  // An incomplete list of addenda cannot establish the applicable signed canon.
+  const flaggedPeriods = amendments.length < 200 ? payments.filter(payment => {
+    const lease = byLease.get(payment.lease_id);
+    return lease && rentPeriodCanonDiscrepancy(lease.monthly_rent, payment, amendments);
+  }) : [];
   return <section className="rounded-2xl border border-stone-200 bg-white p-5" aria-label="Arriendos de clientes">
     <h2 className="text-lg font-bold">Cánones y pagos de los inquilinos</h2>
     <p className="mt-1 text-sm text-slate-600">Lo que debe pagar cada inquilino a la inmobiliaria. Solo se consideran saldos de períodos registrados, no deudas inferidas.</p>
     <p className="mt-1 text-xs text-slate-600">Los cambios de canon se programan para meses futuros mediante otrosí. Los pagos con abonos o liquidaciones no se reescriben.</p>
+    {!loading && !error && amendments.length >= 200 && <p role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+      La lista de otrosíes alcanzó su límite de consulta. No se evalúan diferencias de canon hasta consultar el historial completo.
+    </p>}
+    {!loading && !error && flaggedPeriods.length > 0 && <p role="alert" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+      Cánones registrados por revisar: {flaggedPeriods.length} período(s) con un importe distinto al canon firmado aplicable en ese mes.
+      Comprueba el contrato y sus otrosíes antes de corregir. Es una advertencia informativa: No modifica cobros, recibos ni liquidaciones.
+    </p>}
     {feedback&&<p role="status" className="mt-3 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm">{feedback}</p>}
     {loading ? <p role="status" className="mt-4 text-sm">Cargando información de arriendos…</p> :
       error ? <p role="alert" className="mt-4 text-sm text-amber-900">{error}</p> :
@@ -256,9 +269,16 @@ export function TenantRentBalanceSummary({ organizationId }: { organizationId: s
               const valid = lease && Number.isFinite(rentalBalance(payment.expected_amount, payment.paid_amount));
               const unpaid = payment.paid_amount===0&&['PENDING','LATE'].includes(payment.status);
               const canEditThisPayment = unpaid ? canCorrect : canReview&&payment.paid_amount>0;
+              const difference = lease && amendments.length < 200
+                ? rentPeriodCanonDiscrepancy(lease.monthly_rent,payment,amendments) : null;
               return <Fragment key={payment.id}><tr className="border-b border-stone-100">
                 <td className="py-2">{lease?.tenant_id ? fullName(byContact.get(lease.tenant_id)) : 'Contrato no disponible'}<div className="text-xs text-slate-500">{payment.period_month}</div></td>
-                <td className="py-2 text-right">{cop(amount(payment.expected_amount))}</td>
+                <td className="py-2 text-right">{cop(amount(payment.expected_amount))}
+                  {difference&&<p role="alert" className="mt-1 text-xs font-medium text-amber-900">
+                    Referencia documental ({difference.reference==='OTROSI'?'otrosí':'contrato'}): {cop(difference.referenceCanon)}.
+                    Diferencia de {cop(difference.difference)} {difference.direction} al canon firmado. Verifica este período.
+                  </p>}
+                </td>
                 <td className="py-2 text-right">{cop(amount(payment.paid_amount))}</td>
                 <td className="py-2 text-right font-semibold">{valid ? cop(rentalBalance(payment.expected_amount, payment.paid_amount)) : 'Por verificar'}</td>
                 <td className="py-2">{etiquetaES(payment.status)}</td>
