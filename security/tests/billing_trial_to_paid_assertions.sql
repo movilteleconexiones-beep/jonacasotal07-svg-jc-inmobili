@@ -128,3 +128,22 @@ SELECT pg_temp.assert((SELECT count(*)=1 FROM public.payment_orders),
   'suspended license cannot create a paid order');
 SELECT pg_temp.assert((SELECT NOT production_enabled FROM public.billing_activation_settings),
   'live charging remains disabled');
+
+-- A previous APPROVED/REVIEW_REQUIRED payment must block a SECOND charge.
+-- Fixture-only status transition: real reviews require audited reconciliation.
+UPDATE public.organization_licenses SET status='ACTIVE'
+ WHERE organization_id='20000000-0000-0000-0000-000000000002';
+UPDATE public.payment_orders
+ SET fulfillment_status='REVIEW_REQUIRED', review_reason='contract_review'
+ WHERE organization_id='20000000-0000-0000-0000-000000000002' AND status='APPROVED';
+DO $already_paid$ BEGIN
+  BEGIN
+    PERFORM public.billing_create_order('20000000-0000-0000-0000-000000000002',
+      (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',gen_random_uuid());
+    RAISE EXCEPTION 'FAIL: approved payment was charged twice';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE '%Approved payment requires reconciliation%' THEN RAISE; END IF;
+  END;
+END $already_paid$;
+SELECT pg_temp.assert((SELECT count(*)=1 FROM public.payment_orders),
+  'approved review requires reconciliation before another checkout');
