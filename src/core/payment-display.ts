@@ -7,9 +7,20 @@ export interface PaymentDisplayStatus {
   status: string;
   fulfillment_status: string;
   review_reason?: string | null;
+  expires_at?: string | null;
 }
 
-export function paymentDisplayLabel(order: PaymentDisplayStatus): string {
+/**
+ * A checkout link can expire while its persisted order remains PENDING.
+ * This is display-only: only the verified payment event determines approval.
+ */
+function isExpiredPendingOrder(order: PaymentDisplayStatus, nowMs: number): boolean {
+  if (order.status !== 'PENDING' || !order.expires_at) return false;
+  const expiresAt = Date.parse(order.expires_at);
+  return Number.isFinite(expiresAt) && expiresAt <= nowMs;
+}
+
+export function paymentDisplayLabel(order: PaymentDisplayStatus, nowMs = Date.now()): string {
   const sandbox = order.environment === 'sandbox';
   if (sandbox) {
     if (order.status === 'APPROVED') {
@@ -19,7 +30,9 @@ export function paymentDisplayLabel(order: PaymentDisplayStatus): string {
         return 'Simulación aprobada · requiere revisión, sin licencia comercial';
       return 'Simulación aprobada · sin licencia comercial';
     }
-    if (order.status === 'PENDING') return 'Simulación pendiente de confirmación';
+    if (order.status === 'PENDING') return isExpiredPendingOrder(order, nowMs)
+      ? 'Simulación vencida · sin pago confirmado'
+      : 'Simulación pendiente de confirmación';
     return 'Simulación no aprobada';
   }
   if (order.environment !== 'production') return 'Entorno de pago desconocido · verificar';
@@ -28,7 +41,9 @@ export function paymentDisplayLabel(order: PaymentDisplayStatus): string {
       ? 'Pago real confirmado · plan activado'
       : 'Pago real aprobado · pendiente de revisión';
   }
-  if (order.status === 'PENDING') return 'Pago real pendiente de confirmación';
+  if (order.status === 'PENDING') return isExpiredPendingOrder(order, nowMs)
+    ? 'Orden de pago vencida · sin confirmación'
+    : 'Pago real pendiente de confirmación';
   return 'Pago real no aprobado';
 }
 
@@ -36,7 +51,10 @@ export function paymentDisplayLabel(order: PaymentDisplayStatus): string {
  * This never decides entitlement. It only explains a *verified* order already
  * requiring a privileged review; unknown reasons fail closed to generic text.
  */
-export function paymentReviewNotice(order: PaymentDisplayStatus): string | null {
+export function paymentReviewNotice(order: PaymentDisplayStatus, nowMs = Date.now()): string | null {
+  if (['sandbox', 'production'].includes(order.environment) && isExpiredPendingOrder(order, nowMs)) {
+    return 'El enlace de pago venció. No se ha confirmado un cobro ni activado un nuevo plan. Puedes iniciar otro intento desde el plan correspondiente.';
+  }
   if (order.status !== 'APPROVED' || order.fulfillment_status !== 'REVIEW_REQUIRED'
       || !['sandbox', 'production'].includes(order.environment)) return null;
   switch (order.review_reason) {

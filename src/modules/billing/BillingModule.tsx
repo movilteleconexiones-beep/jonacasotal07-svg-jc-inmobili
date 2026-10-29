@@ -5,7 +5,7 @@ import { LicenseModule } from '../license/LicenseModule';
 import { paymentDisplayLabel, paymentReviewNotice } from '../../core/payment-display';
 
 interface Plan { id: string; name: string; price: number; currency: string; billing_cycle: string; max_users: number | null; max_properties: number | null }
-interface Order { id: string; reference: string; status: string; fulfillment_status: string; review_reason: string | null; environment: string; created_at: string; amount_in_cents: number }
+interface Order { id: string; reference: string; status: string; fulfillment_status: string; review_reason: string | null; environment: string; created_at: string; expires_at: string | null; amount_in_cents: number }
 const money = (amount: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount);
 
 export function BillingModule() {
@@ -24,7 +24,7 @@ export function BillingModule() {
     if (!orgId || !billing?.can_manage_billing) return;
     const [catalog, history, config, perpetual] = await Promise.all([
       supabase.from('plans').select('id,name,price,currency,billing_cycle,max_users,max_properties').eq('active', true).in('billing_cycle', ['MONTHLY', 'ANNUAL']).eq('currency', 'COP').order('price'),
-      supabase.from('payment_orders').select('id,reference,status,fulfillment_status,review_reason,environment,created_at,amount_in_cents').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10),
+      supabase.from('payment_orders').select('id,reference,status,fulfillment_status,review_reason,environment,created_at,expires_at,amount_in_cents').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10),
       supabase.from('billing_activation_settings').select('sandbox_enabled,production_enabled,activation_mode').single(),
       supabase.from('plans').select('id,code,billing_cycle').eq('active',true).eq('code','LIFETIME').eq('billing_cycle','ONE_TIME').maybeSingle(),
     ]);
