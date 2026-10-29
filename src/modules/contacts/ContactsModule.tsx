@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ContactRound, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
-import { TenantRentEntry } from '../finance/TenantRentEntry';
-import { ActiveLeaseCorrection } from '../finance/ActiveLeaseCorrection';
-import { TenantRentBalanceSummary } from '../finance/RentOwnerBalances';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 
@@ -183,7 +180,7 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Clientes y contactos</h1>
-          <p className="mt-1 text-sm text-slate-600">Compradores, arrendatarios, propietarios y prospectos.</p>
+          <p className="mt-1 text-sm text-slate-600">Registra, consulta y corrige clientes y contactos sin crear contratos ni cobros desde aquí.</p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
@@ -253,9 +250,6 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
 
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
-      {!contactsOnly && organizationId && <TenantRentEntry key={'entry-'+organizationId} organizationId={organizationId} />}
-      {!contactsOnly && organizationId && <ActiveLeaseCorrection key={'active-correction-'+organizationId} organizationId={organizationId} />}
-      {!contactsOnly && organizationId && <TenantRentBalanceSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">
