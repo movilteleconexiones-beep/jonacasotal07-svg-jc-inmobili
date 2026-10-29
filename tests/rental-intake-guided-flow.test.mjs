@@ -34,7 +34,9 @@ test('six-step rental intake is available for tenant agents and administrators',
 test('existing property and customer records are reused without duplicated records or accounting forms',()=>{
   assert.match(properties,/onCreated\?\.\(created\.id\)/);
   assert.match(contacts,/onCreated\?\.\(created\.id\)/);
-  assert.match(contacts,/!contactsOnly && organizationId && <TenantRentEntry/);
+  assert.doesNotMatch(contacts, /<TenantRentEntry/);
+  assert.match(wizard, /mode="DRAFT"/);
+  assert.match(wizard, /mode="BILLING"/);
   assert.match(owners,/!ownersOnly && organizationId && <OwnerSettlementEntry/);
   assert.match(wizard,/Si la vivienda ya figura en el inventario, no la dupliques/);
   // Controlled selection keeps the wizard's preferred property and the live canon alert in sync.
