@@ -347,8 +347,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </p>
     </div>}
 
-    {step === 1 && <ContactsModule contactsOnly
-      onCreated={id => { setTenantId(id); setStep(2); }}
+    {step === 1 && <ContactsModule contactsOnly onCreated={id => { setTenantId(id); setStep(2); }}
       onSelected={id => { setTenantId(id); setStep(2); }} />}
 
     {step === 2 && <div className="space-y-3">
