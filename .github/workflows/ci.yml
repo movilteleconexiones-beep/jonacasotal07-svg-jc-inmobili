@@ -37,6 +37,27 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript validation
         run: npm run lint
+      - name: Public portal SPA stylesheet and cache integration (Caddy)
+        run: |
+          npm run build
+          docker run --rm --entrypoint caddy -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10 validate --config /etc/caddy/Caddyfile
+          docker run -d --name jco-caddy-smoke \
+            -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            -v "$PWD/dist:/app/dist:ro" \
+            -p 127.0.0.1:18080:8080 caddy:2.10 caddy run --config /etc/caddy/Caddyfile
+          trap 'docker rm -f jco-caddy-smoke >/dev/null 2>&1 || true' EXIT
+          for i in $(seq 1 25); do
+            if curl -fsS http://127.0.0.1:18080/ >/dev/null; then break; fi
+            sleep 1
+          done
+          css_path="$(grep -oE '/assets/index-[^\" ]+\\.css' dist/index.html | head -n 1)"
+          test -n "$css_path"
+          curl -fsSI "http://127.0.0.1:18080$css_path" | grep -iq 'content-type: text/css'
+          curl -fsSI http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco | grep -iq 'cache-control: no-store'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.css)" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.js)" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco)" = "200"
+
       - name: Approved COP monthly prices and immutable perpetual license SQL
         env:
           PGPASSWORD: postgres
