@@ -83,9 +83,32 @@ export function SignedLeaseDocuments({
       setMessage('Selecciona un contrato existente, su PDF y confirma que ya fue firmado por las partes.');
       return;
     }
+    if (loading) {
+      setMessage('Verificando los documentos existentes. Actualiza la lista antes de cargar otro contrato.');
+      return;
+    }
+    if (documents.some(document => document.entity_id === lease.id)) {
+      setMessage('Este arrendamiento ya tiene un PDF firmado. No se permite duplicarlo; solicita al administrador que revise las versiones existentes.');
+      return;
+    }
     setUploading(true);
     setMessage('');
     try {
+      const {count:existingCount,error:existingError}=await supabase.from('documents')
+        .select('id',{count:'exact',head:true})
+        .eq('organization_id',organizationId).eq('entity_type','GENERAL')
+        .eq('entity_id',lease.id).eq('document_type','CONTRACT')
+        .eq('storage_bucket',SIGNED_LEASE_BUCKET)
+        .like('storage_path',signedLeasePrefix(organizationId,lease.id)+'%');
+      if(existingError||existingCount==null){
+        setMessage('No fue posible verificar contratos previos. No se cargó un archivo nuevo.');
+        return;
+      }
+      if(existingCount>0){
+        setMessage('Ya existe un PDF firmado para este contrato. Revisa el historial antes de intentar otra carga.');
+        setRevision(value=>value+1);
+        return;
+      }
       const errorMessage = await validateSignedLeasePdf(file);
       if (errorMessage) { setMessage(errorMessage); return; }
 
@@ -184,10 +207,14 @@ export function SignedLeaseDocuments({
       {!available.length && <p className="text-sm text-amber-800 md:col-span-2">
         Primero crea un contrato en «Nuevo contrato»; después podrás adjuntar su PDF firmado.
       </p>}
+      {selectedDocuments.length>0&&<p role="alert" className="text-sm text-amber-800 md:col-span-2">
+        Ya hay {selectedDocuments.length} PDF firmado(s) para este arrendamiento. No se permite subir otra copia.
+        La revisión de documentos repetidos corresponde al administrador; se conserva el historial existente.
+      </p>}
       {!mayUpload && <p className="text-sm text-amber-800 md:col-span-2">
         Tu perfil requiere permiso para cargar documentos antes de poder adjuntar el contrato.
       </p>}
-      <button type="submit" disabled={!mayUpload || uploading || !leaseId}
+      <button type="submit" disabled={!mayUpload || uploading || loading || !leaseId || selectedDocuments.length>0}
         className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
         <Upload className="h-4 w-4" />{uploading ? 'Subiendo contrato…' : 'Subir contrato firmado (PDF)'}
       </button>
