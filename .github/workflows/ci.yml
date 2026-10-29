@@ -398,6 +398,17 @@ jobs:
         run: node --test tests/owner-payout-evidence-upload.test.mjs
       - name: Owner payout ledger authorization regression
         run: node --test tests/owner-payout-ledger.test.mjs
+      - name: Owner payout PostgreSQL end-to-end transaction and access audit
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_payout_e2e_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f security/tests/owner_payout_end_to_end_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f supabase/migrations/20261014030000_owner_payout_ledger.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f security/tests/owner_payout_end_to_end_assertions.sql
+          # Every test action is inside a rolled-back transaction.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -Atqc "SELECT COUNT(*) FROM public.owner_statement_payouts" | grep -qx 0
+
       - name: Owner statement issuance authorization regression
         run: node --test tests/owner-statement-issuance.test.mjs
       - name: Tenant rent and owner liquidation balances regression
