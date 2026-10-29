@@ -5,12 +5,14 @@ import {supabase} from '../../lib/supabase';
 import {etiquetaES} from '../../core/etiquetas-es';
 import { tenantPublicPath } from '../../core/public-tenant-route';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { isSignedLeaseDocument, SIGNED_LEASE_BUCKET, type SignedLeaseDocumentRef } from '../../core/signed-lease-pdf';
 
 type LinkRow={owner_id:string|null;contact_id:string|null};
 type PropertyRow={id:string;code:string;title:string;status:string;city:string|null};
 type LeaseRow={id:string;property_id:string;owner_id:string;status:string;monthly_rent:number|null;start_date:string;end_date:string|null};
 type PaymentRow={id:string;lease_id:string;period_month:string;paid_amount:number;status:string};
 type StatementRow={id:string;owner_id:string;period_month:string;net_amount:number;status:string};
+type SignedContractRow=SignedLeaseDocumentRef&{id:string;title:string};
 
 const money=(value:number|null,locale:string,currency:string)=>value===null?'—':
   new Intl.NumberFormat(locale,{style:'currency',currency,maximumFractionDigits:0}).format(value);
@@ -33,13 +35,15 @@ export function PortalHub(){
   const [leases,setLeases]=useState<LeaseRow[]>([]);
   const [payments,setPayments]=useState<PaymentRow[]>([]);
   const [statements,setStatements]=useState<StatementRow[]>([]);
+  const [signedContracts,setSignedContracts]=useState<SignedContractRow[]>([]);
+  const [documentError,setDocumentError]=useState('');
   const [loading,setLoading]=useState(true);
   const [portalError,setPortalError]=useState('');
 
   useEffect(()=>{
     let cancelled=false;
-    setLoading(true);setPortalError('');
-    setOwners([]);setContacts([]);setProperties([]);setLeases([]);setPayments([]);setStatements([]);
+    setLoading(true);setPortalError('');setDocumentError('');
+    setOwners([]);setContacts([]);setProperties([]);setLeases([]);setPayments([]);setStatements([]);setSignedContracts([]);
     if(!organizationId||!user?.id){setLoading(false);return;}
     const checked=async <T,>(request:PromiseLike<{data:T[]|null;error:{message:string}|null;count:number|null}>):Promise<T[]>=>{
       const result=await request;
@@ -76,7 +80,7 @@ export function PortalHub(){
         const propertyIds=[...new Set([...ownerships.map(x=>x.property_id),...ownLeases.map(x=>x.property_id)]
           .filter((v):v is string=>!!v))];
         const leaseIds=ownLeases.map(x=>x.id);
-        const [ownProperties,ownPayments,issuedStatements]=await Promise.all([
+        const [ownProperties,ownPayments,issuedStatements,leaseDocuments]=await Promise.all([
           propertyIds.length?checked<PropertyRow>(supabase.from('properties')
             .select('id,code,title,status,city',{count:'exact'})
             .eq('organization_id',organizationId).in('id',propertyIds).limit(501)):Promise.resolve([]),
@@ -87,17 +91,40 @@ export function PortalHub(){
             .select('id,owner_id,period_month,net_amount,status',{count:'exact'})
             .eq('organization_id',organizationId).in('owner_id',ownerIds)
             .in('status',['GENERATED','ISSUED']).not('issued_at','is',null).limit(501)):Promise.resolve([]),
+          leaseIds.length?checked<SignedContractRow>(supabase.from('documents')
+            .select('id,title,organization_id,entity_type,entity_id,document_type,storage_bucket,storage_path',{count:'exact'})
+            .eq('organization_id',organizationId)
+            .eq('entity_type','GENERAL')
+            .eq('document_type','CONTRACT')
+            .eq('storage_bucket',SIGNED_LEASE_BUCKET)
+            .in('entity_id',leaseIds).limit(501)):Promise.resolve([]),
         ]);
         if(cancelled)return;
-        setProperties(ownProperties);setLeases(ownLeases);setPayments(ownPayments);setStatements(issuedStatements);
+        const safeContracts=leaseDocuments.filter(document=>
+          ownLeases.some(lease=>isSignedLeaseDocument(document,organizationId,lease.id)));
+        setProperties(ownProperties);setLeases(ownLeases);setPayments(ownPayments);
+        setStatements(issuedStatements);setSignedContracts(safeContracts);
       }catch{
         if(cancelled)return;
         setPortalError('No se pudo comprobar el acceso privado. No mostraremos información sin verificar tus vínculos.');
-        setOwners([]);setContacts([]);setProperties([]);setLeases([]);setPayments([]);setStatements([]);
+        setOwners([]);setContacts([]);setProperties([]);setLeases([]);setPayments([]);setStatements([]);setSignedContracts([]);
       }finally{if(!cancelled)setLoading(false);}
     })();
     return()=>{cancelled=true;};
   },[organizationId,user?.id]);
+
+  async function viewSignedContract(document:SignedContractRow) {
+    if(!organizationId||!user?.id||!leases.some(lease=>isSignedLeaseDocument(document,organizationId,lease.id)))return;
+    setDocumentError('');
+    try{
+      const {data,error}=await supabase.storage.from(SIGNED_LEASE_BUCKET)
+        .createSignedUrl(document.storage_path,60);
+      if(error||!data?.signedUrl)throw new Error('signed url unavailable');
+      window.open(data.signedUrl,'_blank','noopener,noreferrer');
+    }catch{
+      setDocumentError('No fue posible abrir tu contrato firmado. Comprueba tu acceso con la inmobiliaria.');
+    }
+  }
 
   if(loading)return <section role="status" className="rounded-xl border bg-white p-6">
     Verificando los vínculos personales de tu portal…
@@ -138,6 +165,16 @@ export function PortalHub(){
         <p>Estado: {etiquetaES(lease.status)} · Canon: {money(lease.monthly_rent,branding.locale,branding.currency)}</p>
         <p className="text-xs text-slate-600">Inicio: {lease.start_date} · Terminación: {lease.end_date??'Sin fecha registrada'}</p>
       </div>)}</div>
+    </section>}
+    {signedContracts.length>0&&<section className="rounded-2xl border bg-white p-5">
+      <h2 className="flex items-center gap-2 font-bold"><FileCheck2 className="h-4 w-4"/> Mis contratos firmados (PDF)</h2>
+      <p className="mt-1 text-xs text-slate-600">Solo documentos de tus contratos vinculados. Los enlaces caducan en 60 segundos.</p>
+      <div className="mt-3 divide-y">{signedContracts.map(document=><div key={document.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+        <span>{document.title}</span>
+        <button type="button" className="rounded-lg border px-3 py-1.5 font-semibold"
+          onClick={()=>void viewSignedContract(document)}>Ver PDF privado</button>
+      </div>)}</div>
+      {documentError&&<p role="alert" className="mt-2 text-sm text-amber-800">{documentError}</p>}
     </section>}
     {payments.length>0&&<section className="rounded-2xl border bg-white p-5">
       <h2 className="font-bold">Pagos de mis contratos</h2>

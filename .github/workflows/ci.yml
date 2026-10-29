@@ -98,6 +98,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/financial_portal_policy_drift_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_staff_seats_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_cross_person_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_signed_lease_private_pdf_assertions.sql
       - name: Private inventory RLS guard (two organizations + global SuperAdmin)
         env:
           PGPASSWORD: postgres
@@ -157,6 +158,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f supabase/migrations/20261020222000_revoke_anonymous_crm_access.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f supabase/migrations/20261021041500_public_website_contact_consent_receipts.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/tests/public_website_leads_assertions.sql
+      - name: Private signed lease PDF portal browser-access regression
+        run: node --test tests/linked-signed-lease-portal.test.mjs
       - name: External portal navigation and no internal CRM data regression
         run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Private agency home vs platform landing regression
