@@ -11,6 +11,7 @@ const app = express();
 app.use(createWompiWebhookRouter({
   eventsSecret: secret, environment: 'sandbox',
   store: { async processVerifiedEvent(input) { calls.push(input); return 'processed'; } },
+  lookup: async () => ({data:{id:'tx-1',reference:'ORDER_TEST_01',amount_in_cents:100000,currency:'COP',status:'APPROVED'}}),
 }));
 const server = createServer(app);
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -86,5 +87,16 @@ test('rejects a forged checksum header before accessing financial store', async 
   const payload = signedEvent();
   const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','X-Event-Checksum':'a'.repeat(64)},body:JSON.stringify(payload) });
   assert.equal(r.status,401);
+  assert.equal(calls.length,before);
+});
+
+test('signed HTTP event with forged unsigned reference cannot reach the DB', async () => {
+  const before = calls.length;
+  const payload=signedEvent();
+  payload.data.transaction.reference='ORDER_OTHER_TENANT';
+  const r=await fetch(url, {method:'POST',headers:{'Content-Type':'application/json',
+    'X-Event-Checksum':payload.signature.checksum},body:JSON.stringify(payload)});
+  assert.equal(r.status,409);
+  assert.equal((await r.json()).result,'transaction_mismatch');
   assert.equal(calls.length,before);
 });
