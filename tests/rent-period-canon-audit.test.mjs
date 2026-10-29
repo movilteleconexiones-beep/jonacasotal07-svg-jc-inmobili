@@ -48,3 +48,17 @@ test('read-only per-tenant finance UI clearly shows mismatch without rewriting p
   assert.match(summary,/\.eq\('organization_id', organizationId\)/);
   assert.doesNotMatch(summary,/\.from\('rent_payments'\)\.update\(/);
 });
+
+test('signed-canon correction proposal requires administrator permissions and explicit evidence review',()=>{
+  assert.match(summary,/const canCorrect = allowed && admin && can\(PERMISSIONS\.RENT_PAYMENTS_CREATE\)/);
+  assert.match(summary,/const canEditThisPayment = unpaid \? canCorrect : canReview&&payment\.paid_amount>0/);
+  assert.match(summary,/Revisar canon y corregir/);
+  assert.match(summary,/defaultValue=\{difference\?\.referenceCanon \?\? payment\.expected_amount\}/);
+  assert.match(summary,/form\.get\('verified_canon'\) !== 'yes'/);
+  assert.match(summary,/name="verified_canon" value="yes"/);
+  assert.match(summary,/Verifiqué el contrato firmado y sus otrosíes/);
+  assert.match(summary,/saveUnpaidCorrection\(event,payment,Boolean\(difference\)\)/);
+  assert.match(summary,/supabase\.rpc\('correct_unpaid_rent_period'/);
+  assert.match(summary,/supabase\.rpc\('request_paid_rent_review'/);
+  assert.doesNotMatch(summary,/\.from\('rent_payments'\)\.update\(/);
+});
