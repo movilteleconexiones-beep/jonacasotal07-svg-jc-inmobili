@@ -13,7 +13,8 @@ import { RentReceiptEvidenceHistory } from './RentReceiptEvidenceHistory';
 
 export type RentalEntryMode='STANDARD'|'DRAFT'|'SIGNED_PDF'|'APPROVAL'|'BILLING';
 type Option={id:string;label:string};
-type Lease={id:string;contract_number:string|null;monthly_rent:number;status:string};
+type Lease={id:string;contract_number:string|null;monthly_rent:number;status:string;
+  property_id:string;tenant_id:string|null;owner_id:string|null;start_date:string;end_date:string|null};
 type Period={id:string;lease_id:string;period_month:string;expected_amount:number;paid_amount:number;status:string};
 const validMoney = parseMoneyInput;
 const thisMonth=localMonthISO;
@@ -41,13 +42,16 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [revision,setRevision]=useState(0);
+  const [draftEditor,setDraftEditor]=useState<string|null>(null);
+  const [draftWorking,setDraftWorking]=useState(false);
   const pendingReceiptRequest=useRef<{
     fingerprint:string; key:string; uploadedPath?:string;
   }|null>(null);
 
   useEffect(()=>{
     let cancelled=false;
-    setProperties([]);setTenants([]);setOwners([]);setLeases([]);setPeriods([]);setError('');
+    setProperties([]);setTenants([]);setOwners([]);setLeases([]);setPeriods([]);
+    setDraftEditor(null);setError('');
     setLoading(true);
     void(async()=>{
       try {
@@ -55,7 +59,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
           supabase.from('properties').select('id,code,title').eq('organization_id',organizationId).limit(501),
           supabase.from('contacts').select('id,first_name,last_name').eq('organization_id',organizationId).limit(501),
           supabase.from('property_owners').select('id,first_name,last_name').eq('organization_id',organizationId).eq('agency_status','ACTIVE').limit(501),
-          supabase.from('leases').select('id,contract_number,monthly_rent,status').eq('organization_id',organizationId).limit(501),
+          supabase.from('leases').select('id,contract_number,monthly_rent,status,property_id,tenant_id,owner_id,start_date,end_date').eq('organization_id',organizationId).limit(501),
           canReadRent ? supabase.from('rent_payments').select('id,lease_id,period_month,expected_amount,paid_amount,status')
             .eq('organization_id',organizationId).limit(501)
             : Promise.resolve({data:[] as Period[],error:null}),
@@ -86,7 +90,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     }
     setBusy(true);setError('');
     try {
-      if (mode==='DRAFT') {
+      {
         // Read-only preflight: never trust a visual owner name or a property inventory code.
         // Activation is still protected by database constraints and administrator approval.
         const [propertyCheck,occupationCheck]=await Promise.all([
@@ -94,14 +98,14 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
             .eq('organization_id',organizationId).eq('id',propertyId).maybeSingle(),
           supabase.from('leases').select('id',{count:'exact',head:true})
             .eq('organization_id',organizationId).eq('property_id',propertyId)
-            .in('status',['ACTIVE','RENEWAL']),
+            .in('status',['DRAFT','ACTIVE','RENEWAL']),
         ]);
         if(propertyCheck.error||!propertyCheck.data||occupationCheck.error||occupationCheck.count==null){
           setError('No se pudo verificar la disponibilidad del inmueble. Vuelve a consultar antes de guardar.');return;
         }
         if(!canPrepareRental({...propertyCheck.data,code:'',title:'',
           has_active_lease:occupationCheck.count>0})){
-          setError('El inmueble no está disponible para un nuevo arrendamiento o tiene contrato activo.');return;
+          setError('Este inmueble ya tiene un contrato en borrador o vigente. Corrige el existente en vez de crear otro.');return;
         }
         if(ownerId){
           const {data:link,error:linkError}=await supabase.from('property_ownerships')
@@ -126,6 +130,68 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     } finally {
       setBusy(false);
     }
+  }
+
+  async function correctDraft(event:FormEvent<HTMLFormElement>,lease:Lease) {
+    event.preventDefault();
+    if (!activationAllowed||busy||draftWorking||lease.status!=='DRAFT') return;
+    const f=new FormData(event.currentTarget);
+    const targetProperty=String(f.get('property_id')||'');
+    const targetTenant=String(f.get('tenant_id')||'');
+    const targetOwner=String(f.get('owner_id')||'');
+    const rent=validMoney(f.get('monthly_rent'));
+    const start=String(f.get('start_date')||'');
+    const end=String(f.get('end_date')||'');
+    const number=String(f.get('contract_number')||'').trim();
+    const reason=String(f.get('reason')||'').trim();
+    if(!properties.some(x=>x.id===targetProperty)||!tenants.some(x=>x.id===targetTenant)||
+       (targetOwner&&!owners.some(x=>x.id===targetOwner))||
+       !Number.isFinite(rent)||rent<=0||!/^\d{4}-\d{2}-\d{2}$/.test(start)||
+       (end&&end<start)||reason.length<12||reason.length>500){
+      setError('Revisa inmueble, cliente, canon, fechas y motivo (mínimo 12 caracteres).');
+      return;
+    }
+    if(!window.confirm('¿Guardar corrección del borrador? Se registrarán los datos anteriores, nuevos y el motivo en auditoría.'))return;
+    setDraftWorking(true);setError('');
+    try{
+      const {error:failure}=await supabase.rpc('admin_correct_lease_draft',{
+        target_org:organizationId,target_lease:lease.id,target_property:targetProperty,
+        target_tenant:targetTenant,target_owner:targetOwner||null,
+        target_monthly_rent:rent,target_start:start,target_end:end||null,
+        target_contract_number:number,reason,
+      });
+      if(failure){setError('No se pudo corregir el borrador: '+failure.message);return;}
+      setDraftEditor(null);
+      setNotice('Borrador corregido sin duplicar contrato. Auditoría guardada.');
+      window.dispatchEvent(new Event('tenant-rent-updated'));
+      setRevision(value=>value+1);
+    }catch{
+      setError('No se confirmó la corrección; consulta el contrato antes de reintentar.');
+      setRevision(value=>value+1);
+    }finally{setDraftWorking(false);}
+  }
+
+  async function cancelDraft(lease:Lease){
+    if(!activationAllowed||busy||draftWorking||lease.status!=='DRAFT')return;
+    const reason=window.prompt('Motivo de anulación del borrador (12 a 500 caracteres). Los PDF se conservarán.')?.trim();
+    if(!reason)return;
+    if(reason.length<12||reason.length>500){
+      setError('Escribe un motivo de anulación de 12 a 500 caracteres.');return;
+    }
+    if(!window.confirm('¿Anular el borrador? No se borrará el historial ni sus documentos y el inmueble quedará libre para un nuevo contrato.'))return;
+    setDraftWorking(true);setError('');
+    try{
+      const {error:failure}=await supabase.rpc('admin_cancel_lease_draft',{
+        target_org:organizationId,target_lease:lease.id,reason,
+      });
+      if(failure){setError('No se pudo anular el borrador: '+failure.message);return;}
+      setDraftEditor(null);setNotice('Borrador anulado con auditoría. El contrato y los PDF históricos permanecen registrados.');
+      window.dispatchEvent(new Event('tenant-rent-updated'));
+      setRevision(value=>value+1);
+    }catch{
+      setError('No se confirmó la anulación. Actualiza la lista antes de intentar nuevamente.');
+      setRevision(value=>value+1);
+    }finally{setDraftWorking(false);}
   }
 
   async function activateContract(id:string) {
@@ -306,6 +372,53 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
           </button>:<span className="text-amber-800">Esperando aprobación del administrador</span>}
         </div>)}
       </div>}
+      {activationAllowed&&['STANDARD','DRAFT','APPROVAL'].includes(mode)&&leases.some(l=>l.status==='DRAFT')&&
+        <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <h3 className="font-semibold">Corregir o anular contratos en borrador</h3>
+          <p className="text-xs text-slate-700">No crees otro contrato del mismo inmueble. Un contrato activo solo puede finalizarse desde el cierre administrativo auditado.</p>
+          {leases.filter(l=>l.status==='DRAFT').map(lease=>
+            <div key={lease.id} className="space-y-3 rounded-lg border bg-white p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>{lease.contract_number||lease.id} · {Number(lease.monthly_rent).toLocaleString('es-CO')} COP</span>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled={draftWorking||busy}
+                    onClick={()=>setDraftEditor(draftEditor===lease.id?null:lease.id)}
+                    className="rounded-lg border px-3 py-1.5 font-semibold">Corregir borrador</button>
+                  <button type="button" disabled={draftWorking||busy}
+                    onClick={()=>void cancelDraft(lease)}
+                    className="rounded-lg border border-rose-300 px-3 py-1.5 font-semibold text-rose-800">Anular borrador</button>
+                </div>
+              </div>
+              {draftEditor===lease.id&&<form key={lease.id} onSubmit={e=>void correctDraft(e,lease)}
+                className="grid gap-3 rounded-lg bg-slate-50 p-3 md:grid-cols-2">
+                <label>Inmueble<select name="property_id" required defaultValue={lease.property_id} className={fieldClass}>
+                  {properties.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label>
+                <label>Inquilino<select name="tenant_id" required defaultValue={lease.tenant_id||''} className={fieldClass}>
+                  <option value="">Seleccionar inquilino</option>
+                  {tenants.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
+                <label>Propietario<select name="owner_id" defaultValue={lease.owner_id||''} className={fieldClass}>
+                  <option value="">Sin propietario vinculado</option>
+                  {owners.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
+                <label>Canon mensual (COP)<input name="monthly_rent" type="number" min="0.01" step="0.01"
+                  required defaultValue={lease.monthly_rent} className={fieldClass}/></label>
+                <label>Número de contrato<input name="contract_number" maxLength={100}
+                  defaultValue={lease.contract_number||''} className={fieldClass}/></label>
+                <label>Inicio<input name="start_date" type="date" required defaultValue={lease.start_date}
+                  className={fieldClass}/></label>
+                <label>Finalización<input name="end_date" type="date" defaultValue={lease.end_date||''}
+                  className={fieldClass}/></label>
+                <label className="md:col-span-2">Motivo de la corrección
+                  <textarea name="reason" minLength={12} maxLength={500} required
+                    placeholder="Describe qué dato se registró erróneamente y por qué" className={fieldClass}/></label>
+                <div className="flex gap-2 md:col-span-2">
+                  <button type="submit" disabled={draftWorking||busy}
+                    className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">Guardar corrección auditada</button>
+                  <button type="button" onClick={()=>setDraftEditor(null)}
+                    className="rounded-lg border px-4 py-2">Cancelar</button>
+                </div>
+              </form>}
+            </div>)}
+        </div>}
       {action==='PERIOD'&&<form onSubmit={e=>void createPeriod(e)} className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">Contrato activo<select name="lease_id" required defaultValue={preferredLeaseId||''} className={fieldClass}><option value="">Seleccionar contrato</option>
           {active.map(x=><option value={x.id} key={x.id}>{x.contract_number||x.id} · {Number(x.monthly_rent).toLocaleString('es-CO')} COP</option>)}</select></label>
