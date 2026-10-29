@@ -53,3 +53,18 @@ test('billing screen obtains review reason from tenant-scoped order history only
   assert.match(code, /\.eq\('organization_id', orgId\)/);
   assert.match(code, /paymentReviewNotice\(order\)/);
 });
+
+
+test('an applied test order displays active subscription independently from payment label', () => {
+  const code = readFileSync(new URL('../src/modules/billing/BillingModule.tsx', import.meta.url), 'utf8');
+  assert.match(code, /billing\.subscription_status === 'ACTIVE'/);
+  assert.match(code, /plan\.id === activeMembership\?\.organization\.planId/);
+  assert.match(code, /Plan \{activePlan\.name\} activo/);
+  assert.match(code, /entorno de pruebas/);
+  assert.match(code, /no representa dinero recibido ni una licencia comercial/);
+  assert.match(code, /differentActivePlan/);
+  assert.match(code, /Cambio de plan: requiere revisión/);
+  assert.match(code, /window\.confirm\(/);
+  assert.match(code, /Simular renovación/);
+  assert.match(code, /onClick=\{\(\) => void checkout\(plan\.id\)\}/);
+});
