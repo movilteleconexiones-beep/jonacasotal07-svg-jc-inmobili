@@ -114,6 +114,9 @@ jobs:
         run: node --import tsx --test tests/tenant-public-content-isolation.test.mjs
       - name: Signed-in agency storefront and private/customer branding regression
         run: node --import tsx --test tests/tenant-own-portal-branding.test.mjs
+
+      - name: Private tenant logo fallback regression
+        run: node --test tests/tenant-logo-fallback.test.mjs
       - name: Public agency storefront and private dashboard route regression
         run: node --import tsx --test tests/public-private-tenant-routing.test.mjs
       - name: Public website CRM contact and consent regression

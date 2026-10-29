@@ -47,6 +47,7 @@ import { CommissionsModule } from '../commissions/CommissionsModule';
 import { ReportsModule } from '../reports/ReportsModule';
 import { PortalHub } from '../portal/PortalHub';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { TenantLogo } from '../../components/TenantLogo';
 import { tenantPublicPath } from '../../core/public-tenant-route';
 import { tenantPrivatePath } from '../../core/tenant-links';
 import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
@@ -364,8 +365,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-xl border bg-white" aria-label="Logo de la inmobiliaria">
-              {logoUrl ? <img src={logoUrl} alt={'Logo de ' + activeMembership.organization.name}
-                className="max-h-full max-w-full object-contain p-1.5" /> : <Building2 className="h-7 w-7 text-slate-500" />}
+              <TenantLogo src={logoUrl} organizationName={activeMembership.organization.name} />
             </div>
             <div className="min-w-0">
               <h1 className="text-lg font-bold">{activeMembership.organization.name} · Portal privado</h1>
@@ -405,8 +405,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-14 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-white" aria-label="Logo de la inmobiliaria">
-              {logoUrl ? <img src={logoUrl} alt={'Logo de ' + activeMembership.organization.name} className="max-h-full max-w-full object-contain p-1.5" /> :
-                <Building2 className="h-7 w-7 text-slate-500" aria-hidden="true" />}
+              <TenantLogo src={logoUrl} organizationName={activeMembership.organization.name} />
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
