@@ -14,8 +14,8 @@ wait "$task_two"
 psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$task_db" <<'SQL'
 DO $$ BEGIN
  IF (SELECT count(*) FROM public.payment_events WHERE provider_event_id=repeat('6',64))<>1
- OR (SELECT count(*) FROM public.subscriptions WHERE organization_id='20000000-0000-0000-0000-000000000003')<>1
- OR (SELECT count(*) FROM public.audit_log WHERE organization_id='20000000-0000-0000-0000-000000000003' AND action='billing.payment_activated')<>1
+ OR (SELECT count(*) FROM public.subscriptions WHERE organization_id='20000000-0000-0000-0000-000000000005')<>1
+ OR (SELECT count(*) FROM public.audit_log WHERE organization_id='20000000-0000-0000-0000-000000000005' AND action='billing.payment_activated')<>1
  THEN RAISE EXCEPTION 'Concurrent webhook duplicated activation'; END IF;
 END $$;
 SQL

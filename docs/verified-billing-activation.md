@@ -29,6 +29,8 @@ La actualización del tarifario `commercial_plan_permissions` fue rechazada por 
 
 En instalaciones antiguas, aplicar primero `20261010231042_compatible_licensing_records.sql`, antes de `verified_tenant_billing`. Conserva fecha, usuario, versión y licencia de cada aceptación, completa el snapshot desde la versión aceptada y adapta el bootstrap para conservar una sola licencia pendiente y evitar una suscripción gratuita. Después instalar, en este orden, `20261010212630_property_consignment_intake.sql`, `20261010214633_fix_property_portal_rls_recursion.sql`, `20261010222342_verified_tenant_billing.sql`, `20261010222700_commercial_plan_permissions.sql` y `20261010231048_owner_trials_and_platform_overview.sql`. Esta última aporta la autorización de pruebas, el resumen mensual privado y la restricción comercial de tablas de arrendamientos antiguas. En la instalación que ya tiene consignaciones y billing, solo hacen falta las dos migraciones nuevas de compatibilidad y pruebas/resumen. No sustituir la migración antigua de arrendamientos `0026_rental_management_core` del proyecto oficial por los borradores de pagos numerados del repositorio.
 
+La migración `20261029030000_allow_trial_to_paid_wompi_activation.sql` corrige la compra de un plan pagado desde `TRIAL` y evita segundas órdenes cuando hay un pago aprobado en revisión. El pago histórico `APPROVED/REVIEW_REQUIRED` **no se reprocesa como evento nuevo**. Para ese caso existe `20261029034500_reconcile_verified_sandbox_trial_payment.sql`: una función `jco_private` invocable únicamente como operador `postgres` (no es una API pública), exige un evento Wompi firmado, aceptación vigente, titular de prueba, estado `TRIAL`, monto correcto, ausencia de otro pago aprobado y registra auditoría atómica. Debe verificarse nuevamente la transacción con la llave privada de sandbox antes de invocarla desde un canal administrativo seguro. La vigencia se cuenta desde `approved_at` original; repetir devuelve `already_applied`.
+
 La función se despliega con `verify_jwt=false` porque Wompi no envía JWT Supabase. Su endpoint `/checkout` verifica el usuario con `auth.getUser` y usa un cliente bajo ese JWT; `/events` verifica la firma del comercio y reconcilia el API antes de ejecutar la RPC privilegiada.
 
 Secretos de la función Edge, exclusivamente en el servidor:
@@ -37,6 +39,7 @@ Secretos de la función Edge, exclusivamente en el servidor:
 | --- | --- |
 | `WOMPI_ENV` | `sandbox` durante pruebas; producción requiere una habilitación separada |
 | `WOMPI_PUBLIC_KEY` | Llave `pub_test_…` o `pub_prod_…` del ambiente elegido |
+| `WOMPI_PRIVATE_KEY` | Llave privada `prv_test_…` para consultar transacciones por ID **desde el backend**. Wompi rechaza consultas anónimas o con llave pública. No publicar su valor. |
 | `WOMPI_INTEGRITY_SECRET` | Firma del checkout |
 | `WOMPI_EVENTS_SECRET` | Autenticación de notificaciones |
 | `APP_URL` | URL canónica de regreso al dominio oficial |

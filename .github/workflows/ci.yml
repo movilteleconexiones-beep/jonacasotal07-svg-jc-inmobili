@@ -269,8 +269,22 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222342_verified_tenant_billing.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_assertions.sql
           bash security/tests/billing_activation_concurrency.sh
+      - name: Trial-to-paid Wompi billing SQL regression
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_trial_to_paid_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -c "ALTER TABLE public.subscriptions ADD COLUMN started_at timestamptz; ALTER TABLE public.subscriptions ADD COLUMN trial_ends_at timestamptz; ALTER TABLE public.license_acceptances ADD COLUMN accepted_at timestamptz NOT NULL DEFAULT now();"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029034500_reconcile_verified_sandbox_trial_payment.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f security/tests/billing_trial_to_paid_assertions.sql
       - name: Property consignment SQL security and atomicity tests
         env:
           PGPASSWORD: postgres

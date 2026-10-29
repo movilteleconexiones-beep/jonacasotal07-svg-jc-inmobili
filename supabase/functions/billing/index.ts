@@ -8,6 +8,10 @@ const privileged = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 });
 // Live charging is an explicit server deployment choice; never inferred from a browser flag.
 const environment = Deno.env.get('WOMPI_ENV') === 'production' ? 'production' : 'sandbox';
+// Private Wompi REST key: required for server-to-server transaction lookup.
+// Wompi no longer accepts unauthenticated GET /v1/transactions/:id.
+// Never expose this variable to Vite, the browser, logs or checkout responses.
+const wompiPrivateKey = Deno.env.get('WOMPI_PRIVATE_KEY') ?? '';
 const config = {
   environment,
   eventsSecret: Deno.env.get('WOMPI_EVENTS_SECRET') ?? '',
@@ -32,7 +36,13 @@ Deno.serve(createBillingHandler({ ...config, allowedOrigins: [...config.allowedO
   async processEvent(args) { return await privileged.rpc('process_verified_payment_event', args); },
   async fetchTransaction(id, env) {
     const host = env === 'sandbox' ? 'sandbox.wompi.co' : 'production.wompi.co';
+    const prefix = env === 'sandbox' ? 'prv_test_' : 'prv_prod_';
+    if (!wompiPrivateKey.startsWith(prefix)) throw new Error('Wompi private key not configured for environment');
     const res = await fetch(`https://${host}/v1/transactions/${encodeURIComponent(id)}`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${wompiPrivateKey}`,
+      },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) throw new Error('Wompi unavailable');

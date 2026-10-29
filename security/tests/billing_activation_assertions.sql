@@ -37,23 +37,22 @@ SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003'
 SELECT public.billing_admin_action('20000000-0000-0000-0000-000000000002','MARK_TEST','Isolated Sandbox test');
 UPDATE public.billing_activation_settings SET sandbox_enabled=true;
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
--- A valid, in-progress TRIAL subscription on PRO must not accept a BASIC
--- checkout that the verified webhook would later retain as contract_review.
+-- A provisional PRO trial may purchase BASIC. A paid ACTIVE plan change
+-- still requires review, but an unpaid TRIAL is not a paid contract.
 INSERT INTO public.subscriptions (organization_id,plan_id,status,billing_mode,current_period_start,current_period_end)
 VALUES ('20000000-0000-0000-0000-000000000002',
         (SELECT id FROM public.plans WHERE code='PRO'),'TRIAL','SAAS_MONTHLY',
         now()-interval '1 day',now()+interval '5 days');
-DO $checkout_guard$ BEGIN
-  BEGIN
-    PERFORM public.billing_create_order('20000000-0000-0000-0000-000000000002',
-      (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',gen_random_uuid());
-    RAISE EXCEPTION 'FAIL: conflicting trial plan checkout accepted';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM NOT LIKE '%Plan change requires administrative review%' THEN RAISE; END IF;
-  END;
-END $checkout_guard$;
+SELECT public.billing_create_order('20000000-0000-0000-0000-000000000002',
+       (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',
+       '50000000-0000-0000-0000-000000000009');
+SELECT pg_temp.assert((SELECT count(*)=1 FROM public.payment_orders
+       WHERE idempotency_key='50000000-0000-0000-0000-000000000009'
+         AND status='PENDING'), 'trial Basic checkout is payable');
+DELETE FROM public.payment_orders
+ WHERE idempotency_key='50000000-0000-0000-0000-000000000009';
 SELECT pg_temp.assert((SELECT count(*)=0 FROM public.payment_orders),
-  'trial plan mismatch must not create a payable order');
+  'trial checkout fixture cleaned up');
 -- A terminal subscription must not create a payable same-plan checkout either.
 UPDATE public.subscriptions SET status='SUSPENDED', plan_id=(SELECT id FROM public.plans WHERE code='BASIC')
  WHERE organization_id='20000000-0000-0000-0000-000000000002';
@@ -150,9 +149,40 @@ SELECT public.process_verified_payment_event((SELECT reference FROM public.payme
 SELECT pg_temp.assert((SELECT status='APPROVED' AND fulfillment_status='REVIEW_REQUIRED' AND review_reason='manual_approval' FROM public.payment_orders WHERE idempotency_key='50000000-0000-0000-0000-000000000004'),'manual approval required');
 SELECT pg_temp.assert(NOT jco_private.operational_access('20000000-0000-0000-0000-000000000003'),'manual payment does not silently activate');
 UPDATE public.billing_activation_settings SET activation_mode='VERIFIED_PAYMENT';
--- Leave another isolated pending order for the real PostgreSQL concurrency test.
+-- A manual-review APPROVED payment is not eligible for new automatic checkout.
+DO $review_guard$ BEGIN
+  BEGIN
+    PERFORM public.billing_create_order('20000000-0000-0000-0000-000000000003',
+      (SELECT id FROM public.plans WHERE code='PRO'),'sandbox',gen_random_uuid());
+    RAISE EXCEPTION 'FAIL: second payment created while manual review pending';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM NOT LIKE '%Approved payment requires reconciliation%' THEN RAISE; END IF;
+  END;
+END $review_guard$;
+-- Concurrency regression must use a NEW tenant without an outstanding paid review.
+INSERT INTO public.organizations(id,name,slug,status) VALUES
+ ('20000000-0000-0000-0000-000000000005','Concurrency buyer','buyer-concurrency','ACTIVE');
+INSERT INTO public.organization_members(id,organization_id,user_id,status) VALUES
+ ('30000000-0000-0000-0000-000000000005',
+  '20000000-0000-0000-0000-000000000005',
+  '10000000-0000-0000-0000-000000000002','ACTIVE');
+INSERT INTO public.roles(id,organization_id,key)
+ VALUES ('30000000-0000-0000-0000-000000000005',
+   '20000000-0000-0000-0000-000000000005','ORGANIZATION_OWNER');
+INSERT INTO public.member_roles VALUES
+ ('30000000-0000-0000-0000-000000000005',
+  '30000000-0000-0000-0000-000000000005');
+INSERT INTO public.role_permissions
+ SELECT r.id,p.id FROM public.roles r CROSS JOIN public.permissions p
+ WHERE r.id='30000000-0000-0000-0000-000000000005';
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003',false);
+SELECT public.billing_admin_action('20000000-0000-0000-0000-000000000005','MARK_TEST','Concurrency fixture');
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',false);
+SELECT public.billing_accept_terms('20000000-0000-0000-0000-000000000005','40000000-0000-0000-0000-000000000001','fixture');
 SELECT set_config('request.jwt.claim.role','authenticated',false);
-SELECT public.billing_create_order('20000000-0000-0000-0000-000000000003',(SELECT id FROM public.plans WHERE code='PRO'),'sandbox','50000000-0000-0000-0000-000000000005');
+SELECT public.billing_create_order('20000000-0000-0000-0000-000000000005',
+  (SELECT id FROM public.plans WHERE code='PRO'),'sandbox',
+  '50000000-0000-0000-0000-000000000005');
 SET ROLE authenticated;
 DO $$ BEGIN
  BEGIN INSERT INTO storage.objects(bucket_id,name) VALUES('propiedades','20000000-0000-0000-0000-000000000002/other-tenant.jpg'); RAISE EXCEPTION 'FAIL other tenant image'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
