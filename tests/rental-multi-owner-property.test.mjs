@@ -62,7 +62,9 @@ test('lookup scopes owner, property and active leases to tenant with safe count 
 });
 
 test('guided draft validates owner-property association and real availability before insert',()=>{
-  assert.match(draft,/if \(mode==='DRAFT'\)/);
+  // All contract-entry modes must now verify availability, not only DRAFT.
+  assert.doesNotMatch(draft,/if \(mode==='DRAFT'\)/);
+  assert.match(draft,/\.in\('status',\['DRAFT','ACTIVE','RENEWAL'\]\)/);
   assert.match(draft,/\.eq\('organization_id',organizationId\)\.eq\('id',propertyId\)\.maybeSingle\(\)/);
   assert.match(draft,/\.eq\('organization_id',organizationId\)\.eq\('property_id',propertyId\)/);
   assert.match(draft,/\.eq\('property_id',propertyId\)\.eq\('owner_id',ownerId\)\.maybeSingle\(\)/);
