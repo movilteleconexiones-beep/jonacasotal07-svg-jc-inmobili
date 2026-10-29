@@ -3,6 +3,7 @@ import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import { createSupabasePaymentStore } from './supabase-payment-store.js';
 import { createWompiWebhookRouter } from './wompi-express-router.js';
+import { createWompiTransactionLookup } from './wompi-transaction-lookup.js';
 
 /**
  * Private Node runtime only. Never import into the Vite app.
@@ -30,6 +31,10 @@ export function startWompiServer() {
   }
   const serviceRoleKey = required('SUPABASE_SERVICE_ROLE_KEY');
   const eventsSecret = required('WOMPI_EVENTS_SECRET');
+  // The private key is intentionally optional at boot: liveness stays online,
+  // but final payment webhooks fail closed (503) until a trusted lookup works.
+  // Never put this key in public VITE_ variables or client-side responses.
+  const lookup = createWompiTransactionLookup(process.env.WOMPI_PRIVATE_KEY?.trim());
   const port = Number(process.env.PORT ?? '8080');
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
     throw new Error('PORT must be between 1 and 65535');
@@ -57,6 +62,7 @@ export function startWompiServer() {
   app.use(createWompiWebhookRouter({
     eventsSecret,
     environment,
+    lookup,
     store: createSupabasePaymentStore({
       async rpc(name, args) {
         const { data, error } = await client.rpc(name, args);

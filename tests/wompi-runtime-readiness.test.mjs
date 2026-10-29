@@ -6,4 +6,6 @@ test('Wompi readiness independently tests private Supabase storage without leaki
  assert.match(s,/client\.from\('payment_orders'\)\.select\('id'\)\.limit\(0\)/);
  assert.match(s,/res\.status\(503\)\.json\(\{ status: 'unavailable' \}\)/);
  assert.match(s,/WOMPI_PRODUCTION_APPROVED/);
+ assert.match(s,/createWompiTransactionLookup\(process\.env\.WOMPI_PRIVATE_KEY\?\.trim\(\)\)/);
+ assert.doesNotMatch(s,/VITE_WOMPI_PRIVATE_KEY/);
 });

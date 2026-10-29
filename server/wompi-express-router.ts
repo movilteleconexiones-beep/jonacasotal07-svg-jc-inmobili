@@ -1,10 +1,12 @@
 import express, { type Router } from 'express';
 import { handleWompiWebhook, type PaymentStore } from './wompi-webhook-handler.js';
+import type { WompiTransactionLookup } from './wompi-transaction-lookup.js';
 
 export interface WompiRouteConfig {
   eventsSecret: string;
   environment: 'sandbox' | 'production';
   store: PaymentStore;
+  lookup: WompiTransactionLookup;
 }
 
 /**
@@ -31,7 +33,7 @@ export function createWompiWebhookRouter(config: WompiRouteConfig): Router {
     }
     try {
       const result = await handleWompiWebhook(
-        req.body, config.eventsSecret, config.environment, config.store, header,
+        req.body, config.eventsSecret, config.environment, config.store, config.lookup, header,
       );
       res.status(result.statusCode).json({ result: result.result });
     } catch {

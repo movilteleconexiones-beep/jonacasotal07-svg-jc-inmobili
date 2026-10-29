@@ -58,8 +58,8 @@ export function verifyWompiEvent(
  * A valid checksum is not sufficient to approve an order: the server must still
  * compare stored reference, amount, currency, provider transaction and order state.
  */
-export function getVerifiedWompiTransaction(payload: WompiEvent) {
-  const tx = payload.data.transaction;
+/** Validate the provider GET /v1/transactions/:id response as strictly as the signed event. */
+export function parseWompiTransaction(tx: unknown) {
   if (!isRecord(tx) || typeof tx.id !== 'string' || tx.id.trim().length === 0
     || tx.id.length > 256 || typeof tx.reference !== 'string'
     || !/^[A-Za-z0-9_-]{8,100}$/.test(tx.reference)
@@ -74,4 +74,9 @@ export function getVerifiedWompiTransaction(payload: WompiEvent) {
     currency: tx.currency,
     status: tx.status,
   };
+}
+
+/** Only call after the event checksum was successfully verified. */
+export function getVerifiedWompiTransaction(payload: WompiEvent) {
+  return parseWompiTransaction(payload.data.transaction);
 }

@@ -1,4 +1,5 @@
-import { getVerifiedWompiTransaction, verifyWompiEvent } from './wompi-event-verification.js';
+import { getVerifiedWompiTransaction, parseWompiTransaction, verifyWompiEvent } from './wompi-event-verification.js';
+import type { WompiTransactionLookup } from './wompi-transaction-lookup.js';
 import { canTransitionPayment, matchesPaymentOrder } from '../src/core/payment-state-machine.js';
 
 export interface StoredPaymentOrder {
@@ -32,6 +33,7 @@ export async function handleWompiWebhook(
   eventsSecret: string,
   environment: 'sandbox' | 'production',
   store: PaymentStore,
+  lookup: WompiTransactionLookup,
   checksumHeader?: string,
 ): Promise<{ statusCode: number; result: string }> {
   const wompiEnvironment = environment === 'sandbox' ? 'test' : 'prod';
@@ -44,6 +46,21 @@ export async function handleWompiWebhook(
   }
   // PENDING is not a successful payment and must not activate subscriptions.
   if (tx.status === 'PENDING') return { statusCode: 200, result: 'pending' };
+  // Wompi's checksum may NOT cover reference or currency. Never trust those
+  // values until the private-key, server-side API confirms the exact transaction.
+  // Failure to query Wompi MUST prevent any call to the payment activation RPC.
+  const providerResult = await lookup(tx.id, environment);
+  const authoritative = parseWompiTransaction(
+    providerResult !== null && typeof providerResult === 'object' && !Array.isArray(providerResult)
+      && 'data' in providerResult ? providerResult.data : null,
+  );
+  if (!authoritative || authoritative.id !== tx.id
+    || authoritative.reference !== tx.reference
+    || authoritative.amountInCents !== tx.amountInCents
+    || authoritative.currency !== tx.currency
+    || authoritative.status !== tx.status) {
+    return { statusCode: 409, result: 'transaction_mismatch' };
+  }
   const result = await store.processVerifiedEvent({
     reference: tx.reference,
     transactionId: tx.id,
