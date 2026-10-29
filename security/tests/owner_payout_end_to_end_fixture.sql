@@ -45,6 +45,8 @@ AS $body$
 $body$;
 GRANT EXECUTE ON FUNCTION public.commission_is_manager(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.has_org_permission(uuid,text) TO authenticated;
+CREATE POLICY statement_staff_read ON public.owner_statements FOR SELECT TO authenticated
+ USING(public.has_org_permission(organization_id,'owner_statements.view'));
 
 INSERT INTO public.owner_statements(id,organization_id,status,net_amount) VALUES
  ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','GENERATED',1390000),
