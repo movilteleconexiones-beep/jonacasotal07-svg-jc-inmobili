@@ -46,10 +46,19 @@ SELECT pg_temp.must_fail($s$
  UPDATE public.leases SET tenant_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
  WHERE id='11111111-1111-4111-8111-111111111110'
 $s$,'23514','active contract cannot change tenant directly');
+SELECT pg_temp.must_fail($s$
+ UPDATE public.leases SET status='FINISHED',end_date='2026-10-29',monthly_rent=1800000
+ WHERE id='11111111-1111-4111-8111-111111111110'
+$s$,'23514','lease finish cannot disguise a rent rewrite');
+-- The existing lifecycle guard permits an authorized finish to replace end_date
+-- with the actual handover date; our additional guard cannot break that.
+UPDATE public.leases SET status='FINISHED',end_date='2026-10-29'
+ WHERE id='11111111-1111-4111-8111-111111111110';
 RESET ROLE;
 DO $$
 BEGIN
- IF (SELECT monthly_rent FROM public.leases WHERE id='11111111-1111-4111-8111-111111111110')<>1700000
+ IF (SELECT status FROM public.leases WHERE id='11111111-1111-4111-8111-111111111110')<>'FINISHED'
+ OR (SELECT monthly_rent FROM public.leases WHERE id='11111111-1111-4111-8111-111111111110')<>1700000
  OR (SELECT expected_amount FROM public.rent_payments WHERE id='abababab-abab-4bab-8bab-abababababab')<>1700000
  OR (SELECT count(*) FROM public.documents WHERE id='88888888-8888-4888-8888-888888888880')<>1
  OR (SELECT count(*) FROM public.audit_log WHERE action='lease.active_rectified')<>1
