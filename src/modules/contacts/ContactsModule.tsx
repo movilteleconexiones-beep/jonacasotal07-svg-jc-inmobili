@@ -180,7 +180,9 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Clientes y contactos</h1>
-          <p className="mt-1 text-sm text-slate-600">Registra, consulta y corrige clientes y contactos sin crear contratos ni cobros desde aquí.</p>
+          <p className="mt-1 text-sm text-slate-600">{contactsOnly
+            ? 'Registra o selecciona una ficha existente; el contrato se prepara en el siguiente paso.'
+            : 'Registra, consulta y corrige clientes y contactos sin crear contratos ni cobros desde aquí.'}</p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
