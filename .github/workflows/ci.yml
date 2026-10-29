@@ -91,6 +91,11 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015092500_isolate_external_accounts_and_staff_seats.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015093000_scope_external_owner_and_tenant_data.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql
+          # Simulate historical drift: only staff can pass the restrictive finance SELECTs.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -c "ALTER POLICY leases_financial_view ON public.leases USING (public.has_org_permission(organization_id,'leases.view')); ALTER POLICY rent_payments_financial_view ON public.rent_payments USING (public.has_org_permission(organization_id,'rent_payments.view')); ALTER POLICY owner_statement_financial_view ON public.owner_statements USING (public.has_org_permission(organization_id,'owner_statements.view'));"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261029070000_repair_financial_portal_select_rls.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261029070000_repair_financial_portal_select_rls.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/financial_portal_policy_drift_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_staff_seats_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_cross_person_assertions.sql
       - name: Private inventory RLS guard (two organizations + global SuperAdmin)
