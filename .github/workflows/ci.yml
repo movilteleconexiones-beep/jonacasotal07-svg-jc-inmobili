@@ -465,6 +465,8 @@ jobs:
         run: node --test tests/owner-statement-issuance.test.mjs
       - name: Tenant rent and owner liquidation balances regression
         run: node --import tsx --test tests/rent-owner-financial-balances.test.mjs
+      - name: Historical rent period vs signed canon and addenda audit
+        run: node --import tsx --test tests/rent-period-canon-audit.test.mjs
       - name: Monthly commercial split and single-KPI export regression
         run: node --import tsx --test tests/report-commercial-split.test.mjs
       - name: Monthly accounting XLSX and internal receipt tests
