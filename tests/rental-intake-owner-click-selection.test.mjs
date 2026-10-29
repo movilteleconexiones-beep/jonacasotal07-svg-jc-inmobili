@@ -28,7 +28,7 @@ test('existing properties can be selected without creating duplicate inventory i
   assert.match(properties,/: onSelect\(row\.id,\[row\.code,row\.title\]/);
   assert.match(properties,/aria-pressed=\{selectedPropertyId===row\.id\}/);
   assert.match(properties,/\{onSelect&&<th className="px-4 py-3">Elegir<\/th>\}/);
-  assert.match(properties,/\{onSelect\?8:7\}/);
+  assert.match(properties,/\(onSelect\?8:7\)\+\(can\(PERMISSIONS\.PROPERTIES_EDIT\)\?1:0\)/);
 });
 
 test('wizard remembers one owner and clears old ownership choice on property change',()=>{
