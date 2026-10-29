@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ContactRound, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { TenantRentEntry } from '../finance/TenantRentEntry';
+import { ActiveLeaseCorrection } from '../finance/ActiveLeaseCorrection';
 import { TenantRentBalanceSummary } from '../finance/RentOwnerBalances';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
@@ -253,6 +254,7 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
       {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
 
       {!contactsOnly && organizationId && <TenantRentEntry key={'entry-'+organizationId} organizationId={organizationId} />}
+      {!contactsOnly && organizationId && <ActiveLeaseCorrection key={'active-correction-'+organizationId} organizationId={organizationId} />}
       {!contactsOnly && organizationId && <TenantRentBalanceSummary key={organizationId} organizationId={organizationId} />}
 
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
