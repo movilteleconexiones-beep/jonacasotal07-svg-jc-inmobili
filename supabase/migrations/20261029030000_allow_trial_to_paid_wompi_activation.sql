@@ -90,7 +90,7 @@ BEGIN
   RETURNING * INTO order_row;
   RETURN to_jsonb(order_row)-'permission_keys';
 END;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.process_verified_payment_event(p_reference text, p_transaction_id text, p_amount_in_cents bigint, p_currency text, p_status text, p_environment text, p_event_id text, p_payload_sha256 text)
  RETURNS text
@@ -171,7 +171,7 @@ BEGIN
   END IF;
   RETURN 'processed';
 END;
-$function$
+$function$;
 
 -- CREATE OR REPLACE retains the existing owners, EXECUTE grants and RLS.
 -- Do not reconcile a historical approved payment without fresh server-side
