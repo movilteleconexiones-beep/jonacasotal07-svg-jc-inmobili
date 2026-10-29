@@ -147,3 +147,56 @@ DO $already_paid$ BEGIN
 END $already_paid$;
 SELECT pg_temp.assert((SELECT count(*)=1 FROM public.payment_orders),
   'approved review requires reconciliation before another checkout');
+
+-- Historical reconciliation regression: an APPROVED Wompi sandbox event
+-- was stored but old code left it in REVIEW_REQUIRED during a PRO trial.
+UPDATE public.subscriptions
+   SET status='TRIAL', plan_id=(SELECT id FROM public.plans WHERE code='PRO'),
+       current_period_start=now()-interval '1 day',
+       current_period_end=now()+interval '5 days',
+       trial_ends_at=now()+interval '5 days'
+ WHERE organization_id='20000000-0000-0000-0000-000000000002';
+UPDATE public.organizations
+   SET plan_id=(SELECT id FROM public.plans WHERE code='PRO')
+ WHERE id='20000000-0000-0000-0000-000000000002';
+SELECT pg_temp.assert(
+ (SELECT status='APPROVED' AND fulfillment_status='REVIEW_REQUIRED' AND review_reason='contract_review'
+ FROM public.payment_orders), 'legacy approved order review fixture');
+
+SELECT pg_temp.assert(
+  NOT has_function_privilege('authenticated',
+      'jco_private.reconcile_verified_sandbox_trial_payment(uuid,text)','EXECUTE')
+  AND NOT has_function_privilege('anon',
+      'jco_private.reconcile_verified_sandbox_trial_payment(uuid,text)','EXECUTE')
+  AND NOT has_function_privilege('service_role',
+      'jco_private.reconcile_verified_sandbox_trial_payment(uuid,text)','EXECUTE'),
+  'reconciliation is not available over public API or service role');
+
+SELECT pg_temp.assert(
+ jco_private.reconcile_verified_sandbox_trial_payment(
+   (SELECT id FROM public.payment_orders LIMIT 1),
+   'Authorized isolated test to reconcile a signed sandbox transaction') = 'applied',
+ 'signed prior sandbox payment is reconciled');
+SELECT pg_temp.assert(
+ jco_private.reconcile_verified_sandbox_trial_payment(
+   (SELECT id FROM public.payment_orders LIMIT 1),
+   'Authorized isolated test repeat must be idempotent') = 'already_applied',
+ 'repeat reconciliation is idempotent');
+SELECT pg_temp.assert(
+ (SELECT status='APPROVED' AND fulfillment_status='APPLIED' AND review_reason IS NULL
+ FROM public.payment_orders) AND
+ (SELECT s.status='ACTIVE' AND pl.code='BASIC'
+  AND s.current_period_start=po.approved_at
+  AND s.current_period_end=po.approved_at+interval '1 month'
+  AND s.trial_ends_at IS NULL
+  FROM public.subscriptions s JOIN public.plans pl ON pl.id=s.plan_id
+  CROSS JOIN public.payment_orders po
+  WHERE s.organization_id=po.organization_id),
+ 'reconciled BASIC subscription period starts at original approval time');
+SELECT pg_temp.assert(
+ (SELECT count(*)=1 FROM public.payment_events) AND
+ (SELECT count(*)=1 FROM public.audit_log
+  WHERE action='billing.sandbox_trial_reconciled')
+ AND (SELECT count(*)=1 FROM public.subscriptions
+   WHERE organization_id='20000000-0000-0000-0000-000000000002'),
+ 'reconciliation changes no original payment event or duplicate subscription');
