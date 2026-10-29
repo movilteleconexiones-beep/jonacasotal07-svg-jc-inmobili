@@ -37,7 +37,10 @@ test('existing property and customer records are reused without duplicated recor
   assert.match(contacts,/!contactsOnly && organizationId && <TenantRentEntry/);
   assert.match(owners,/!ownersOnly && organizationId && <OwnerSettlementEntry/);
   assert.match(wizard,/Si la vivienda ya figura en el inventario, no la dupliques/);
-  assert.match(rentals,/defaultValue=\{preferredPropertyId\|\|''\}/);
+  // Controlled selection keeps the wizard's preferred property and the live canon alert in sync.
+  assert.match(rentals,/setNewPropertyId\(preferredPropertyId\|\|''\)/);
+  assert.match(rentals,/value=\{newPropertyId\}/);
+  assert.match(rentals,/rentalCanonWarning\(newCanonMismatch\)/);
   assert.match(rentals,/defaultValue=\{preferredTenantId\|\|''\}/);
   assert.match(rentals,/\.select\('id'\)\.single\(\)/);
 });
