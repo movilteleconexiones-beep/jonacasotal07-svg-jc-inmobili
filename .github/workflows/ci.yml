@@ -111,6 +111,15 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261018162000_strict_private_property_read_boundary.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
+      - name: Remaining financial, compliance and licensing FK indexes (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_remaining_fk_idx_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_remaining_fk_idx_test -f security/tests/remaining_fk_indexes_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_remaining_fk_idx_test -f supabase/migrations/20261029212500_remaining_foreign_key_covering_indexes.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_remaining_fk_idx_test -f supabase/migrations/20261029212500_remaining_foreign_key_covering_indexes.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_remaining_fk_idx_test -f security/tests/remaining_fk_indexes_assertions.sql
       - name: Tenant foreign-key lookup index regression (PostgreSQL 17)
         env:
           PGPASSWORD: postgres
