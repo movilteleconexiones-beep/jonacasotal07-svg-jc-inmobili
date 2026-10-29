@@ -46,7 +46,8 @@ test('external private portal references its own tenant and does not link to the
 test('private agency and customer portal show selected organization, own logo and matching public link', () => {
   const dashboard = read('src/modules/dashboard/PrivateDashboard.tsx');
   assert.match(dashboard, /activeMembership\.organization\.name\} · Portal privado/);
-  assert.match(dashboard, /logoUrl \? <img src=\{logoUrl\}/);
+  assert.match(dashboard, /<TenantLogo src=\{logoUrl\} organizationName=\{activeMembership\.organization\.name\} \/>/);
+  assert.match(read('src/components/TenantLogo.tsx'), /onError=\{\(\) => setFailedSrc\(usableSrc\)\}/);
   assert.match(dashboard, /href=\{tenantPublicPath\(activeMembership\.organization\.slug\)\}/);
   assert.match(dashboard, /key=\{organizationId\}/);
 });
