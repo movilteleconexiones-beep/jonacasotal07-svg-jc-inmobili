@@ -41,6 +41,10 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
   const [photoList, setPhotoList] = useState<InventoryPhoto[]>([]);
   const [galleryBusy, setGalleryBusy] = useState(false);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [editingProperty, setEditingProperty] = useState<PropertyRow | null>(null);
+  const [editOperation, setEditOperation] = useState('SALE');
+  const [editPrice, setEditPrice] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
 
   const organizationId = activeMembership?.organization.id;
 
@@ -69,6 +73,7 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
   }
 
   useEffect(() => {
+    setEditingProperty(null);
     void load();
     const reload=()=>{void load();};
     const reloadWhenVisible=()=>{if(document.visibilityState==='visible')void load();};
@@ -162,6 +167,70 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
     await load();
   }
 
+  function beginEdit(property: PropertyRow) {
+    if (!can(PERMISSIONS.PROPERTIES_EDIT)) {
+      setMessage('No tienes permiso para editar propiedades.');
+      return;
+    }
+    setEditingProperty(property);
+    setEditOperation(property.operation_type);
+    setEditPrice(property.price == null ? '' : String(property.price));
+    setMessage('');
+  }
+
+  async function updateProperty(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (editBusy || !editingProperty || !organizationId || !can(PERMISSIONS.PROPERTIES_EDIT)) {
+      setMessage('No tienes permiso para editar esta propiedad.');
+      return;
+    }
+    const allowedOperations=['SALE','RENT','SALE_OR_RENT','ADMINISTRATION'];
+    const parsedPrice=Number(editPrice.trim());
+    if (!allowedOperations.includes(editOperation) || !editPrice.trim() ||
+        !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      setMessage('Elige una operación válida e introduce un precio mayor que cero.');
+      return;
+    }
+
+    setEditBusy(true);
+    try {
+      // Refresh occupancy immediately before changing a listing. A linked lease
+      // must never be silently converted to a different commercial operation.
+      const leases=await supabase.from('leases').select('id',{count:'exact'})
+        .eq('organization_id',organizationId).eq('property_id',editingProperty.id)
+        .in('status',['ACTIVE','RENEWAL']).limit(1);
+      if (leases.error || leases.count == null || (leases.count > 0 && editOperation !== editingProperty.operation_type)) {
+        setMessage('No se pudo verificar el arriendo activo o existe un contrato vigente. No cambiaremos la operación.');
+        return;
+      }
+
+      // Optimistic concurrency: do not silently overwrite changes made in
+      // another session. The organization and immutable property ID are scoped.
+      let request=supabase.from('properties')
+        .update({operation_type:editOperation,price:parsedPrice})
+        .eq('organization_id',organizationId)
+        .eq('id',editingProperty.id)
+        .eq('operation_type',editingProperty.operation_type);
+      request=editingProperty.price == null
+        ? request.is('price',null)
+        : request.eq('price',editingProperty.price);
+      const {data,error}=await request.select('id,operation_type,price');
+      if (error) throw error;
+      if (!data || data.length !== 1) {
+        setMessage('La propiedad cambió en otra sesión o no tienes autorización. Actualiza el inventario antes de volver a editar.');
+        await load();
+        return;
+      }
+      setEditingProperty(null);
+      setMessage('Propiedad actualizada. La operación y el precio ya están guardados.');
+      await load();
+    } catch {
+      setMessage('No se pudo actualizar la propiedad. Comprueba tus permisos e inténtalo nuevamente.');
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   async function openGallery(property: PropertyRow) {
     setSelectedProperty(property);
     setPhotoList([]);
@@ -239,7 +308,39 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
         </form>
       )}
 
-      {message && <div className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
+      {message && <div role="status" className="rounded-xl border border-stone-200 bg-white p-3 text-sm">{message}</div>}
+
+      {editingProperty && <form onSubmit={event=>void updateProperty(event)}
+        aria-label="Editar propiedad existente"
+        className="grid gap-3 rounded-2xl border border-slate-300 bg-white p-5 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <h2 className="font-semibold">Editar propiedad · {editingProperty.code} · {editingProperty.title}</h2>
+          <p className="mt-1 text-xs text-slate-600">Conservarás el mismo inmueble, su código y sus fotografías. El precio corresponde al canon mensual cuando seleccionas Arriendo.</p>
+        </div>
+        <label className="text-sm font-medium">Operación
+          <select name="edit_operation_type" value={editOperation}
+            onChange={event=>setEditOperation(event.target.value)} disabled={editBusy}
+            className="mt-1 block w-full rounded-xl border border-stone-300 px-3 py-2.5">
+            <option value="SALE">Venta</option>
+            <option value="RENT">Arriendo</option>
+            <option value="SALE_OR_RENT">Venta o arriendo</option>
+            <option value="ADMINISTRATION">Administración</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium">{editOperation==='RENT'?'Canon mensual de arriendo (COP)':'Precio publicado (COP)'}
+          <input name="edit_price" type="number" min="1" step="0.01"
+            value={editPrice} onChange={event=>setEditPrice(event.target.value)} required disabled={editBusy}
+            className="mt-1 block w-full rounded-xl border border-stone-300 px-3 py-2.5" />
+        </label>
+        <div className="flex flex-wrap justify-end gap-2 md:col-span-2">
+          <button type="button" disabled={editBusy} onClick={()=>setEditingProperty(null)}
+            className="rounded-xl border px-4 py-2 text-sm font-semibold">Cancelar</button>
+          <button type="submit" disabled={editBusy}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            {editBusy?'Guardando…':'Guardar cambios'}
+          </button>
+        </div>
+      </form>}
 
       {selectedProperty && <section className="rounded-2xl border border-stone-200 bg-white p-5" aria-label="Galería privada">
         <div className="flex items-center justify-between gap-2"><h2 className="font-semibold">Fotografías: {selectedProperty.title}</h2><button type="button" onClick={()=>setSelectedProperty(null)} className="rounded-lg border px-3 py-1 text-xs">Cerrar</button></div>
@@ -267,13 +368,14 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
               <th className="px-4 py-3">Ubicación</th>
               <th className="px-4 py-3">Precio</th>
               <th className="px-4 py-3">Estado</th><th className="px-4 py-3">Fotos</th>
+               {can(PERMISSIONS.PROPERTIES_EDIT)&&<th className="px-4 py-3">Editar</th>}
                {onSelect&&<th className="px-4 py-3">Elegir</th>}
             </tr>
           </thead>
           <tbody>
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={onSelect?8:7} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={(onSelect?8:7)+(can(PERMISSIONS.PROPERTIES_EDIT)?1:0)} className="px-4 py-10 text-center text-slate-500">
                   <Building2 className="mx-auto mb-2 h-6 w-6" />
                   Aún no hay propiedades registradas.
                 </td>
@@ -293,6 +395,10 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
                 </td>
                 <td className="px-4 py-3">{occupiedPropertyIds.has(row.id)?'Arrendado · contrato activo':etiquetaES(row.status)}</td>
                 <td className="px-4 py-3"><button type="button" onClick={()=>void openGallery(row)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Ver / agregar fotos</button></td>
+                 {can(PERMISSIONS.PROPERTIES_EDIT)&&<td className="px-4 py-3">
+                   <button type="button" onClick={()=>beginEdit(row)}
+                     className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Editar propiedad</button>
+                 </td>}
                 {onSelect&&<td className="px-4 py-3">
                   <button type="button" aria-pressed={selectedPropertyId===row.id}
                     disabled={occupancyError}
