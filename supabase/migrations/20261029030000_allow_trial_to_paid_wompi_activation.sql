@@ -50,6 +50,16 @@ BEGIN
     IF order_row.plan_id<>target_plan OR order_row.environment<>target_environment THEN RAISE EXCEPTION 'Request key conflict'; END IF;
     RETURN to_jsonb(order_row)-'permission_keys';
   END IF;
+  -- Do not charge a customer again while an earlier APPROVED payment needs
+  -- reconciliation. Retrying the SAME request key above remains idempotent.
+  IF EXISTS (
+    SELECT 1 FROM public.payment_orders po
+    WHERE po.organization_id=target_org
+      AND po.status='APPROVED'
+      AND po.fulfillment_status='REVIEW_REQUIRED'
+  ) THEN
+    RAISE EXCEPTION 'Approved payment requires reconciliation';
+  END IF;
   SELECT * INTO plan FROM public.plans WHERE id=target_plan AND active FOR SHARE;
   IF plan.id IS NULL OR plan.currency<>'COP' OR plan.price<=0 OR plan.price*100<>trunc(plan.price*100)
     OR plan.price*100>9007199254740991 OR plan.billing_cycle NOT IN ('MONTHLY','ANNUAL')
