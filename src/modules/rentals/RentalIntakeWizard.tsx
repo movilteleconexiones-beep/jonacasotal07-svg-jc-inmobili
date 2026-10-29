@@ -19,7 +19,7 @@ type OwnerChoice = { id: string; name: string; is_primary: boolean; ownership_pe
 const STEPS = ['Vivienda', 'Cliente', 'Contrato', 'PDF firmado', 'Aprobación', 'Cobros'] as const;
 const HINTS = [
   'Elige un inmueble y se buscará su propietario vinculado. Un mismo propietario puede tener varios inmuebles; elige el disponible para este contrato.',
-  'Registra al arrendatario una sola vez. Si ya existe, selecciónalo en el paso Contrato.',
+  'Selecciona un cliente registrado o crea una única ficha; pasarás directamente al contrato.',
   'El asesor puede preparar un borrador; este paso no habilita cobros ni ocupa el inmueble.',
   'Adjunta el PDF firmado de las partes en el depósito privado de la inmobiliaria.',
   'Un administrador revisa el contrato y aprueba su activación. No se permite duplicar un contrato activo para la misma vivienda.',
@@ -347,7 +347,8 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </p>
     </div>}
 
-    {step === 1 && <ContactsModule contactsOnly onCreated={id => setTenantId(id)} />}
+    {step === 1 && <ContactsModule contactsOnly onCreated={id => { setTenantId(id); setStep(2); }}
+      onSelected={id => { setTenantId(id); setStep(2); }} />}
 
     {step === 2 && <div className="space-y-3">
       {!canDraft && <p role="alert" className="rounded-lg border border-amber-300 p-3 text-sm text-amber-800">

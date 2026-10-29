@@ -15,7 +15,7 @@ interface ContactRow {
   created_at: string;
 }
 
-export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:boolean;onCreated?:(contactId:string)=>void} = {}) {
+export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {contactsOnly?:boolean;onCreated?:(contactId:string)=>void;onSelected?:(contactId:string)=>void} = {}) {
   const { user, activeMembership, can } = useAuth();
   const [rows, setRows] = useState<ContactRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,7 +181,7 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
         <div>
           <h1 className="text-2xl font-bold">Clientes y contactos</h1>
           <p className="mt-1 text-sm text-slate-600">{contactsOnly
-            ? 'Registra o selecciona una ficha existente; el contrato se prepara en el siguiente paso.'
+            ? 'Selecciona un cliente registrado o crea una ficha una sola vez. Continuarás al contrato.'
             : 'Registra, consulta y corrige clientes y contactos sin crear contratos ni cobros desde aquí.'}</p>
         </div>
         <div className="flex gap-2">
@@ -262,13 +262,13 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
               <th className="px-4 py-3">Teléfono</th>
               <th className="px-4 py-3">WhatsApp</th>
               <th className="px-4 py-3">Origen</th>
-              {adminMayCorrect&&<th className="px-4 py-3">Acciones</th>}
+              {(adminMayCorrect || (contactsOnly && Boolean(onSelected)))&&<th className="px-4 py-3">Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={adminMayCorrect?6:5} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={(adminMayCorrect || (contactsOnly && Boolean(onSelected)))?6:5} className="px-4 py-10 text-center text-slate-500">
                   <ContactRound className="mx-auto mb-2 h-6 w-6" />
                   Aún no hay clientes o contactos registrados.
                 </td>
@@ -281,8 +281,13 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
                 <td className="px-4 py-3">{row.phone || '—'}</td>
                 <td className="px-4 py-3">{row.whatsapp || '—'}</td>
                 <td className="px-4 py-3">{row.source}</td>
-                {adminMayCorrect&&<td className="px-4 py-3">
+                {(adminMayCorrect || (contactsOnly && Boolean(onSelected)))&&<td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
+                    {contactsOnly&&onSelected&&<button type="button" onClick={()=>onSelected(row.id)}
+                      className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">
+                      Elegir cliente para el contrato
+                    </button>}
+                    {adminMayCorrect&&!contactsOnly&&<>
                     <button type="button" disabled={contactBusy}
                       onClick={()=>{setEditContact(row);setMessage('');}}
                       className="rounded-lg border px-3 py-1.5 text-xs font-semibold">Editar cliente</button>
@@ -291,6 +296,7 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
                       className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-800">
                       Eliminar si no está vinculado
                     </button>
+                    </>}
                   </div>
                 </td>}
               </tr>

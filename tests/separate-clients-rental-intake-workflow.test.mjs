@@ -25,7 +25,9 @@ test('Clientes only registers, consults and corrects contacts with no duplicate 
 test('Nueva vinculación keeps the existing six-stage workflow including client reuse',()=>{
   const steps=['Vivienda','Cliente','Contrato','PDF firmado','Aprobación','Cobros'];
   for(const name of steps) assert.ok(wizard.includes(name),name);
-  assert.match(wizard,/<ContactsModule contactsOnly onCreated=/);
+  assert.match(wizard,/<ContactsModule contactsOnly/);
+  assert.ok(wizard.includes('onCreated={id => { setTenantId(id); setStep(2); }}'));
+  assert.ok(wizard.includes('onSelected={id => { setTenantId(id); setStep(2); }}'));
   assert.match(wizard,/step === 2/);
   assert.match(wizard,/mode="DRAFT"/);
   assert.match(wizard,/mode="SIGNED_PDF"/);
@@ -53,4 +55,13 @@ test('dashboard retains one client route and one rental workflow route',()=>{
   assert.match(dashboard,/<ContactsModule/);
   assert.match(dashboard,/<RentalIntakeWizard/);
   assert.equal((wizard.match(/<TenantRentEntry/g)||[]).length,4);
+});
+
+test('the client step reuses an existing scoped contact and does not expose edit or deletion actions',()=>{
+  assert.ok(contacts.includes('onSelected?:(contactId:string)=>void'));
+  assert.match(contacts,/contactsOnly&&onSelected&&<button/);
+  assert.ok(contacts.includes('onClick={()=>onSelected(row.id)}'));
+  assert.match(contacts,/Elegir cliente para el contrato/);
+  assert.match(contacts,/adminMayCorrect&&!contactsOnly&&<>/);
+  assert.match(wizard,/Selecciona un cliente registrado/);
 });
