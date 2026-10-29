@@ -41,7 +41,8 @@ test('website and logo fields only accept safe HTTPS URLs', () => {
 
 test('agency dashboard remains isolated and public storefront uses explicit tenant scope', () => {
   // Agency legal/tenant identity must never be replaced by editable brand copy.
-  assert.match(dashboard, /alt=\{'Logo de ' \+ activeMembership\.organization\.name\}/);
+  assert.match(dashboard, /<TenantLogo src=\{logoUrl\} organizationName=\{activeMembership\.organization\.name\} \/>/);
+  assert.match(readFileSync(new URL('../src/components/TenantLogo.tsx', import.meta.url), 'utf8'), /alt=\{\`Logo de \$\{organizationName\}\`\}/);
   assert.match(dashboard, /aria-label="Inmobiliaria activa"/);
   assert.match(dashboard, /Sitio web de la inmobiliaria/);
   assert.match(dashboard, /tenantPrimary/);
