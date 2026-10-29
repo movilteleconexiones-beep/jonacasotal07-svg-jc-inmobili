@@ -19,12 +19,12 @@ CREATE TABLE public.plans(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),code tex
  max_users integer,max_properties integer,max_storage_mb integer,ai_credits integer,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now());
 CREATE TABLE public.plan_features(plan_id uuid REFERENCES public.plans(id),feature_key text,enabled boolean DEFAULT true,feature_limit numeric,PRIMARY KEY(plan_id,feature_key));
 CREATE TABLE public.subscriptions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid UNIQUE NOT NULL REFERENCES public.organizations(id),plan_id uuid REFERENCES public.plans(id),
- status text NOT NULL,billing_mode text NOT NULL,current_period_start timestamptz,current_period_end timestamptz,cancelled_at timestamptz,updated_at timestamptz DEFAULT now());
+ status text NOT NULL,billing_mode text NOT NULL,started_at timestamptz,current_period_start timestamptz,current_period_end timestamptz,trial_ends_at timestamptz,cancelled_at timestamptz,updated_at timestamptz DEFAULT now());
 CREATE TABLE public.organization_licenses(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid UNIQUE NOT NULL REFERENCES public.organizations(id),
  license_type text NOT NULL,status text NOT NULL DEFAULT 'ACTIVE',starts_at timestamptz DEFAULT now(),ends_at timestamptz,updated_at timestamptz DEFAULT now());
 CREATE TABLE public.license_terms_versions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),version text,title text,terms_markdown text NOT NULL,active boolean NOT NULL DEFAULT true,effective_date date DEFAULT current_date,created_at timestamptz DEFAULT now());
 CREATE TABLE public.license_acceptances(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid REFERENCES public.organizations(id),organization_license_id uuid REFERENCES public.organization_licenses(id),
- terms_version_id uuid REFERENCES public.license_terms_versions(id),accepted_by uuid REFERENCES auth.users(id),terms_snapshot text,acceptance_user_agent text);
+ terms_version_id uuid REFERENCES public.license_terms_versions(id),accepted_by uuid REFERENCES auth.users(id),accepted_at timestamptz NOT NULL DEFAULT now(),terms_snapshot text,acceptance_user_agent text);
 CREATE TABLE public.platform_admins(user_id uuid PRIMARY KEY REFERENCES auth.users(id),admin_level text NOT NULL DEFAULT 'SUPER_ADMIN',active boolean NOT NULL DEFAULT true);
 CREATE TABLE public.organization_members(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid REFERENCES public.organizations(id),user_id uuid REFERENCES auth.users(id),status text NOT NULL);
 CREATE TABLE public.roles(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid REFERENCES public.organizations(id),key text,active boolean NOT NULL DEFAULT true);
