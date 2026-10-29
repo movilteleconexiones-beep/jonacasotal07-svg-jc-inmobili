@@ -240,6 +240,9 @@ jobs:
         run: node --test tests/wompi-atomic-order-sql.test.mjs
       - name: Billing revocation concurrency release-gate checks
         run: node --test tests/wompi-billing-revocation-contract.test.mjs
+      - name: Existing property operation and rental price edit safety
+        run: node --test tests/property-edit-existing-operation.test.mjs
+
       - name: Property consignment validation tests
         run: node --import tsx --test tests/property-consignment.test.mjs
       - name: Verified checkout and webhook tests
