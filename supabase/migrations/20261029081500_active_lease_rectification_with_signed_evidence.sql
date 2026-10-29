@@ -21,7 +21,7 @@ REVOKE ALL ON TABLE jco_private.active_lease_correction_permits FROM PUBLIC,anon
 CREATE OR REPLACE FUNCTION jco_private.guard_active_lease_signed_terms()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='pg_catalog'
 AS $guard$
-DECLARE old_values jsonb; new_values jsonb;
+DECLARE v_old_terms jsonb; v_new_terms jsonb;
 BEGIN
   IF TG_OP<>'UPDATE' THEN RETURN NEW; END IF;
   IF OLD.status='DRAFT' AND NEW.status IN ('ACTIVE','RENEWAL') THEN
@@ -60,16 +60,16 @@ BEGIN
      THEN RETURN NEW;
   END IF;
 
-  old_values:=jsonb_build_object('monthly_rent',OLD.monthly_rent,'end_date',OLD.end_date,
+  v_old_terms:=jsonb_build_object('monthly_rent',OLD.monthly_rent,'end_date',OLD.end_date,
     'contract_number',OLD.contract_number);
-  new_values:=jsonb_build_object('monthly_rent',NEW.monthly_rent,'end_date',NEW.end_date,
+  v_new_terms:=jsonb_build_object('monthly_rent',NEW.monthly_rent,'end_date',NEW.end_date,
     'contract_number',NEW.contract_number);
   IF NOT EXISTS(
     SELECT 1 FROM jco_private.active_lease_correction_permits permit
      WHERE permit.organization_id=OLD.organization_id AND permit.lease_id=OLD.id
        AND permit.transaction_id=txid_current()
        AND permit.actor_user_id=auth.uid()
-       AND permit.old_values=old_values AND permit.new_values=new_values
+       AND permit.old_values=v_old_terms AND permit.new_values=v_new_terms
   ) THEN
     RAISE EXCEPTION 'An active contract requires administrator correction with signed evidence and audit'
       USING ERRCODE='42501';
