@@ -28,6 +28,7 @@ CREATE TABLE public.leases(
  contract_number text,payment_day integer,adjustment_type text,
  adjustment_percentage numeric,updated_at timestamptz DEFAULT now()
 );
+GRANT SELECT, UPDATE ON public.leases TO authenticated;
 CREATE TABLE public.documents(
  id uuid PRIMARY KEY,organization_id uuid NOT NULL,entity_type text NOT NULL,
  entity_id uuid,document_type text NOT NULL,storage_bucket text,storage_path text,
