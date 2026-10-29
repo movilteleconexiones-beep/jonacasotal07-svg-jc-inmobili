@@ -5,6 +5,7 @@ import { rentalBalance, ownerNetFromDeductions, parseMoneyInput } from '../src/c
 
 const source = readFileSync(new URL('../src/modules/finance/RentOwnerBalances.tsx', import.meta.url), 'utf8');
 const clients = readFileSync(new URL('../src/modules/contacts/ContactsModule.tsx', import.meta.url), 'utf8');
+const wizard = readFileSync(new URL('../src/modules/rentals/RentalIntakeWizard.tsx', import.meta.url), 'utf8');
 const owners = readFileSync(new URL('../src/modules/owners/OwnersModule.tsx', import.meta.url), 'utf8');
 const dashboard = readFileSync(new URL('../src/modules/dashboard/PrivateDashboard.tsx', import.meta.url), 'utf8');
 
@@ -45,7 +46,8 @@ test('financial queries never read another organization and never write financia
 });
 
 test('financial summaries appear only inside corresponding tenant modules and keep dual access', () => {
-  assert.match(clients, /TenantRentBalanceSummary key=\{organizationId\} organizationId=\{organizationId\}/);
+  assert.doesNotMatch(clients, /TenantRentBalanceSummary/);
+  assert.match(wizard, /<TenantRentBalanceSummary key=\{'balance-'/);
   assert.match(owners, /OwnerNetStatementsSummary key=\{organizationId\} organizationId=\{organizationId\}/);
   assert.match(owners, /formElement\.reset\(\)/);
   assert.match(dashboard, /isPlatformAdmin && <a href="\/super-admin"/);

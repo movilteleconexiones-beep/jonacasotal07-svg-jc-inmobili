@@ -5,6 +5,8 @@ import { PropertiesModule } from '../properties/PropertiesModule';
 import { OwnersModule } from '../owners/OwnersModule';
 import { ContactsModule } from '../contacts/ContactsModule';
 import { TenantRentEntry } from '../finance/TenantRentEntry';
+import { ActiveLeaseCorrection } from '../finance/ActiveLeaseCorrection';
+import { TenantRentBalanceSummary } from '../finance/RentOwnerBalances';
 import { RentalContractClosure } from './RentalContractClosure';
 import { supabase } from '../../lib/supabase';
 import {
@@ -354,6 +356,15 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       <TenantRentEntry key={'draft-' + organizationId} organizationId={organizationId} mode="DRAFT"
         preferredPropertyId={propertyId} preferredTenantId={tenantId} preferredOwnerId={ownerId}
         onDraftCreated={id => { setLeaseId(id); setStep(3); }} />
+      {can(PERMISSIONS.LEASES_EDIT) && can(PERMISSIONS.DOCUMENTS_VIEW) &&
+        <details className="rounded-2xl border border-stone-200 bg-white p-4">
+          <summary className="cursor-pointer text-sm font-semibold">
+            Corregir un contrato activo existente · administración
+          </summary>
+          <div className="mt-3">
+            <ActiveLeaseCorrection key={'active-'+organizationId} organizationId={organizationId}/>
+          </div>
+        </details>}
     </div>}
 
     {step === 3 && <TenantRentEntry key={'signed-' + organizationId} organizationId={organizationId}
@@ -376,6 +387,15 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </p>}
       <TenantRentEntry key={'billing-' + organizationId} organizationId={organizationId}
         mode="BILLING" preferredLeaseId={leaseId} />
+      {can(PERMISSIONS.RENT_PAYMENTS_VIEW) &&
+        <details className="rounded-2xl border border-stone-200 bg-white p-4">
+          <summary className="cursor-pointer text-sm font-semibold">
+            Consultar cánones, saldos y estados de cuenta · administración
+          </summary>
+          <div className="mt-3">
+            <TenantRentBalanceSummary key={'balance-'+organizationId} organizationId={organizationId} />
+          </div>
+        </details>}
     </div>}
 
     <footer className="flex items-center justify-between gap-3 rounded-2xl border bg-white p-4">

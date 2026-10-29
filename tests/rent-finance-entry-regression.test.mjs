@@ -8,6 +8,7 @@ const main=readFileSync(new URL('../src/modules/finance/TenantRentEntry.tsx',imp
 const owner=readFileSync(new URL('../src/modules/finance/OwnerSettlementEntry.tsx',import.meta.url),'utf8');
 const deductions=readFileSync(new URL('../src/modules/finance/OwnerDeductionLedger.tsx',import.meta.url),'utf8');
 const clients=readFileSync(new URL('../src/modules/contacts/ContactsModule.tsx',import.meta.url),'utf8');
+const wizard=readFileSync(new URL('../src/modules/rentals/RentalIntakeWizard.tsx',import.meta.url),'utf8');
 const owners=readFileSync(new URL('../src/modules/owners/OwnersModule.tsx',import.meta.url),'utf8');
 const dashboard=readFileSync(new URL('../src/modules/dashboard/PrivateDashboard.tsx',import.meta.url),'utf8');
 const migration=readFileSync(new URL('../supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql',import.meta.url),'utf8');
@@ -19,7 +20,9 @@ test('all income, expense and deduction entry controls are rendered before any b
     assert.ok(owner.includes(caption),caption);
   for(const caption of ['Registrar deducción','responsible_party','support_reference','Aprobar','Anular'])
     assert.ok(deductions.includes(caption),caption);
-  assert.match(clients,/TenantRentEntry/);
+  assert.doesNotMatch(clients,/<TenantRentEntry/);
+  assert.match(wizard, /mode="DRAFT"/);
+  assert.match(wizard, /mode="BILLING"/);
   assert.match(owners,/OwnerSettlementEntry/);
   assert.match(owners,/OwnerDeductionLedger/);
 });

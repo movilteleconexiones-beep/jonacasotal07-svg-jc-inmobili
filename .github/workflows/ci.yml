@@ -525,6 +525,9 @@ jobs:
         run: node --test tests/rent-finance-entry-regression.test.mjs
       - name: Signed lease PDF private storage and tenant isolation tests
         run: node --import tsx --test tests/signed-lease-pdf.test.mjs
+      - name: Separate Clients from six-step rental workflow regression
+        run: node --test tests/separate-clients-rental-intake-workflow.test.mjs
+
       - name: Guided rental intake and approval regression tests
         run: node --test tests/rental-intake-guided-flow.test.mjs
       - name: Rental and owner agency lifecycle UI regression
