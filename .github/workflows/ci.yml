@@ -50,7 +50,7 @@ jobs:
             if curl -fsS http://127.0.0.1:18080/ >/dev/null; then break; fi
             sleep 1
           done
-          css_path="$(grep -oE '/assets/index-[^\" ]+\\.css' dist/index.html | head -n 1)"
+          css_path="$(grep -oE '/assets/index-[^" ]+[.]css' dist/index.html | head -n 1)"
           test -n "$css_path"
           curl -fsSI "http://127.0.0.1:18080$css_path" | grep -iq 'content-type: text/css'
           curl -fsSI http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco | grep -iq 'cache-control: no-store'
