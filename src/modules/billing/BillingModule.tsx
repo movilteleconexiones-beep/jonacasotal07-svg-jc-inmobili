@@ -37,6 +37,12 @@ export function BillingModule() {
   async function refresh() { setBusy(true); try { await Promise.all([load(), refreshMemberships()]); } finally { setBusy(false); } }
   async function checkout(planId: string) {
     if (!orgId || busy) return;
+    // A subscription can be renewed, but never start an extra checkout by accident.
+    if (activePlan?.id === planId && !window.confirm(
+      billing?.is_test
+        ? 'El plan ya está activo en pruebas. ¿Deseas simular una renovación?'
+        : 'El plan ya está activo. ¿Deseas iniciar otro pago para renovarlo?'
+    )) return;
     setBusy(true); setError('');
     const requestKey = attempts.current.get(planId) ?? crypto.randomUUID();
     attempts.current.set(planId, requestKey);
@@ -67,6 +73,12 @@ export function BillingModule() {
   if (!billing) return null;
   const available = billing.is_test ? settings?.sandbox_enabled : settings?.production_enabled;
   const paymentLabel = paymentDisplayLabel;
+  // Tenant-scoped access (server enforced) is the authority; never infer an
+  // entitlement from a Wompi redirect, a pending order, or a display label.
+  const activePlan = billing.operational && billing.subscription_status === 'ACTIVE'
+    && billing.period_end && Date.parse(billing.period_end) > Date.now()
+    ? plans.find(plan => plan.id === activeMembership?.organization.planId)
+    : undefined;
   return <section className="space-y-5">
     <div><h1 className="text-2xl font-bold">Plan y activación</h1>
       <p className="mt-2 text-sm text-slate-600">{billing.operational ? 'Tu inmobiliaria está habilitada.' : billing.status === 'SUSPENDED'
@@ -74,6 +86,12 @@ export function BillingModule() {
         : 'Tu inmobiliaria está registrada y pendiente de pago. El acceso se activa tras verificar el cobro.'}</p>
       {billing.period_end && <p className="mt-1 text-sm">Vigencia hasta {new Date(billing.period_end).toLocaleDateString('es-CO')}.</p>}
     </div>
+    {activePlan && <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+      <p className="font-bold">Plan {activePlan.name} activo {billing.is_test ? '· entorno de pruebas' : '· licencia vigente'}</p>
+      <p className="mt-1 text-sm">{activePlan.max_users ?? 'Usuarios según contrato'} usuarios · {activePlan.max_properties ?? 'Inmuebles según contrato'} inmuebles</p>
+      <p className="mt-1 text-sm">Válido hasta {new Date(billing.period_end!).toLocaleDateString('es-CO')}.</p>
+      {billing.is_test && <p className="mt-1 text-xs">Esta activación comprueba el acceso de prueba: no representa dinero recibido ni una licencia comercial.</p>}
+    </div>}
     <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-700">Los pagos por Wompi corresponden exclusivamente a las licencias y suscripciones de INMOJCO, cobradas por el comercio central del propietario del software. La inmobiliaria contrata el derecho de uso para su propia operación; no puede revender, sublicenciar ni redistribuir INMOJCO, ni operar como distribuidora del sistema.</p>
     {billing.can_manage_billing ? <>
       {billing.is_test && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Cuenta de pruebas. Las transacciones Sandbox no cobran dinero real y nunca representan una venta o licencia comercial activa.</p>}
@@ -82,14 +100,21 @@ export function BillingModule() {
         : 'La confirmación del pago habilita automáticamente los módulos de tu plan. El regreso desde Wompi no confirma el pago.'}</p>
       {!available && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Los cobros están pendientes de habilitación del comercio. Puedes consultar los planes; el superadministrador puede autorizar el acceso manualmente.</p>}
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error}</p>}
-      <div className="grid gap-4 md:grid-cols-3">{plans.map(plan => <article key={plan.id} className="rounded-2xl border bg-white p-5">
+      <div className="grid gap-4 md:grid-cols-3">{plans.map(plan => {
+        const isCurrentPlan = activePlan?.id === plan.id;
+        const differentActivePlan = Boolean(activePlan && !isCurrentPlan);
+        return <article key={plan.id} className={`rounded-2xl border bg-white p-5 ${isCurrentPlan ? 'border-emerald-400' : ''}`}>
+        {isCurrentPlan && <p className="mb-3 text-xs font-bold text-emerald-800">PLAN ACTUAL {billing.is_test ? '· PRUEBA' : '· VIGENTE'}</p>}
         <h2 className="font-bold">{plan.name}</h2><p className="mt-3 text-2xl font-bold">{money(Number(plan.price))}</p>
         <p className="text-sm text-slate-600">{plan.billing_cycle === 'ANNUAL' ? 'Por año' : 'Por mes'} · Total comercial 2026</p>
         <p className="mt-3 text-sm">{plan.max_users ? `${plan.max_users} usuarios` : 'Usuarios según contrato'} · {plan.max_properties ? `${plan.max_properties} inmuebles` : 'Inmuebles según contrato'}</p>
-        <button type="button" disabled={busy || !available || !billing.terms_accepted || billing.status === 'SUSPENDED'}
+        <button type="button" disabled={busy || !available || !billing.terms_accepted || billing.status === 'SUSPENDED' || differentActivePlan}
           onClick={() => void checkout(plan.id)} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
-          {billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
-      </article>)}</div>
+          {differentActivePlan ? 'Cambio de plan: requiere revisión'
+            : isCurrentPlan ? billing.is_test ? 'Simular renovación' : 'Renovar este plan'
+            : billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
+      </article>;
+      })}</div>
       {lifetimeAvailable && <section aria-label="Licencia vitalicia" className="rounded-2xl border border-stone-200 bg-white p-5">
         <h2 className="text-lg font-bold">INMOJCO Vitalicio · pago único</h2>
         <p className="mt-2 text-sm text-slate-700">
