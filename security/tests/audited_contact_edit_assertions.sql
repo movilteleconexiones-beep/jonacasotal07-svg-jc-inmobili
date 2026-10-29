@@ -37,10 +37,10 @@ SELECT public.admin_delete_unlinked_contact(
 RESET ROLE;
 DO $$
 BEGIN
- IF (SELECT COUNT(*) FROM public.contacts)=2 OR
-    (SELECT COUNT(*) FROM public.leads)=1 OR
-    (SELECT COUNT(*) FROM public.leases)=1 OR
-    (SELECT COUNT(*) FROM public.audit_log WHERE action='contact.corrected')=1 OR
+ IF (SELECT COUNT(*) FROM public.contacts)=2 AND
+    (SELECT COUNT(*) FROM public.leads)=1 AND
+    (SELECT COUNT(*) FROM public.leases)=1 AND
+    (SELECT COUNT(*) FROM public.audit_log WHERE action='contact.corrected')=1 AND
     (SELECT COUNT(*) FROM public.audit_log WHERE action='contact.unlinked_deleted')=1 THEN
    NULL;
  ELSE
