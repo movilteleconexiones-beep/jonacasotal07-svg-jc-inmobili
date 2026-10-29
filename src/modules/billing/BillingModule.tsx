@@ -39,7 +39,7 @@ export function BillingModule() {
     if (!orgId || busy) return;
     // A subscription can be renewed, but never start an extra checkout by accident.
     if (activePlan?.id === planId && !window.confirm(
-      billing.is_test
+      billing?.is_test
         ? 'El plan ya está activo en pruebas. ¿Deseas simular una renovación?'
         : 'El plan ya está activo. ¿Deseas iniciar otro pago para renovarlo?'
     )) return;
