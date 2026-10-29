@@ -56,6 +56,8 @@ export function ContactsModule({contactsOnly=false,onCreated}: {contactsOnly?:bo
   }
 
   useEffect(() => {
+    // Never retain another inmobiliaria's editable contact after switching tenant.
+    setEditContact(null);
     void load();
     return () => { ++loadVersion.current; };
   }, [organizationId]);
