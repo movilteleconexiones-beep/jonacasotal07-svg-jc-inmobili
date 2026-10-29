@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 const entry=readFileSync(new URL('../src/modules/finance/TenantRentEntry.tsx',import.meta.url),'utf8');
 const correction=readFileSync(new URL('../src/modules/finance/ActiveLeaseCorrection.tsx',import.meta.url),'utf8');
 const contacts=readFileSync(new URL('../src/modules/contacts/ContactsModule.tsx',import.meta.url),'utf8');
+const wizard=readFileSync(new URL('../src/modules/rentals/RentalIntakeWizard.tsx',import.meta.url),'utf8');
 const helper=readFileSync(new URL('../src/core/rental-canon-reference.ts',import.meta.url),'utf8');
 const sql=readFileSync(new URL('../supabase/migrations/20261029081500_active_lease_rectification_with_signed_evidence.sql',import.meta.url),'utf8');
 
@@ -28,7 +29,8 @@ test('administrative draft editor warns before submitting rent mismatch',()=>{
 });
 
 test('active contract correction is visible to admin and requires matching signed evidence',()=>{
- assert.match(contacts,/<ActiveLeaseCorrection/);
+ assert.doesNotMatch(contacts,/<ActiveLeaseCorrection/);
+ assert.match(wizard,/<ActiveLeaseCorrection/);
  assert.match(correction,/role\.key==='ADMIN'/);
  assert.match(correction,/PERMISSIONS\.LEASES_EDIT/);
  assert.match(correction,/PERMISSIONS\.DOCUMENTS_VIEW/);
