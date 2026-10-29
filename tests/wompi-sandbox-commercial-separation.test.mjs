@@ -68,3 +68,41 @@ test('an applied test order displays active subscription independently from paym
   assert.match(code, /Simular renovación/);
   assert.match(code, /onClick=\{\(\) => void checkout\(plan\.id\)\}/);
 });
+
+test('expired sandbox and production PENDING orders are not shown as awaiting a live checkout', () => {
+  const now = Date.parse('2026-10-29T12:00:00Z');
+  const expired = '2026-10-28T12:00:00Z';
+  for (const env of ['sandbox', 'production']) {
+    const item = { ...order(env, 'PENDING', 'PENDING'), expires_at: expired };
+    const label = paymentDisplayLabel(item, now);
+    assert.match(label, /vencid/);
+    assert.doesNotMatch(label, /pendiente de confirmación|plan activado/);
+    assert.match(paymentReviewNotice(item, now), /No se ha confirmado un cobro/);
+  }
+});
+
+test('only expired PENDING orders get the expired label (never an approved order)', () => {
+  const now = Date.parse('2026-10-29T12:00:00Z');
+  const past = '2026-10-28T12:00:00Z';
+  const future = '2026-11-01T12:00:00Z';
+  for (const expires_at of [null, '', 'not-a-date', future]) {
+    const pending = { ...order('sandbox', 'PENDING', 'PENDING'), expires_at };
+    assert.match(paymentDisplayLabel(pending, now), /pendiente de confirmación/);
+    assert.equal(paymentReviewNotice(pending, now), null);
+  }
+  const approved = { ...order('sandbox', 'APPROVED', 'APPLIED'), expires_at: past };
+  assert.match(paymentDisplayLabel(approved, now), /Simulación aprobada/);
+  assert.equal(paymentReviewNotice(approved, now), null);
+  const production = { ...order('production', 'APPROVED', 'APPLIED'), expires_at: past };
+  assert.match(paymentDisplayLabel(production, now), /Pago real confirmado/);
+  assert.equal(paymentReviewNotice(production, now), null);
+});
+
+test('expiration is a display-only status and must be loaded from scoped order history', () => {
+  const billing = readFileSync(new URL('../src/modules/billing/BillingModule.tsx', import.meta.url), 'utf8');
+  const labels = readFileSync(new URL('../src/core/payment-display.ts', import.meta.url), 'utf8');
+  assert.match(billing, /review_reason,environment,created_at,expires_at,amount_in_cents/);
+  assert.match(billing, /\.eq\('organization_id', orgId\)/);
+  assert.match(labels, /order\.status !== 'PENDING'/);
+  assert.doesNotMatch(labels, /supabase|update\(|insert\(/);
+});
