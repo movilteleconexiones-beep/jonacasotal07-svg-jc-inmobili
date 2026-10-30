@@ -2,6 +2,75 @@
 
 **Estado:** herramienta de exportación local disponible, NO es un respaldo real hasta ejecutarla y verificarla. No realiza restores ni cambia producción. El único proyecto autorizado es `cuitgyqrjibgwuniapmk`.
 
+## Primera copia en Windows, con comprobación previa y claves privadas
+
+El propietario puede iniciar la primera copia sin redactar manualmente comandos
+con contraseñas ni editar archivos de configuración. El programa
+`scripts/inmojco-first-backup-windows.ps1` guía el proceso desde un
+**equipo Windows de confianza**, con las herramientas instaladas localmente.
+
+1. Descargue el repositorio mediante un clon autorizado de GitHub, instale
+   **Node.js 20+**, PostgreSQL cliente **17** (incluido `psql`, `pg_dump`,
+   `pg_restore`) y ejecute `npm ci` desde la carpeta del repositorio.
+2. Cree una **carpeta privada fuera del repositorio**, preferiblemente en un
+   disco independiente, con permisos restringidos y espacio libre suficiente.
+   El respaldo se genera allí, no en GitHub ni en Railway.
+3. Abra PowerShell en la carpeta del repositorio y ejecute el asistente:
+
+   ```powershell
+   & .\scripts\inmojco-first-backup-windows.ps1
+   ```
+
+4. Cuando se lo solicite, escriba la carpeta destino y el `PGHOST`/`PGUSER`
+   de **Supabase > Connect** del proyecto
+   `cuitgyqrjibgwuniapmk`. Puede usar conexión Direct
+   (`db.cuitgyqrjibgwuniapmk.supabase.co` con usuario `postgres`) o el
+   Session pooler de su proyecto si la red no admite conexión directa.
+5. Primero corre `preflight` **sin pedir claves**. Rechaza el proyecto viejo,
+   carpetas internas del código, un modo SSL inseguro, falta de escritura,
+   menos de 512 MiB libres y versiones distintas de PostgreSQL cliente 17.
+   **Esta comprobación no se conecta a la base; valida únicamente condiciones
+   locales y formato del destino.**
+6. Solo después de aprobar `preflight`, el asistente solicita la contraseña
+   PostgreSQL, la llave privada de Storage de Supabase y una frase propia
+   de cifrado de mínimo 16 caracteres (confirmada dos veces). Se introducen
+   ocultas en la consola; las variables temporales se limpian al finalizar y
+   se restauran los valores previos de la sesión de PowerShell.
+
+El asistente ejecuta `backup`: consulta la base y Storage mediante el cliente
+local, cifra en la carpeta privada todos los archivos y el volcado de base de
+datos, comprueba integridad, inventario y `pg_restore --list`; **solo anuncia
+éxito si todas las verificaciones pasan**.
+
+### Prueba previa sin introducir credenciales
+
+Si desea comprobar únicamente su equipo, configure en esa sesión las
+variables no secretas `PGHOST`, `PGUSER`, `PGDATABASE=postgres`,
+`PGSSLMODE=require`, `SUPABASE_URL` y `INMOJCO_BACKUP_DIR`, y ejecute:
+
+```powershell
+node scripts/inmojco-backup.mjs preflight
+```
+
+La salida indica **`backupCreated: false`** en el resultado interno:
+aprobar la comprobación previa **no significa que exista un respaldo**. El
+asistente Windows ya incluye esta prueba automáticamente.
+
+**No comparta las claves en esta conversación**, GitHub Issues, capturas
+de pantalla, PR, archivos `.env` versionados ni una sesión remota pública.
+La frase de cifrado debe guardarse fuera del equipo con el archivo cifrado,
+preferiblemente en un gestor de contraseñas. Si Windows impide ejecutar
+scripts, revise su política de ejecución con su administrador: no es necesario
+desactivar globalmente las protecciones del sistema.
+
+### Distinción de seguridad
+
+Esta versión aún requiere una ejecución manual autorizada para producir la
+**primera copia auténtica**. No realiza respaldos de datos por sí sola a cada
+12 horas de inactividad, ni garantiza respaldo de secretos o configuración de
+Railway, DNS, Wompi o roles globales. La restauración real completa de INMOJCO
+en un proyecto Supabase separado sigue pendiente de ejecutar y validar.
+
 ## Qué protege y qué NO
 
 La herramienta `scripts/inmojco-backup.mjs` crea una carpeta privada con:
