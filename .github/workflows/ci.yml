@@ -62,6 +62,8 @@ jobs:
               process.exit(1);
             }
           '
+      - name: Express runtime patched dependencies regression
+        run: node --test tests/npm-dependency-security.test.mjs
       - name: TypeScript validation
         run: npm run lint
       - name: Public portal SPA stylesheet and cache integration (Caddy)
