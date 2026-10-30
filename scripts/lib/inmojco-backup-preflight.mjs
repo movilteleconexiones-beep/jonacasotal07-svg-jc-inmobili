@@ -6,7 +6,7 @@
 import { randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { realpath, statfs, open, rm } from 'node:fs/promises';
-import { relative, resolve, join } from 'node:path';
+import { relative, join, isAbsolute } from 'node:path';
 import { promisify } from 'node:util';
 
 const runTool = promisify(execFile);
@@ -33,8 +33,12 @@ export function validateOfflineTarget(env, directory, repository) {
   if (!env.INMOJCO_BACKUP_DIR || !directory)
     throw rejection('an existing absolute private backup folder is required');
   const toRepo = relative(repository, directory);
-  if (!toRepo || (!toRepo.startsWith('../') && toRepo !== '..'
-    && !toRepo.startsWith('..\\')))
+  // On Windows, node:path.relative() returns an ABSOLUTE path for a
+  // destination on a different drive (e.g. C: checkout vs D: backups).
+  // That case is safe and must not be rejected.
+  const outside = toRepo === '..' || toRepo.startsWith('../')
+    || toRepo.startsWith('..\\') || isAbsolute(toRepo);
+  if (!toRepo || !outside)
     throw rejection('the backup location must be outside the Git repository');
 }
 
@@ -59,7 +63,6 @@ export async function preflightOfflineBackup({
     throw rejection('Node.js 20 or newer is required');
   if (!repositoryRoot || !env.INMOJCO_BACKUP_DIR)
     throw rejection('missing local repository/backup folder');
-  const { isAbsolute } = await import('node:path');
   if (!isAbsolute(env.INMOJCO_BACKUP_DIR))
     throw rejection('the backup folder must have an absolute path');
   let repo, folder;
