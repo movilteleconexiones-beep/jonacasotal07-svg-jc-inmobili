@@ -82,7 +82,8 @@ export function verifyStorageCoverage(before, after, copied, copiedBuckets) {
     throw failed();
 
   const copiedBucketSet = new Set(copiedBuckets);
-  if (copiedBucketSet.size !== before.buckets.size)
+  if (copiedBucketSet.size !== before.buckets.size
+    || copiedBuckets.length !== before.buckets.size)
     throw failed();
   for (const [bucket, revision] of before.buckets) {
     if (after.buckets.get(bucket) !== revision || !copiedBucketSet.has(bucket))
