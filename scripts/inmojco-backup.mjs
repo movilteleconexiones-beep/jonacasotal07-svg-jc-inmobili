@@ -100,9 +100,12 @@ async function readAndVerify(archive, passphrase, extractRoot) {
     || manifest.database?.file !== 'database.enc' || !Array.isArray(manifest.objects)
     || !Array.isArray(manifest.buckets)) throw new Error('Invalid encrypted manifest');
   const files = new Set();
+  let createdExtraction = false;
+  try {
   if (extractRoot) {
     outsideRepository(extractRoot);
     await mkdir(extractRoot, { mode: 0o700 }); // Must not exist.
+    createdExtraction = true;
     await mkdir(join(extractRoot, 'objects'), { mode: 0o700 });
   }
   await openEncrypted(join(archive, 'database.enc'), key, manifest.database.seal,
@@ -126,6 +129,12 @@ async function readAndVerify(archive, passphrase, extractRoot) {
   }
   return { files: manifest.objects.length, buckets: manifest.buckets.length,
     databaseBytes: manifest.database.seal.bytes };
+  } catch (error) {
+    // Never leave partially decrypted contracts or SQL on disk on failed extract.
+    // Only remove a folder that THIS invocation successfully created.
+    if (createdExtraction) await rm(extractRoot, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 async function backup() {
