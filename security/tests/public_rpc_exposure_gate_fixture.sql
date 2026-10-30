@@ -19,8 +19,8 @@ CREATE FUNCTION public.tenant_public_catalog(tenant_slug text)
 RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path=''
 AS $$ SELECT '{}'::jsonb $$;
 CREATE FUNCTION public.admin_cancel_lease_draft(target_org uuid,target_lease uuid,reason text)
-RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path=''
-AS $$ SELECT $$;
+RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path=''
+AS $ SELECT true $;
 
 REVOKE ALL ON FUNCTION public.get_public_property_intake_site(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.submit_property_consignment(text,uuid,jsonb) FROM PUBLIC;
