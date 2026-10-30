@@ -81,6 +81,26 @@ confianza en el formato de la copia, **pero no prueba que restaurar y arrancar
 toda la aplicación en una instancia nueva funcione**. Esa prueba real en un
 ambiente aislado sigue siendo obligatoria antes de certificar recuperación.
 
+## Ensayo de restauración automatizado con datos ficticios
+
+Las pruebas de GitHub Actions incluyen un ensayo real con dos bases temporales
+PostgreSQL 17 independientes. Crean dos inmobiliarias **ficticias**, sus
+documentos **ficticios**, una clave foránea, un índice y una política RLS;
+generan `pg_dump --format=custom`, cifran la copia con una clave solo de CI,
+la descifran y ejecutan `pg_restore --exit-on-error --single-transaction`
+**únicamente en otra base temporal vacía**, nunca en Supabase ni Railway.
+
+El ensayo verifica los registros recuperados, sus importes, la clave foránea,
+el índice y la política RLS, además de confirmar que la base de origen quedó
+sin modificaciones. La prueba de integridad rechaza un archivo cifrado
+alterado antes de intentar ninguna recuperación.
+
+Esta prueba certifica **el flujo con datos de laboratorio**, no el respaldo
+real del proyecto: restaurar una exportación auténtica requiere revisar
+dependencias, extensiones, cuentas de servicio, permisos, Auth, Storage y
+configuración del entorno receptor. No se habilita un comando de restauración
+automática de bases de producción.
+
 ## Preparar material para restauración (NUNCA sobre producción)
 
 ```powershell
