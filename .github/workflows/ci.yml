@@ -35,6 +35,35 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: npm audit security gate (reject any published vulnerability)
+        run: |
+          npm audit --json > "$RUNNER_TEMP/inmojco-audit.json" || true
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const report = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/inmojco-audit.json", "utf8"));
+            if (report.error) {
+              console.error("Dependency advisory service unavailable:", report.error.code ?? "unknown");
+              process.exit(1);
+            }
+            const counts = report.metadata?.vulnerabilities;
+            if (!counts || !Number.isInteger(counts.total)) {
+              console.error("Invalid npm advisory report: missing counts");
+              process.exit(1);
+            }
+            console.log("Dependency vulnerability counts:", JSON.stringify(counts));
+            for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) {
+              const advisories = (item.via ?? []).filter(x => typeof x === "object")
+                .map(x => ({ severity:x.severity, title:x.title, url:x.url, range:x.range }));
+              console.log(JSON.stringify({ name, severity:item.severity,
+                range:item.range, isDirect:item.isDirect, fixAvailable:item.fixAvailable, advisories }));
+            }
+            if (counts.total > 0) {
+              console.error("npm security audit gate FAILED; resolve advisories before deployment");
+              process.exit(1);
+            }
+          '
+      - name: Express runtime patched dependencies regression
+        run: node --test tests/npm-dependency-security.test.mjs
       - name: TypeScript validation
         run: npm run lint
       - name: Public portal SPA stylesheet and cache integration (Caddy)
