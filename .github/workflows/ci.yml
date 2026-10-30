@@ -224,6 +224,8 @@ jobs:
         run: node --test tests/platform-admin-access.test.mjs
       - name: Wompi signature verification regression tests
         run: node --import tsx --test tests/wompi-event-verification.test.mjs
+      - name: Encrypted INMOJCO database and private Storage offline backup verification
+        run: node --test tests/inmojco-offline-backup.test.mjs
       - name: Wompi private-key transaction reconciliation tests
         run: node --import tsx --test tests/wompi-transaction-lookup.test.mjs
       - name: Wompi webhook handler regression tests
