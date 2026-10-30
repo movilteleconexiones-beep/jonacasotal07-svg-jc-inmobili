@@ -224,6 +224,14 @@ jobs:
         run: node --test tests/platform-admin-access.test.mjs
       - name: Wompi signature verification regression tests
         run: node --import tsx --test tests/wompi-event-verification.test.mjs
+      - name: Private Storage metadata inventory consistency and drift protection
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_storage_inventory_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_storage_inventory_test -c "CREATE SCHEMA storage; CREATE TABLE storage.buckets(id text PRIMARY KEY,name text NOT NULL,public boolean NOT NULL,updated_at timestamptz); CREATE TABLE storage.objects(id uuid PRIMARY KEY,bucket_id text NOT NULL REFERENCES storage.buckets(id),name text NOT NULL,version text,updated_at timestamptz,metadata jsonb)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_storage_inventory_test -c "INSERT INTO storage.buckets VALUES ('organization-documents','organization-documents',false,now()),('jco-inventory-private','jco-inventory-private',false,now()); INSERT INTO storage.objects VALUES ('10000000-0000-0000-0000-000000000001','organization-documents','signed/mock-lease.pdf','v1',now(),'{\"size\":220}'),('10000000-0000-0000-0000-000000000002','jco-inventory-private','apt/fixture.png','v2',now(),'{\"size\":100}')"
+          node --test tests/inmojco-storage-inventory.test.mjs
       - name: Encrypted INMOJCO database and private Storage offline backup verification
         env:
           PGPASSWORD: postgres
