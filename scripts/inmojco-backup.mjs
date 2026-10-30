@@ -17,6 +17,7 @@ import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
+import { preflightOfflineBackup } from './lib/inmojco-backup-preflight.mjs';
 import { readStorageInventory, verifyStorageCoverage } from './lib/inmojco-storage-inventory.mjs';
 import { FORMAT, deriveBackupKey, sealStream, sealBuffer, openEncrypted,
   openEncryptedBuffer } from './lib/inmojco-encrypted-backup.mjs';
@@ -281,7 +282,16 @@ async function backup() {
 
 async function main() {
   const command = process.argv[2];
-  if (command === 'backup') await backup();
+  if (command === 'preflight') {
+    const check = await preflightOfflineBackup({ repositoryRoot: projectRoot });
+    console.log('Local offline backup prerequisites PASS:', {
+      postgresClientMajor: check.postgresClientMajor,
+      availableMiB: check.availableMiB,
+      project: check.project,
+      destinationVerified: check.destinationVerified,
+    });
+    console.log('No production connection was made; credentials and real backup NOT verified.');
+  } else if (command === 'backup') await backup();
   else if (command === 'verify' || command === 'extract' || command === 'inspect') {
     const archive = localPath('INMOJCO_BACKUP_ARCHIVE');
     outsideRepository(archive);
@@ -296,7 +306,7 @@ async function main() {
         : 'Cryptographic verification passed.',summary);
       if (target) console.log('DO NOT restore database.dump into live Supabase.');
     }
-  } else throw new Error('Usage: node scripts/inmojco-backup.mjs backup|verify|inspect|extract');
+  } else throw new Error('Usage: node scripts/inmojco-backup.mjs preflight|backup|verify|inspect|extract');
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { console.error('Backup operation failed:', error.message); process.exitCode = 1; });
