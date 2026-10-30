@@ -17,9 +17,12 @@ const config = {
   eventsSecret: Deno.env.get('WOMPI_EVENTS_SECRET') ?? '',
   integritySecret: Deno.env.get('WOMPI_INTEGRITY_SECRET') ?? '',
   publicKey: Deno.env.get('WOMPI_PUBLIC_KEY') ?? '',
-  appUrl: Deno.env.get('APP_URL') ?? 'https://www.inmojco.com/',
-  allowedOrigins: ['https://app.inmojco.com', 'https://www.inmojco.com', 'https://inmojco.com',
-    'https://jonacasotal07-svg-jc-inmobili-production.up.railway.app'],
+  // Public checkouts and return pages are always hosted on the canonical domain.
+  // Ignore obsolete app/Railway technical domains even if an old APP_URL remains set.
+  appUrl: 'https://www.inmojco.com/',
+  // Only the official domain (and its bare-domain redirect) may call checkout
+  // from a browser. Wompi signed server callbacks do not require a CORS origin.
+  allowedOrigins: ['https://www.inmojco.com', 'https://inmojco.com'],
 } as const;
 
 Deno.serve(createBillingHandler({ ...config, allowedOrigins: [...config.allowedOrigins] }, {
