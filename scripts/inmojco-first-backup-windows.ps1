@@ -40,6 +40,12 @@ if ([string]::IsNullOrWhiteSpace($PgUsername)) {
 $EnvNames = @('PGHOST','PGUSER','PGDATABASE','PGSSLMODE',
   'SUPABASE_URL','INMOJCO_BACKUP_DIR','PGPASSWORD',
   'SUPABASE_SERVICE_ROLE_KEY','INMOJCO_BACKUP_PASSPHRASE')
+# Preserve previously configured session values, if any. Secrets entered by
+# this helper must not remain in the caller's process environment.
+$PreviousEnvironment = @{}
+foreach ($name in $EnvNames) {
+  $PreviousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
 Push-Location -LiteralPath $RepositoryRoot
 try {
   # Never change or overwrite a file/backup folder chosen by mistake.
@@ -83,10 +89,10 @@ try {
   Write-Host 'IMPORTANTE: resta comprobar recuperacion real en proyecto aislado.'
 }
 finally {
-  # Private values exist temporarily only as child-process environment vars.
-  # Clear all variables set by this helper, including those used by preflight.
+  # Restore the original shell environment instead of leaving newly
+  # entered credentials available to later processes.
   foreach ($name in $EnvNames) {
-    [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+    [Environment]::SetEnvironmentVariable($name, $PreviousEnvironment[$name], 'Process')
   }
   Pop-Location
 }
