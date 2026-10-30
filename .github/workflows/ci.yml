@@ -64,6 +64,44 @@ jobs:
           '
       - name: Express runtime patched dependencies regression
         run: node --test tests/npm-dependency-security.test.mjs
+      - name: Privileged RPC anonymous allowlist and negative ACL tests (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_public_rpc_gate_test
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_rpc_exposure_gate_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql
+          # Unauthorized new anonymous privileged RPC must fail closed.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "CREATE FUNCTION public.private_export() RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path='' AS 'SELECT true'; REVOKE ALL ON FUNCTION public.private_export() FROM PUBLIC; GRANT EXECUTE ON FUNCTION public.private_export() TO anon;"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql > "$RUNNER_TEMP/rpc-error.log" 2>&1; then
+            echo 'ERROR: unknown anonymous SECURITY DEFINER was allowed'; exit 1
+          fi
+          grep -q 'unauthorized anonymous SECURITY DEFINER RPC' "$RUNNER_TEMP/rpc-error.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "DROP FUNCTION public.private_export()"
+          # PUBLIC is not a named RPC role; default PUBLIC EXECUTE must be rejected.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "GRANT EXECUTE ON FUNCTION public.get_public_property_intake_site(text) TO PUBLIC"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql > "$RUNNER_TEMP/rpc-error.log" 2>&1; then
+            echo 'ERROR: implicit PUBLIC EXECUTE was allowed'; exit 1
+          fi
+          grep -q 'must not inherit EXECUTE from PUBLIC' "$RUNNER_TEMP/rpc-error.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "REVOKE EXECUTE ON FUNCTION public.get_public_property_intake_site(text) FROM PUBLIC"
+          # A missing pinned search_path must be rejected.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION public.tenant_public_catalog(text) RESET search_path"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql > "$RUNNER_TEMP/rpc-error.log" 2>&1; then
+            echo 'ERROR: unsafe search_path was allowed'; exit 1
+          fi
+          grep -q 'unfixed search_path' "$RUNNER_TEMP/rpc-error.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION public.tenant_public_catalog(text) SET search_path=''"
+          # No API role may create/replace objects in the API schema.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "GRANT CREATE ON SCHEMA public TO authenticated"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql > "$RUNNER_TEMP/rpc-error.log" 2>&1; then
+            echo 'ERROR: schema CREATE grant was allowed'; exit 1
+          fi
+          grep -q 'must never CREATE objects in public schema' "$RUNNER_TEMP/rpc-error.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "REVOKE CREATE ON SCHEMA public FROM authenticated"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql
       - name: TypeScript validation
         run: npm run lint
       - name: Public portal SPA stylesheet and cache integration (Caddy)
