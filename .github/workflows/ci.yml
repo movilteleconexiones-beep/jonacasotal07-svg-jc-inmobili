@@ -225,7 +225,13 @@ jobs:
       - name: Wompi signature verification regression tests
         run: node --import tsx --test tests/wompi-event-verification.test.mjs
       - name: Encrypted INMOJCO database and private Storage offline backup verification
-        run: node --test tests/inmojco-offline-backup.test.mjs
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_format_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_format_test -c "CREATE TABLE backup_fixture(id bigint PRIMARY KEY, document_name text NOT NULL)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_format_test -c "INSERT INTO backup_fixture VALUES (1, 'fictitious contract')"
+          node --test tests/inmojco-offline-backup.test.mjs
       - name: Wompi private-key transaction reconciliation tests
         run: node --import tsx --test tests/wompi-transaction-lookup.test.mjs
       - name: Wompi webhook handler regression tests
