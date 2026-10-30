@@ -240,7 +240,14 @@ jobs:
             printf '#!/bin/sh\nexec docker exec -i %s %s "$@"\n' "$db_container" "$tool" > "$RUNNER_TEMP/inmojco-pg17-client/$tool"
             chmod 700 "$RUNNER_TEMP/inmojco-pg17-client/$tool"
           done
-          PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-offline-backup.test.mjs
+          # A separate, disposable source and empty target demonstrate a real
+          # PostgreSQL restoration. All records are fabricated; never connect
+          # this CI step to Supabase or a production database.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_drill_source"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_drill_restored"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_drill_source -c "CREATE TABLE fixture_organizations(id text PRIMARY KEY, label text NOT NULL); CREATE TABLE fixture_documents(doc_ref text PRIMARY KEY, organization_id text NOT NULL REFERENCES fixture_organizations(id), amount numeric(12,0) NOT NULL, filename text NOT NULL); CREATE INDEX fixture_documents_amount_idx ON fixture_documents(amount); ALTER TABLE fixture_documents ENABLE ROW LEVEL SECURITY; CREATE POLICY fixture_docs_visible ON fixture_documents FOR SELECT USING (true)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_drill_source -c "INSERT INTO fixture_organizations VALUES ('org-a','Inmobiliaria ficticia A'),('org-b','Inmobiliaria ficticia B'); INSERT INTO fixture_documents VALUES ('DOC-A','org-a',1300000,'contrato-ficticio-A.pdf'),('DOC-B','org-b',1700000,'contrato-ficticio-B.pdf')"
+          PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-offline-backup.test.mjs tests/inmojco-backup-isolated-restore.test.mjs
       - name: Wompi private-key transaction reconciliation tests
         run: node --import tsx --test tests/wompi-transaction-lookup.test.mjs
       - name: Wompi webhook handler regression tests
