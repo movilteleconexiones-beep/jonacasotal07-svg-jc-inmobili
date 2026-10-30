@@ -17,6 +17,7 @@ import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
+import { readStorageInventory, verifyStorageCoverage } from './lib/inmojco-storage-inventory.mjs';
 import { FORMAT, deriveBackupKey, sealStream, sealBuffer, openEncrypted,
   openEncryptedBuffer } from './lib/inmojco-encrypted-backup.mjs';
 
@@ -65,14 +66,18 @@ export async function listStorageObjects(storage, bucket, prefix = '', seen = ne
   }
 }
 
+function assertActivePostgresTarget() {
+  const host = mustHave('PGHOST').toLowerCase();
+  const user = mustHave('PGUSER').toLowerCase();
+  // Refuse to probe or dump any other database, especially the legacy project.
+  if (!host.includes(PROJECT) && !user.includes(PROJECT))
+    throw new Error('Database target does not identify the active INMOJCO Supabase project');
+}
+
 async function encryptedDump(destination, key) {
   for (const name of ['PGHOST', 'PGUSER', 'PGPASSWORD', 'PGDATABASE'])
     mustHave(name);
-  // Fail closed if the operator accidentally points to the legacy database.
-  const host = process.env.PGHOST.toLowerCase();
-  const user = process.env.PGUSER.toLowerCase();
-  if (!host.includes(PROJECT) && !user.includes(PROJECT))
-    throw new Error('Database target does not identify the active INMOJCO Supabase project');
+  assertActivePostgresTarget();
   const child = spawn('pg_dump', ['--format=custom', '--no-password'], {
     env: { ...process.env, PGSSLMODE: process.env.PGSSLMODE ?? 'require' },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -227,8 +232,13 @@ async function backup() {
     const { data: buckets, error: bucketsError } = await client.storage.listBuckets();
     if (bucketsError || !Array.isArray(buckets))
       throw new Error('Could not enumerate Supabase Storage buckets');
+    // Read-only DB inventory is required: a valid encrypted archive can still
+    // miss documents that were uploaded/deleted while the export was running.
+    assertActivePostgresTarget();
+    const firstInventory = await readStorageInventory();
     const manifest = { format: FORMAT, project: PROJECT, createdAt: stamp,
-      consistency: 'non-atomic-db-and-storage-export', buckets: [], objects: [],
+      consistency: 'db-storage-inventory-unchanged-during-export',
+      buckets: [], objects: [],
       database: { file: 'database.enc', seal: await encryptedDump(join(archive,'database.enc'),key) } };
     for (const bucket of buckets) {
       if (!/^[A-Za-z0-9_.-]+$/.test(bucket.id))
@@ -245,6 +255,11 @@ async function backup() {
         manifest.objects.push({ bucket: bucket.id, path, file: filename, seal });
       }
     }
+    const finalInventory = await readStorageInventory();
+    const storageCoverage = verifyStorageCoverage(
+      firstInventory, finalInventory, manifest.objects,
+      manifest.buckets.map(b => b.id));
+    manifest.storageCoverage = storageCoverage;
     const manifestSeal = await sealBuffer(Buffer.from(JSON.stringify(manifest)),
       join(archive, 'manifest.enc'), key);
     await writeFile(join(archive, 'backup-meta.json'),
@@ -255,6 +270,8 @@ async function backup() {
     console.log('Encrypted backup and PostgreSQL structure verified; database:',check.databaseBytes,
       'bytes; Storage objects:',check.files,'; buckets:',check.buckets,
       '; PostgreSQL catalog entries:',pgArchive.catalogEntries);
+    console.log('Storage metadata unchanged during export; coverage:',
+      storageCoverage.objects,'objects across',storageCoverage.buckets,'buckets');
     console.log('Private archive folder:',archive);
   } catch (error) {
     await rm(archive, { recursive: true, force: true });
