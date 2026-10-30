@@ -99,26 +99,39 @@ test('oversized or malformed payloads are rejected without side effects', async(
   assert.equal((await f.request('{')).status,400); assert.deepEqual(f.calls,[]);
 });
 
-test('canonical app.inmojco.com origin is enabled in the deployed billing entrypoint', async () => {
+test('billing checkout only accepts official INMOJCO origins and returns to www', async () => {
   const entrypoint = readFileSync('supabase/functions/billing/index.ts', 'utf8');
-  assert.match(entrypoint, /allowedOrigins: \['https:\/\/app\.inmojco\.com'/);
-  assert.match(entrypoint, /appUrl: Deno\.env\.get\('APP_URL'\) \?\? 'https:\/\/www\.inmojco\.com\/'/);
-  const cfg = { ...config, appUrl: 'https://app.inmojco.com/',
-    allowedOrigins: ['https://app.inmojco.com'] };
-  const f = fixture({}, cfg);
-  const body = { organizationId: '20000000-0000-0000-0000-000000000002',
-    planId: '60000000-0000-0000-0000-000000000001',
-    requestKey: '50000000-0000-0000-0000-000000000001' };
-  const result = await f.request(body, '/checkout',
-    { authorization: 'Bearer fixture', origin: 'https://app.inmojco.com' });
-  assert.equal(result.status, 200);
-  assert.equal(result.headers.get('access-control-allow-origin'), 'https://app.inmojco.com');
-  const payload = await result.json();
-  assert.equal(new URL(payload.checkoutUrl).searchParams.get('redirect-url'),
-    'https://app.inmojco.com/?billing=return');
-  const forbidden = await f.request(body, '/checkout',
-    { authorization: 'Bearer fixture', origin: 'https://malicious.example' });
-  assert.equal(forbidden.status, 403);
+  // Even if an old APP_URL secret points to app.inmojco.com, the public
+  // payment return must always use the current canonical domain.
+  assert.match(entrypoint, /appUrl: 'https:\/\/www\.inmojco\.com\/'/);
+  assert.match(entrypoint, /allowedOrigins: \['https:\/\/www\.inmojco\.com', 'https:\/\/inmojco\.com'\]/);
+  assert.doesNotMatch(entrypoint, /allowedOrigins: \['https:\/\/app\.inmojco\.com'/);
+  const canonicalConfig = { ...config, appUrl:'https://www.inmojco.com/',
+    allowedOrigins: ['https://www.inmojco.com','https://inmojco.com'] };
+  const f = fixture({}, canonicalConfig);
+  const body = { organizationId:'20000000-0000-0000-0000-000000000002',
+    planId:'60000000-0000-0000-0000-000000000001',
+    requestKey:'50000000-0000-0000-0000-000000000001' };
+
+  for(const origin of ['https://www.inmojco.com','https://inmojco.com']) {
+    const result = await f.request(body, '/checkout',
+      { authorization:'Bearer fixture', origin });
+    assert.equal(result.status,200);
+    assert.equal(result.headers.get('access-control-allow-origin'),origin);
+    const payload=await result.json();
+    assert.equal(new URL(payload.checkoutUrl).searchParams.get('redirect-url'),
+      'https://www.inmojco.com/?billing=return');
+  }
+  for(const origin of ['https://app.inmojco.com',
+    'https://jonacasotal07-svg-jc-inmobili-production.up.railway.app',
+    'https://malicious.example']) {
+    const result=await f.request(body,'/checkout',
+      {authorization:'Bearer fixture',origin});
+    assert.equal(result.status,403);
+    assert.equal(result.headers.get('access-control-allow-origin'),null);
+  }
+  assert.equal(f.calls.filter(item=>item.kind==='order').length,2,
+    'rejected origins must never create payment orders');
 });
 
 test('plan conflict displays a safe, specific response before any checkout URL exists', async()=> {
