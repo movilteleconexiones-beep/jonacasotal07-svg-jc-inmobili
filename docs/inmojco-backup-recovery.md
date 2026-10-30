@@ -18,7 +18,7 @@ La herramienta ejecuta `verify` y valida el catálogo de PostgreSQL mediante `pg
 ## Preparación (PC o servidor controlado por el propietario)
 
 - Node.js reciente (mínimo Node 20) y `npm ci` en un clon privado local del código.
-- PostgreSQL **17** `pg_dump` instalado y disponible en PATH.
+- Herramientas cliente PostgreSQL **17** (`pg_dump`, `pg_restore` y `psql`) instaladas y disponibles en PATH.
 - Carpeta privada y **fuera del repositorio** (por ejemplo `D:\\INMOJCO-Respaldos`), con acceso restringido y suficiente espacio.
 - Conexión de **solo lectura** a la base si es posible: `PGHOST`, `PGUSER`, `PGDATABASE`, `PGPASSWORD` y `PGSSLMODE=require`. Confirmar que el host o usuario contienen el identificador del proyecto activo; la herramienta rechaza el proyecto antiguo.
 - `SUPABASE_URL=https://cuitgyqrjibgwuniapmk.supabase.co` y **`SUPABASE_SERVICE_ROLE_KEY`**, únicamente en el equipo privado que crea la copia, para leer Storage. La llave nunca va en archivos versionados, un chat, logs ni variables `VITE_*`.
@@ -47,6 +47,40 @@ node scripts/inmojco-backup.mjs backup
 Si la conexión de Supabase requiere un pooler, sus campos PGHOST/PGUSER son diferentes. Verifique la cadena **Session pooler o Direct** en Supabase > Connect; no use el pooler de transacciones para `pg_dump`.
 
 La herramienta crea una carpeta con fecha, y solo muestra **totales**, no nombres de documentos. Si alguna descarga o `pg_dump` falla, aborta y elimina la carpeta incompleta; no informa éxito.
+
+## Cobertura obligatoria de Storage: archivos, versiones y consistencia
+
+El exportador consulta **en modo solo lectura** `storage.buckets` y
+`storage.objects` mediante `psql` justo antes de ejecutar `pg_dump`.
+Al finalizar las descargas privadas vuelve a consultar ambas tablas.
+
+Para declarar el respaldo exitoso exige **todas** estas comprobaciones:
+- Los buckets existentes en PostgreSQL coinciden exactamente con los
+  depósitos enumerados por la API de Storage, incluso si están vacíos.
+- Cada objeto registrado en la base (bucket + ruta) tiene exactamente
+  un archivo cifrado en el manifiesto; no puede faltar ni duplicarse.
+- Los metadatos de todos los archivos (ID, versión, fecha de modificación
+  y huella de metadata) coinciden antes y después de la exportación.
+- PostgreSQL y todos los archivos cifrados superan las verificaciones
+  AES-GCM y SHA-256 y `pg_restore --list` reconoce el volcado.
+
+Si alguien carga un contrato, edita una foto, sustituye un documento o
+elimina un objeto **durante** la exportación, el sistema detecta cambios
+en el inventario y **rechaza la copia completa**, sin conservar carpetas
+parciales. Hay que repetirla en un período de menor actividad.
+
+El sistema solo analiza el inventario en la máquina privada: no envía
+nombres de clientes, rutas de documentos ni información de PostgreSQL a
+GitHub, a Railway o a los logs. Se necesita `psql` además de `pg_dump` y
+`pg_restore`. Una lectura de metadatos SQL exige que el usuario PostgreSQL
+disponga de permiso de consulta sobre `storage.buckets` y `storage.objects`.
+
+**Limitación:** la comparación detecta modificaciones observables en los
+metadatos, pero no equivale a una instantánea atómica de PostgreSQL y
+el almacenamiento de objetos. Tampoco verifica la restauración de datos reales;
+esa fase continúa pendiente de un entorno privado aislado. Los archivos
+cifrados creados con versiones anteriores siguen verificándose, pero no
+pueden acreditar retrospectivamente esta nueva comprobación de cobertura.
 
 ## Verificar una copia ya creada
 
