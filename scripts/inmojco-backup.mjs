@@ -12,11 +12,10 @@
  */
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { Writable } from 'node:stream';
 import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Readable } from 'node:stream';
 import { createClient } from '@supabase/supabase-js';
 import { FORMAT, deriveBackupKey, sealStream, sealBuffer, openEncrypted,
   openEncryptedBuffer } from './lib/inmojco-encrypted-backup.mjs';
@@ -137,6 +136,77 @@ async function readAndVerify(archive, passphrase, extractRoot) {
   }
 }
 
+
+/**
+ * Inspect a PostgreSQL custom-format dump without writing its plaintext to
+ * disk. pg_restore --list parses the archive TOC but never connects to a DB.
+ * This is a structural check, not a test of executing a real restoration.
+ */
+export async function inspectPostgresArchive(archive, passphrase) {
+  const meta = JSON.parse(await readFile(join(archive, 'backup-meta.json'), 'utf8'));
+  if (meta.format !== FORMAT || meta.project !== PROJECT)
+    throw new Error('Invalid archive project or format');
+  const key = deriveBackupKey(passphrase, meta.salt);
+  const manifest = JSON.parse((await openEncryptedBuffer(
+    join(archive, 'manifest.enc'), key, meta.manifestSeal)).toString('utf8'));
+  if (manifest.format !== FORMAT || manifest.project !== PROJECT
+    || manifest.database?.file !== 'database.enc')
+    throw new Error('Invalid database manifest');
+
+  const parser = spawn('pg_restore', ['--list'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  // Do not print pg_restore diagnostics, schema names or private table metadata.
+  parser.stderr.resume();
+  let closedInput = false;
+  parser.stdin.on('error', () => { closedInput = true; });
+  const chunks = [];
+  let outputBytes = 0;
+  let overflow = false;
+  parser.stdout.on('data', chunk => {
+    outputBytes += chunk.length;
+    if (outputBytes > 8 * 1024 * 1024) {
+      overflow = true;
+      parser.kill();
+    } else chunks.push(chunk);
+  });
+  const exit = new Promise((done, reject) => {
+    parser.once('error', () => reject(new Error('pg_restore is not installed')));
+    parser.once('close', code => code === 0
+      ? done() : reject(new Error('pg_restore could not parse the database archive')));
+  });
+  // Some pg_restore versions stop reading at the TOC. Always authenticate
+  // the entire ciphertext even if the consumer stops accepting input early.
+  const sink = new Writable({
+    write(chunk, _encoding, callback) {
+      if (closedInput || parser.stdin.destroyed) { callback(); return; }
+      parser.stdin.write(chunk, error => {
+        if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
+          closedInput = true;
+          callback();
+        } else callback(error);
+      });
+    },
+    final(callback) {
+      if (!closedInput && !parser.stdin.destroyed) parser.stdin.end();
+      callback();
+    },
+  });
+  const completed = await Promise.allSettled([
+    openEncrypted(join(archive, 'database.enc'), key, manifest.database.seal,
+      undefined, sink),
+    exit,
+  ]);
+  if (overflow || completed.some(item => item.status === 'rejected')) {
+    parser.kill();
+    throw new Error('PostgreSQL backup structure or encrypted integrity invalid');
+  }
+  const listing = Buffer.concat(chunks).toString('utf8');
+  const entries = listing.split(/\r?\n/).filter(line => /^\d+;\s/.test(line));
+  const tables = entries.filter(line => /\bTABLE\b/.test(line)).length;
+  if (!entries.length || !tables)
+    throw new Error('PostgreSQL backup contains no recoverable table entries');
+  return { catalogEntries: entries.length, tableEntries: tables };
+}
+
 async function backup() {
   const passphrase = mustHave('INMOJCO_BACKUP_PASSPHRASE');
   const root = await realpath(localPath('INMOJCO_BACKUP_DIR'));
@@ -181,8 +251,10 @@ async function backup() {
       JSON.stringify({ format: FORMAT, project: PROJECT, salt, manifestSeal, createdAt: stamp }),
       { flag: 'wx', mode: 0o600 });
     const check = await readAndVerify(archive, passphrase);
-    console.log('Encrypted local backup verified; database:',check.databaseBytes,
-      'bytes; Storage objects:',check.files,'; buckets:',check.buckets);
+    const pgArchive = await inspectPostgresArchive(archive, passphrase);
+    console.log('Encrypted backup and PostgreSQL structure verified; database:',check.databaseBytes,
+      'bytes; Storage objects:',check.files,'; buckets:',check.buckets,
+      '; PostgreSQL catalog entries:',pgArchive.catalogEntries);
     console.log('Private archive folder:',archive);
   } catch (error) {
     await rm(archive, { recursive: true, force: true });
@@ -193,16 +265,21 @@ async function backup() {
 async function main() {
   const command = process.argv[2];
   if (command === 'backup') await backup();
-  else if (command === 'verify' || command === 'extract') {
+  else if (command === 'verify' || command === 'extract' || command === 'inspect') {
     const archive = localPath('INMOJCO_BACKUP_ARCHIVE');
     outsideRepository(archive);
     const passphrase = mustHave('INMOJCO_BACKUP_PASSPHRASE');
     const target = command === 'extract' ? localPath('INMOJCO_EXTRACT_DIR') : undefined;
     const summary = await readAndVerify(archive, passphrase, target);
-    console.log(command === 'extract' ? 'Decrypted to private folder for ISOLATED restore review.'
-      : 'Cryptographic verification passed.',summary);
-    if (target) console.log('DO NOT restore database.dump into live Supabase.');
-  } else throw new Error('Usage: node scripts/inmojco-backup.mjs backup|verify|extract');
+    if (command === 'inspect') {
+      const toc = await inspectPostgresArchive(archive, passphrase);
+      console.log('Encrypted data verified; PostgreSQL archive catalog readable.',toc);
+    } else {
+      console.log(command === 'extract' ? 'Decrypted to private folder for ISOLATED restore review.'
+        : 'Cryptographic verification passed.',summary);
+      if (target) console.log('DO NOT restore database.dump into live Supabase.');
+    }
+  } else throw new Error('Usage: node scripts/inmojco-backup.mjs backup|verify|inspect|extract');
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { console.error('Backup operation failed:', error.message); process.exitCode = 1; });

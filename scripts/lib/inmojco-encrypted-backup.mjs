@@ -46,14 +46,15 @@ export function validateSeal(seal) {
     throw new Error('Backup manifest contains invalid encrypted-item metadata');
 }
 
-export async function openEncrypted(source, key, seal, outputPath) {
+export async function openEncrypted(source, key, seal, outputPath, outputStream) {
   validateSeal(seal);
   const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(seal.iv, 'hex'));
   decipher.setAuthTag(Buffer.from(seal.tag, 'hex'));
   const m = meter();
-  const output = outputPath
+  if (outputPath && outputStream) throw new Error('Choose a file or stream, not both');
+  const output = outputStream ?? (outputPath
     ? createWriteStream(outputPath, { flags: 'wx', mode: 0o600 })
-    : new Writable({ write(_chunk, _encoding, callback) { callback(); } });
+    : new Writable({ write(_chunk, _encoding, callback) { callback(); } }));
   try {
     await pipeline(createReadStream(source), decipher, m.stream, output);
     const result = m.result();

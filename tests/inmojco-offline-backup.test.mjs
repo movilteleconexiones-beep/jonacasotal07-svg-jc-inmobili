@@ -111,3 +111,49 @@ test('backup always requires local encryption secret and private outside-repo de
   assert.notEqual(result.status,0);
   assert.match(result.stderr,/Missing required local environment variable/);
 });
+
+test('inspect recognizes a genuine PostgreSQL 17 custom archive without restoring data',async()=>{
+  const archive=join(tmp,'real-postgres-dump');
+  await mkdir(archive);
+  await mkdir(join(archive,'objects'));
+  const pg=spawnSync('pg_dump',['--format=custom','--no-password',
+    '--host=localhost','--username=postgres','--dbname=jco_backup_format_test'],
+    { env:{...process.env,PGPASSWORD:'postgres'},maxBuffer:16*1024*1024 });
+  assert.equal(pg.status,0,'CI fixture PostgreSQL pg_dump must succeed');
+  assert.equal(pg.stdout.subarray(0,5).toString(),'PGDMP');
+  const dbSeal=await sealBuffer(pg.stdout,join(archive,'database.enc'),key);
+  const manifest={format:FORMAT,project:'cuitgyqrjibgwuniapmk',
+    database:{file:'database.enc',seal:dbSeal},buckets:[],objects:[]};
+  const manifestSeal=await sealBuffer(Buffer.from(JSON.stringify(manifest)),
+    join(archive,'manifest.enc'),key);
+  await writeFile(join(archive,'backup-meta.json'),JSON.stringify({format:FORMAT,
+    project:'cuitgyqrjibgwuniapmk',salt,manifestSeal}));
+
+  const run=spawnSync(process.execPath,[resolve('scripts/inmojco-backup.mjs'),'inspect'],
+    {env:{...process.env,INMOJCO_BACKUP_ARCHIVE:archive,
+      INMOJCO_BACKUP_PASSPHRASE:passphrase},encoding:'utf8'});
+  assert.equal(run.status,0,run.stderr);
+  assert.match(run.stdout,/PostgreSQL archive catalog readable/);
+  assert.match(run.stdout,/tableEntries: [1-9]/);
+  assert.ok(!(await readFile(join(archive,'database.enc'))).subarray(0,5).equals(Buffer.from('PGDMP')));
+});
+
+test('inspect rejects encrypted garbage even though its GCM/SHA-256 are valid',async()=>{
+  const archive=join(tmp,'garbage-postgres-dump');
+  await mkdir(archive);
+  await mkdir(join(archive,'objects'));
+  const dbSeal=await sealBuffer(Buffer.from('NOT-A-POSTGRES-CUSTOM-DUMP'),
+    join(archive,'database.enc'),key);
+  const manifest={format:FORMAT,project:'cuitgyqrjibgwuniapmk',
+    database:{file:'database.enc',seal:dbSeal},buckets:[],objects:[]};
+  const manifestSeal=await sealBuffer(Buffer.from(JSON.stringify(manifest)),
+    join(archive,'manifest.enc'),key);
+  await writeFile(join(archive,'backup-meta.json'),JSON.stringify({format:FORMAT,
+    project:'cuitgyqrjibgwuniapmk',salt,manifestSeal}));
+  const run=spawnSync(process.execPath,[resolve('scripts/inmojco-backup.mjs'),'inspect'],
+    {env:{...process.env,INMOJCO_BACKUP_ARCHIVE:archive,
+      INMOJCO_BACKUP_PASSPHRASE:passphrase},encoding:'utf8'});
+  assert.notEqual(run.status,0,'a well-encrypted invalid SQL dump must fail inspect');
+  assert.match(run.stderr,/PostgreSQL backup structure or encrypted integrity invalid/);
+  assert.doesNotMatch(run.stderr,/PGDMP|NOT-A-POSTGRES/);
+});

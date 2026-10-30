@@ -225,7 +225,22 @@ jobs:
       - name: Wompi signature verification regression tests
         run: node --import tsx --test tests/wompi-event-verification.test.mjs
       - name: Encrypted INMOJCO database and private Storage offline backup verification
-        run: node --test tests/inmojco-offline-backup.test.mjs
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_format_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_format_test -c "CREATE TABLE backup_fixture(id bigint PRIMARY KEY, document_name text NOT NULL)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_format_test -c "INSERT INTO backup_fixture VALUES (1, 'fictitious contract')"
+          # Use version 17 tools from the local ephemeral PostgreSQL CI service.
+          # Runner-default pg_dump/pg_restore may have an older major version.
+          db_container="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n 1)"
+          test -n "$db_container"
+          mkdir -p "$RUNNER_TEMP/inmojco-pg17-client"
+          for tool in pg_dump pg_restore; do
+            printf '#!/bin/sh\nexec docker exec -i %s %s "$@"\n' "$db_container" "$tool" > "$RUNNER_TEMP/inmojco-pg17-client/$tool"
+            chmod 700 "$RUNNER_TEMP/inmojco-pg17-client/$tool"
+          done
+          PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-offline-backup.test.mjs
       - name: Wompi private-key transaction reconciliation tests
         run: node --import tsx --test tests/wompi-transaction-lookup.test.mjs
       - name: Wompi webhook handler regression tests
