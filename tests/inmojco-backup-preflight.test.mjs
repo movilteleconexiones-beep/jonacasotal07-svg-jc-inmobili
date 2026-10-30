@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, win32 } from 'node:path';
 import { after, test } from 'node:test';
-import { preflightOfflineBackup, validateOfflineTarget } from
+import { preflightOfflineBackup, validateOfflineTarget, assertPathOutsideRepository } from
   '../scripts/lib/inmojco-backup-preflight.mjs';
 
 const repo = resolve('.');
@@ -90,4 +90,30 @@ test('Windows helper prompts for secrets only AFTER preflight and restores sessi
   assert.match(ps,/\$PreviousEnvironment/);
   assert.ok(ps.indexOf('preflight') < ps.indexOf('Read-PrivateValue \'Contrasena PostgreSQL'));
   assert.doesNotMatch(ps,/Write-Host.*\$(env:PGPASSWORD|env:SUPABASE_SERVICE_ROLE_KEY)/i);
+});
+
+test('same path rule permits different Windows drives for export and blocks repository locations',()=>{
+  const root = 'C:\\\\dev\\\\inmojco';
+  const separateDrive = 'D:\\\\INMOJCO-Respaldos';
+  const sameDriveOutside = 'C:\\\\PrivateBackups';
+  const insideCheckout = 'C:\\\\dev\\\\inmojco\\\\private-backup';
+  assert.doesNotThrow(()=>assertPathOutsideRepository(root,separateDrive,win32));
+  assert.doesNotThrow(()=>assertPathOutsideRepository(root,sameDriveOutside,win32));
+  assert.throws(()=>assertPathOutsideRepository(root,insideCheckout,win32),
+    /outside the Git repository/);
+  assert.throws(()=>assertPathOutsideRepository(root,root,win32),
+    /outside the Git repository/);
+});
+
+test('verify rejects an external symlink pointing inside Git before asking for any secrets',async()=>{
+  if(process.platform==='win32') return; // Windows often requires elevated symlink privilege.
+  const outside=join(directory,'redirect-to-repo');
+  await symlink(repo,outside,'dir');
+  const r=spawnSync(process.execPath,[resolve('scripts/inmojco-backup.mjs'),'verify'],{
+    env:{...process.env,INMOJCO_BACKUP_ARCHIVE:outside,
+      INMOJCO_BACKUP_PASSPHRASE:'an-example-fixture-not-a-user-secret'},
+    encoding:'utf8',
+  });
+  assert.notEqual(r.status,0);
+  assert.match(r.stderr,/outside the Git repository/);
 });
