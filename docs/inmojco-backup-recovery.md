@@ -11,7 +11,7 @@ La herramienta `scripts/inmojco-backup.mjs` crea una carpeta privada con:
 - `manifest.enc`: índice cifrado de nombres de bucket, rutas originales, tamaño y SHA-256 de cada archivo. El fichero no cifrado `backup-meta.json` contiene únicamente versión, proyecto, fecha, salt e información de autenticación criptográfica.
 - Cifrado **AES-256-GCM** con nonce aleatorio por archivo y clave derivada usando **scrypt** + salt aleatoria. Cada archivo se autentica al verificarse; una modificación o contraseña incorrecta falla.
 
-La herramienta ejecuta `verify` sobre el resultado antes de anunciar éxito. No copia **secretos de Railway, contraseñas de roles de base de datos, configuración del dashboard Supabase, variables de funciones Edge, reglas de DNS ni configuración externa de Wompi**. No sustituye los backups oficiales de Supabase, ni garantiza una instantánea perfectamente sincronizada entre PostgreSQL y Storage cuando hay operaciones simultáneas.
+La herramienta ejecuta `verify` y valida el catálogo de PostgreSQL mediante `pg_restore --list` antes de anunciar éxito. No copia **secretos de Railway, contraseñas de roles de base de datos, configuración del dashboard Supabase, variables de funciones Edge, reglas de DNS ni configuración externa de Wompi**. No sustituye los backups oficiales de Supabase, ni garantiza una instantánea perfectamente sincronizada entre PostgreSQL y Storage cuando hay operaciones simultáneas.
 
 **No se puede afirmar todavía que existe un respaldo integral recuperable o un ensayo real de restauración.** Hace falta completar una exportación y un restore en un proyecto **aislado**, con autorización para ese entorno; nunca ensayar restaurando encima de producción.
 
@@ -58,6 +58,28 @@ node scripts/inmojco-backup.mjs verify
 ```
 
 Se comprueban todas las etiquetas de autenticación AES-GCM, las longitudes y los SHA-256 de la base y de **cada objeto**. Un error en cualquiera de ellos impide marcar la copia como válida.
+
+## Inspección del archivo PostgreSQL sin recuperar datos en producción
+
+Además de la validación criptográfica, desde la versión actual el comando `backup`
+exige que `pg_restore --list` reconozca el archivo PostgreSQL y sus entradas de
+tablas. Si el volcado resulta ilegible, se considera un **respaldo fallido**,
+aunque AES-GCM y SHA-256 sean correctos. La comprobación no se conecta
+a ninguna base de datos y **no crea archivos SQL descifrados en disco**.
+
+Para volver a comprobar una copia histórica en su equipo:
+
+```powershell
+$env:INMOJCO_BACKUP_ARCHIVE = 'D:\INMOJCO-Respaldos\inmojco-FECHA-IDENTIFICADOR'
+node scripts/inmojco-backup.mjs inspect
+```
+
+El comando muestra solo **cantidades de entradas y tablas**; nunca imprime
+nombres de propietarios, contratos, tablas ni metadatos privados. Requiere
+`pg_restore` de PostgreSQL 17 en el PATH. El chequeo del catálogo mejora la
+confianza en el formato de la copia, **pero no prueba que restaurar y arrancar
+toda la aplicación en una instancia nueva funcione**. Esa prueba real en un
+ambiente aislado sigue siendo obligatoria antes de certificar recuperación.
 
 ## Preparar material para restauración (NUNCA sobre producción)
 
