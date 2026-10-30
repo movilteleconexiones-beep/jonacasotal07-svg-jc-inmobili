@@ -13,7 +13,11 @@ con contraseñas ni editar archivos de configuración. El programa
    **Node.js 20+**, PostgreSQL cliente **17** (incluido `psql`, `pg_dump`,
    `pg_restore`) y ejecute `npm ci` desde la carpeta del repositorio.
 2. Cree una **carpeta privada fuera del repositorio**, preferiblemente en un
-   disco independiente, con permisos restringidos y espacio libre suficiente.
+   disco independiente (por ejemplo, una unidad **D:** diferente de la unidad
+   **C:** que contiene el código), con permisos restringidos y espacio libre
+   suficiente. Preflight y exportador aplican la **misma regla de rutas**:
+   aceptan unidades diferentes, pero rechazan carpetas dentro del proyecto
+   y enlaces simbólicos que conduzcan a él.
    El respaldo se genera allí, no en GitHub ni en Railway.
 3. Abra PowerShell en la carpeta del repositorio y ejecute el asistente:
 

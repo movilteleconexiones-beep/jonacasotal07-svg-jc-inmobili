@@ -32,12 +32,20 @@ export function validateOfflineTarget(env, directory, repository) {
     throw rejection('a secure PostgreSQL SSL mode is required');
   if (!env.INMOJCO_BACKUP_DIR || !directory)
     throw rejection('an existing absolute private backup folder is required');
-  const toRepo = relative(repository, directory);
-  // On Windows, node:path.relative() returns an ABSOLUTE path for a
-  // destination on a different drive (e.g. C: checkout vs D: backups).
-  // That case is safe and must not be rejected.
+  assertPathOutsideRepository(repository, directory);
+
+}
+
+/**
+ * A single path rule shared by the private preflight and the real exporter.
+ * On Windows, a destination on a DIFFERENT drive returns an absolute relative
+ * path; this is safe and must be accepted. Callers must resolve symlinks first.
+ */
+export function assertPathOutsideRepository(repository, directory,
+  pathApi = { relative, isAbsolute }) {
+  const toRepo = pathApi.relative(repository, directory);
   const outside = toRepo === '..' || toRepo.startsWith('../')
-    || toRepo.startsWith('..\\') || isAbsolute(toRepo);
+    || toRepo.startsWith('..\\') || pathApi.isAbsolute(toRepo);
   if (!toRepo || !outside)
     throw rejection('the backup location must be outside the Git repository');
 }

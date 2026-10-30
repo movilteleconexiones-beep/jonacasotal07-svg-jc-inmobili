@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after, test } from 'node:test';
@@ -103,6 +103,18 @@ test('offline verify and extract work with an encrypted DB plus private Storage 
   const second=spawnSync(process.execPath,[script,'extract'],
     {env:{...env,INMOJCO_EXTRACT_DIR:dir},encoding:'utf8'});
   assert.notEqual(second.status,0,'must never overwrite a previous plaintext extraction');
+  if (process.platform !== 'win32') {
+    // A deceptive external link pointing to the repository must not allow
+    // plaintext contracts to leak into source control during extraction.
+    const redirection=join(tmp,'external-repo-redirect');
+    await symlink(resolve('.'),redirection,'dir');
+    const blocked=spawnSync(process.execPath,[script,'extract'],{
+      env:{...env,INMOJCO_EXTRACT_DIR:join(redirection,'never-write-private-documents')},
+      encoding:'utf8',
+    });
+    assert.notEqual(blocked.status,0);
+    assert.match(blocked.stderr,/outside the Git repository/);
+  }
 });
 
 test('backup always requires local encryption secret and private outside-repo destination',()=>{

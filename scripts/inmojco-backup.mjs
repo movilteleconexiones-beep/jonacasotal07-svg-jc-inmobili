@@ -14,10 +14,10 @@ import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { Writable } from 'node:stream';
 import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
-import { preflightOfflineBackup } from './lib/inmojco-backup-preflight.mjs';
+import { preflightOfflineBackup, assertPathOutsideRepository } from './lib/inmojco-backup-preflight.mjs';
 import { readStorageInventory, verifyStorageCoverage } from './lib/inmojco-storage-inventory.mjs';
 import { FORMAT, deriveBackupKey, sealStream, sealBuffer, openEncrypted,
   openEncryptedBuffer } from './lib/inmojco-encrypted-backup.mjs';
@@ -39,9 +39,8 @@ function localPath(name) {
 }
 
 function outsideRepository(path) {
-  const rel = relative(projectRoot, path);
-  if (!rel || (rel !== '..' && !rel.startsWith('../') && !rel.startsWith('..\\')))
-    throw new Error('Refusing to put private backup files inside the source repository');
+  // Share exactly the same rule with preflight, including different Windows drives.
+  assertPathOutsideRepository(projectRoot, path);
 }
 
 export async function listStorageObjects(storage, bucket, prefix = '', seen = new Set()) {
@@ -108,7 +107,10 @@ async function readAndVerify(archive, passphrase, extractRoot) {
   let createdExtraction = false;
   try {
   if (extractRoot) {
-    outsideRepository(extractRoot);
+    // Refuse destination symlinks that would secretly resolve into source code.
+    // The extraction directory must not exist, so resolve its parent instead.
+    const realParent = await realpath(dirname(extractRoot));
+    outsideRepository(join(realParent, basename(extractRoot)));
     await mkdir(extractRoot, { mode: 0o700 }); // Must not exist.
     createdExtraction = true;
     await mkdir(join(extractRoot, 'objects'), { mode: 0o700 });
@@ -294,7 +296,8 @@ async function main() {
   } else if (command === 'backup') await backup();
   else if (command === 'verify' || command === 'extract' || command === 'inspect') {
     const archive = localPath('INMOJCO_BACKUP_ARCHIVE');
-    outsideRepository(archive);
+    // Resolve a symlinked archive before accessing any private backup bytes.
+    outsideRepository(await realpath(archive));
     const passphrase = mustHave('INMOJCO_BACKUP_PASSPHRASE');
     const target = command === 'extract' ? localPath('INMOJCO_EXTRACT_DIR') : undefined;
     const summary = await readAndVerify(archive, passphrase, target);
