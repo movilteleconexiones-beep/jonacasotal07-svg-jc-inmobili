@@ -6,6 +6,7 @@ on:
       - 'tests/security/plan-capacity-migration.test.mjs'
       - '.github/workflows/plan-capacity-static.yml'
       - 'tests/security/plan-capacity-postgres.sql'
+      - 'tests/security/plan-capacity-patch-postgres.sql'
   workflow_dispatch:
 permissions:
   contents: read
@@ -38,3 +39,5 @@ jobs:
           node-version: '22'
       - run: node --test tests/security/plan-capacity-migration.test.mjs
       - run: psql -v ON_ERROR_STOP=1 -f tests/security/plan-capacity-postgres.sql
+      - run: psql -v ON_ERROR_STOP=1 -d postgres -c 'CREATE DATABASE ci_patch_capacity'
+      - run: psql -v ON_ERROR_STOP=1 -d ci_patch_capacity -f tests/security/plan-capacity-patch-postgres.sql
