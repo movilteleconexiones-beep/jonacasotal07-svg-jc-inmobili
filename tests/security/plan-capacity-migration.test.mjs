@@ -38,5 +38,5 @@ test('denies publicly callable helper functions', () => {
 });
 
 test('stops if privileged RPC definitions drift', () => {
-  assert.equal((migration.match(/RAISE EXCEPTION 'Unexpected % definition'/g) || []).length, 3);
+  assert.equal((migration.match(/RAISE EXCEPTION 'Unexpected % definition'/g) || []).length, 4);
 });
