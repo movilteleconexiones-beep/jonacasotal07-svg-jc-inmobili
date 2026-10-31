@@ -197,7 +197,7 @@ jobs:
 
           # Even a settings.edit tenant cannot change activation, plan,
           # identifiers or record origin, and an anonymous caller cannot edit.
-          for col in "status='SUSPENDED'" "plan_id='$beta'" "id='$beta'" "created_at=now()"; do
+          for col in "status='SUSPENDED'" "plan_id='$beta'" "slug='reserved-admin'" "id='$beta'" "created_at=now()"; do
             if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','$editor',false); UPDATE public.organizations SET $col WHERE id='$alpha'" > "$RUNNER_TEMP/org-permission-denied.log" 2>&1; then
               echo "ERROR: authenticated tenant may overwrite protected column $col"; exit 1
             fi
@@ -207,6 +207,16 @@ jobs:
             echo 'ERROR: anonymous tenant editing unexpectedly allowed'; exit 1
           fi
           grep -qi 'permission denied' "$RUNNER_TEMP/org-permission-denied.log"
+
+          # The actual SettingsModule uses a privileged owner-only slug RPC;
+          # direct tenant UPDATE(slug) must fail without breaking that workflow.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','$editor',false); SELECT public.set_organization_public_slug('$alpha','new-alpha-url');"
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT slug FROM public.organizations WHERE id='$alpha'" | grep -qx 'new-alpha-url'
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false); SELECT public.set_organization_public_slug('$alpha','impostor-url');" > "$RUNNER_TEMP/org-permission-denied.log" 2>&1; then
+            echo 'ERROR: a non-owner changed public slug through the RPC'; exit 1
+          fi
+          grep -qi 'Only organization owner' "$RUNNER_TEMP/org-permission-denied.log"
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT slug FROM public.organizations WHERE id='$alpha'" | grep -qx 'new-alpha-url'
 
           # Application SuperAdmin's SECURITY DEFINER / server owner still
           # retains plan and status control without client column grants.
