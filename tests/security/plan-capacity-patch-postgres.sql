@@ -30,6 +30,7 @@ RETURNS text LANGUAGE plpgsql AS $f$
 DECLARE reason text; org record; payment record;
 BEGIN
   reason:=CASE
+      WHEN false THEN 'ignored'
       ELSE NULL END;
   RETURN 'processed';
 END
