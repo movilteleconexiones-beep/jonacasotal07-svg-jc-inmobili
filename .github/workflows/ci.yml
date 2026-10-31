@@ -166,6 +166,64 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261030203000_verified_email_invitation_claims.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/verified_invitation_claim_assertions.sql
 
+      - name: Tenant organization commercial column ACL and branding regression (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_org_commercial_acl_test
+          alpha='11111111-1111-4111-8111-111111111111'
+          beta='22222222-2222-4222-8222-222222222222'
+          editor='33333333-3333-4333-8333-333333333333'
+          sql=supabase/migrations/20261030222000_restrict_organization_commercial_updates.sql
+          gate=security/reviews/organization_commercial_columns_acl_gate.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/organization_commercial_acl_fixture.sql
+
+          # Prove the original table-wide UPDATE was exploitable by an
+          # authorized tenant editor even though another tenant's row was RLS-isolated.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','$editor',false); UPDATE public.organizations SET status='SUSPENDED',plan_id='$beta' WHERE id='$alpha';"
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT status FROM public.organizations WHERE id='$alpha'" | grep -qx SUSPENDED
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "UPDATE public.organizations SET status='ACTIVE',plan_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' WHERE id='$alpha'"
+
+          # Apply ONLY the proposed column privilege migration to the fixture.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$sql"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate"
+
+          # Legitimate agency branding remains writable, but only its own.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','$editor',false); UPDATE public.organizations SET name='New Alpha Name',logo_url='https://example.invalid/logo.png',updated_at=now() WHERE id='$alpha'; UPDATE public.organizations SET name='SHOULD_NOT_CHANGE' WHERE id='$beta';"
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT name FROM public.organizations WHERE id='$alpha'" | grep -qx 'New Alpha Name'
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT name FROM public.organizations WHERE id='$beta'" | grep -qx 'Tenant Beta'
+
+          # Even a settings.edit tenant cannot change activation, plan,
+          # identifiers or record origin, and an anonymous caller cannot edit.
+          for col in "status='SUSPENDED'" "plan_id='$beta'" "slug='reserved-admin'" "id='$beta'" "created_at=now()"; do
+            if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','$editor',false); UPDATE public.organizations SET $col WHERE id='$alpha'" > "$RUNNER_TEMP/org-permission-denied.log" 2>&1; then
+              echo "ERROR: authenticated tenant may overwrite protected column $col"; exit 1
+            fi
+            grep -qi 'permission denied' "$RUNNER_TEMP/org-permission-denied.log"
+          done
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE anon; UPDATE public.organizations SET name='EVIL' WHERE id='$alpha'" > "$RUNNER_TEMP/org-permission-denied.log" 2>&1; then
+            echo 'ERROR: anonymous tenant editing unexpectedly allowed'; exit 1
+          fi
+          grep -qi 'permission denied' "$RUNNER_TEMP/org-permission-denied.log"
+
+          # The actual SettingsModule uses a privileged owner-only slug RPC;
+          # direct tenant UPDATE(slug) must fail without breaking that workflow.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','$editor',false); SELECT public.set_organization_public_slug('$alpha','new-alpha-url');"
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT slug FROM public.organizations WHERE id='$alpha'" | grep -qx 'new-alpha-url'
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','44444444-4444-4444-8444-444444444444',false); SELECT public.set_organization_public_slug('$alpha','impostor-url');" > "$RUNNER_TEMP/org-permission-denied.log" 2>&1; then
+            echo 'ERROR: a non-owner changed public slug through the RPC'; exit 1
+          fi
+          grep -qi 'Only organization owner' "$RUNNER_TEMP/org-permission-denied.log"
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT slug FROM public.organizations WHERE id='$alpha'" | grep -qx 'new-alpha-url'
+
+          # Application SuperAdmin's SECURITY DEFINER / server owner still
+          # retains plan and status control without client column grants.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "UPDATE public.organizations SET plan_id='$beta',status='SUSPENDED' WHERE id='$alpha'"
+          psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SELECT status FROM public.organizations WHERE id='$alpha'" | grep -qx SUSPENDED
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate"
+
       - name: TypeScript validation
         run: npm run lint
       - name: Public portal SPA stylesheet and cache integration (Caddy)
