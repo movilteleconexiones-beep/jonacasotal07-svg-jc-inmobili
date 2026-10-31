@@ -234,7 +234,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </div>
     )}
 
-    {canActivate && can(PERMISSIONS.DOCUMENTS_VIEW) && (
+    {can(PERMISSIONS.LEASES_EDIT) && can(PERMISSIONS.DOCUMENTS_VIEW) && (
       <section className="rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Corrección administrativa de contratos activos">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
