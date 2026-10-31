@@ -111,3 +111,29 @@ DO $t$ BEGIN
  THEN RAISE EXCEPTION 'Real Wompi RPC was not patched'; END IF;
 END $t$;
 SELECT 'full Wompi RPC compiles with migration in isolated postgres' AS result;
+
+DO $checks$
+DECLARE org uuid:='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+        basic uuid:='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
+        pro uuid:='cccccccc-cccc-4ccc-cccc-cccccccccccc';
+        ord uuid:='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+        response text;
+BEGIN
+ INSERT INTO public.plans VALUES(basic,true,5,200),(pro,true,25,2000);
+ INSERT INTO public.organizations(id,plan_id,status) VALUES(org,pro,'ACTIVE');
+ INSERT INTO public.organization_billing_access(organization_id,requires_payment,is_test) VALUES(org,true,true);
+ INSERT INTO public.billing_activation_settings VALUES(true,'VERIFIED_PAYMENT',true,false);
+ INSERT INTO public.organization_members(id,organization_id,status,external_only)
+ SELECT ('00000000-0000-4000-8000-'||lpad(g::text,12,'0'))::uuid,org,'ACTIVE',false FROM generate_series(1,6) g;
+ INSERT INTO public.payment_orders(id,organization_id,plan_id,reference,environment,amount_in_cents,currency,status,expires_at,billing_mode,permission_keys,fulfillment_status)
+ VALUES(ord,org,basic,'integration-order','sandbox',990000,'COP','PENDING',now()+interval '1 day','SAAS_MONTHLY',ARRAY['properties.view'],'PENDING');
+ response:=public.process_verified_payment_event('integration-order','transaction-01',990000,'COP','APPROVED','sandbox',repeat('a',64),repeat('b',64));
+ IF response <> 'processed' THEN RAISE EXCEPTION 'Real RPC did not process approved payment: %',response; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.payment_orders WHERE id=ord AND status='APPROVED' AND fulfillment_status='REVIEW_REQUIRED' AND review_reason='plan_capacity_review')
+ THEN RAISE EXCEPTION 'Real RPC did not retain approved payment for capacity review'; END IF;
+ IF (SELECT plan_id FROM public.organizations WHERE id=org)<>pro THEN RAISE EXCEPTION 'Incompatible plan became active'; END IF;
+ IF public.process_verified_payment_event('integration-order','transaction-01',990000,'COP','APPROVED','sandbox',repeat('a',64),repeat('b',64))<>'duplicate'
+ THEN RAISE EXCEPTION 'Real RPC duplicate detection failed'; END IF;
+ IF (SELECT count(*) FROM public.payment_events WHERE payment_order_id=ord)<>1 THEN RAISE EXCEPTION 'Payment event duplicated'; END IF;
+END $checks$;
+SELECT 'real payment RPC review + idempotency verified' AS result;
