@@ -27,18 +27,19 @@ $preflight$;
 -- Table-level UPDATE allows modifying EVERY column, even when RLS restricts
 -- the row. It must be removed BEFORE narrower column-level privileges apply.
 REVOKE UPDATE ON TABLE public.organizations FROM anon,authenticated;
-REVOKE UPDATE(id,plan_id,status,created_at) ON TABLE public.organizations
+REVOKE UPDATE(id,slug,plan_id,status,created_at) ON TABLE public.organizations
   FROM anon,authenticated;
 
 -- A tenant with settings.edit can still customize its own identity and
 -- contact details. Its RLS policy continues to scope changes to its tenant.
-GRANT UPDATE(name,slug,legal_name,tax_id,email,phone,whatsapp,logo_url,updated_at)
+GRANT UPDATE(name,legal_name,tax_id,email,phone,whatsapp,logo_url,updated_at)
   ON TABLE public.organizations TO authenticated;
 
 DO $postcondition$
 BEGIN
   IF has_column_privilege('authenticated','public.organizations','plan_id','UPDATE')
     OR has_column_privilege('authenticated','public.organizations','status','UPDATE')
+    OR has_column_privilege('authenticated','public.organizations','slug','UPDATE')
     OR has_column_privilege('authenticated','public.organizations','id','UPDATE')
     OR has_column_privilege('authenticated','public.organizations','created_at','UPDATE')
     OR has_any_column_privilege('anon','public.organizations','UPDATE') THEN
