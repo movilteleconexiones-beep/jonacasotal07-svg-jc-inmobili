@@ -24,13 +24,16 @@ La migración
 1. Revoca el `UPDATE` global de `anon` y `authenticated` en
    `public.organizations`.
 2. Revoca expresamente permisos directos sobre `id`, `created_at`,
-   `plan_id` y `status`.
+   `plan_id`, `status` y `slug`.
 3. Concede `UPDATE` **solo** a `authenticated` sobre los datos
-   operativos del portal: `name`, `slug`, `legal_name`, `tax_id`,
+   operativos del portal: `name`, `legal_name`, `tax_id`,
    `email`, `phone`, `whatsapp`, `logo_url` y `updated_at`.
-4. Mantiene las políticas RLS que limitan la actualización a una
+4. Mantiene el cambio de URL pública exclusivamente por la RPC
+   `set_organization_public_slug`, que exige propietario activo,
+   valida nombres reservados y deja auditoría.
+5. Mantiene las políticas RLS que limitan la actualización a una
    inmobiliaria administrada por el usuario con `settings.edit`.
-5. Conserva el permiso de `service_role` y los procedimientos privilegiados
+6. Conserva el permiso de `service_role` y los procedimientos privilegiados
    de facturación para actualizar `plan_id` o `status`.
 
 La interfaz operativa del administrador utiliza
@@ -47,8 +50,10 @@ estado o plan con el permiso antiguo y luego aplica la migración:
 
 - La misma cuenta puede seguir actualizando nombre y logo **solo** en
   su inmobiliaria.
-- `plan_id`, `status`, `id` y `created_at` dejan de ser editables
+- `plan_id`, `status`, `slug`, `id` y `created_at` dejan de ser editables
   directamente por `authenticated`.
+- El propietario conserva el cambio de URL mediante la RPC auditada;
+  ningún administrador puede saltarse su validación con un UPDATE directo.
 - `anon` no puede modificar datos de organizaciones.
 - La otra inmobiliaria no es editable (se conserva RLS por tenant).
 - Las funciones administrativas propietarias y `service_role`
