@@ -1,0 +1,19 @@
+name: Plan capacity migration static checks
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261031090000_guard_plan_capacity_for_billing.sql'
+      - 'tests/security/plan-capacity-migration.test.mjs'
+      - '.github/workflows/plan-capacity-static.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-capacity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/security/plan-capacity-migration.test.mjs
