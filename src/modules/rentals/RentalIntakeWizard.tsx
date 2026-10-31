@@ -222,6 +222,18 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </p>
     </header>
 
+    {canActivate && step !== 2 && (
+      <div className="rounded-xl border border-stone-200 bg-white p-3">
+        <button type="button" onClick={() => setStep(2)}
+          className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-slate-900">
+          Corregir o anular contrato en borrador
+        </button>
+        <p className="mt-2 text-xs text-slate-600">
+          Abre el paso Contrato para revisar los borradores existentes sin crear otro registro.
+        </p>
+      </div>
+    )}
+
     {canActivate && can(PERMISSIONS.DOCUMENTS_VIEW) && (
       <section className="rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Corrección administrativa de contratos activos">
         <div className="flex flex-wrap items-center justify-between gap-3">
