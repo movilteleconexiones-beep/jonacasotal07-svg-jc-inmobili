@@ -3,13 +3,13 @@ DO $check$
 BEGIN
  IF has_column_privilege('authenticated','public.organizations','plan_id','UPDATE')
    OR has_column_privilege('authenticated','public.organizations','status','UPDATE')
+   OR has_column_privilege('authenticated','public.organizations','slug','UPDATE')
    OR has_column_privilege('authenticated','public.organizations','id','UPDATE')
    OR has_column_privilege('authenticated','public.organizations','created_at','UPDATE')
    OR has_any_column_privilege('anon','public.organizations','UPDATE') THEN
    RAISE EXCEPTION 'Untrusted API role has direct organization commercial UPDATE privilege';
  END IF;
  IF NOT has_column_privilege('authenticated','public.organizations','name','UPDATE')
-    OR NOT has_column_privilege('authenticated','public.organizations','slug','UPDATE')
     OR NOT has_column_privilege('authenticated','public.organizations','logo_url','UPDATE')
     OR NOT has_column_privilege('authenticated','public.organizations','email','UPDATE')
     OR NOT has_column_privilege('authenticated','public.organizations','updated_at','UPDATE') THEN
