@@ -155,6 +155,17 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION $payment SET search_path=''"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate"
 
+      - name: Verified email invitation acceptance and tenant isolation (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_verified_invitation_claims_test
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/verified_invitation_claim_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261030203000_verified_email_invitation_claims.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/verified_invitation_claim_assertions.sql
+
       - name: TypeScript validation
         run: npm run lint
       - name: Public portal SPA stylesheet and cache integration (Caddy)
