@@ -34,6 +34,17 @@ BEGIN
  EXCEPTION WHEN unique_violation THEN duplicate_rejected:=true;
  END;
  IF NOT duplicate_rejected THEN RAISE EXCEPTION 'Duplicate RENEWAL contract allowed next to ACTIVE'; END IF;
+ -- Updates must not bypass the unique constraint either.
+ INSERT INTO public.leases(organization_id,property_id,status)
+ VALUES(org,'dddddddd-dddd-4ddd-8ddd-dddddddddddd','DRAFT');
+ duplicate_rejected:=false;
+ BEGIN
+   UPDATE public.leases SET property_id=property, status='ACTIVE'
+   WHERE organization_id=org AND property_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+ EXCEPTION WHEN unique_violation THEN duplicate_rejected:=true;
+ END;
+ IF NOT duplicate_rejected THEN RAISE EXCEPTION 'Editing a contract bypassed occupied property uniqueness'; END IF;
+ DELETE FROM public.leases WHERE organization_id=org AND property_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
  -- Another organization can have the same property UUID without violating this index.
  INSERT INTO public.leases(organization_id,property_id,status) VALUES(org2,property,'ACTIVE');
  UPDATE public.leases SET status='TERMINATED' WHERE organization_id=org;
