@@ -1,7 +1,19 @@
 -- CI ONLY: PostgreSQL 17 temporary database; no real Supabase data.
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE authenticated NOLOGIN;
-CREATE ROLE service_role NOLOGIN;
+-- Roles live at the CLUSTER level; another CI fixture may have created
+-- anon and authenticated in an earlier disposable database.
+DO $roles$
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='anon') THEN
+   CREATE ROLE anon NOLOGIN;
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticated') THEN
+   CREATE ROLE authenticated NOLOGIN;
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='service_role') THEN
+   CREATE ROLE service_role NOLOGIN;
+ END IF;
+END
+$roles$;
 
 DO $fixture$
 DECLARE rec record;
