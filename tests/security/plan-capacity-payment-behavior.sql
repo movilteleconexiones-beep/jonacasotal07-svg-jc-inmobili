@@ -50,5 +50,34 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.organizations WHERE id=org AND plan_id=pro) THEN RAISE EXCEPTION 'Incompatible downgrade activated'; END IF;
  IF public.fixture_process_approved('fixture-order','event-1')<>'duplicate' THEN RAISE EXCEPTION 'Duplicate event not idempotent'; END IF;
  IF (SELECT count(*) FROM public.payment_events WHERE order_id=ord)<>1 THEN RAISE EXCEPTION 'Repeated event inserted'; END IF;
+
+ -- A new payment must also be retained when property capacity alone is exceeded.
+ UPDATE public.organization_members SET status='INACTIVE'
+ WHERE id='00000000-0000-4000-8000-000000000006';
+ INSERT INTO public.properties(organization_id) SELECT org FROM generate_series(1,201);
+ INSERT INTO public.payment_orders(id,organization_id,plan_id,reference)
+ VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',org,basic,'property-limit-order');
+ IF public.fixture_process_approved('property-limit-order','event-2')<>'processed'
+ THEN RAISE EXCEPTION 'Property over-limit event failed'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.payment_orders
+   WHERE reference='property-limit-order' AND status='APPROVED'
+     AND fulfillment_status='REVIEW_REQUIRED' AND review_reason='plan_capacity_review')
+ THEN RAISE EXCEPTION 'Property over-limit payment was not preserved'; END IF;
+ IF (SELECT plan_id FROM public.organizations WHERE id=org)<>pro
+ THEN RAISE EXCEPTION 'Property over-limit plan activated incorrectly'; END IF;
+
+ -- After removing exactly one property the same plan can be activated by a new order.
+ DELETE FROM public.properties WHERE id=(SELECT min(id) FROM public.properties WHERE organization_id=org);
+ INSERT INTO public.payment_orders(id,organization_id,plan_id,reference)
+ VALUES ('ffffffff-ffff-4fff-8fff-ffffffffffff',org,basic,'within-capacity-order');
+ IF public.fixture_process_approved('within-capacity-order','event-3')<>'processed'
+ THEN RAISE EXCEPTION 'Within-capacity event failed'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.payment_orders WHERE reference='within-capacity-order'
+   AND status='APPROVED' AND fulfillment_status='APPLIED' AND review_reason IS NULL)
+ THEN RAISE EXCEPTION 'Within-capacity payment not fulfilled'; END IF;
+ IF (SELECT plan_id FROM public.organizations WHERE id=org)<>basic
+ THEN RAISE EXCEPTION 'Allowed plan was not activated'; END IF;
+ IF (SELECT count(*) FROM public.payment_events)<>3
+ THEN RAISE EXCEPTION 'Unexpected event duplication'; END IF;
 END $t$;
 SELECT 'payment review behavioral fixture passed';
