@@ -92,5 +92,26 @@ BEGIN
              WHERE organization_id=org AND property_id='eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee') THEN
    RAISE EXCEPTION 'Failed bulk insert left a partial contract behind';
  END IF;
+ -- Reopening two historical contracts in a single UPDATE must fail atomically.
+ -- This covers batch status changes even when neither row was open beforehand.
+ INSERT INTO public.leases(organization_id,property_id,status)
+ VALUES (org,'ffffffff-ffff-4fff-8fff-ffffffffffff','TERMINATED'),
+        (org,'ffffffff-ffff-4fff-8fff-ffffffffffff','TERMINATED');
+ duplicate_rejected:=false;
+ BEGIN
+   UPDATE public.leases SET status='ACTIVE'
+    WHERE organization_id=org
+      AND property_id='ffffffff-ffff-4fff-8fff-ffffffffffff';
+ EXCEPTION WHEN unique_violation THEN duplicate_rejected:=true;
+ END;
+ IF NOT duplicate_rejected THEN
+   RAISE EXCEPTION 'Bulk UPDATE reopened duplicate historical contracts';
+ END IF;
+ IF (SELECT count(*) FROM public.leases
+     WHERE organization_id=org
+       AND property_id='ffffffff-ffff-4fff-8fff-ffffffffffff'
+       AND status='TERMINATED')<>2 THEN
+   RAISE EXCEPTION 'Failed bulk UPDATE changed historical contracts';
+ END IF;
 END $test$;
 SELECT 'lease active/open uniqueness checks passed' AS result;
