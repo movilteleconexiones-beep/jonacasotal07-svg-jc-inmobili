@@ -51,5 +51,30 @@ BEGIN
  -- A different property of the same organization must remain independently usable.
  INSERT INTO public.leases(organization_id,property_id,status)
  VALUES (org,'dddddddd-dddd-4ddd-dddd-dddddddddddd','ACTIVE');
+ -- Reassigning a different property's ACTIVE contract to an occupied property
+ -- must fail without silently altering its property_id.
+ duplicate_rejected:=false;
+ BEGIN
+   UPDATE public.leases SET property_id=property
+    WHERE organization_id=org AND property_id='dddddddd-dddd-4ddd-dddd-dddddddddddd';
+ EXCEPTION WHEN unique_violation THEN duplicate_rejected:=true;
+ END;
+ IF NOT duplicate_rejected THEN RAISE EXCEPTION 'UPDATE moved ACTIVE contract onto occupied property'; END IF;
+ IF (SELECT count(*) FROM public.leases WHERE organization_id=org
+      AND property_id='dddddddd-dddd-4ddd-dddd-dddddddddddd' AND status='ACTIVE')<>1 THEN
+   RAISE EXCEPTION 'Failed property reassignment changed original contract';
+ END IF;
+ -- Reassigning an ACTIVE contract from another organization to an occupied
+ -- (organization_id,property_id) pair must also be rejected.
+ duplicate_rejected:=false;
+ BEGIN
+   UPDATE public.leases SET organization_id=org
+    WHERE organization_id=org2 AND property_id=property;
+ EXCEPTION WHEN unique_violation THEN duplicate_rejected:=true;
+ END;
+ IF NOT duplicate_rejected THEN RAISE EXCEPTION 'UPDATE moved contract across organizations onto occupied property'; END IF;
+ IF (SELECT count(*) FROM public.leases WHERE organization_id=org2 AND property_id=property AND status='ACTIVE')<>1 THEN
+   RAISE EXCEPTION 'Failed organization reassignment changed original contract';
+ END IF;
 END $test$;
 SELECT 'lease active/open uniqueness checks passed' AS result;
