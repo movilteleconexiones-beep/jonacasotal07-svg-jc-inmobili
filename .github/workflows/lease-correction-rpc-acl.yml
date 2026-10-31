@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'tests/security/lease-correction-rpc-acl.sql'
+      - 'tests/security/lease-correction-role-behavior.sql'
       - '.github/workflows/lease-correction-rpc-acl.yml'
 jobs:
   acl:
@@ -28,3 +29,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: psql -v ON_ERROR_STOP=1 -f tests/security/lease-correction-rpc-acl.sql
+      - run: psql -v ON_ERROR_STOP=1 -f tests/security/lease-correction-role-behavior.sql
