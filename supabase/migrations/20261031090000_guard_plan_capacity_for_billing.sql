@@ -1,7 +1,7 @@
 -- #258: additive capacity gate and narrowly-scoped upgrades of privileged billing RPCs.
 -- DO NOT deploy without PostgreSQL 17 integration tests including webhook idempotency.
 CREATE OR REPLACE FUNCTION jco_private.plan_capacity_fits(p_org uuid,p_plan uuid)
-RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = ''
+RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = ''
 AS $body$
 DECLARE v_max_users integer; v_max_properties integer;
         v_used_users bigint; v_used_properties bigint;
