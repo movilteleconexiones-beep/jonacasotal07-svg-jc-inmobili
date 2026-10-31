@@ -1,0 +1,51 @@
+name: Plan capacity migration static checks
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261031090000_guard_plan_capacity_for_billing.sql'
+      - 'tests/security/plan-capacity-migration.test.mjs'
+      - '.github/workflows/plan-capacity-static.yml'
+      - 'tests/security/plan-capacity-postgres.sql'
+      - 'tests/security/plan-capacity-patch-postgres.sql'
+      - 'tests/security/plan-capacity-payment-behavior.sql'
+      - 'tests/security/plan-capacity-concurrency.sh'
+      - 'tests/security/plan-capacity-real-payment-rpc.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-capacity:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_capacity
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+      PGDATABASE: ci_capacity
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/security/plan-capacity-migration.test.mjs
+      - run: psql -v ON_ERROR_STOP=1 -f tests/security/plan-capacity-postgres.sql
+      - run: psql -v ON_ERROR_STOP=1 -d postgres -c 'CREATE DATABASE ci_patch_capacity'
+      - run: psql -v ON_ERROR_STOP=1 -d ci_patch_capacity -f tests/security/plan-capacity-patch-postgres.sql
+      - run: psql -v ON_ERROR_STOP=1 -d postgres -c 'CREATE DATABASE ci_payment_capacity'
+      - run: psql -v ON_ERROR_STOP=1 -d ci_payment_capacity -f tests/security/plan-capacity-payment-behavior.sql
+      - run: bash tests/security/plan-capacity-concurrency.sh
+      - run: psql -v ON_ERROR_STOP=1 -d postgres -c 'CREATE DATABASE ci_real_payment_rpc'
+      - run: psql -v ON_ERROR_STOP=1 -d ci_real_payment_rpc -f tests/security/plan-capacity-real-payment-rpc.sql
