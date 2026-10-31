@@ -1,8 +1,5 @@
 \set ON_ERROR_STOP on
 CREATE SCHEMA jco_private;
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE authenticated NOLOGIN;
-CREATE ROLE service_role NOLOGIN;
 CREATE TABLE public.plans (id uuid primary key, active boolean not null, max_users int, max_properties int);
 CREATE TABLE public.organization_members (id uuid primary key,organization_id uuid,status text,external_only boolean default false);
 CREATE TABLE public.properties (id uuid primary key,organization_id uuid);
