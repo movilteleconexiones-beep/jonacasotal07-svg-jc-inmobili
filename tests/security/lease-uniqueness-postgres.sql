@@ -40,5 +40,16 @@ BEGIN
  INSERT INTO public.leases(organization_id,property_id,status) VALUES(org,property,'DRAFT');
  IF (SELECT count(*) FROM public.leases WHERE organization_id=org)<>2 THEN
  RAISE EXCEPTION 'Closed historical contract unexpectedly removed'; END IF;
+ -- Updating a historical contract back to ACTIVE must also fail while DRAFT exists.
+ duplicate_rejected:=false;
+ BEGIN
+   UPDATE public.leases SET status='ACTIVE'
+    WHERE organization_id=org AND status='TERMINATED';
+ EXCEPTION WHEN unique_violation THEN duplicate_rejected:=true;
+ END;
+ IF NOT duplicate_rejected THEN RAISE EXCEPTION 'UPDATE reopened a duplicate ACTIVE contract'; END IF;
+ -- A different property of the same organization must remain independently usable.
+ INSERT INTO public.leases(organization_id,property_id,status)
+ VALUES (org,'dddddddd-dddd-4ddd-dddd-dddddddddddd','ACTIVE');
 END $test$;
 SELECT 'lease active/open uniqueness checks passed' AS result;
