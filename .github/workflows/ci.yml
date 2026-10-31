@@ -102,6 +102,59 @@ jobs:
           grep -q 'must never CREATE objects in public schema' "$RUNNER_TEMP/rpc-error.log"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "REVOKE CREATE ON SCHEMA public FROM authenticated"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql
+      - name: Service-only billing, payment, tenant guard RPC privileges (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_sensitive_service_rpc_test
+          gate=security/reviews/service_only_privileged_rpc_gate.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/service_only_privileged_rpc_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate"
+
+          # Direct access to payment confirmation from a tenant MUST be rejected.
+          payment='public.process_verified_payment_event(text,text,bigint,text,text,text,text,text)'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "GRANT EXECUTE ON FUNCTION $payment TO authenticated"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate" > "$RUNNER_TEMP/rpc-service-denied.log" 2>&1; then
+            echo 'ERROR: authenticated billing webhook RPC accidentally exposed'; exit 1
+          fi
+          grep -q 'Sensitive service-only RPC exposed to API callers' "$RUNNER_TEMP/rpc-service-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "REVOKE EXECUTE ON FUNCTION $payment FROM authenticated"
+
+          # PUBLIC grants are inherited by BOTH anon and authenticated.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "GRANT EXECUTE ON FUNCTION $payment TO PUBLIC"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate" > "$RUNNER_TEMP/rpc-service-denied.log" 2>&1; then
+            echo 'ERROR: implicit PUBLIC payment privileges accepted'; exit 1
+          fi
+          grep -q 'Sensitive service-only RPC exposed to API callers' "$RUNNER_TEMP/rpc-service-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "REVOKE EXECUTE ON FUNCTION $payment FROM PUBLIC"
+
+          # Breaking the trusted webhook access must fail the test too.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "REVOKE EXECUTE ON FUNCTION $payment FROM service_role"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate" > "$RUNNER_TEMP/rpc-service-denied.log" 2>&1; then
+            echo 'ERROR: service role lockout accepted'; exit 1
+          fi
+          grep -q 'Service role lost access' "$RUNNER_TEMP/rpc-service-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "GRANT EXECUTE ON FUNCTION $payment TO service_role"
+
+          # New overloaded entrypoint cannot evade signature-based guards.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "CREATE FUNCTION public.platform_set_subscription(text) RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path='' AS 'SELECT true'; REVOKE ALL ON FUNCTION public.platform_set_subscription(text) FROM PUBLIC; GRANT EXECUTE ON FUNCTION public.platform_set_subscription(text) TO anon;"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate" > "$RUNNER_TEMP/rpc-service-denied.log" 2>&1; then
+            echo 'ERROR: exposed overloaded service-only RPC accepted'; exit 1
+          fi
+          grep -q 'An overloaded service-only function is exposed' "$RUNNER_TEMP/rpc-service-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "DROP FUNCTION public.platform_set_subscription(text)"
+
+          # Fail on missing fixed search_path for sensitive RPCs.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION $payment RESET search_path"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate" > "$RUNNER_TEMP/rpc-service-denied.log" 2>&1; then
+            echo 'ERROR: unpinned trusted function accepted'; exit 1
+          fi
+          grep -q 'Private RPC lost SECURITY DEFINER or fixed search_path' "$RUNNER_TEMP/rpc-service-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION $payment SET search_path=''"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f "$gate"
+
       - name: TypeScript validation
         run: npm run lint
       - name: Public portal SPA stylesheet and cache integration (Caddy)
