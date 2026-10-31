@@ -76,5 +76,21 @@ BEGIN
  IF (SELECT count(*) FROM public.leases WHERE organization_id=org2 AND property_id=property AND status='ACTIVE')<>1 THEN
    RAISE EXCEPTION 'Failed organization reassignment changed original contract';
  END IF;
+ -- Bulk insert with two open contracts must be rejected atomically:
+ -- neither row may survive a single failed multi-row INSERT.
+ duplicate_rejected:=false;
+ BEGIN
+   INSERT INTO public.leases(organization_id,property_id,status)
+   VALUES (org,'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee','DRAFT'),
+          (org,'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee','ACTIVE');
+ EXCEPTION WHEN unique_violation THEN duplicate_rejected:=true;
+ END;
+ IF NOT duplicate_rejected THEN
+   RAISE EXCEPTION 'Bulk insert with two open contracts was accepted';
+ END IF;
+ IF EXISTS (SELECT 1 FROM public.leases
+             WHERE organization_id=org AND property_id='eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee') THEN
+   RAISE EXCEPTION 'Failed bulk insert left a partial contract behind';
+ END IF;
 END $test$;
 SELECT 'lease active/open uniqueness checks passed' AS result;
