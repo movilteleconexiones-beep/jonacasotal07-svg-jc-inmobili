@@ -1,0 +1,33 @@
+name: Lease uniqueness PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'tests/security/lease-uniqueness-postgres.sql'
+      - '.github/workflows/lease-uniqueness-postgres.yml'
+  workflow_dispatch:
+jobs:
+  lease-uniqueness:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_leases
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci_leases"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+      PGDATABASE: ci_leases
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify duplicate-open-contract prevention
+        run: psql -v ON_ERROR_STOP=1 -f tests/security/lease-uniqueness-postgres.sql
