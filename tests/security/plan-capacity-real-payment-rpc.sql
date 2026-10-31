@@ -96,6 +96,15 @@ BEGIN
 END;
 $function$
 ;
+CREATE FUNCTION public.billing_admin_action(target_org uuid, action text, reason text, target_plan uuid DEFAULT NULL::uuid)
+RETURNS void LANGUAGE plpgsql AS $f$ DECLARE keys text[]; BEGIN
+    SELECT array_agg(substr(feature_key,12)) INTO keys FROM public.plan_features WHERE false;
+END $f$;
+CREATE FUNCTION public.platform_set_subscription(target_org uuid,target_plan_code text,target_billing_mode text,target_status text)
+RETURNS void LANGUAGE plpgsql AS $f$ DECLARE target_plan_id uuid; active_terms_id uuid; BEGIN
+  select id into target_plan_id from public.plans WHERE false;
+  select id into active_terms_id FROM public.license_terms_versions WHERE false;
+END $f$;
 \i supabase/migrations/20261031090000_guard_plan_capacity_for_billing.sql
 DO $t$ BEGIN
  IF position('plan_capacity_review' IN pg_get_functiondef('public.process_verified_payment_event(text,text,bigint,text,text,text,text,text)'::regprocedure))=0
