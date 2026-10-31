@@ -40,3 +40,8 @@ test('denies publicly callable helper functions', () => {
 test('stops if privileged RPC definitions drift', () => {
   assert.equal((migration.match(/RAISE EXCEPTION 'Unexpected % definition'/g) || []).length, 4);
 });
+
+test('capacity function uses fresh statement snapshots after locking organization', () => {
+  assert.match(migration, /RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER/);
+  assert.doesNotMatch(migration, /RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER/);
+});
