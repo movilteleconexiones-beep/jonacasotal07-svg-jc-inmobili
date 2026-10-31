@@ -238,7 +238,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       <section className="rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Corrección administrativa de contratos activos">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-semibold text-slate-900">¿Necesitas corregir un contrato activo?</h3>
+            <h3 className="font-semibold text-slate-900">Corregir un contrato activo existente</h3>
             <p className="text-sm text-slate-700">Corrige canon, número o fecha con autorización y PDF firmado. No crees otro contrato del mismo inmueble.</p>
           </div>
           <button type="button" aria-expanded={showActiveCorrection} aria-controls="active-lease-correction"
