@@ -35,5 +35,25 @@ BEGIN
   INSERT INTO public.properties(organization_id) VALUES (org);
   IF jco_private.plan_capacity_fits(org,basic) THEN RAISE EXCEPTION '201 properties must fail'; END IF;
   IF NOT jco_private.plan_capacity_fits(org,pro) THEN RAISE EXCEPTION '201 properties fit PRO'; END IF;
+  -- Cross-tenant regression: another organization's seats/properties cannot
+  -- consume this organization's quota.
+  INSERT INTO public.organization_members(id,organization_id,status,external_only)
+  SELECT ('10000000-0000-4000-8000-'||lpad(g::text,12,'0'))::uuid,
+         'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,'ACTIVE',false
+    FROM generate_series(1,26) g;
+  INSERT INTO public.properties(organization_id)
+  SELECT 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid
+    FROM generate_series(1,2001);
+  IF NOT jco_private.plan_capacity_fits(org,pro) THEN
+    RAISE EXCEPTION 'Other tenant usage affected original tenant capacity';
+  END IF;
+  IF jco_private.plan_capacity_fits('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',pro) THEN
+    RAISE EXCEPTION 'Over-capacity tenant was incorrectly allowed';
+  END IF;
+  -- Inactive and nonexistent plans must never be valid destinations.
+  INSERT INTO public.plans VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',false,100,10000);
+  IF jco_private.plan_capacity_fits(org,'dddddddd-dddd-4ddd-8ddd-dddddddddddd')
+     OR jco_private.plan_capacity_fits(org,'ffffffff-ffff-4fff-8fff-ffffffffffff')
+  THEN RAISE EXCEPTION 'Inactive or missing plan incorrectly allowed'; END IF;
 END $t$;
 SELECT 'capacity fixture passed' AS result;
