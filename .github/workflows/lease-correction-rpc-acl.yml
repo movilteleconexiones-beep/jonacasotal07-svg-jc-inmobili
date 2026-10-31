@@ -1,0 +1,30 @@
+name: Lease correction RPC ACL fixture
+on:
+  pull_request:
+    paths:
+      - 'tests/security/lease-correction-rpc-acl.sql'
+      - '.github/workflows/lease-correction-rpc-acl.yml'
+jobs:
+  acl:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_acl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci_acl"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+      PGDATABASE: ci_acl
+    steps:
+      - uses: actions/checkout@v4
+      - run: psql -v ON_ERROR_STOP=1 -f tests/security/lease-correction-rpc-acl.sql
