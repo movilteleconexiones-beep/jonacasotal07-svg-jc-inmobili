@@ -137,3 +137,58 @@ BEGIN
  IF (SELECT count(*) FROM public.payment_events WHERE payment_order_id=ord)<>1 THEN RAISE EXCEPTION 'Payment event duplicated'; END IF;
 END $checks$;
 SELECT 'real payment RPC review + idempotency verified' AS result;
+
+-- Real RPC compatible activation regression: unlike the simplified behavioral
+-- fixture, this executes the patched production function in disposable PG17.
+DO $compatible$
+DECLARE
+  org uuid := 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+  pro uuid := 'cccccccc-cccc-4ccc-cccc-cccccccccccc';
+  ord uuid := 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  response text;
+BEGIN
+  INSERT INTO public.payment_orders(
+    id,organization_id,plan_id,reference,environment,amount_in_cents,
+    currency,status,expires_at,billing_mode,permission_keys,fulfillment_status)
+  VALUES (
+    ord,org,pro,'compatible-order','sandbox',1990000,
+    'COP','PENDING',now()+interval '1 day','SAAS_MONTHLY',
+    ARRAY['properties.view'],'PENDING');
+  -- A mismatched webhook must not consume the order or record an event.
+  response:=public.process_verified_payment_event(
+    'compatible-order','transaction-02',1990001,'COP','APPROVED',
+    'sandbox',repeat('c',64),repeat('d',64));
+  IF response <> 'mismatch' THEN RAISE EXCEPTION 'Wrong amount accepted: %',response; END IF;
+  IF (SELECT status FROM public.payment_orders WHERE id=ord)<>'PENDING'
+     OR EXISTS(SELECT 1 FROM public.payment_events WHERE payment_order_id=ord)
+  THEN RAISE EXCEPTION 'Mismatched payment mutated financial records'; END IF;
+
+  response:=public.process_verified_payment_event(
+    'compatible-order','transaction-02',1990000,'COP','APPROVED',
+    'sandbox',repeat('c',64),repeat('d',64));
+  IF response <> 'processed' THEN RAISE EXCEPTION 'Compatible payment not processed: %',response; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.payment_orders WHERE id=ord
+    AND status='APPROVED' AND fulfillment_status='APPLIED'
+    AND review_reason IS NULL
+  ) THEN RAISE EXCEPTION 'Compatible payment not fulfilled'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.subscriptions WHERE organization_id=org
+    AND plan_id=pro AND status='ACTIVE' AND current_period_end>now()
+  ) THEN RAISE EXCEPTION 'Compatible payment did not activate subscription'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.organization_licenses WHERE organization_id=org
+    AND license_type='SAAS' AND status='ACTIVE' AND ends_at>now()
+  ) THEN RAISE EXCEPTION 'Compatible payment did not activate license'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.audit_log WHERE organization_id=org
+    AND entity_id=ord AND action='billing.payment_activated'
+  ) THEN RAISE EXCEPTION 'Compatible activation was not audited'; END IF;
+  IF public.process_verified_payment_event(
+    'compatible-order','transaction-02',1990000,'COP','APPROVED',
+    'sandbox',repeat('c',64),repeat('d',64))<>'duplicate'
+  THEN RAISE EXCEPTION 'Compatible payment replay not idempotent'; END IF;
+  IF (SELECT count(*) FROM public.payment_events WHERE payment_order_id=ord)<>1
+  THEN RAISE EXCEPTION 'Compatible payment inserted duplicate events'; END IF;
+END $compatible$;
+SELECT 'real payment RPC compatible activation + mismatch + replay verified' AS result;
