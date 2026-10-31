@@ -5,15 +5,36 @@ on:
       - 'supabase/migrations/20261031090000_guard_plan_capacity_for_billing.sql'
       - 'tests/security/plan-capacity-migration.test.mjs'
       - '.github/workflows/plan-capacity-static.yml'
+      - 'tests/security/plan-capacity-postgres.sql'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   static-capacity:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_capacity
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+      PGDATABASE: ci_capacity
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: node --test tests/security/plan-capacity-migration.test.mjs
+      - run: psql -v ON_ERROR_STOP=1 -f tests/security/plan-capacity-postgres.sql
