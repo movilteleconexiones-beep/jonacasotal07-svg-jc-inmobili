@@ -52,3 +52,22 @@ WITH CHECK (public.has_org_permission(id,'settings.edit'));
 -- Recreate the insecure pre-migration table-wide privileges found in Supabase.
 GRANT SELECT,UPDATE ON public.organizations TO anon,authenticated;
 GRANT SELECT,UPDATE ON public.organizations TO service_role;
+
+-- Representative owner-validated SECURITY DEFINER RPC used by SettingsModule.
+-- The real Supabase function additionally validates slug format, reserved
+-- words, org ACTIVE state and records an audit event.
+CREATE FUNCTION public.set_organization_public_slug(target_org uuid,desired_slug text)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $rpc$
+BEGIN
+ IF auth.uid() IS DISTINCT FROM '33333333-3333-4333-8333-333333333333'::uuid
+    OR target_org IS DISTINCT FROM '11111111-1111-4111-8111-111111111111'::uuid
+ THEN RAISE EXCEPTION 'Only organization owner may change public slug'
+   USING ERRCODE='42501';
+ END IF;
+ UPDATE public.organizations
+ SET slug=desired_slug,updated_at=now() WHERE id=target_org;
+ RETURN desired_slug;
+END
+$rpc$;
+REVOKE EXECUTE ON FUNCTION public.set_organization_public_slug(uuid,text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.set_organization_public_slug(uuid,text) TO authenticated;
