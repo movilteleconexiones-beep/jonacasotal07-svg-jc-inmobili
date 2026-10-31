@@ -48,6 +48,21 @@ BEGIN
       RAISE EXCEPTION 'Sensitive service-only RPC exposed to API callers: %',
         v_signature;
     END IF;
+    IF v_signature = ANY(ARRAY[
+      'public.apply_default_role_permissions()',
+      'public.guard_client_portal_role_grants()',
+      'public.guard_lease_activation_property_state()',
+      'public.guard_property_contract_availability()',
+      'public.handle_new_user()',
+      'public.normalize_license_acceptance()',
+      'public.prevent_duplicate_active_commission()'
+    ]) AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_proc WHERE oid=v_function
+        AND prorettype='pg_catalog.trigger'::regtype
+    ) THEN
+      RAISE EXCEPTION 'Internal contract/role trigger is no longer a trigger: %',
+        v_signature;
+    END IF;
     IF NOT has_function_privilege('service_role',v_function::oid,'EXECUTE') THEN
       RAISE EXCEPTION 'Service role lost access to sensitive RPC: %',
         v_signature;
