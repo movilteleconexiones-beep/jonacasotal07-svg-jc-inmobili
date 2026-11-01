@@ -1,0 +1,40 @@
+name: Lease correction concurrency fixture
+on:
+  pull_request:
+    paths:
+      - 'tests/security/lease-rectification-concurrency-*.sql'
+      - '.github/workflows/lease-rectification-concurrency.yml'
+jobs:
+  concurrent:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_leases
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci_leases"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+      PGDATABASE: ci_leases
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run competing updates in separate connections
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/security/lease-rectification-concurrency-setup.sql > /tmp/writer-a.log &
+          writer_a=$!
+          sleep 0.5
+          second=$(psql -v ON_ERROR_STOP=1 -Atc "SELECT rectify_fixture(1900000,0)")
+          wait "$writer_a"
+          test "$second" = "f"
+          psql -v ON_ERROR_STOP=1 -f tests/security/lease-rectification-concurrency-assert.sql
