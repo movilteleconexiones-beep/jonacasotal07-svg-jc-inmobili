@@ -1,0 +1,32 @@
+name: Rent receipt isolated SQL simulation
+on:
+  pull_request:
+    paths:
+      - 'tests/security/receipt-simulation.sql'
+      - 'tests/receipt-rpc-contract.test.mjs'
+      - '.github/workflows/rent-receipt-isolated.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: jco_receipt_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jco_receipt_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+      PGDATABASE: jco_receipt_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise receipt safeguards in PostgreSQL 17
+        run: psql -v ON_ERROR_STOP=1 -f tests/security/receipt-simulation.sql
