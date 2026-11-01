@@ -28,6 +28,10 @@ for item in entries:
         raise SystemExit("Storage manifest validation failed")
 if not (root / "database.dump").is_file() or not (root / "database.dump").stat().st_size:
     raise SystemExit("Database dump missing or empty")
+checksum_line = (root / "database.dump.sha256").read_text().strip()
+actual_hash = hashlib.sha256((root / "database.dump").read_bytes()).hexdigest()
+if checksum_line.split()[0] != actual_hash:
+    raise SystemExit("Database checksum mismatch")
 (root / "EXPORT_COMPLETE.json").write_text(json.dumps({
     "status": "export_complete_restore_unverified",
     "storage_objects": len(entries),
