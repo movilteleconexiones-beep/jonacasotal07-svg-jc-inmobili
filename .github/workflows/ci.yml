@@ -774,6 +774,8 @@ jobs:
 
       - name: Guided rental intake and approval regression tests
         run: node --test tests/rental-intake-guided-flow.test.mjs
+      - name: Verified owner-property and contact step navigation regression
+        run: node --test tests/rental-wizard-verified-navigation.test.mjs
       - name: Rental and owner agency lifecycle UI regression
         run: node --test tests/rental-agency-lifecycle.test.mjs
       - name: Approved lease activation and synchronized property status
