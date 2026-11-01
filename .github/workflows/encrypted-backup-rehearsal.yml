@@ -1,0 +1,16 @@
+name: Encrypted backup package rehearsal
+on:
+  pull_request:
+    paths:
+      - 'scripts/backup/encrypt_completed_export.sh'
+      - 'tests/backup/encrypted_package_rehearsal.sh'
+      - '.github/workflows/encrypted-backup-rehearsal.yml'
+jobs:
+  encryption:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install age
+        run: sudo apt-get update -qq && sudo apt-get install -y age
+      - name: Exercise fictional encrypted backup
+        run: bash tests/backup/encrypted_package_rehearsal.sh
