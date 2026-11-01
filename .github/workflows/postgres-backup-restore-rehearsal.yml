@@ -25,10 +25,9 @@ jobs:
       PGPASSWORD: ci_password
     steps:
       - uses: actions/checkout@v4
-      - name: Install PostgreSQL client 17
+      - name: Export and restore with official PostgreSQL 17 client
         run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client-17
-      - name: Export synthetic database and restore into another database
-        run: bash tests/backup/postgres_restore_rehearsal.sh
+          docker run --rm --network host \
+            -e PGHOST=127.0.0.1 -e PGUSER=postgres -e PGPASSWORD="$PGPASSWORD" \
+            -v "$PWD:/workspace:ro" -w /workspace postgres:17 \
+            bash tests/backup/postgres_restore_rehearsal.sh
