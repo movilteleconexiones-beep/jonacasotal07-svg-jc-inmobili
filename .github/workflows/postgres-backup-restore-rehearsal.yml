@@ -1,0 +1,33 @@
+name: PostgreSQL backup and restore rehearsal
+on:
+  pull_request:
+    paths:
+      - 'tests/backup/postgres_restore_rehearsal.sh'
+      - '.github/workflows/postgres-backup-restore-rehearsal.yml'
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export and restore with official PostgreSQL 17 client
+        run: |
+          docker run --rm --network host \
+            -e PGHOST=127.0.0.1 -e PGUSER=postgres -e PGPASSWORD="$PGPASSWORD" \
+            -v "$PWD:/workspace:ro" -w /workspace postgres:17 \
+            bash tests/backup/postgres_restore_rehearsal.sh
