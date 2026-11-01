@@ -1,0 +1,10 @@
+-- Contract checklist based on read-only inspection of the production functions.
+-- This is NOT executable production DDL or proof of a successful privileged RPC call.
+-- Main RPC: has_org_permission(target_org,'rent_payments.create')
+-- Main RPC: SELECT ... FROM rent_payments ... FOR UPDATE
+-- Main RPC: lookup rent_receipts.idempotency_key
+-- Main RPC: IF new_paid>entry.expected_amount THEN RAISE
+-- Evidence RPC: calls public.record_tenant_rent_receipt(...)
+-- Required follow-up in isolated Supabase: authenticated AGENT deny, MANAGER allow
+-- with legitimate same-tenant obligation, cross-tenant deny, duplicated request idempotent,
+-- overpay deny, failed evidence attachment must roll back payment.
