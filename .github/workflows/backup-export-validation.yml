@@ -13,3 +13,6 @@ jobs:
         run: python3 -m py_compile scripts/backup/export_private_storage.py
       - name: Validate Bash syntax
         run: bash -n scripts/backup/export_private_backup.sh
+
+      - name: Test exporter safety gates with synthetic data
+        run: python3 -m unittest discover -s tests/backup -p 'test_*.py'
