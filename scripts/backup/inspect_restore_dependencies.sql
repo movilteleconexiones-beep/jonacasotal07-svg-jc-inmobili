@@ -14,7 +14,7 @@ WITH checks AS (
              AND NOT a.attisdropped
              AND i.indisunique
              AND i.indisvalid
-             AND i.indisimmediate
+             AND i.indimmediate
              AND i.indnkeyatts = 1
              AND i.indpred IS NULL
              AND i.indexprs IS NULL
