@@ -29,6 +29,7 @@ const HINTS = [
 export function RentalIntakeWizard({ organizationId }: { organizationId: string }) {
   const { can } = useAuth();
   const [step, setStep] = useState(0);
+  const [showActiveCorrection, setShowActiveCorrection] = useState(false);
   const [propertyTab, setPropertyTab] = useState<'PROPERTY' | 'OWNER' | 'CLOSURE'>('PROPERTY');
   const [propertyId, setPropertyId] = useState<string>();
   const [propertyName, setPropertyName] = useState('');
@@ -221,6 +222,38 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </p>
     </header>
 
+    {canActivate && step !== 2 && (
+      <div className="rounded-xl border border-stone-200 bg-white p-3">
+        <button type="button" onClick={() => setStep(2)}
+          className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-slate-900">
+          Corregir o anular contrato en borrador
+        </button>
+        <p className="mt-2 text-xs text-slate-600">
+          Abre el paso Contrato para revisar los borradores existentes sin crear otro registro.
+        </p>
+      </div>
+    )}
+
+    {can(PERMISSIONS.LEASES_EDIT) && can(PERMISSIONS.DOCUMENTS_VIEW) && (
+      <section className="rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Corrección administrativa de contratos activos">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-slate-900">Corregir un contrato activo existente</h3>
+            <p className="text-sm text-slate-700">Corrige canon, número o fecha con autorización y PDF firmado. No crees otro contrato del mismo inmueble.</p>
+          </div>
+          <button type="button" aria-expanded={showActiveCorrection} aria-controls="active-lease-correction"
+            onClick={() => setShowActiveCorrection(open => !open)}
+            className="rounded-lg border border-amber-400 bg-white px-4 py-2 text-sm font-semibold text-slate-900">
+            {showActiveCorrection ? 'Cerrar corrección' : 'Corregir contrato activo'}
+          </button>
+        </div>
+        {showActiveCorrection && <div id="active-lease-correction" className="mt-4">
+          <ActiveLeaseCorrection key={'active-'+organizationId} organizationId={organizationId}/>
+        </div>}
+      </section>
+    )}
+
+
     {step === 0 && <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => setPropertyTab('PROPERTY')}
@@ -357,15 +390,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       <TenantRentEntry key={'draft-' + organizationId} organizationId={organizationId} mode="DRAFT"
         preferredPropertyId={propertyId} preferredTenantId={tenantId} preferredOwnerId={ownerId}
         onDraftCreated={id => { setLeaseId(id); setStep(3); }} />
-      {can(PERMISSIONS.LEASES_EDIT) && can(PERMISSIONS.DOCUMENTS_VIEW) &&
-        <details className="rounded-2xl border border-stone-200 bg-white p-4">
-          <summary className="cursor-pointer text-sm font-semibold">
-            Corregir un contrato activo existente · administración
-          </summary>
-          <div className="mt-3">
-            <ActiveLeaseCorrection key={'active-'+organizationId} organizationId={organizationId}/>
-          </div>
-        </details>}
+
     </div>}
 
     {step === 3 && <TenantRentEntry key={'signed-' + organizationId} organizationId={organizationId}
