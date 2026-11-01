@@ -101,7 +101,19 @@ export function ActiveLeaseCorrection({organizationId}:{organizationId:string}) 
        (selectedLease.contract_number||null)===proposedNumber){
       setError('No hay cambios para guardar.');return;
     }
-    if(!window.confirm((mismatch?rentalCanonWarning(mismatch)+'\n\n':'')+
+    // The listing can change while this form is open. Re-read the same-tenant
+    // property immediately before asking the administrator to confirm.
+    const {data:freshProperty,error:propertyError}=await supabase.from('properties')
+      .select('price,operation_type').eq('organization_id',organizationId)
+      .eq('id',selectedLease.property_id).maybeSingle();
+    if(propertyError||!freshProperty){
+      setError('No pudimos verificar el canon actual del inmueble. Actualiza la pantalla antes de corregir.');
+      return;
+    }
+    const currentMismatch=rentalCanonDifference(
+      freshProperty.price==null?null:Number(freshProperty.price),
+      rent,freshProperty.operation_type);
+    if(!window.confirm((currentMismatch?rentalCanonWarning(currentMismatch)+'\n\n':'')+
        '¿Confirmas la rectificación del contrato activo respaldada por el PDF seleccionado? '+
        'No cambiará cobros registrados ni documentos existentes.'))return;
 
