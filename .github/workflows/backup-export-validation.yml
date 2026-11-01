@@ -16,3 +16,6 @@ jobs:
 
       - name: Test exporter safety gates with synthetic data
         run: python3 -m unittest discover -s tests/backup -p 'test_*.py'
+
+      - name: Reject interrupted database exports
+        run: bash tests/backup/test_incomplete_export.sh
