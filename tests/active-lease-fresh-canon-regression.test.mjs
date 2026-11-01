@@ -15,3 +15,15 @@ test('active correction checks up-to-date same-organization property rent before
   assert.match(body,/if\(propertyError\|\|!freshProperty\)/);
   assert.match(body,/rentalCanonWarning\(currentMismatch\)/);
 });
+
+test('active correction refuses stale lease snapshots before confirmation and RPC',()=>{
+  const body=source.slice(source.indexOf('async function rectify('),source.indexOf('if(!authorized)return null;'));
+  const lookup=body.indexOf("supabase.from('leases')");
+  const confirm=body.indexOf('window.confirm(');
+  const rpc=body.indexOf("supabase.rpc('admin_rectify_active_lease'");
+  assert.ok(lookup>0 && lookup<confirm && confirm<rpc);
+  assert.match(body,/\.eq\('organization_id',organizationId\)\.eq\('id',selectedLease\.id\)/);
+  assert.match(body,/Number\(freshLease\.monthly_rent\)!==Number\(selectedLease\.monthly_rent\)/);
+  assert.match(body,/freshLease\.contract_number\|\|null/);
+  assert.match(body,/El contrato cambió desde que abriste el formulario/);
+});
