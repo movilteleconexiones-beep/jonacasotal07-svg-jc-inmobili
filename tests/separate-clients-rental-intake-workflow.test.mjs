@@ -65,3 +65,17 @@ test('the client step reuses an existing scoped contact and does not expose edit
   assert.match(contacts,/adminMayCorrect&&!contactsOnly&&<>/);
   assert.match(wizard,/Selecciona un cliente registrado/);
 });
+
+// Protect the visibility fix against reintroducing wizard-step-only access.
+test('authorized contract corrections are reachable independently of wizard step',()=>{
+  const header=wizard.indexOf('</header>');
+  const stages=wizard.indexOf('{step === 0');
+  const active=wizard.indexOf('aria-label="Corrección administrativa de contratos activos"');
+  const draft=wizard.indexOf('Corregir o anular contrato en borrador');
+  assert.ok(header>=0&&stages>header,'wizard stages must follow its header');
+  assert.ok(active>header&&active<stages,'active correction must precede conditional wizard steps');
+  assert.ok(draft>header&&draft<stages,'draft correction navigation must precede conditional steps');
+  assert.match(wizard,/can\(PERMISSIONS\.LEASES_EDIT\) && can\(PERMISSIONS\.DOCUMENTS_VIEW\)/);
+  assert.match(wizard,/aria-expanded=\{showActiveCorrection\}/);
+  assert.match(wizard,/onClick=\{\(\) => setStep\(2\)\}/);
+});
