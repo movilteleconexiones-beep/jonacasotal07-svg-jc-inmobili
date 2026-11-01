@@ -27,7 +27,7 @@ const HINTS = [
 ] as const;
 
 export function RentalIntakeWizard({ organizationId }: { organizationId: string }) {
-  const { can } = useAuth();
+  const { can, activeMembership } = useAuth();
   const [step, setStep] = useState(0);
   const [showActiveCorrection, setShowActiveCorrection] = useState(false);
   const [propertyTab, setPropertyTab] = useState<'PROPERTY' | 'OWNER' | 'CLOSURE'>('PROPERTY');
@@ -193,6 +193,10 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   };
   const canDraft = can(PERMISSIONS.LEASES_CREATE);
   const canActivate = can(PERMISSIONS.LEASES_EDIT);
+  const isAdministrator = Boolean(activeMembership?.roles.some(role=>role.key==='ADMIN'));
+  const canCorrectDraft = isAdministrator && canActivate;
+  const canCorrectActive = isAdministrator &&
+    can(PERMISSIONS.LEASES_EDIT) && can(PERMISSIONS.DOCUMENTS_VIEW);
   const canCollect = can(PERMISSIONS.RENT_PAYMENTS_CREATE);
   const canView = can(PERMISSIONS.PROPERTIES_VIEW) && can(PERMISSIONS.CLIENTS_VIEW);
 
@@ -206,6 +210,13 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       <p className="mt-1 text-sm text-slate-600">
         Ruta guiada para asesores y administradores: inmueble → cliente → borrador → PDF → aprobación → cobros.
       </p>
+      {canCorrectActive && (
+        <button type="button" onClick={() => setShowActiveCorrection(true)}
+          aria-controls="active-lease-correction"
+          className="mt-3 inline-flex rounded-lg border border-amber-500 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-950">
+          Corregir contrato existente
+        </button>
+      )}
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {STEPS.map((name, index) => <button key={name} type="button"
           aria-current={step === index ? 'step' : undefined}
@@ -222,7 +233,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </p>
     </header>
 
-    {canActivate && step !== 2 && (
+    {canCorrectDraft && step !== 2 && (
       <div className="rounded-xl border border-stone-200 bg-white p-3">
         <button type="button" onClick={() => setStep(2)}
           className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-slate-900">
@@ -234,7 +245,13 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </div>
     )}
 
-    {can(PERMISSIONS.LEASES_EDIT) && can(PERMISSIONS.DOCUMENTS_VIEW) && (
+    {isAdministrator && !canCorrectActive && (
+      <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        Para corregir contratos activos se requieren los permisos de edición de contratos y lectura de documentos.
+        Solicita al administrador de permisos que los habilite antes de intentar una corrección.
+      </p>
+    )}
+    {canCorrectActive && (
       <section className="rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Corrección administrativa de contratos activos">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
