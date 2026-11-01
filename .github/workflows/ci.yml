@@ -771,6 +771,8 @@ jobs:
         run: node --import tsx --test tests/signed-lease-pdf.test.mjs
       - name: Separate Clients from six-step rental workflow regression
         run: node --test tests/separate-clients-rental-intake-workflow.test.mjs
+      - name: Existing contract correction entry and permission alignment
+        run: node --test tests/existing-contract-correction-entry.test.mjs
 
       - name: Guided rental intake and approval regression tests
         run: node --test tests/rental-intake-guided-flow.test.mjs
