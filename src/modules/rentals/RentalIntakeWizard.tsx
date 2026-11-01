@@ -59,6 +59,11 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   },[]);
   const [linksLoading, setLinksLoading] = useState(false);
   const [linksError, setLinksError] = useState('');
+  // Record which owner/organization/occupancy revision the completed lookup verified.
+  // An old response must never enable navigation for a newly selected owner.
+  const [verifiedLinks, setVerifiedLinks] = useState<{
+    ownerId: string; organizationId: string; occupancyRevision: number;
+  } | null>(null);
   const lookupVersion = useRef(0);
   const canViewOwners = can(PERMISSIONS.OWNERS_VIEW);
 
@@ -122,7 +127,8 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   // A selected owner may be linked to many properties; never infer ownership from the visible code.
   useEffect(() => {
     let cancelled=false;
-    setLinkedProperties([]);setLinksError('');setLinksLoading(Boolean(ownerId&&canViewOwners));
+    setLinkedProperties([]);setVerifiedLinks(null);
+    setLinksError('');setLinksLoading(Boolean(ownerId&&canViewOwners));
     if (!ownerId || !canViewOwners) return () => {cancelled=true;};
     void (async()=>{
       try {
@@ -155,6 +161,7 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
           ...item,has_active_lease:occupied.has(item.id),
         })).sort((a,b)=>a.code.localeCompare(b.code,'es'));
         setLinkedProperties(options);
+        setVerifiedLinks({ownerId,organizationId,occupancyRevision});
         if(propertyId&&!options.some(option=>option.id===propertyId)){
           setPropertyId(undefined);setPropertyName('');
           setLeaseId(undefined);
@@ -195,6 +202,16 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
   const canActivate = can(PERMISSIONS.LEASES_EDIT);
   const canCollect = can(PERMISSIONS.RENT_PAYMENTS_CREATE);
   const canView = can(PERMISSIONS.PROPERTIES_VIEW) && can(PERMISSIONS.CLIENTS_VIEW);
+  const propertyAndOwnerVerified = Boolean(
+    propertyId && ownerId && !linksLoading && !linksError &&
+    verifiedLinks?.ownerId===ownerId &&
+    verifiedLinks?.organizationId===organizationId &&
+    verifiedLinks?.occupancyRevision===occupancyRevision &&
+    linkedProperties.some(property=>property.id===propertyId && canPrepareRental(property))
+  );
+  // Existing contracts can still be opened through the step tabs and correction controls.
+  // Only the linear Next button requires an actual verified new-link selection.
+  const canContinue = step===0 ? propertyAndOwnerVerified : step===1 ? Boolean(tenantId) : true;
 
   if (!canView) return <div role="alert" className="rounded-2xl border bg-white p-5 text-sm">
     Tu perfil requiere permiso de lectura sobre Propiedades y Clientes para iniciar una vinculación.
@@ -431,7 +448,9 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
       </button>
       <span className="text-xs text-slate-500">Paso {step + 1} de 6</span>
       <button type="button" onClick={() => setStep(s => Math.min(5, s + 1))}
-        disabled={step === 5}
+        disabled={step === 5 || !canContinue}
+        title={!canContinue && step===0 ? 'Selecciona una vivienda disponible y verifica su propietario vinculado'
+          : !canContinue && step===1 ? 'Selecciona o registra un cliente antes de continuar' : undefined}
         className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
         Siguiente
       </button>
