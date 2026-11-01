@@ -28,6 +28,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
   const createInFlight = useRef(false);
 
   const organizationId = activeMembership?.organization.id;
+  const currentOrganization = useRef(organizationId);
+  currentOrganization.current = organizationId;
   const adminMayCorrect=Boolean(activeMembership?.roles.some(r=>r.key==='ADMIN')) &&
     can(PERMISSIONS.CLIENTS_EDIT);
 
@@ -58,6 +60,7 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
   useEffect(() => {
     // Never retain another inmobiliaria's editable contact after switching tenant.
     setEditContact(null);
+    setShowCreate(false);
     void load();
     return () => { ++loadVersion.current; };
   }, [organizationId]);
@@ -110,7 +113,30 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     createInFlight.current = true;
     setContactBusy(true);
     try {
+      if (email) {
+        // The rendered list can be stale (other staff may have registered this email).
+        // Escape SQL LIKE wildcards so a literal '_' or '%' in an email is not a wildcard.
+        const literalEmailPattern = email.replace(/[\\%_]/g, character => '\\' + character);
+        const { data: duplicates, error: duplicateError } = await supabase.from('contacts')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .ilike('email', literalEmailPattern)
+          .limit(1);
+        if (currentOrganization.current !== organizationId) return;
+        if (duplicateError) {
+          setMessage('No fue posible comprobar si el correo ya existe. Actualiza la lista antes de registrar.');
+          return;
+        }
+        if (duplicates?.length) {
+          setMessage('Ya existe una ficha con este correo. Selecciona el cliente existente para evitar duplicados.');
+          return;
+        }
+      }
+
+      // UI preflight reduces duplicate submissions; the server must still enforce
+      // concurrency guarantees if two sessions insert simultaneously.
       const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
+      if (currentOrganization.current !== organizationId) return;
       if (error) {
         setMessage('No se pudo registrar el contacto: ' + error.message);
         return;
@@ -119,10 +145,14 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       setShowCreate(false);
       formElement.reset();
       await load();
-      setMessage('Cliente/contacto creado correctamente.');
+      if (currentOrganization.current === organizationId) {
+        setMessage('Cliente/contacto creado correctamente.');
+      }
     } catch {
-      // A timeout can occur after a successful INSERT; verify before retrying.
-      setMessage('No se confirmó el registro. Actualiza y comprueba si el cliente existe antes de reintentar.');
+      if (currentOrganization.current === organizationId) {
+        // A timeout can occur after a successful INSERT; verify before retrying.
+        setMessage('No se confirmó el registro. Actualiza y comprueba si el cliente existe antes de reintentar.');
+      }
     } finally {
       createInFlight.current = false;
       setContactBusy(false);
