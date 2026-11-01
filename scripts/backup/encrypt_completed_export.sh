@@ -13,9 +13,18 @@ umask 077
 parent="$(dirname "$BACKUP_OUTPUT_DIR")"
 base="$(basename "$BACKUP_OUTPUT_DIR")"
 # Tar sends plaintext only through the pipe; age writes encrypted bytes to a new file.
-tar -C "$parent" -cf - "$base" | age -r "$BACKUP_AGE_RECIPIENT" -o "$BACKUP_ENCRYPTED_OUTPUT"
-chmod 600 "$BACKUP_ENCRYPTED_OUTPUT"
-test -s "$BACKUP_ENCRYPTED_OUTPUT" || { rm -f "$BACKUP_ENCRYPTED_OUTPUT"; exit 1; }
+[[ ! -e "$BACKUP_ENCRYPTED_OUTPUT.sha256" ]] || { echo "Checksum target already exists" >&2; exit 1; }
+target_dir="$(dirname "$BACKUP_ENCRYPTED_OUTPUT")"
+[[ -d "$target_dir" && ! -L "$target_dir" ]] || { echo "Encrypted destination directory missing or unsafe" >&2; exit 1; }
+tmp="$(mktemp "$target_dir/.inmojco-encrypted.XXXXXXXX.age")"
+trap 'rm -f "$tmp"' EXIT
+tar -C "$parent" -cf - "$base" | age -r "$BACKUP_AGE_RECIPIENT" -o "$tmp"
+test -s "$tmp" || { echo "Empty encrypted package" >&2; exit 1; }
+chmod 600 "$tmp"
+# Publish only after the streaming pipeline succeeds.
+mv -n "$tmp" "$BACKUP_ENCRYPTED_OUTPUT"
+[[ -e "$tmp" ]] && { echo "Refusing overwrite" >&2; exit 1; }
+trap - EXIT
 sha256sum "$BACKUP_ENCRYPTED_OUTPUT" > "$BACKUP_ENCRYPTED_OUTPUT.sha256"
 chmod 600 "$BACKUP_ENCRYPTED_OUTPUT.sha256"
 echo "Encrypted package created. Restore has NOT been verified. Keep age private identity offline."
