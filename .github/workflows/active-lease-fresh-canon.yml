@@ -1,0 +1,16 @@
+name: Active lease fresh canon regression
+on:
+  pull_request:
+    paths:
+      - 'src/modules/finance/ActiveLeaseCorrection.tsx'
+      - 'tests/active-lease-fresh-canon-regression.test.mjs'
+      - '.github/workflows/active-lease-fresh-canon.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/active-lease-fresh-canon-regression.test.mjs
