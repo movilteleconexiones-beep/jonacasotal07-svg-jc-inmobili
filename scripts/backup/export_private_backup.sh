@@ -23,19 +23,28 @@ root = pathlib.Path(sys.argv[1])
 entries = json.loads((root / "storage-export/storage-manifest.json").read_text())
 for item in entries:
     path = root / "storage-export/storage" / item["bucket"] / item["path"]
-    data = path.read_bytes()
-    if len(data) != item["bytes"] or hashlib.sha256(data).hexdigest() != item["sha256"]:
+    digest = hashlib.sha256()
+    actual_size = 0
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            actual_size += len(chunk)
+            digest.update(chunk)
+    if actual_size != item["bytes"] or digest.hexdigest() != item["sha256"]:
         raise SystemExit("Storage manifest validation failed")
 if not (root / "database.dump").is_file() or not (root / "database.dump").stat().st_size:
     raise SystemExit("Database dump missing or empty")
 checksum_line = (root / "database.dump.sha256").read_text().strip()
-actual_hash = hashlib.sha256((root / "database.dump").read_bytes()).hexdigest()
+db_digest = hashlib.sha256()
+with (root / "database.dump").open("rb") as source:
+    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+        db_digest.update(chunk)
+actual_hash = db_digest.hexdigest()
 if checksum_line.split()[0] != actual_hash:
     raise SystemExit("Database checksum mismatch")
 (root / "EXPORT_COMPLETE.json").write_text(json.dumps({
     "status": "export_complete_restore_unverified",
     "storage_objects": len(entries),
-    "database_dump_sha256": hashlib.sha256((root / "database.dump").read_bytes()).hexdigest()
+    "database_dump_sha256": actual_hash
 }, indent=2))
 (root / "EXPORT_COMPLETE.json").chmod(0o600)
 PY
