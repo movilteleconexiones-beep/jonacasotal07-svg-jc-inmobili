@@ -15,7 +15,7 @@ test('contact creation prevents repeated submits before React state is applied',
 test('uncertain create result requests verification rather than blind retry', () => {
   assert.match(source, /No se confirmó el registro\. Actualiza y comprueba si el cliente existe antes de reintentar/);
   assert.match(source, /Ya existe una ficha con este correo/);
-  assert.match(source, /if\(created\?\.id\) onCreated\?\.\(created\.id\)/);
+  assert.match(source, /if\s*\(created\?\.id\)\s*onCreated\?\.\(created\.id\)/);
   assert.match(source, /await load\(\);\s*setMessage\('Cliente\/contacto creado correctamente\.'\)/);
 });
 
