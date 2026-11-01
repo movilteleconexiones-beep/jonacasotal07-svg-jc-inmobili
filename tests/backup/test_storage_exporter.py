@@ -40,6 +40,38 @@ class StorageExporterGuards(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("private", result.stderr)
 
+    def test_rejects_symlink_destination_before_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            private = Path(tmp) / "private"
+            private.mkdir(mode=0o700)
+            linked = Path(tmp) / "linked"
+            linked.symlink_to(private, target_is_directory=True)
+            result = self.run_exporter(linked, "https://example.invalid")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("symlink", result.stderr)
+            self.assertEqual(list(private.iterdir()), [])
+
+    def test_rejects_symlink_parent_before_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            private = Path(tmp) / "private"
+            nested = private / "nested"
+            nested.mkdir(parents=True, mode=0o700)
+            linked = Path(tmp) / "linked"
+            linked.symlink_to(private, target_is_directory=True)
+            result = self.run_exporter(linked / "nested", "https://example.invalid")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("symlink", result.stderr)
+            self.assertEqual(list(nested.iterdir()), [])
+
+    def test_rejects_parent_traversal_before_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            private = Path(tmp) / "private"
+            private.mkdir(mode=0o700)
+            destination = private / ".." / "private"
+            result = self.run_exporter(destination, "https://example.invalid")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("parent traversal", result.stderr)
+
     def test_download_and_manifest_from_mock_storage(self):
         payload = b"fictional-pdf-bytes-for-test"
         class Handler(BaseHTTPRequestHandler):
