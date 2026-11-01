@@ -14,7 +14,12 @@ from urllib.request import Request, urlopen
 url = os.environ["SUPABASE_URL"].rstrip("/")
 key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 root = Path(os.environ["BACKUP_OUTPUT_DIR"]).resolve()
-root.mkdir(mode=0o700, parents=True, exist_ok=True)
+if not url.startswith("https://"):
+    raise ValueError("SUPABASE_URL must use HTTPS")
+if not root.is_dir() or root.is_symlink() or (root.stat().st_mode & 0o077):
+    raise PermissionError("BACKUP_OUTPUT_DIR must exist, be private and not be a symlink")
+if any(root.iterdir()):
+    raise FileExistsError("BACKUP_OUTPUT_DIR must be empty")
 
 def call(endpoint, payload=None):
     headers = {"apikey": key, "Authorization": f"Bearer {key}"}
@@ -60,8 +65,12 @@ for bucket in buckets:
                     + "/"
                     + quote(object_path, safe="/")
                 )
-                destination.write_bytes(data)
+                with destination.open("xb") as output:
+                    output.write(data)
                 destination.chmod(0o600)
+                expected_size = item.get("metadata", {}).get("size")
+                if expected_size is not None and len(data) != int(expected_size):
+                    raise IOError(f"Storage size mismatch: {bucket_id}/{object_path}")
                 manifest.append({
                     "bucket": bucket_id, "path": object_path,
                     "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
@@ -69,7 +78,7 @@ for bucket in buckets:
             if len(entries) < 100:
                 break
             offset += len(entries)
-(root / "storage-manifest.json").write_text(
-    json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
-)
+with (root / "storage-manifest.json").open("x", encoding="utf-8") as output:
+    json.dump(manifest, output, indent=2, ensure_ascii=False)
+os.chmod(root / "storage-manifest.json", 0o600)
 print(f"Exported {len(manifest)} objects; verify and encrypt before transferring.")
