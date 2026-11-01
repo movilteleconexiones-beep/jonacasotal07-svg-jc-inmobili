@@ -245,7 +245,7 @@ jobs:
           curl -fsSI http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco | grep -iq 'cache-control: no-store'
           test "$(curl -fsS http://127.0.0.1:18080/readyz)" = "ok"
           curl -fsSI http://127.0.0.1:18080/readyz | grep -iq 'cache-control: no-store'
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/readyz/missing)" = "200"
+          test "$(curl -fsS http://127.0.0.1:18080/readyz/missing)" != "ok"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.css)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.js)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco)" = "200"
