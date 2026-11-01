@@ -669,6 +669,8 @@ jobs:
 
       - name: Contact correction and linked-record deletion prevention UI
         run: node --test tests/audited-contact-edit-delete.test.mjs
+      - name: Contact registration single-flight and uncertain retry prevention
+        run: node --test tests/contact-create-single-flight.test.mjs
 
       - name: Prevent duplicate apartment contracts and audit rental draft correction
         env:
