@@ -1,0 +1,49 @@
+name: Coordinator finance permissions isolated SQL
+on:
+  pull_request:
+    paths:
+      - 'docs/security/staging-coordinator-grants.sql'
+      - 'tests/coordinator-financial-permissions.test.mjs'
+      - '.github/workflows/coordinator-finance-grants.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: jco_role_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jco_role_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+      PGDATABASE: jco_role_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run source checks
+        run: node --test tests/coordinator-financial-permissions.test.mjs
+      - name: Create isolated role fixture
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE TABLE public.permissions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), key text UNIQUE NOT NULL);
+          CREATE TABLE public.roles(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid, key text NOT NULL, active boolean NOT NULL);
+          CREATE TABLE public.role_permissions(role_id uuid REFERENCES public.roles(id), permission_id uuid REFERENCES public.permissions(id), PRIMARY KEY(role_id,permission_id));
+          INSERT INTO public.permissions(key) VALUES ('rent_payments.view'),('rent_payments.create');
+          INSERT INTO public.roles(organization_id,key,active)
+            SELECT gen_random_uuid(), k, true FROM (VALUES ('AGENT'),('MANAGER'),('ADMIN')) AS roles(k);
+          SQL
+      - name: Exercise staging grant twice and assert agent denial
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/security/staging-coordinator-grants.sql
+          psql -v ON_ERROR_STOP=1 -f docs/security/staging-coordinator-grants.sql
+          psql -v ON_ERROR_STOP=1 -f tests/security/assert-coordinator-grants.sql
