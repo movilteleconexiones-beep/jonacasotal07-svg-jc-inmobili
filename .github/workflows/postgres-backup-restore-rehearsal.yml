@@ -1,0 +1,34 @@
+name: PostgreSQL backup and restore rehearsal
+on:
+  pull_request:
+    paths:
+      - 'tests/backup/postgres_restore_rehearsal.sh'
+      - '.github/workflows/postgres-backup-restore-rehearsal.yml'
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci_password
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-17
+      - name: Export synthetic database and restore into another database
+        run: bash tests/backup/postgres_restore_rehearsal.sh
