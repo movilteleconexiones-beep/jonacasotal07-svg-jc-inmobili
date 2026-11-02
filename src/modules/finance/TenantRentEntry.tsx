@@ -50,6 +50,9 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   const [revision,setRevision]=useState(0);
   const [draftEditor,setDraftEditor]=useState<string|null>(null);
   const [draftWorking,setDraftWorking]=useState(false);
+  // Prevent two contract drafts from passing preflight in this browser before React rerenders.
+  // The PostgreSQL unique index remains the authoritative cross-session duplicate guard.
+  const contractSubmissionInFlight=useRef(false);
   const pendingReceiptRequest=useRef<{
     fingerprint:string; key:string; uploadedPath?:string;
   }|null>(null);
@@ -94,7 +97,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     draftProperty?.price,draftRent.trim()?Number(draftRent):null,draftProperty?.operation_type);
 
   async function createContract(event:FormEvent<HTMLFormElement>){
-    event.preventDefault();if(!contractAllowed||busy)return;
+    event.preventDefault();if(!contractAllowed||busy||contractSubmissionInFlight.current)return;
     const element=event.currentTarget;const f=new FormData(element);
     const propertyId=String(f.get('property_id')||''),tenantId=String(f.get('tenant_id')||''),ownerId=String(f.get('owner_id')||'');
     const rent=validMoney(f.get('monthly_rent')),start=String(f.get('start_date')||''),end=String(f.get('end_date')||'');
@@ -103,6 +106,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       !/^\d{4}-\d{2}-\d{2}$/.test(start)||(end&&end<start)) {
       setError('Verifica el inmueble, inquilino, canon y fechas.');return;
     }
+    contractSubmissionInFlight.current=true;
     setBusy(true);setError('');
     try {
       {
@@ -140,7 +144,16 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         monthly_rent:rent,start_date:start,end_date:end||null,
         contract_number:String(f.get('contract_number')||'').trim().slice(0,100)||null,status:'DRAFT',
       }).select('id').single();
-      if(failure||!created){setError('No se pudo guardar el contrato: '+(failure?.message??'No hubo confirmación de la fila.'));return;}
+      if(failure||!created){
+        if(failure?.code==='23505' &&
+           failure.message.includes('leases_one_open_contract_per_property')){
+          setError('Este inmueble ya tiene un contrato abierto. Busca y corrige el existente en lugar de crear otro.');
+          setRevision(value=>value+1);
+        } else {
+          setError('No se pudo guardar el contrato: '+(failure?.message??'No hubo confirmación de la fila.'));
+        }
+        return;
+      }
       element.reset();setNewPropertyId('');setNewRent('');
       setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
       window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
@@ -150,6 +163,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       setRevision(x=>x+1);
     } finally {
       setBusy(false);
+      contractSubmissionInFlight.current=false;
     }
   }
 
