@@ -110,3 +110,26 @@ test('seven lease/finance trigger bodies match captured pg_proc, including later
   const [name,schema,file,hash]=capturedTriggerBodies[0];
   assert.notEqual(createHash('md5').update(triggerBody(readMigration(file),schema,name)+' -- tampered','utf8').digest('hex'),hash);
 });
+
+
+/*
+ * New #104 lineage hypothesis: owner payout ledger has a retimed migration
+ * filename. A READ-ONLY pg_proc query on 2026-11-02 captured the live body
+ * fingerprint below. Verify that the checked-in SQL supplies that exact body.
+ * This does NOT certify migration execution, DDL equivalence or production.
+ */
+test('owner payout ledger RPC body matches captured live pg_proc (#104)',()=>{
+  const sql=readMigration('20261014030000_owner_payout_ledger.sql');
+  const body=triggerBody(sql,'public','admin_record_owner_payout');
+  const fingerprint=createHash('md5').update(body,'utf8').digest('hex');
+  assert.equal(fingerprint,'efd6716179b8a1b4ab07b83d9233b4a1',
+    'payout RPC differs from read-only live pg_proc snapshot');
+  assert.match(sql,/CONSTRAINT owner_statement_payouts_statement_fk FOREIGN KEY\(organization_id,statement_id\)/);
+  assert.match(sql,/CONSTRAINT owner_statement_payouts_unique_reference UNIQUE\(organization_id,statement_id,payment_reference\)/);
+  assert.match(sql,/CREATE POLICY owner_statement_payouts_view ON public\.owner_statement_payouts FOR SELECT TO authenticated/);
+  assert.match(sql,/REVOKE ALL ON public\.owner_statement_payouts FROM PUBLIC,anon,authenticated/);
+  assert.match(sql,/GRANT SELECT ON public\.owner_statement_payouts TO authenticated/);
+  assert.notEqual(createHash('md5').update(body+' -- modified','utf8').digest('hex'),fingerprint);
+  // A body match and selected DDL effects never authorize replay or repair.
+  assert.equal(compareHistoricFinanceBodies(catalog,readMigration).safe_to_push_migrations,false);
+});
