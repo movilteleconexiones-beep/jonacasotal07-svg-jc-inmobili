@@ -101,7 +101,8 @@ function main(argv) {
     return 0;
   }
   if (!argv[ix + 1]) throw Error('--ledger requires an explicit JSON file of applied production versions');
-  const ledger = JSON.parse(readFileSync(resolve(argv[ix + 1]), 'utf8'));
+  const payload = JSON.parse(readFileSync(resolve(argv[ix + 1]), 'utf8'));
+  const ledger = Array.isArray(payload) ? payload : payload?.migrations;
   const result = inspectAppliedFinanceVersions(ledger);
   const all = inspectFullMigrationLedger(ledger, readdirSync(migrationDir));
   if (!all.safeToPush || !result.safeToPush) {
