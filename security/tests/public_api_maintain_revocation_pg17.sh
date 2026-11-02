@@ -74,9 +74,15 @@ BEGIN
  THEN RAISE EXCEPTION 'Fixture did not reproduce excessive MAINTAIN grants'; END IF;
 END $$;
 SQL
+# Reproduce the exact three finance-table grants found in production, in
+# addition to the generic and cross-tenant cases already covered here.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/tests/finance_maintain_acl_fixture.sql
 # Candidate may be applied twice; it must be idempotent and leave RLS untouched.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/candidates/revoke_public_api_maintain.sql
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/candidates/revoke_public_api_maintain.sql
+# Verify the generalized fix preserves the real app's exact financial CRUD
+# grants, privileged maintenance grants and synthetic transaction behavior.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/tests/finance_maintain_acl_assertions.sql
 psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
 SET ROLE supabase_admin;
 CREATE TABLE public.future_supabase_admin (id int);
