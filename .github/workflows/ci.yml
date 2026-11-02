@@ -243,6 +243,9 @@ jobs:
           test -n "$css_path"
           curl -fsSI "http://127.0.0.1:18080$css_path" | grep -iq 'content-type: text/css'
           curl -fsSI http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco | grep -iq 'cache-control: no-store'
+          test "$(curl -fsS http://127.0.0.1:18080/readyz)" = "ok"
+          curl -fsSI http://127.0.0.1:18080/readyz | grep -iq 'cache-control: no-store'
+          test "$(curl -fsS http://127.0.0.1:18080/readyz/missing)" != "ok"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.css)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.js)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco)" = "200"
@@ -669,6 +672,8 @@ jobs:
 
       - name: Contact correction and linked-record deletion prevention UI
         run: node --test tests/audited-contact-edit-delete.test.mjs
+      - name: Contact registration single-flight and uncertain retry prevention
+        run: node --test tests/contact-create-single-flight.test.mjs
 
       - name: Prevent duplicate apartment contracts and audit rental draft correction
         env:
@@ -771,6 +776,8 @@ jobs:
         run: node --import tsx --test tests/signed-lease-pdf.test.mjs
       - name: Separate Clients from six-step rental workflow regression
         run: node --test tests/separate-clients-rental-intake-workflow.test.mjs
+      - name: Existing contract correction entry and permission alignment
+        run: node --test tests/existing-contract-correction-entry.test.mjs
 
       - name: Guided rental intake and approval regression tests
         run: node --test tests/rental-intake-guided-flow.test.mjs
