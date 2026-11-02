@@ -32,3 +32,19 @@ test('draft correction remains administrative and does not duplicate client crea
   assert.equal((wizard.match(/<ContactsModule contactsOnly/g)||[]).length,1);
   assert.equal((wizard.match(/<ActiveLeaseCorrection/g)||[]).length,1);
 });
+
+
+test('active lease correction prevents a double submission before asynchronous preflight',()=>{
+  const functionBody=correction.slice(correction.indexOf('async function rectify('),correction.indexOf('  if(!authorized)return null;'));
+  assert.match(correction,/import \{ useEffect, useRef, useState, type FormEvent \} from 'react'/);
+  assert.match(correction,/const correctionInFlight=useRef\(false\)/);
+  assert.match(functionBody,/if\(!authorized\|\|busy\|\|correctionInFlight\.current\|\|!selectedLease/);
+  const lock=functionBody.indexOf('correctionInFlight.current=true');
+  const firstRead=functionBody.indexOf('await supabase.from(');
+  const save=functionBody.indexOf("await supabase.rpc('admin_rectify_active_lease'");
+  assert.ok(lock>0 && lock<firstRead && firstRead<save,'synchronous lock must precede every async request');
+  assert.match(functionBody,/try\s*\{/);
+  assert.match(functionBody,/finally\s*\{correctionInFlight\.current=false;setBusy\(false\)\}/);
+  assert.match(functionBody,/El contrato cambió desde que abriste el formulario/);
+  assert.match(functionBody,/rentalCanonWarning\(currentMismatch\)/);
+});
