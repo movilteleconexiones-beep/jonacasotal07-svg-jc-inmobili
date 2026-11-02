@@ -22,6 +22,8 @@ BEGIN
       SELECT 1 FROM pg_trigger t
       WHERE t.tgrelid=to_regclass('public.'||tbl)
         AND t.tgname='jco_billing_auth_lock' AND NOT t.tgisinternal
+        AND (t.tgtype & 1) = 0 -- STATEMENT, not ROW
+        AND (t.tgtype & 2) = 2 -- BEFORE the writer acquires row locks
     ) THEN RAISE EXCEPTION 'Missing authorization lock trigger on %',tbl; END IF;
   END LOOP;
   BEGIN
