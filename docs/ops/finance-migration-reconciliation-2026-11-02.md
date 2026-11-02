@@ -100,3 +100,26 @@ El archivo sin nombre aplicado `20261010222700_commercial_plan_permissions.sql` 
 **Conclusión limitada:** el archivo histórico está **materialmente desactualizado respecto al estado vigente**; no hay prueba de que alguna versión se aplicó originalmente ni se ha formalizado su reemplazo en el ledger. Bloquear cualquier intento de ejecutarlo o marcarlo aplicado sin un mapeo respaldado por definiciones, historia y decisión explícita.
 
 El preflight `scripts/ops/finance-migration-gate.mjs --ledger` ahora detecta los **32 SQL legados de cuatro dígitos** (incluidos los siete borradores de facturación `0026–0032`). Aunque las 76 versiones fechadas coincidieran hipotéticamente, devuelve **NO-GO**, evitando una aprobación falsa por omitir archivos no fechados. Un resultado positivo de la comprobación *solo del repositorio* tampoco autoriza desplegar.
+
+
+## Preflight de executor para MAINTAIN: bloqueo reproducido sin escritura
+
+La consulta de **solo lectura** realizada el 02-nov-2026 en `cuitgyqrjibgwuniapmk` confirmó:
+- Executor actual de SQL: `postgres` (PostgreSQL 17.11), **no es superusuario**; `member_of_postgres=true`, `member_of_supabase_admin=false` y `can_set_supabase_admin=false`.
+- Las **58 tablas públicas actuales** pertenecen a `postgres`. De ellas, **35** conceden `MAINTAIN` a `anon` y **41** a `authenticated`.
+- Existen **cuatro concesiones predeterminadas** de `MAINTAIN` a esos roles sobre futuras tablas, definidas por dos propietarios: `postgres` y `supabase_admin`.
+
+**Resultado operativo: NO ejecutar** `security/candidates/revoke_public_api_maintain.sql` usando la conexión actual. La protección de ese archivo verifica las dos membresías y aborta toda la transacción si faltan. La prueba con rol sin privilegios, simulando el entorno alojado, demuestra rechazo **antes de modificar permisos**; el ensayo positivo como superusuario en CI demuestra semántica de PostgreSQL, **no** privilegios disponibles en Supabase real.
+
+La evidencia está versionada en `docs/ops/snapshots/maintain-executor-readiness-2026-11-02.json`. El nuevo preflight offline y su test:
+
+```bash
+node --test tests/maintain-executor-readiness.test.mjs
+node scripts/ops/maintain-executor-readiness.mjs --snapshot docs/ops/snapshots/maintain-executor-readiness-2026-11-02.json
+```
+
+La herramienta siempre devuelve `production_change_authorized=false` y `migration_push_authorized=false`. Ejecutarla no revalida el estado actual de Supabase: se trata de una captura con fecha.
+
+**Plan seguro de ejecución cuando exista staging aislado:** revisar previamente los privilegios del executor realmente disponible, identificar un procedimiento autorizado para modificar también los **DEFAULT PRIVILEGES de `supabase_admin`** (no conceder ni autoasignarse privilegios adicionales), ensayar el cambio de manera reversible en ese entorno, validar las tablas existentes y futuras, y probar de nuevo CRUD, RLS, Storage y perfiles. Si no existe ese executor autorizado, mantener **NO-GO** y solicitar el canal oficial de Supabase. Una revocación parcial hecha por `postgres` no debe presentarse como remediación completa.
+
+La incidencia #104 también continúa abierta por el historial de migraciones; ni este preflight ni los tests de ACL lo reemplazan.
