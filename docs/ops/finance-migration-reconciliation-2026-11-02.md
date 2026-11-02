@@ -41,3 +41,15 @@ node scripts/ops/finance-migration-gate.mjs --ledger ruta/al/ledger.json
 5. Mantener Wompi sandbox, RLS y producción sin cambios hasta pasar los controles de lanzamiento #203.
 
 La rama de respaldo de código permanece protegida; la incidencia #214 de recuperación ya se cerró. No se necesitan nuevas exportaciones, cifrado, USB ni migraciones por duplicado.
+
+## Evidencia puntual adicional de versiones sin coincidencia de nombre (2-nov-2026)
+
+Inspección **solo lectura** en Supabase `cuitgyqrjibgwuniapmk`, comparada con los archivos de `main`. Se eligieron tres de las migraciones fechadas clasificadas como `unmatched-name` en el mapa; estas comprobaciones **no** cambian sus versiones ni demuestran qué migración se ejecutó originalmente.
+
+| Archivo local no registrado con su versión | Evidencia efectiva en producción | Alcance de la conclusión |
+| --- | --- | --- |
+| `20261013051500_fix_archive_reason.sql` | `pg_get_functiondef('public.archive_rectified_commission(uuid,uuid,text)'::regprocedure)`: cuerpo PL/pgSQL idéntico al bloque `AS $func$ ... $func$` del archivo, **1646 caracteres en ambos**. `anon EXECUTE=false`, `authenticated EXECUTE=true`. | El cuerpo de la función está presente; falta rastrear procedencia histórica, grants completos y posibles efectos de otras migraciones. |
+| `20261015081500_basic_pro_functional_parity.sql` | Los planes activos `BASIC` y `PRO`, mensuales en COP, tienen **47** `permission:%` habilitados cada uno; la diferencia de conjuntos en ambas direcciones es **0**; catálogo global: **47** permisos. | La paridad funcional observada coincide con el objetivo del script, **no prueba que su transacción se aplicara**, ni equivalencia de cuotas, precios o historial. |
+| `20261020222000_revoke_anonymous_crm_access.sql` | `public.contacts` y `public.leads`: RLS activo, `anon` sin SELECT/INSERT/UPDATE/DELETE efectivos; sin privilegios explícitos concedidos a `PUBLIC` en ACL. | La restricción anónima de lectura/escritura observada coincide con el efecto buscado, no prueba equivalencia histórica ni seguridad completa de RPCs. |
+
+Estas evidencias reducen incertidumbre sobre **tres efectos concretos** dentro del grupo sin coincidencia de nombre; **no se reclasifican como versiones equivalentes ni se reduce el contador de 75 desajustes**. No ejecutar `migration repair`, `db push` ni DDL histórico basándose en esta tabla. La verificación E2E/RLS y la conciliación de definiciones restantes siguen pendientes.
