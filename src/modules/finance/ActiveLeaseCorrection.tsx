@@ -30,10 +30,13 @@ export function ActiveLeaseCorrection({organizationId}:{organizationId:string}) 
   const [notice,setNotice]=useState('');
   const [revision,setRevision]=useState(0);
 
+  // Preserve a successful save notice across the refresh; clear it only on tenant switch.
+  useEffect(()=>{setNotice('');},[organizationId]);
+
   useEffect(()=>{
     let cancelled=false;
     setSelectedId('');setSelectedEvidence('');setLeases([]);setProperties([]);
-    setDocuments([]);setError('');setNotice('');
+    setDocuments([]);setError('');
     if(!organizationId||!authorized)return()=>{cancelled=true};
     setLoading(true);
     void(async()=>{
