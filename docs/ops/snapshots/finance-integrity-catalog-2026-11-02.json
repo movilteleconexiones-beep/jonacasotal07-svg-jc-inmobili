@@ -179,5 +179,190 @@
       "rls_enabled": true,
       "rls_forced": false
     }
-  ]
+  ],
+  "finance_surface_audit": {
+    "origin": "Read-only pg_catalog on 2026-11-02; selected historical index/trigger definitions, effective ACLs and inventory counts. Not historical DDL equivalence.",
+    "access": [
+      {
+        "role_name": "anon",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "trigger": false,
+          "maintain": false,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "leases"
+      },
+      {
+        "role_name": "authenticated",
+        "privileges": {
+          "delete": false,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "trigger": false,
+          "maintain": true,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "leases"
+      },
+      {
+        "role_name": "anon",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "trigger": false,
+          "maintain": false,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "owner_statement_deductions"
+      },
+      {
+        "role_name": "authenticated",
+        "privileges": {
+          "delete": false,
+          "insert": true,
+          "select": true,
+          "update": true,
+          "trigger": false,
+          "maintain": false,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "owner_statement_deductions"
+      },
+      {
+        "role_name": "anon",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "trigger": false,
+          "maintain": false,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "owner_statements"
+      },
+      {
+        "role_name": "authenticated",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": true,
+          "update": false,
+          "trigger": false,
+          "maintain": true,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "owner_statements"
+      },
+      {
+        "role_name": "anon",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "trigger": false,
+          "maintain": false,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "rent_payments"
+      },
+      {
+        "role_name": "authenticated",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": true,
+          "update": false,
+          "trigger": false,
+          "maintain": true,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "rent_payments"
+      },
+      {
+        "role_name": "anon",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": false,
+          "update": false,
+          "trigger": false,
+          "maintain": false,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "rent_receipts"
+      },
+      {
+        "role_name": "authenticated",
+        "privileges": {
+          "delete": false,
+          "insert": false,
+          "select": true,
+          "update": false,
+          "trigger": false,
+          "maintain": false,
+          "truncate": false,
+          "references": false
+        },
+        "table_name": "rent_receipts"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "owner_deductions_statement_created_idx",
+        "valid": true,
+        "definition": "CREATE INDEX owner_deductions_statement_created_idx ON public.owner_statement_deductions USING btree (organization_id, statement_id, created_at DESC)",
+        "table_name": "owner_statement_deductions",
+        "unique_flag": false
+      },
+      {
+        "name": "rent_receipts_period_idx",
+        "valid": true,
+        "definition": "CREATE INDEX rent_receipts_period_idx ON public.rent_receipts USING btree (organization_id, rent_payment_id, created_at)",
+        "table_name": "rent_receipts",
+        "unique_flag": false
+      }
+    ],
+    "triggers": [
+      {
+        "name": "aaa_owner_deductions_server_timestamps",
+        "enabled": "O",
+        "definition": "CREATE TRIGGER aaa_owner_deductions_server_timestamps BEFORE INSERT ON owner_statement_deductions FOR EACH ROW EXECUTE FUNCTION normalize_owner_deduction_audit_fields()",
+        "table_name": "owner_statement_deductions"
+      },
+      {
+        "name": "owner_statement_deductions_guard",
+        "enabled": "O",
+        "definition": "CREATE TRIGGER owner_statement_deductions_guard BEFORE INSERT OR DELETE OR UPDATE ON owner_statement_deductions FOR EACH ROW EXECUTE FUNCTION guard_owner_statement_deduction_change()",
+        "table_name": "owner_statement_deductions"
+      }
+    ],
+    "inventory": {
+      "indexes": 23,
+      "triggers": 9
+    },
+    "historical_source_files": [
+      "20261012120000_owner_statement_deduction_lines.sql",
+      "20261012130000_rent_receipts_and_owner_drafts.sql",
+      "20261012150000_finance_approval_and_audit_timestamp_hardening.sql"
+    ],
+    "observed_review_required": "authenticated MAINTAIN effective on leases, rent_payments, owner_statements; staged security review needed before any privilege change"
+  }
 }
