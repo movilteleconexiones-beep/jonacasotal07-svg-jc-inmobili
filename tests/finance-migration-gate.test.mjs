@@ -38,7 +38,12 @@ test('whole repository ledger must match before any migration apply',()=>{
   assert.equal(result.safeToPush,false);
   assert.ok(result.totalLocalTimestamped>=70);
   assert.ok(result.missing.length>=60);
-  assert.equal(inspectFullMigrationLedger([...consolidated,...allDated],files).safeToPush,true);
+  const fullyDated = inspectFullMigrationLedger([...consolidated,...allDated],files);
+  assert.equal(fullyDated.versionAlignmentComplete,true);
+  assert.equal(fullyDated.safeToPush,false, 'legacy SQL files, including seven unpublished billing drafts, prohibit db push');
+  assert.equal(fullyDated.legacySqlFiles.length,32);
+  assert.equal(inspectFullMigrationLedger(['20261012120000'],['20261012120000_test.sql']).safeToPush,true);
+  assert.equal(inspectFullMigrationLedger(['20261012120000'],['20261012120000_test.sql','0032_atomic_sandbox_payment_order_draft.sql']).safeToPush,false);
   assert.throws(()=>inspectFullMigrationLedger(['invalid'],files),/Invalid migration ledger version/);
   assert.throws(()=>inspectAppliedFinanceVersions({}),/JSON array/);
 });
