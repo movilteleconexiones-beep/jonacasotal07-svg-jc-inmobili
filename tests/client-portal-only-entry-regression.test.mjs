@@ -27,7 +27,7 @@ test('organization owner is not synonymous with property owner',()=>{
 test('client-only account opens a separate portal without internal tenant navigation',()=>{
  assert.match(dashboard,/if \(mode\.portalOnly \|\| \(mode\.clientLinkedRole&&clientPortalMode\)\)/);
  assert.match(dashboard,/const \[clientPortalMode,setClientPortalMode\]=useState\(true\)/);
- assert.match(dashboard,/<PortalHub\/>/);
+ assert.ok(dashboard.includes('<PortalHub key={portalScopeKey} />'));
  assert.match(dashboard,/No se puede gestionar facturación desde una cuenta de Cliente/);
  assert.match(dashboard,/NO reduce los privilegios de tu sesión/);
  assert.match(dashboard,/únicamente el rol CLIENT/);
