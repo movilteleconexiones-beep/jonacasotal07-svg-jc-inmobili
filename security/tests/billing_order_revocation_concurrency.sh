@@ -21,8 +21,7 @@ order_sql() {
   printf "SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','%s',false); SELECT set_config('request.jwt.claim.role','authenticated',false); SELECT public.create_authorized_sandbox_payment_order('%s','BASIC','%s');" "$actor" "$org" "$ref"
 }
 order_ref() {
-  seq="$((seq+1))"
-  printf 'JCO_%032x' "$seq"
+  printf 'JCO_%032x' "$1"
 }
 assert_count() {
   local expected="$1" actual
@@ -51,8 +50,10 @@ run_two() {
     cat "$logs/$label-a" "$logs/$label-b" >&2
     exit 1
   fi
-  if [[ "$expect_second" == failure ]] && ! grep -q '42501\|23505' "$logs/$label-b"; then
-    echo "FAIL $label: rejected operation must be denied/duplicate" >&2
+  local wanted='42501'
+  [[ "$label" == 'duplicate-reference' ]] && wanted='23505'
+  if [[ "$expect_second" == failure ]] && ! grep -q "$wanted" "$logs/$label-b"; then
+    echo "FAIL $label: rejection expected SQLSTATE $wanted" >&2
     cat "$logs/$label-b" >&2; exit 1;
   fi
 }
@@ -65,13 +66,13 @@ reset_roles() {
 }
 set_allow
 assert_count 0
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 run_two 'order-then-deny' "$(order_sql "$org_a" "$actor_a" "$ref")" \
   "UPDATE public.member_permissions SET effect='DENY' WHERE organization_member_id='$member_a' AND permission_id='$perm';" \
   success success
 assert_count 1
 # The new permission state takes effect when evaluated on a fresh statement.
-deny_ref="$(order_ref)"
+deny_seq=$((seq+1)); ref="$(order_ref "$seq")"
 set +e
 psql_ci -c "$(order_sql "$org_a" "$actor_a" "$deny_ref")" >"$logs/deny-test" 2>&1
 status=$?
@@ -82,7 +83,7 @@ set -e
 assert_count 1
 
 set_allow
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 run_two 'deny-then-order' \
   "UPDATE public.member_permissions SET effect='DENY' WHERE organization_member_id='$member_a' AND permission_id='$perm';" \
   "$(order_sql "$org_a" "$actor_a" "$ref")" success failure
@@ -91,26 +92,26 @@ assert_count 1
 # Recreate role-based grant without explicit ALLOW.
 psql_ci -c "DELETE FROM public.member_permissions WHERE organization_member_id='$member_a' AND permission_id='$perm';" >/dev/null
 reset_roles
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 run_two 'role-grant-then-order' \
   "DELETE FROM public.role_permissions WHERE role_id='$role_a' AND permission_id='$perm';" \
   "$(order_sql "$org_a" "$actor_a" "$ref")" success failure
 assert_count 1
 reset_roles
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 run_two 'member-role-then-order' \
   "DELETE FROM public.member_roles WHERE organization_member_id='$member_a' AND role_id='$role_a';" \
   "$(order_sql "$org_a" "$actor_a" "$ref")" success failure
 assert_count 1
 reset_roles
 set_allow
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 run_two 'inactive-member-then-order' \
   "UPDATE public.organization_members SET status='INACTIVE' WHERE id='$member_a';" \
   "$(order_sql "$org_a" "$actor_a" "$ref")" success failure
 assert_count 1
 psql_ci -c "UPDATE public.organization_members SET status='ACTIVE' WHERE id='$member_a';" >/dev/null
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 run_two 'suspended-org-then-order' \
   "UPDATE public.organizations SET status='SUSPENDED' WHERE id='$org_a';" \
   "$(order_sql "$org_a" "$actor_a" "$ref")" success failure
@@ -119,12 +120,12 @@ psql_ci -c "UPDATE public.organizations SET status='ACTIVE' WHERE id='$org_a';" 
 set_allow
 
 # Two identical valid requests must produce only one pending order.
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 sql="$(order_sql "$org_a" "$actor_a" "$ref")"
 run_two 'duplicate-reference' "$sql" "$sql" success failure
 assert_count 2
 # A distinct organization is unaffected and uses the plan's trusted COP price.
-ref="$(order_ref)"
+seq=$((seq+1)); ref="$(order_ref "$seq")"
 psql_ci -c "$(order_sql "$org_b" "$actor_b" "$ref")" >/dev/null
 psql_ci -c "DO \$verify\$ BEGIN
  IF (SELECT count(*) FROM public.payment_orders)<>3
