@@ -86,6 +86,15 @@ if psql -X -v ON_ERROR_STOP=1 -d "$db" \
   echo 'ERROR: nonmember hosted executor unexpectedly accepted MAINTAIN candidate'; exit 1
 fi
 grep -q 'MAINTAIN candidate blocked: executor jco_maintain_executor' /tmp/jco-maintain-executor-deny.log
+# Also reject a session running AS supabase_admin without membership in postgres.
+# Its own default ACL is editable, but postgres defaults are not: preflight
+# must reject this role before attempting any table or default-ACL mutation.
+if psql -X -v ON_ERROR_STOP=1 -d "$db" \
+    -c "SET ROLE supabase_admin" \
+    -f security/candidates/revoke_public_api_maintain.sql > /tmp/jco-maintain-admin-deny.log 2>&1; then
+  echo 'ERROR: supabase_admin-only executor unexpectedly accepted MAINTAIN candidate'; exit 1
+fi
+grep -q 'MAINTAIN candidate blocked: executor supabase_admin' /tmp/jco-maintain-admin-deny.log
 before_grants="$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.financial_records','MAINTAIN') AND has_table_privilege('authenticated','public.financial_records','MAINTAIN')")"
 [[ "$before_grants" == t ]] || { echo 'ERROR: denied executor caused partial privilege mutation'; exit 1; }
 # Candidate may be applied twice; it must be idempotent and leave RLS untouched.
