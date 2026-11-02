@@ -70,6 +70,25 @@ export function inspectAppliedFinanceVersions(appliedVersions) {
   };
 }
 
+// The five finance files are only a subset: production ledger drift also exists
+// across other migrations, so NEVER authorize db push using only the finance check.
+export function inspectFullMigrationLedger(appliedVersions, sqlFilenames) {
+  if (!Array.isArray(appliedVersions) || !Array.isArray(sqlFilenames))
+    throw Error('Expected arrays of applied ledger versions and local migration filenames');
+  const versions = appliedVersions.map((entry) => typeof entry === 'string' ? entry : entry?.version);
+  if (versions.some((version) => !/^\d{14}$/.test(version ?? '')))
+    throw Error('Invalid migration ledger version (expected 14 digits)');
+  const applied = new Set(versions);
+  const timestamped = [...new Set(sqlFilenames.map((name) => /^(\d{14})_[^.]+\.sql$/.exec(name)?.[1]).filter(Boolean))];
+  const missing = timestamped.filter((version) => !applied.has(version));
+  return {
+    safeToPush: missing.length === 0,
+    missing,
+    matched: timestamped.length - missing.length,
+    totalLocalTimestamped: timestamped.length,
+  };
+}
+
 function main(argv) {
   const migrationDir = resolve('supabase/migrations');
   const files = verifyRepositoryFinanceHistory(migrationDir);
@@ -82,9 +101,13 @@ function main(argv) {
     return 0;
   }
   if (!argv[ix + 1]) throw Error('--ledger requires an explicit JSON file of applied production versions');
-  const result = inspectAppliedFinanceVersions(JSON.parse(readFileSync(resolve(argv[ix + 1]), 'utf8')));
-  if (!result.safeToPush) {
-    console.error('NO-GO: five historic finance files have different applied versions in Supabase: ' + result.missing.join(', '));
+  const ledger = JSON.parse(readFileSync(resolve(argv[ix + 1]), 'utf8'));
+  const result = inspectAppliedFinanceVersions(ledger);
+  const all = inspectFullMigrationLedger(ledger, readdirSync(migrationDir));
+  if (!all.safeToPush || !result.safeToPush) {
+    console.error('NO-GO: ' + all.missing.length + '/' + all.totalLocalTimestamped + ' local timestamped migrations are not recorded by their exact version.');
+    console.error('Historical finance versions absent: ' + result.missing.join(', '));
+    console.error('First missing versions: ' + all.missing.slice(0, 12).join(', '));
     console.error('Do not run db push. Compare live DDL and reconcile officially under issue #104 first.');
     return 2;
   }
