@@ -19,6 +19,21 @@ const expectedReferences={
 const financialChecks=['leases_financial_amount_valid','rent_payment_financial_amounts_valid','owner_statement_financial_amounts_valid'];
 const restrictive=['leases_financial_insert','leases_financial_update','leases_financial_view','owner_statement_financial_view','rent_payments_financial_view'];
 const permissive=['owner_deductions_insert','owner_deductions_update_status','owner_deductions_view','rent_receipts_view'];
+// Frozen fingerprints of the read-only 2026-11-02 catalog. This validates the
+// captured evidence, NOT current production state or historical DDL equivalence.
+// A syntactically valid but changed MD5 must never silently pass the audit.
+const expectedPolicyCatalog=Object.freeze({
+  leases_financial_insert:['leases','INSERT','d41d8cd98f00b204e9800998ecf8427e','e34f82df28865de1ea38a4b8c6ea8cef'],
+  leases_financial_update:['leases','UPDATE','df97fd366d15a6d95aedaefc9beb56a1','df97fd366d15a6d95aedaefc9beb56a1'],
+  leases_financial_view:['leases','SELECT','ea412a8206710ac9c4f95952abf6576a','d41d8cd98f00b204e9800998ecf8427e'],
+  owner_deductions_insert:['owner_statement_deductions','INSERT','d41d8cd98f00b204e9800998ecf8427e','81f3fdcc150849526e90ad85db6b347e'],
+  owner_deductions_update_status:['owner_statement_deductions','UPDATE','9f9f2f9924cfc3087594129af818a418','9f9f2f9924cfc3087594129af818a418'],
+  owner_deductions_view:['owner_statement_deductions','SELECT','bc0bfc9c1e8a2be98ff909247edb6ba5','d41d8cd98f00b204e9800998ecf8427e'],
+  owner_statement_financial_view:['owner_statements','SELECT','8a01b76618aab663b4fe604a042040f0','d41d8cd98f00b204e9800998ecf8427e'],
+  rent_payments_financial_view:['rent_payments','SELECT','167cc9fc71b02a7ac9e1cbc6c1b4f8af','d41d8cd98f00b204e9800998ecf8427e'],
+  rent_receipts_view:['rent_receipts','SELECT','84fc755bf693516b60997bd5e61036f9','d41d8cd98f00b204e9800998ecf8427e'],
+});
+
 
 export function evaluateFinanceCatalog(catalog) {
   const errors=[];
@@ -38,9 +53,11 @@ export function evaluateFinanceCatalog(catalog) {
   for(const name of [...restrictive,...permissive]){
     const p=catalog.policies.find(row=>row.policyname===name);
     const expected=restrictive.includes(name)?'RESTRICTIVE':'PERMISSIVE';
+    const baseline=expectedPolicyCatalog[name];
     if(!p || p.permissive!==expected || p.roles!=='{authenticated}' ||
-      !/^[0-9a-f]{32}$/.test(p.using_md5) || !/^[0-9a-f]{32}$/.test(p.with_check_md5))
-      errors.push('Financial policy metadata mismatch: '+name);
+      p.tablename!==baseline[0] || p.cmd!==baseline[1] ||
+      p.using_md5!==baseline[2] || p.with_check_md5!==baseline[3])
+      errors.push('Financial policy metadata or captured expression mismatch: '+name);
   }
   const tables=new Set(catalog.tables.filter(t=>t.rls_enabled===true).map(t=>t.table_name));
   for(const name of ['leases','rent_payments','rent_receipts','owner_statements','owner_statement_deductions'])
@@ -68,4 +85,15 @@ test('fail closed if a restrictive tenant finance read policy becomes permissive
   assert.match(evaluateFinanceCatalog(weaker).errors.join(';'),/leases_financial_view/);
   const unprotected={...snapshot,tables:snapshot.tables.map(t=>t.table_name==='owner_statements'?{...t,rls_enabled:false}:t)};
   assert.match(evaluateFinanceCatalog(unprotected).errors.join(';'),/owner_statements/);
+});
+
+test('fail closed when captured policy expression hash changes but remains valid MD5',()=>{
+  const changed={...snapshot,policies:snapshot.policies.map(p=>
+    p.policyname==='owner_deductions_insert'
+      ? {...p,with_check_md5:'00000000000000000000000000000000'}
+      : p)};
+  assert.match(evaluateFinanceCatalog(changed).errors.join(';'),/owner_deductions_insert/);
+  const moved={...snapshot,policies:snapshot.policies.map(p=>
+    p.policyname==='rent_receipts_view'?{...p,tablename:'owner_statements',cmd:'UPDATE'}:p)};
+  assert.match(evaluateFinanceCatalog(moved).errors.join(';'),/rent_receipts_view/);
 });
