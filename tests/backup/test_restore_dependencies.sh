@@ -28,6 +28,28 @@ SQL
 report="$(inspect)"
 assert_line "$report" 'auth.users id unique key|OK'
 assert_line "$report" 'private.can_read_portal_property(uuid,uuid)|OK'
+
+# The checks also show unresolved FK validation and surviving references.
+report="$(inspect)"
+assert_line "$report" 'auth.users referencing FK constraints|0'
+assert_line "$report" 'unvalidated foreign key constraints|0'
+assert_line "$report" 'invalid non-system indexes|0'
+psql -X -v ON_ERROR_STOP=1 -d "$db" >/dev/null <<'SQL'
+CREATE TABLE public.restore_fk_sample (user_id uuid);
+ALTER TABLE public.restore_fk_sample ADD CONSTRAINT restore_fk_sample_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) NOT VALID;
+SQL
+report="$(inspect)"
+assert_line "$report" 'auth.users referencing FK constraints|1'
+assert_line "$report" 'unvalidated foreign key constraints|1'
+psql -X -v ON_ERROR_STOP=1 -d "$db" >/dev/null <<'SQL'
+ALTER TABLE public.restore_fk_sample VALIDATE CONSTRAINT restore_fk_sample_user_id_fkey;
+ALTER TABLE public.restore_fk_sample DROP CONSTRAINT restore_fk_sample_user_id_fkey;
+SQL
+report="$(inspect)"
+assert_line "$report" 'auth.users referencing FK constraints|0'
+assert_line "$report" 'unvalidated foreign key constraints|0'
+
 psql -X -v ON_ERROR_STOP=1 -d "$db" >/dev/null <<'SQL'
 ALTER TABLE auth.users DROP CONSTRAINT users_pkey;
 DROP FUNCTION private.can_read_portal_property(uuid,uuid);
