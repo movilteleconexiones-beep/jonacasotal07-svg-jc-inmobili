@@ -81,8 +81,13 @@ export function inspectFullMigrationLedger(appliedVersions, sqlFilenames) {
   const applied = new Set(versions);
   const timestamped = [...new Set(sqlFilenames.map((name) => /^(\d{14})_[^.]+\.sql$/.exec(name)?.[1]).filter(Boolean))];
   const missing = timestamped.filter((version) => !applied.has(version));
+  // Legacy 0001–0032 files have no timestamped identities. Some are intentionally
+  // UNAPPLIED sandbox drafts: counting only dated files could falsely say GO.
+  const legacySqlFiles = sqlFilenames.filter((name) => /^[0-9]{4}_.+[.]sql$/.test(name)).sort();
   return {
-    safeToPush: missing.length === 0,
+    versionAlignmentComplete: missing.length === 0,
+    safeToPush: missing.length === 0 && legacySqlFiles.length === 0,
+    legacySqlFiles,
     missing,
     matched: timestamped.length - missing.length,
     totalLocalTimestamped: timestamped.length,
@@ -107,13 +112,14 @@ function main(argv) {
   const all = inspectFullMigrationLedger(ledger, readdirSync(migrationDir));
   if (!all.safeToPush || !result.safeToPush) {
     console.error('NO-GO: ' + all.missing.length + '/' + all.totalLocalTimestamped + ' local timestamped migrations are not recorded by their exact version.');
+    console.error('Legacy SQL files without timestamp identities: ' + all.legacySqlFiles.length + ' (includes unpublished billing drafts 0026–0032).');
     console.error('Historical finance versions absent: ' + result.missing.join(', '));
     console.error('First missing versions: ' + all.missing.slice(0, 12).join(', '));
     console.error('Do not run db push. Compare live DDL and reconcile officially under issue #104 first.');
     return 2;
   }
-  console.log('Ledger versions found. This alone does NOT prove live DDL equivalence, RLS or authorization to deploy.');
-  return 0;
+  console.error('NO-GO: metadata alignment does not prove live DDL equivalence, RLS or authorization to deploy.');
+  return 2;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
