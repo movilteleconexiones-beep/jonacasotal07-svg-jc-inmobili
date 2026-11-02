@@ -147,8 +147,8 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       if(failure||!created){
         if(failure?.code==='23505' &&
            failure.message.includes('leases_one_open_contract_per_property')){
+          // Keep the message visible; a revision refresh would clear it immediately.
           setError('Este inmueble ya tiene un contrato abierto. Busca y corrige el existente en lugar de crear otro.');
-          setRevision(value=>value+1);
         } else {
           setError('No se pudo guardar el contrato: '+(failure?.message??'No hubo confirmación de la fila.'));
         }
