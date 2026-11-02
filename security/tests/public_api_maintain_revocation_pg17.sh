@@ -86,7 +86,8 @@ if psql -X -v ON_ERROR_STOP=1 -d "$db" \
   echo 'ERROR: nonmember hosted executor unexpectedly accepted MAINTAIN candidate'; exit 1
 fi
 grep -q 'MAINTAIN candidate blocked: executor jco_maintain_executor' /tmp/jco-maintain-executor-deny.log
-psql -X -v ON_ERROR_STOP=1 -d "$db" -c "SELECT CASE WHEN has_table_privilege('anon','public.financial_records','MAINTAIN') AND has_table_privilege('authenticated','public.financial_records','MAINTAIN') THEN true ELSE (1/0)::boolean END"
+before_grants="$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.financial_records','MAINTAIN') AND has_table_privilege('authenticated','public.financial_records','MAINTAIN')")"
+[[ "$before_grants" == t ]] || { echo 'ERROR: denied executor caused partial privilege mutation'; exit 1; }
 # Candidate may be applied twice; it must be idempotent and leave RLS untouched.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/candidates/revoke_public_api_maintain.sql
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/candidates/revoke_public_api_maintain.sql
