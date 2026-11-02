@@ -19,6 +19,12 @@ test('six sensitive finance functions retain auditable source and live fingerpri
   const report=compareHistoricFinanceBodies(catalog,readMigration);
   assert.equal(report.count,6);
   assert.equal(report.identical_bodies+report.differing_or_superseded_bodies,6);
+  assert.equal(report.identical_bodies,5,'five historic bodies are unchanged in captured live catalog');
+  assert.equal(report.verified_later_revisions,1,'rent period was intentionally superseded by amendment support');
+  assert.equal(report.unresolved_bodies,0);
+  const amended=report.comparisons.find(r=>r.function==='create_tenant_rent_period');
+  assert.equal(amended.status,'body-matches-later-revision');
+  assert.equal(amended.later_source_file,'20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql');
   assert.equal(report.full_ddl_equivalence_verified,false);
   assert.equal(report.safe_to_repair_migrations,false);
   assert.equal(report.safe_to_push_migrations,false);
@@ -26,8 +32,11 @@ test('six sensitive finance functions retain auditable source and live fingerpri
     assert.match(row.historic_body_md5,/^[a-f0-9]{32}$/);
     assert.match(row.captured_live_body_md5,/^[a-f0-9]{32}$/);
     assert.equal(row.anon_can_execute,false);
-    assert.equal(row.status==='body-identical-in-captured-catalog',
-      row.historic_body_md5===row.captured_live_body_md5);
+    if(row.historic_body_md5===row.captured_live_body_md5)
+      assert.equal(row.status,'body-identical-in-captured-catalog');
+    else if(row.later_body_md5===row.captured_live_body_md5)
+      assert.equal(row.status,'body-matches-later-revision');
+    else assert.equal(row.status,'body-different-or-unmapped');
   }
 });
 
@@ -51,4 +60,6 @@ test('catalog change/missing source is fail-closed and cannot mark migrations re
   assert.throws(()=>compareHistoricFinanceBodies({...catalog,functions:catalog.functions.slice(1)},readMigration),/Catalog fingerprint list changed/);
   assert.throws(()=>compareHistoricFinanceBodies({...catalog,functions:catalog.functions.map((r,i)=>i===0?{...r,body_md5:'broken'}:r)},readMigration),/Invalid live body fingerprint/);
   assert.throws(()=>compareHistoricFinanceBodies(catalog,()=>''),/Expected exactly one/);
+  const drifted={...catalog,functions:catalog.functions.map((r,i)=>i===0?{...r,body_md5:'00000000000000000000000000000000'}:r)};
+  assert.equal(compareHistoricFinanceBodies(drifted,readMigration).unresolved_bodies,1);
 });
