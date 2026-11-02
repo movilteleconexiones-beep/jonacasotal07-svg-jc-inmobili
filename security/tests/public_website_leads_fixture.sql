@@ -12,7 +12,7 @@ CREATE TABLE public.organization_settings (organization_id uuid PRIMARY KEY,enab
 CREATE TABLE public.organization_branding (organization_id uuid PRIMARY KEY, public_page_content jsonb NOT NULL DEFAULT '{}'::jsonb);
 CREATE TABLE public.contacts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),organization_id uuid NOT NULL,
-  first_name text NOT NULL,email text,phone text,source text NOT NULL,
+  first_name text NOT NULL,last_name text,email text,phone text,source text NOT NULL,
   notes text,created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE public.leads (
