@@ -10,7 +10,7 @@ cleanup() {
   status=$?
   trap - EXIT
   psql -X -v ON_ERROR_STOP=1 -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
-  psql -X -v ON_ERROR_STOP=1 -d postgres -c "DROP ROLE IF EXISTS anon, authenticated, service_role, supabase_admin" || status=1
+  psql -X -v ON_ERROR_STOP=1 -d postgres -c "DROP ROLE IF EXISTS anon, authenticated, service_role, supabase_admin, jco_maintain_executor" || status=1
   exit "$status"
 }
 trap cleanup EXIT
@@ -77,6 +77,16 @@ SQL
 # Reproduce the exact three finance-table grants found in production, in
 # addition to the generic and cross-tenant cases already covered here.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/tests/finance_maintain_acl_fixture.sql
+# Simulate hosted Supabase's postgres executor: CREATEROLE but NOT superuser
+# and NOT a member of supabase_admin. The candidate must fail before REVOKE.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "CREATE ROLE jco_maintain_executor NOLOGIN CREATEROLE"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" \
+    -c "SET ROLE jco_maintain_executor" \
+    -f security/candidates/revoke_public_api_maintain.sql > /tmp/jco-maintain-executor-deny.log 2>&1; then
+  echo 'ERROR: nonmember hosted executor unexpectedly accepted MAINTAIN candidate'; exit 1
+fi
+grep -q 'MAINTAIN candidate blocked: executor jco_maintain_executor' /tmp/jco-maintain-executor-deny.log
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "SELECT CASE WHEN has_table_privilege('anon','public.financial_records','MAINTAIN') AND has_table_privilege('authenticated','public.financial_records','MAINTAIN') THEN true ELSE (1/0)::boolean END"
 # Candidate may be applied twice; it must be idempotent and leave RLS untouched.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/candidates/revoke_public_api_maintain.sql
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f security/candidates/revoke_public_api_maintain.sql
