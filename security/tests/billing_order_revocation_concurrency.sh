@@ -64,6 +64,9 @@ reset_roles() {
   psql_ci -c "INSERT INTO public.member_roles(organization_member_id,role_id) VALUES('$member_a','$role_a') ON CONFLICT DO NOTHING;
               INSERT INTO public.role_permissions(role_id,permission_id) VALUES('$role_a','$perm') ON CONFLICT DO NOTHING;" >/dev/null
 }
+# New tenant onboarding must not be blocked by an authorization trigger:
+# BEFORE INSERT cannot SELECT FOR UPDATE the not-yet-visible organization row.
+psql_ci -c "INSERT INTO public.organizations(id,status) VALUES('33333333-3333-4333-8333-333333333333','ACTIVE');" >/dev/null
 set_allow
 assert_count 0
 seq=$((seq+1)); ref="$(order_ref "$seq")"
@@ -72,7 +75,7 @@ run_two 'order-then-deny' "$(order_sql "$org_a" "$actor_a" "$ref")" \
   success success
 assert_count 1
 # The new permission state takes effect when evaluated on a fresh statement.
-deny_seq=$((seq+1)); ref="$(order_ref "$seq")"
+seq=$((seq+1)); deny_ref="$(order_ref "$seq")"
 set +e
 psql_ci -c "$(order_sql "$org_a" "$actor_a" "$deny_ref")" >"$logs/deny-test" 2>&1
 status=$?
