@@ -140,3 +140,48 @@ SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 SELECT public.test_assert((SELECT count(*) FROM public.leases)=2,
  'authorized internal staff still sees both agency leases');
 RESET ROLE;
+
+
+-- JCO acceptance scenario: one external account is BOTH a linked tenant/client
+-- and a linked owner of the SAME property. Its private portal combines
+-- personal records but must not enable other people's records or staff CRM.
+-- Run on synthetic PostgreSQL CI fixture only, never real Supabase.
+INSERT INTO public.portal_access_links
+  (id,organization_id,user_id,contact_id,owner_id)
+VALUES
+  ('36363636-3636-4363-8363-363636363636',
+   '22222222-2222-4222-8222-222222222222',
+   'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+   NULL,'99999999-9999-4999-8999-999999999999');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
+SELECT public.test_assert((SELECT count(*) FROM public.portal_access_links)=2,
+ 'dual-persona account sees only its own client and property-owner links');
+SELECT public.test_assert((SELECT count(*) FROM public.leases)=1,
+ 'dual-persona client-owner must not see unrelated leases in the same agency');
+SELECT public.test_assert((SELECT count(*) FROM public.rent_payments)=1,
+ 'dual-persona client-owner only sees own linked rent payments');
+SELECT public.test_assert((SELECT count(*) FROM public.owner_statements)=1,
+ 'dual-persona client-owner sees only issued own-owner statement');
+SELECT public.test_assert((SELECT count(*) FROM public.documents)=1,
+ 'dual-persona client-owner sees own-owner document, never second owner document');
+SELECT public.test_assert((SELECT count(*) FROM public.properties)=1,
+ 'dual-persona client-owner can see only its linked property');
+SELECT public.test_assert((SELECT count(*) FROM public.deals)=0,
+ 'dual-persona client-owner never gets internal CRM access');
+SELECT public.test_assert((SELECT count(*) FROM public.contacts)=0,
+ 'dual-persona client-owner never sees the agency-wide contact roster');
+
+-- Another linked client and a different owner must remain unaffected.
+SELECT set_config('request.jwt.claim.sub','dddddddd-dddd-4ddd-8ddd-dddddddddddd',false);
+SELECT public.test_assert((SELECT count(*) FROM public.portal_access_links)=1,
+ 'second client cannot see dual-persona links');
+SELECT public.test_assert((SELECT count(*) FROM public.documents)=0,
+ 'second client cannot read dual-persona owner documents');
+SELECT set_config('request.jwt.claim.sub','ffffffff-ffff-4fff-8fff-ffffffffffff',false);
+SELECT public.test_assert((SELECT count(*) FROM public.owner_statements)=1,
+ 'unrelated owner only sees own issued statement');
+SELECT public.test_assert((SELECT count(*) FROM public.documents)=1,
+ 'unrelated owner only sees own document');
+RESET ROLE;
