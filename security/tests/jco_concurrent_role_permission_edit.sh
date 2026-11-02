@@ -62,14 +62,14 @@ run_race() {
 }
 
 # The existing fixture + assertions leave this AGENT role with leases.view only;
-# previous changes in the same database created exactly two advisor audit rows.
+# previous tests in the same database created exactly three advisor audit rows.
 [[ "$(permission_state)" == 'leases.view' ]] || exit 1
-[[ "$(audit_count)" == 2 ]] || exit 1
+[[ "$(audit_count)" == 3 ]] || exit 1
 [[ "$(other_tenant_count)" == 9 ]] || exit 1
 
 # Session A revokes leases.view while granting properties.view. B has the same
 # stale expected version and tries to remove everything: its edit MUST fail.
-run_race 'revoke-lease' 'leases.view' "'properties.view'" "" 'properties.view' 3
+run_race 'revoke-lease' 'leases.view' "'properties.view'" "" 'properties.view' 4
 # Confirm authorization is revoked for a freshly evaluated AGENT session.
 [[ "$(psql_ci -c "SELECT set_config('jco_test.actor','a0000000-0000-4000-8000-000000000002',false); SELECT public.has_org_permission('$agency','leases.view')" | tail -n 1)" == 'f' ]] || {
   echo 'FAIL: advisor lease permission survived a committed revocation' >&2; exit 1;
@@ -77,7 +77,7 @@ run_race 'revoke-lease' 'leases.view' "'properties.view'" "" 'properties.view' 3
 
 # Session A revokes properties.view while granting leases.view. B's old
 # permissions snapshot can no longer remove or overwrite the new choice.
-run_race 'revoke-property' 'properties.view' "'leases.view'" "" 'leases.view' 4
+run_race 'revoke-property' 'properties.view' "'leases.view'" "" 'leases.view' 5
 [[ "$(psql_ci -c "SELECT set_config('jco_test.actor','a0000000-0000-4000-8000-000000000002',false); SELECT public.has_org_permission('$agency','properties.view')" | tail -n 1)" == 'f' ]] || {
   echo 'FAIL: advisor property permission survived a committed revocation' >&2; exit 1;
 }
