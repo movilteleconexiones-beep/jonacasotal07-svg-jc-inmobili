@@ -102,10 +102,12 @@ test('fail closed when captured policy expression hash changes but remains valid
 // Additional READ-ONLY 2026-11-02 catalog coverage for #104. This checks
 // recorded evidence and selected source statements, not live DB or full DDL.
 const financeSurfaceExpectedGrants=Object.freeze({
-  leases:['insert','maintain','select','update'],
+// Required business grants only. MAINTAIN is not a required API grant;
+  // its presence is an unresolved security finding, never a regression target.
+  leases:['insert','select','update'],
   owner_statement_deductions:['insert','select','update'],
-  owner_statements:['maintain','select'],
-  rent_payments:['maintain','select'],
+  owner_statements:['select'],
+  rent_payments:['select'],
   rent_receipts:['select'],
 });
 const financeSurfaceSources=Object.freeze({
@@ -133,9 +135,11 @@ export function evaluateFinanceSurfaceAudit(surface) {
     for (const role of ['anon','authenticated']) {
       const row=surface.access.find(x=>x.table_name===table && x.role_name===role);
       if (!row || !row.privileges) { errors.push('Missing ACL '+table+'/'+role); continue; }
-      const actual=Object.entries(row.privileges).filter(([,allowed])=>allowed===true).map(([name])=>name).sort();
+      const actual=Object.entries(row.privileges).filter(([name,allowed])=>allowed===true && name!=='maintain').map(([name])=>name).sort();
       if (JSON.stringify(actual)!==JSON.stringify(role==='anon'?[]:expected))
         errors.push('Effective ACL differs '+table+'/'+role);
+      if (role==='anon' && row.privileges.maintain===true)
+        errors.push('Unexpected anon MAINTAIN '+table);
       if (role==='authenticated' && row.privileges.maintain===true)
         review_required.push(table+': authenticated MAINTAIN');
     }
@@ -168,6 +172,18 @@ test('captured effective ACL, 2 indexes and 2 triggers agree with historical SQL
     'rent_payments: authenticated MAINTAIN',
   ]);
   assert.equal(result.safe_to_push,false);
+});
+
+test('MAINTAIN is not required by API clients: revocation is safe for the captured audit',()=>{
+  const tightened=structuredClone(snapshot.finance_surface_audit);
+  for (const row of tightened.access) if (row.role_name==='authenticated') row.privileges.maintain=false;
+  const result=evaluateFinanceSurfaceAudit(tightened);
+  assert.equal(result.captured_consistent,true,result.errors.join('; '));
+  assert.deepEqual(result.review_required,[]);
+  assert.equal(result.safe_to_push,false); // Still blocked by migration drift.
+  const exposed=structuredClone(snapshot.finance_surface_audit);
+  exposed.access.find(x=>x.table_name==='leases'&&x.role_name==='anon').privileges.maintain=true;
+  assert.match(evaluateFinanceSurfaceAudit(exposed).errors.join(';'),/Unexpected anon MAINTAIN leases/);
 });
 
 test('finance surface audit fails closed for unexpected grants, disabled triggers or invalid indexes',()=>{
