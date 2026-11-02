@@ -1,0 +1,635 @@
+{
+  "scope": "Read-only repository and Supabase migration-metadata snapshot. Candidate matches are NOT DDL equivalence, permission equivalence or permission to mark applied.",
+  "date": "2026-11-02",
+  "repo_main_sha": "3c1ae0da2e112c1c0153b60d93452e39a24d1d2f",
+  "supabase_project": "cuitgyqrjibgwuniapmk",
+  "counts": {
+    "repo_sql_files": 109,
+    "unique_local_timestamp_versions": 76,
+    "applied_supabase_migrations": 99,
+    "exact_version_and_name": 1,
+    "same_name_different_version": 60,
+    "unmatched_timestamped_names": 16,
+    "legacy_four_digit_files": 32
+  },
+  "entries": [
+    {
+      "file": "20261010212630_property_consignment_intake.sql",
+      "local_version": "20261010212630",
+      "matched_by_name_versions": [
+        "20261010232928"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261010214633_fix_property_portal_rls_recursion.sql",
+      "local_version": "20261010214633",
+      "matched_by_name_versions": [
+        "20261010232930"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261010222342_verified_tenant_billing.sql",
+      "local_version": "20261010222342",
+      "matched_by_name_versions": [
+        "20261011001955"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261010222700_commercial_plan_permissions.sql",
+      "local_version": "20261010222700",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261010231042_compatible_licensing_records.sql",
+      "local_version": "20261010231042",
+      "matched_by_name_versions": [
+        "20261010232900"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261010231048_owner_trials_and_platform_overview.sql",
+      "local_version": "20261010231048",
+      "matched_by_name_versions": [
+        "20261011002021"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261011000300_independent_owner_trial_entitlements.sql",
+      "local_version": "20261011000300",
+      "matched_by_name_versions": [
+        "20261011002448"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261011090000_private_consignment_photos.sql",
+      "local_version": "20261011090000",
+      "matched_by_name_versions": [
+        "20261011091611"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261011095000_private_inventory_property_photos.sql",
+      "local_version": "20261011095000",
+      "matched_by_name_versions": [
+        "20261011091614"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261011101500_basic_pro_explicit_entitlements.sql",
+      "local_version": "20261011101500",
+      "matched_by_name_versions": [
+        "20261011100200"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261012120000_owner_statement_deduction_lines.sql",
+      "local_version": "20261012120000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261012130000_rent_receipts_and_owner_drafts.sql",
+      "local_version": "20261012130000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261012140000_reconcile_owner_deductions.sql",
+      "local_version": "20261012140000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261012143000_finance_rls_and_tenant_links.sql",
+      "local_version": "20261012143000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261012150000_finance_approval_and_audit_timestamp_hardening.sql",
+      "local_version": "20261012150000",
+      "matched_by_name_versions": [
+        "20261012071309"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261012180000_guided_rental_intake_admin_approval.sql",
+      "local_version": "20261012180000",
+      "matched_by_name_versions": [
+        "20261012174610"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261012193000_deals_safe_admin_deletion.sql",
+      "local_version": "20261012193000",
+      "matched_by_name_versions": [
+        "20261012191634"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261012203000_owner_reconciliation_audit_and_safe_undo.sql",
+      "local_version": "20261012203000",
+      "matched_by_name_versions": [
+        "20261012232901"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261012235500_restrict_excessive_api_role_table_grants.sql",
+      "local_version": "20261012235500",
+      "matched_by_name_versions": [
+        "20261012235553"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql",
+      "local_version": "20261013010000",
+      "matched_by_name_versions": [
+        "20261013001626"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013020000_owner_statement_percentage_commission.sql",
+      "local_version": "20261013020000",
+      "matched_by_name_versions": [
+        "20261013003214"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013034500_commission_admin_void_only.sql",
+      "local_version": "20261013034500",
+      "matched_by_name_versions": [
+        "20261013034808"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013040000_commission_recording_corrections.sql",
+      "local_version": "20261013040000",
+      "matched_by_name_versions": [
+        "20261013040202"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013040000_commission_safe_edit_and_paid_review.sql",
+      "local_version": "20261013040000",
+      "matched_by_name_versions": [
+        "20261013012448"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013043000_owner_deduction_admin_only_void.sql",
+      "local_version": "20261013043000",
+      "matched_by_name_versions": [
+        "20261013040916"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013044000_commission_tenant_insert_validation.sql",
+      "local_version": "20261013044000",
+      "matched_by_name_versions": [
+        "20261013012930"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013044500_paid_commission_admin_accept_no_disbursement.sql",
+      "local_version": "20261013044500",
+      "matched_by_name_versions": [
+        "20261013042724"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013050000_archive_rectified_commissions.sql",
+      "local_version": "20261013050000",
+      "matched_by_name_versions": [
+        "20261013043618"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013051500_fix_archive_reason.sql",
+      "local_version": "20261013051500",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261013052000_restore_cancelled_commissions.sql",
+      "local_version": "20261013052000",
+      "matched_by_name_versions": [
+        "20261013045906"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013054000_admin_direct_commission_payment_status.sql",
+      "local_version": "20261013054000",
+      "matched_by_name_versions": [
+        "20261013053938"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013061500_archived_commission_replacement.sql",
+      "local_version": "20261013061500",
+      "matched_by_name_versions": [
+        "20261013055708"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013063000_restore_voided_owner_deduction.sql",
+      "local_version": "20261013063000",
+      "matched_by_name_versions": [
+        "20261013062339"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013070000_correct_owner_draft_commission_percentage.sql",
+      "local_version": "20261013070000",
+      "matched_by_name_versions": [
+        "20261013163914"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013073000_prevent_duplicate_active_commissions.sql",
+      "local_version": "20261013073000",
+      "matched_by_name_versions": [
+        "20261013165553"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013081500_finance_fk_lookup_indexes.sql",
+      "local_version": "20261013081500",
+      "matched_by_name_versions": [
+        "20261013173011"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261013190000_owner_deduction_admin_approval.sql",
+      "local_version": "20261013190000",
+      "matched_by_name_versions": [
+        "20261014001304"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014010000_admin_archive_commission_reviews.sql",
+      "local_version": "20261014010000",
+      "matched_by_name_versions": [
+        "20261014005233"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014020000_admin_issue_owner_statement.sql",
+      "local_version": "20261014020000",
+      "matched_by_name_versions": [
+        "20261014013656"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014030000_owner_payout_ledger.sql",
+      "local_version": "20261014030000",
+      "matched_by_name_versions": [
+        "20261014015052"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014040000_owner_payout_review_requests.sql",
+      "local_version": "20261014040000",
+      "matched_by_name_versions": [
+        "20261014022955"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014050000_owner_payout_admin_review.sql",
+      "local_version": "20261014050000",
+      "matched_by_name_versions": [
+        "20261014025531"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014061000_audited_rental_end_owner_retirement.sql",
+      "local_version": "20261014061000",
+      "matched_by_name_versions": [
+        "20261014042102"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014071000_sync_rented_property_on_lease_activation.sql",
+      "local_version": "20261014071000",
+      "matched_by_name_versions": [
+        "20261014044203"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014082000_private_rent_receipt_supports.sql",
+      "local_version": "20261014082000",
+      "matched_by_name_versions": [
+        "20261014050327"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014093000_audited_role_permission_editor.sql",
+      "local_version": "20261014093000",
+      "matched_by_name_versions": [
+        "20261014052310"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261014123500_isolate_client_portal_role_grants.sql",
+      "local_version": "20261014123500",
+      "matched_by_name_versions": [
+        "20261014174632"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261015074000_approved_monthly_prices_preserve_lifetime.sql",
+      "local_version": "20261015074000",
+      "matched_by_name_versions": [
+        "20261015073530"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261015081500_basic_pro_functional_parity.sql",
+      "local_version": "20261015081500",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261015092500_isolate_external_accounts_and_staff_seats.sql",
+      "local_version": "20261015092500",
+      "matched_by_name_versions": [
+        "20261015085227"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261015093000_scope_external_owner_and_tenant_data.sql",
+      "local_version": "20261015093000",
+      "matched_by_name_versions": [
+        "20261015085250"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql",
+      "local_version": "20261015114500",
+      "matched_by_name_versions": [
+        "20261015100034"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261018130000_direct_paid_onboarding.sql",
+      "local_version": "20261018130000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261018140000_tenant_public_catalog.sql",
+      "local_version": "20261018140000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261018162000_strict_private_property_read_boundary.sql",
+      "local_version": "20261018162000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261019205000_tenant_public_website_brand_and_services.sql",
+      "local_version": "20261019205000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261020070000_editable_public_portal_sections.sql",
+      "local_version": "20261020070000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261020183000_owner_organization_public_slug.sql",
+      "local_version": "20261020183000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261020183500_owner_slug_strict_execute_acl.sql",
+      "local_version": "20261020183500",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261020221500_public_website_leads.sql",
+      "local_version": "20261020221500",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261020222000_revoke_anonymous_crm_access.sql",
+      "local_version": "20261020222000",
+      "matched_by_name_versions": [],
+      "classification": "unmatched-name"
+    },
+    {
+      "file": "20261021033500_gate_public_consignment_operational_access.sql",
+      "local_version": "20261021033500",
+      "matched_by_name_versions": [
+        "20261021032153"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261021040000_optimize_owner_deduction_rls_initplan.sql",
+      "local_version": "20261021040000",
+      "matched_by_name_versions": [
+        "20261021033218"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261021041500_public_website_contact_consent_receipts.sql",
+      "local_version": "20261021041500",
+      "matched_by_name_versions": [
+        "20261021033609"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261021114500_block_incompatible_checkout_contracts.sql",
+      "local_version": "20261021114500",
+      "matched_by_name_versions": [
+        "20261021162358"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261021152000_index_critical_tenant_relationships.sql",
+      "local_version": "20261021152000",
+      "matched_by_name_versions": [
+        "20261021195335"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029030000_allow_trial_to_paid_wompi_activation.sql",
+      "local_version": "20261029030000",
+      "matched_by_name_versions": [
+        "20261029034349"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029034500_reconcile_verified_sandbox_trial_payment.sql",
+      "local_version": "20261029034500",
+      "matched_by_name_versions": [
+        "20261029034410"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029070000_repair_financial_portal_select_rls.sql",
+      "local_version": "20261029070000",
+      "matched_by_name_versions": [
+        "20261029050050"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029081500_active_lease_rectification_with_signed_evidence.sql",
+      "local_version": "20261029081500",
+      "matched_by_name_versions": [
+        "20261029073612"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029090000_rental_draft_correction_and_duplicates.sql",
+      "local_version": "20261029090000",
+      "matched_by_name_versions": [
+        "20261029065403"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029100000_audited_contact_correction_and_unlinked_removal.sql",
+      "local_version": "20261029100000",
+      "matched_by_name_versions": [
+        "20261029070436"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029120000_linked_person_signed_lease_private_pdf.sql",
+      "local_version": "20261029120000",
+      "matched_by_name_versions": [
+        "20261029053907"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261029171601_revoke_disabled_trial_authorization_rpc.sql",
+      "local_version": "20261029171601",
+      "matched_by_name_versions": [
+        "20261029171601"
+      ],
+      "classification": "exact-version-and-name"
+    },
+    {
+      "file": "20261029212500_remaining_foreign_key_covering_indexes.sql",
+      "local_version": "20261029212500",
+      "matched_by_name_versions": [
+        "20261029212907"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261030203000_verified_email_invitation_claims.sql",
+      "local_version": "20261030203000",
+      "matched_by_name_versions": [
+        "20261031013710"
+      ],
+      "classification": "same-name-different-version"
+    },
+    {
+      "file": "20261030222000_restrict_organization_commercial_updates.sql",
+      "local_version": "20261030222000",
+      "matched_by_name_versions": [
+        "20261031032350"
+      ],
+      "classification": "same-name-different-version"
+    }
+  ],
+  "legacy_files": [
+    "0001_multi_tenant_core.sql",
+    "0002_organization_bootstrap.sql",
+    "0003_real_estate_crm_core.sql",
+    "0004_data_import_onboarding.sql",
+    "0005_security_hardening_and_indexes.sql",
+    "0006_colombia_branding_defaults.sql",
+    "0007_organization_identity_update_policy.sql",
+    "0008_latam_country_profiles_and_compliance.sql",
+    "0009_country_switching.sql",
+    "0010_user_invitations_roles_permissions.sql",
+    "0011_invitation_performance_hardening.sql",
+    "0012_default_software_name_jco.sql",
+    "0013_license_terms_and_no_resale.sql",
+    "0014_owners_documents_commissions.sql",
+    "0015_software_name_display_casing.sql",
+    "0016_default_role_permission_trigger.sql",
+    "0017_portal_access_links_and_rls.sql",
+    "0018_portal_storage_and_client_role_hardening.sql",
+    "0019_saas_plans_subscriptions_super_admin.sql",
+    "0020_security_and_index_cleanup.sql",
+    "0021_missing_features_repair.sql",
+    "0022_enable_invitation_rls.sql",
+    "0023_harden_client_portal_access.sql",
+    "0024_fix_portal_link_tenant_check.sql",
+    "0025_licensing_branding_responsibility_v2.sql",
+    "0026_payment_orders_wompi_sandbox.sql",
+    "0027_process_verified_payment_events.sql",
+    "0028_verified_payment_subscription_activation.sql",
+    "0029_approved_jco_cop_pricing_draft.sql",
+    "0030_billing_manage_permission_draft.sql",
+    "0031_tenant_billing_authorization_draft.sql",
+    "0032_atomic_sandbox_payment_order_draft.sql"
+  ]
+}
