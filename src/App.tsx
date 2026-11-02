@@ -112,6 +112,11 @@ export default function App() {
   const page = publicCatalog.brand?.publicPage || DEFAULT_PUBLIC_PAGE;
   const privacyPolicyUrl = safeBrandUrl(page.privacyPolicyUrl);
   const automaticContactEnabled = Boolean(tenantSlug && privacyPolicyUrl);
+  // A tenant without a privacy notice cannot save leads in CRM. Only offer
+  // manual email preparation when a real destination email is configured.
+  const contactFallbackEmail = typeof branding.email === 'string' &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email.trim())
+      ? branding.email.trim() : null;
   const agencyHeroUrl = safeBrandUrl(publicCatalog.brand?.publicHeroUrl);
   React.useEffect(() => {
     document.title = tenantSlug && publicCatalog.brand
@@ -284,6 +289,10 @@ export default function App() {
       return;
     }
     setContactError('');
+    if (tenantSlug && !automaticContactEnabled && !contactFallbackEmail) {
+      setContactError('La inmobiliaria todavía no tiene un canal de contacto configurado.');
+      return;
+    }
     if (!automaticContactEnabled) {
       // Without a published privacy notice, use a transparent email-only mode.
       setContactSubmitted(true);
@@ -1261,7 +1270,13 @@ export default function App() {
 
               {/* Right 7 Cols: Validated Lead Form */}
               <div className="lg:col-span-7 bg-[#F9F9F7] border border-stone-200/90 rounded-xl p-6 md:p-8">
-                {contactSubmitted ? (
+                {tenantSlug && !automaticContactEnabled && !contactFallbackEmail ? (
+                  <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
+                    <h3 className="font-semibold">Contacto temporalmente no disponible</h3>
+                    <p className="mt-2">Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido. No solicitaremos tus datos hasta que exista un canal de atención verificable.</p>
+                    <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>
+                  </div>
+                ) : contactSubmitted ? (
                   <div className="py-8 text-center space-y-4">
                     <div className="w-10 h-10 rounded-full bg-[#14532D] text-white flex items-center justify-center mx-auto">
                       <Check className="w-5 h-5" />
@@ -1274,9 +1289,9 @@ export default function App() {
                         ? <>Gracias, <strong>{contactName}</strong>. Tu consulta de <strong>{contactService}</strong> quedó registrada en el CRM de <strong>{publicCompanyName}</strong>. La inmobiliaria podrá responderte a los datos facilitados; todavía no se ha confirmado una cita ni un tiempo de respuesta.</>
                         : <>Gracias, <strong>{contactName}</strong>. Tu consulta está preparada, pero aún no se ha enviado. Utiliza el correo publicado para solicitar atención.</>}
                     </p>
-                    {!automaticContactEnabled && branding.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email) && (
+                    {!automaticContactEnabled && contactFallbackEmail && (
                       <a
-                        href={`mailto:${branding.email}?subject=${encodeURIComponent(`Consulta web: ${contactService}`)}&body=${encodeURIComponent(`Nombre: ${contactName.trim()}\nCorreo: ${contactEmail.trim()}\nTeléfono: ${contactPhone.trim()}\nServicio: ${contactService}\nMensaje: ${contactNotes.trim()}`)}`}
+                        href={`mailto:${contactFallbackEmail}?subject=${encodeURIComponent(`Consulta web: ${contactService}`)}&body=${encodeURIComponent(`Nombre: ${contactName.trim()}\nCorreo: ${contactEmail.trim()}\nTeléfono: ${contactPhone.trim()}\nServicio: ${contactService}\nMensaje: ${contactNotes.trim()}`)}`}
                         className="inline-flex items-center justify-center px-4 py-2 bg-[var(--tenant-primary)] text-white text-xs font-medium rounded-lg"
                       >
                         Abrir mi correo para enviar la consulta
