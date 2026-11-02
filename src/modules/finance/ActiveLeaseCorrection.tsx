@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { rentalCanonDifference, rentalCanonWarning } from '../../core/rental-canon-reference';
@@ -22,6 +22,8 @@ export function ActiveLeaseCorrection({organizationId}:{organizationId:string}) 
   const [contractEnd,setContractEnd]=useState('');
   const [contractNumber,setContractNumber]=useState('');
   const [selectedEvidence,setSelectedEvidence]=useState('');
+  // A synchronous lock prevents overlapping submissions during async preflight.
+  const correctionInFlight=useRef(false);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
@@ -81,7 +83,7 @@ export function ActiveLeaseCorrection({organizationId}:{organizationId:string}) 
 
   async function rectify(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!authorized||busy||!selectedLease||!organizationId)return;
+    if(!authorized||busy||correctionInFlight.current||!selectedLease||!organizationId)return;
     const form=new FormData(event.currentTarget);
     const rent=Number(contractRent);
     const reason=String(form.get('correction_reason')||'').trim();
@@ -101,37 +103,38 @@ export function ActiveLeaseCorrection({organizationId}:{organizationId:string}) 
        (selectedLease.contract_number||null)===proposedNumber){
       setError('No hay cambios para guardar.');return;
     }
-    // Guard against editing a stale snapshot after another administrator's correction.
-    // This is a UX safeguard; the RPC still needs server-side concurrency control.
-    const {data:freshLease,error:leaseError}=await supabase.from('leases')
-      .select('monthly_rent,end_date,contract_number,status,property_id')
-      .eq('organization_id',organizationId).eq('id',selectedLease.id).maybeSingle();
-    if(leaseError||!freshLease||!['ACTIVE','RENEWAL'].includes(freshLease.status)||
-       freshLease.property_id!==selectedLease.property_id||
-       Number(freshLease.monthly_rent)!==Number(selectedLease.monthly_rent)||
-       (freshLease.end_date||null)!==(selectedLease.end_date||null)||
-       (freshLease.contract_number||null)!==(selectedLease.contract_number||null)){
-      setError('El contrato cambió desde que abriste el formulario. Actualiza la pantalla y revisa los datos antes de corregir.');
-      return;
-    }
-    // The listing can change while this form is open. Re-read the same-tenant
-    // property immediately before asking the administrator to confirm.
-    const {data:freshProperty,error:propertyError}=await supabase.from('properties')
-      .select('price,operation_type').eq('organization_id',organizationId)
-      .eq('id',selectedLease.property_id).maybeSingle();
-    if(propertyError||!freshProperty){
-      setError('No pudimos verificar el canon actual del inmueble. Actualiza la pantalla antes de corregir.');
-      return;
-    }
-    const currentMismatch=rentalCanonDifference(
-      freshProperty.price==null?null:Number(freshProperty.price),
-      rent,freshProperty.operation_type);
-    if(!window.confirm((currentMismatch?rentalCanonWarning(currentMismatch)+'\n\n':'')+
-       '¿Confirmas la rectificación del contrato activo respaldada por el PDF seleccionado? '+
-       'No cambiará cobros registrados ni documentos existentes.'))return;
-
+    correctionInFlight.current=true;
     setBusy(true);setError('');setNotice('');
     try{
+      // Guard against editing a stale snapshot after another administrator's correction.
+      // This is a UX safeguard; the RPC still needs server-side concurrency control.
+      const {data:freshLease,error:leaseError}=await supabase.from('leases')
+        .select('monthly_rent,end_date,contract_number,status,property_id')
+        .eq('organization_id',organizationId).eq('id',selectedLease.id).maybeSingle();
+      if(leaseError||!freshLease||!['ACTIVE','RENEWAL'].includes(freshLease.status)||
+         freshLease.property_id!==selectedLease.property_id||
+         Number(freshLease.monthly_rent)!==Number(selectedLease.monthly_rent)||
+         (freshLease.end_date||null)!==(selectedLease.end_date||null)||
+         (freshLease.contract_number||null)!==(selectedLease.contract_number||null)){
+        setError('El contrato cambió desde que abriste el formulario. Actualiza la pantalla y revisa los datos antes de corregir.');
+        return;
+      }
+      // The listing can change while this form is open. Re-read the same-tenant
+      // property immediately before asking the administrator to confirm.
+      const {data:freshProperty,error:propertyError}=await supabase.from('properties')
+        .select('price,operation_type').eq('organization_id',organizationId)
+        .eq('id',selectedLease.property_id).maybeSingle();
+      if(propertyError||!freshProperty){
+        setError('No pudimos verificar el canon actual del inmueble. Actualiza la pantalla antes de corregir.');
+        return;
+      }
+      const currentMismatch=rentalCanonDifference(
+        freshProperty.price==null?null:Number(freshProperty.price),
+        rent,freshProperty.operation_type);
+      if(!window.confirm((currentMismatch?rentalCanonWarning(currentMismatch)+'\n\n':'')+
+         '¿Confirmas la rectificación del contrato activo respaldada por el PDF seleccionado? '+
+         'No cambiará cobros registrados ni documentos existentes.'))return;
+
       const {error:saveError}=await supabase.rpc('admin_rectify_active_lease',{
         target_org:organizationId,target_lease:selectedLease.id,
         corrected_rent:rent,corrected_end_date:contractEnd||null,
@@ -143,7 +146,7 @@ export function ActiveLeaseCorrection({organizationId}:{organizationId:string}) 
       setRevision(x=>x+1);
       window.dispatchEvent(new Event('tenant-rent-updated'));
     }catch{setError('No fue posible confirmar la rectificación. Revisa los registros antes de reintentar.');}
-    finally{setBusy(false)}
+    finally{correctionInFlight.current=false;setBusy(false)}
   }
 
   if(!authorized)return null;
