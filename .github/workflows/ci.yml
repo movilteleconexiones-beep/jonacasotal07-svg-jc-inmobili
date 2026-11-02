@@ -74,6 +74,10 @@ jobs:
           node scripts/ops/finance-function-equivalence-audit.mjs
       - name: Finance tenant FK, numeric checks and RLS catalog snapshot (#104)
         run: node --test tests/finance-integrity-catalog.test.mjs
+      - name: Hosted Supabase MAINTAIN executor permissions readiness (#104)
+        run: |
+          node --test tests/maintain-executor-readiness.test.mjs
+          node scripts/ops/maintain-executor-readiness.mjs --snapshot docs/ops/snapshots/maintain-executor-readiness-2026-11-02.json
       - name: API MAINTAIN privilege isolation and two-tenant RLS (PostgreSQL 17 disposable)
         env:
           PGPASSWORD: postgres
