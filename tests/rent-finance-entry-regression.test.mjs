@@ -118,5 +118,7 @@ test('contract draft double-submit lock and database duplicate message',()=>{
   assert.match(section,/failure\?\.code==='23505'/);
   assert.match(section,/failure\.message\.includes\('leases_one_open_contract_per_property'\)/);
   assert.match(section,/Busca y corrige el existente en lugar de crear otro/);
+  const duplicateMessage=section.slice(section.indexOf("failure?.code==='23505'"),section.indexOf('} else {',section.indexOf("failure?.code==='23505'")));
+  assert.doesNotMatch(duplicateMessage,/setRevision\(/,'duplicate message must not disappear on a refresh');
   assert.match(section,/finally\s*\{\s*setBusy\(false\);\s*contractSubmissionInFlight\.current=false/);
 });
