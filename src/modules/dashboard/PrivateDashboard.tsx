@@ -130,6 +130,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const [licenseCheckLoading, setLicenseCheckLoading] = useState(true);
 
   const organizationId = activeMembership?.organization.id;
+  // Remount the private portal on account/tenant switches so previously loaded
+  // personal records cannot be rendered under a different agency heading.
+  const portalScopeKey = `${organizationId ?? 'no-organization'}:${user?.id ?? 'no-user'}`;
   const billingOwner = activeMembership?.billing.can_manage_billing ?? false;
   const previewAsTenant=isPlatformAdmin&&Boolean(activeMembership);
   const selectedPreviewMode=clientPortalMode&&mode.clientLinkedRole?'CLIENT':tenantPreviewRole;
@@ -394,7 +397,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           Para verificar la seguridad real de Cliente, utiliza otra cuenta que tenga
           únicamente el rol CLIENT y su vínculo de portal.
         </div>}
-        <PortalHub/>
+        <PortalHub key={portalScopeKey} />
       </main>
     </div>;
   }
@@ -577,7 +580,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'DOCUMENTS' && !termsRequired && can(PERMISSIONS.DOCUMENTS_VIEW) && <DocumentsModule />}
           {view === 'COMMISSIONS' && !termsRequired && can(PERMISSIONS.COMMISSIONS_VIEW) && <CommissionsModule />}
           {view === 'REPORTS' && !termsRequired && can(PERMISSIONS.REPORTS_VIEW) && <ReportsModule />}
-          {view === 'PORTAL' && !termsRequired && <PortalHub />}
+          {view === 'PORTAL' && !termsRequired && <PortalHub key={portalScopeKey} />}
 
           {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'RENTAL_INTAKE' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'BILLING' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && (
             <ModuleComingOnline
