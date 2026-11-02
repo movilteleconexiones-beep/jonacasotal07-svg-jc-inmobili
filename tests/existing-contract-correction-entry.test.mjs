@@ -48,3 +48,12 @@ test('active lease correction prevents a double submission before asynchronous p
   assert.match(functionBody,/El contrato cambió desde que abriste el formulario/);
   assert.match(functionBody,/rentalCanonWarning\(currentMismatch\)/);
 });
+
+
+test('a successful correction remains visible while refreshed rows load',()=>{
+  assert.match(correction,/useEffect\(\(\)=>\{setNotice\(''\);\},\[organizationId\]\)/);
+  const refreshEffect=correction.slice(correction.indexOf('let cancelled=false;'),correction.indexOf('if(!organizationId||!authorized)'));
+  assert.doesNotMatch(refreshEffect,/setNotice\(''\)/);
+  assert.match(correction,/setNotice\('Contrato activo rectificado con auditoría/);
+  assert.match(correction,/setRevision\(x=>x\+1\)/);
+});
