@@ -68,6 +68,10 @@ jobs:
           '
       - name: Migration lineage classification and unpublished billing-draft quarantine (#104)
         run: node --test tests/migration-lineage-audit.test.mjs
+      - name: Six live finance function body fingerprints vs historic SQL (#104)
+        run: |
+          node --test tests/finance-function-equivalence-audit.test.mjs
+          node scripts/ops/finance-function-equivalence-audit.mjs
       - name: Historic finance migration drift fail-closed gate (#104)
         run: |
           node --test tests/finance-migration-gate.test.mjs
