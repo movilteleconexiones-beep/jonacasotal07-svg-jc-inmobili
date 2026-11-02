@@ -43,6 +43,26 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   GRANT MAINTAIN ON TABLES TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
   GRANT MAINTAIN ON TABLES TO anon, authenticated;
+-- Model the read-only production finding on property_owners: anon has broad
+-- table-level DML grants, but every RLS policy is scoped to authenticated.
+-- This is a synthetic ACL/RLS regression, NOT an E2E Supabase API test.
+CREATE TABLE public.property_owners (
+  id integer PRIMARY KEY, organization_id uuid NOT NULL REFERENCES public.organizations(id),
+  owner_name text NOT NULL
+);
+INSERT INTO public.property_owners VALUES
+ (11,'11111111-1111-4111-8111-111111111111','Synthetic owner A'),
+ (22,'22222222-2222-4222-8222-222222222222','Synthetic owner B');
+ALTER TABLE public.property_owners ENABLE ROW LEVEL SECURITY;
+CREATE POLICY owners_select ON public.property_owners FOR SELECT TO authenticated
+  USING (organization_id=current_setting('app.tenant_id',true)::uuid);
+CREATE POLICY owners_insert ON public.property_owners FOR INSERT TO authenticated
+  WITH CHECK (organization_id=current_setting('app.tenant_id',true)::uuid);
+CREATE POLICY owners_update ON public.property_owners FOR UPDATE TO authenticated
+  USING (organization_id=current_setting('app.tenant_id',true)::uuid)
+  WITH CHECK (organization_id=current_setting('app.tenant_id',true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.property_owners TO anon;
+GRANT SELECT, INSERT, UPDATE ON public.property_owners TO authenticated;
 CREATE SCHEMA isolated;
 CREATE TABLE isolated.unrelated (id int);
 GRANT USAGE ON SCHEMA isolated TO authenticated;
@@ -81,6 +101,58 @@ BEGIN
    THEN RAISE EXCEPTION 'Candidate weakened business access or RLS'; END IF;
 END $$;
 SQL
+# The broad anon grants observed on property_owners must NOT imply row access.
+# UPDATE/DELETE with no matching policy silently affect zero rows, not SQL errors.
+psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
+DO $
+BEGIN
+ IF NOT has_table_privilege('anon','public.property_owners','SELECT,INSERT,UPDATE,DELETE')
+ THEN RAISE EXCEPTION 'Fixture lost broad anon DML grants'; END IF;
+ IF has_table_privilege('anon','public.property_owners','MAINTAIN')
+ THEN RAISE EXCEPTION 'Candidate did not revoke anon MAINTAIN on property_owners'; END IF;
+ IF (SELECT count(*) FROM pg_policies WHERE schemaname='public'
+     AND tablename='property_owners' AND roles='{authenticated}') <> 3
+ THEN RAISE EXCEPTION 'Fixture lost authenticated-only owner policies'; END IF;
+END $;
+SET ROLE anon;
+DO $
+BEGIN
+ IF (SELECT count(*) FROM public.property_owners) <> 0
+ THEN RAISE EXCEPTION 'Anonymous owner SELECT bypassed RLS'; END IF;
+END $;
+UPDATE public.property_owners SET owner_name='Forbidden' WHERE id=11;
+DELETE FROM public.property_owners WHERE id=22;
+RESET ROLE;
+DO $
+BEGIN
+ IF (SELECT count(*) FROM public.property_owners) <> 2 OR
+    (SELECT owner_name FROM public.property_owners WHERE id=11) <> 'Synthetic owner A' OR
+    (SELECT owner_name FROM public.property_owners WHERE id=22) <> 'Synthetic owner B'
+ THEN RAISE EXCEPTION 'Anonymous owner UPDATE/DELETE changed synthetic data'; END IF;
+END $;
+SQL
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -c "SET ROLE anon; INSERT INTO public.property_owners VALUES (33,'11111111-1111-4111-8111-111111111111','Forbidden');" > /tmp/jco-maintain-deny.log 2>&1; then
+  echo 'Anonymous owner INSERT unexpectedly allowed'; exit 1
+fi
+grep -qi 'row-level security policy' /tmp/jco-maintain-deny.log
+# The authenticated role must still see only its own synthetic tenant.
+actual="$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SET ROLE authenticated; SELECT set_config('app.tenant_id','11111111-1111-4111-8111-111111111111',false); SELECT string_agg(owner_name,',') FROM public.property_owners;")"
+[[ "${actual##*for pair in '11111111-1111-4111-8111-111111111111:100' '22222222-2222-4222-8222-222222222222:200'; do
+  org="${pair%%:*}"; amount="${pair##*:}"
+  actual="$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SET ROLE authenticated; SELECT set_config('app.tenant_id','$org',false); SELECT string_agg(amount::text,',') FROM public.financial_records;")"
+  [[ "${actual##*$'\n'}" == "$amount" ]] || { echo "RLS tenant leak for $org"; exit 1; }
+done
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "SET ROLE authenticated; SELECT set_config('app.tenant_id','11111111-1111-4111-8111-111111111111',false); INSERT INTO public.financial_records VALUES (3,'11111111-1111-4111-8111-111111111111',300);"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -c "SET ROLE authenticated; SELECT set_config('app.tenant_id','11111111-1111-4111-8111-111111111111',false); INSERT INTO public.financial_records VALUES (4,'22222222-2222-4222-8222-222222222222',400);" > /tmp/jco-maintain-deny.log 2>&1; then
+  echo 'Cross-tenant INSERT unexpectedly allowed'; exit 1
+fi
+grep -qi 'row-level security policy' /tmp/jco-maintain-deny.log
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -c "SET ROLE anon; SELECT * FROM public.financial_records" > /tmp/jco-maintain-deny.log 2>&1; then
+  echo 'Anonymous SELECT unexpectedly allowed'; exit 1
+fi
+grep -qi 'permission denied' /tmp/jco-maintain-deny.log
+echo 'PASS: PostgreSQL 17 MAINTAIN revocation; current/future tables; two-tenant RLS; CRUD; service_role; schema scope.'
+\\n'}" == 'Synthetic owner A' ]] || { echo 'Owner portal tenant RLS mismatch'; exit 1; }
 # Two synthetic organizations: own records visible, other tenant denied by RLS.
 for pair in '11111111-1111-4111-8111-111111111111:100' '22222222-2222-4222-8222-222222222222:200'; do
   org="${pair%%:*}"; amount="${pair##*:}"
