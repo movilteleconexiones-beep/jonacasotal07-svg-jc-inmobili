@@ -30,6 +30,13 @@ La suite reutiliza una base PostgreSQL 17 llamada `jco_billing_serialization_tes
 - Una orden en estado `PENDING`, un retorno del navegador o un número de transacción **no prueban pago**. Solo el backend confiable puede verificar notificación, firma e importe y activar licencias.
 - Todo error final debe conservar trazabilidad del intento y no almacenar credenciales o payloads privados en logs.
 
+## Reglas de prueba del contrato anterior (vigentes)
+
+- **Session A** crea la orden mientras mantiene la autorización; **Session B** espera para cambiar la autorización. El orden existente puede confirmarse antes del cambio, no después.
+- **Session A** cambia un permiso mediante `DENY`, elimina un grant, una membresía o ejecuta la **suspension** de una organización; **Session B** espera antes de crear la orden y luego debe recibir denegación sin insertar nada.
+- El caso de **role sharing** entre dos inmobiliarias debe proteger ambas a la vez, incluidas asignaciones y revocaciones desde las rutas privilegiadas.
+- **Do not deploy 0032**. El borrador histórico de creación atómica permanece **not deployed**: el candidato probado en PostgreSQL desechable no sustituye la revisión y autorización de staging.
+
 ## Controles aún NO-GO para publicar
 
 Validar en una **rama Supabase staging auténtica** y con un usuario de cada rol; auditar flujos de ejecución de RPCs antiguos, operaciones de varios pasos que obtengan otros bloqueos antes de entrar al disparador, uso de `TRUNCATE`/migraciones administrativas, reintentos y latencia bajo tráfico real; revisar cambios de esquema y RLS/ACL contra #104. La solución candidata NO se fusiona, no habilita checkout público y no sustituye estos controles.
