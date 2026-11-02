@@ -109,9 +109,15 @@ BEGIN
     'roles','role_permissions'
   ] LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS jco_billing_auth_lock ON public.%I',v_table);
+    -- A new organization is not yet visible to SELECT FOR UPDATE in BEFORE
+    -- INSERT; onboarding is harmless until it has members/grants. UPDATE and
+    -- DELETE still synchronize suspension and tenant retirement.
     EXECUTE format(
-      'CREATE TRIGGER jco_billing_auth_lock BEFORE INSERT OR UPDATE OR DELETE ON public.%I
-       FOR EACH ROW EXECUTE FUNCTION jco_private.lock_billing_authorization_mutation()',v_table);
+      'CREATE TRIGGER jco_billing_auth_lock BEFORE %s ON public.%I
+       FOR EACH ROW EXECUTE FUNCTION jco_private.lock_billing_authorization_mutation()',
+      CASE WHEN v_table='organizations' THEN 'UPDATE OR DELETE'
+           ELSE 'INSERT OR UPDATE OR DELETE' END,
+      v_table);
   END LOOP;
 END;
 $triggers$;
