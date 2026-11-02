@@ -89,3 +89,14 @@ node scripts/ops/migration-lineage-audit.mjs --ledger docs/ops/snapshots/supabas
 ```
 
 **NO-GO sigue vigente**: falta comparar SQL/DDL real, historial de efectos, ACL/RLS y dependencia entre migraciones. Las listas son una fotografía del 02-nov-2026, no una lectura actualizada automáticamente de Supabase ni una autorización de `db push`. La conciliación solo debe ensayarse en una base aislada con el respaldo auténtico existente.
+
+
+## Riesgo confirmado: migración comercial antigua no compatible
+
+El archivo sin nombre aplicado `20261010222700_commercial_plan_permissions.sql` no debe considerarse «pendiente de ejecutar». Sus instrucciones históricas harían **UPDATE** de precios de `BASIC` a 104.900 COP y `PRO` a 194.900 COP, cambiarían `ENTERPRISE` y `LIFETIME`, crearían planes anuales e insertarían permisos de forma desigual: en el SQL, `BASIC` no recibe categorías `documents/owners/commissions/reports` mediante ese INSERT, mientras los niveles superiores sí. Es incompatible con el requisito actual de mismas funciones para Básico y Profesional; no se debe reejecutar.
+
+**Evidencia de catálogo productivo consultado el 02-nov-2026, solo lectura:** `BASIC` activo = **129.900 COP**, 5 usuarios, 200 inmuebles, **47** funciones habilitadas (10 de documentos/propietarios/comisiones/reportes); `PRO` activo = **299.900 COP**, 25 usuarios, 2.000 inmuebles, **47** funciones habilitadas (las mismas 10 categorías financieras/documentales). `ENTERPRISE` y `LIFETIME` existen con reglas comerciales distintas a las que contiene ese SQL antiguo. **No se modificaron precios ni permisos.**
+
+**Conclusión limitada:** el archivo histórico está **materialmente desactualizado respecto al estado vigente**; no hay prueba de que alguna versión se aplicó originalmente ni se ha formalizado su reemplazo en el ledger. Bloquear cualquier intento de ejecutarlo o marcarlo aplicado sin un mapeo respaldado por definiciones, historia y decisión explícita.
+
+El preflight `scripts/ops/finance-migration-gate.mjs --ledger` ahora detecta los **32 SQL legados de cuatro dígitos** (incluidos los siete borradores de facturación `0026–0032`). Aunque las 76 versiones fechadas coincidieran hipotéticamente, devuelve **NO-GO**, evitando una aprobación falsa por omitir archivos no fechados. Un resultado positivo de la comprobación *solo del repositorio* tampoco autoriza desplegar.
