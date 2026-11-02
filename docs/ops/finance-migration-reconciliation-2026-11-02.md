@@ -53,3 +53,39 @@ Inspección **solo lectura** en Supabase `cuitgyqrjibgwuniapmk`, comparada con l
 | `20261020222000_revoke_anonymous_crm_access.sql` | `public.contacts` y `public.leads`: RLS activo, `anon` sin SELECT/INSERT/UPDATE/DELETE efectivos; sin privilegios explícitos concedidos a `PUBLIC` en ACL. | La restricción anónima de lectura/escritura observada coincide con el efecto buscado, no prueba equivalencia histórica ni seguridad completa de RPCs. |
 
 Estas evidencias reducen incertidumbre sobre **tres efectos concretos** dentro del grupo sin coincidencia de nombre; **no se reclasifican como versiones equivalentes ni se reduce el contador de 75 desajustes**. No ejecutar `migration repair`, `db push` ni DDL histórico basándose en esta tabla. La verificación E2E/RLS y la conciliación de definiciones restantes siguen pendientes.
+
+
+## Segundo corte automatizado: 109 SQL vs. 99 migraciones aplicadas
+
+El generador **sin red y sin escritura** `scripts/ops/migration-lineage-audit.mjs` cruza el repositorio con el listado real de versiones/nombres recopilado por `Supabase.list_migrations` y guardado en `docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json`. La prueba `tests/migration-lineage-audit.test.mjs` impide presentar como aplicados archivos que no se correlacionan, y reconoce la colisión preexistente `20261013040000`.
+
+| Clasificación local | Archivos | Interpretación |
+| --- | ---: | --- |
+| Nombre Y versión coincidentes | **1** | Solo coincidencia de metadatos; DDL no comprobado |
+| Mismo nombre pero versión diferente | **60** | Posible reversionado; DDL no comprobado |
+| Archivo antiguo (4 dígitos) con nombre coincidente | **25** | Posible ejecución con nueva versión; DDL no comprobado |
+| Archivo antiguo sin nombre aplicado | **7** | **Borradores no desplegados `0026_payment_orders_wompi_sandbox` a `0032_atomic_sandbox_payment_order_draft`** |
+| Archivo fechado sin nombre aplicado | **16** | Requiere estudio de alias, consolidación u omisión |
+| Registro aplicado sin nombre local exacto | **13** | Requiere relación con archivos locales o restauración del DDL histórico |
+| Versiones locales duplicadas | **1** | Dos archivos con prefijo `20261013040000` |
+
+**Punto importante:** la migración aplicada `0026_rental_management_core` no corresponde al archivo local `0026_payment_orders_wompi_sandbox.sql`. Coinciden por número `0026` pero **son operaciones distintas**. Los siete borradores de facturación no pueden considerarse ejecutados ni publicarse automáticamente.
+
+### Clasificación de los 16 archivos fechados sin nombre aplicado
+
+- **11 candidatos de nombre renombrado**: `fix_archive_reason` ↔ `fix_commission_archive_reason_ambiguity`; `basic_pro_functional_parity` ↔ `basic_pro_equal_functionality_20261015`; `direct_paid_onboarding` ↔ `direct_paid_onboarding_explicit_20261018`; `tenant_public_catalog` ↔ `public_tenant_catalog_readonly_20261018`; `strict_private_property_read_boundary` ↔ `strict_private_property_read_boundary_20261018`; `tenant_public_website_brand_and_services` ↔ `tenant_public_brand_services_20261019`; `editable_public_portal_sections` ↔ `editable_public_portal_sections_20261020`; `owner_organization_public_slug` ↔ `owner_organization_public_slug_20261020`; `owner_slug_strict_execute_acl` ↔ `owner_slug_strict_execute_acl_20261020`; `public_website_leads` ↔ `public_website_leads_20261020`; `revoke_anonymous_crm_access` ↔ `revoke_anonymous_crm_access_20261020`.
+- **4 del bloque financiero consolidado**: `owner_statement_deduction_lines`, `rent_receipts_and_owner_drafts`, `reconcile_owner_deductions`, `finance_rls_and_tenant_links`. Candidato de consolidación **únicamente por temática**, no por equivalencia SQL, con el registro aplicado `20261012070133_audited_rent_receipts_owner_deductions_finance_permissions`.
+- **1 sin candidato exacto reconocido**: `commercial_plan_permissions`. Comparar privilegios, políticas y registros realmente presentes antes de asignarle procedencia.
+
+Los **13 registros aplicados sin nombre local exacto** contienen los once candidatos anteriores y, además, `0026_rental_management_core` y el agregado financiero `audited_rent_receipts_owner_deductions_finance_permissions`. Las relaciones indicadas son hipótesis para revisión; **ninguna autoriza `migration repair`**.
+
+### Ejecutar la auditoría offline
+
+```bash
+node --test tests/migration-lineage-audit.test.mjs
+node scripts/ops/migration-lineage-audit.mjs --ledger docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json
+# Para obtener cada fila en JSON reproducible:
+node scripts/ops/migration-lineage-audit.mjs --ledger docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json --json
+```
+
+**NO-GO sigue vigente**: falta comparar SQL/DDL real, historial de efectos, ACL/RLS y dependencia entre migraciones. Las listas son una fotografía del 02-nov-2026, no una lectura actualizada automáticamente de Supabase ni una autorización de `db push`. La conciliación solo debe ensayarse en una base aislada con el respaldo auténtico existente.
