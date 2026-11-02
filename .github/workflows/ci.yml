@@ -913,3 +913,4 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_serialization_test -f security/candidates/billing_authorization_serialization.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_serialization_test -f security/tests/billing_order_serialization_assertions.sql
           bash security/tests/billing_order_revocation_concurrency.sh
+          bash security/tests/billing_shared_role_concurrency.sh
