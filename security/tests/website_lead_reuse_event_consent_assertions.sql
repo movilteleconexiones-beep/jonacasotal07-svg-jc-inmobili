@@ -58,6 +58,22 @@ BEGIN
     RAISE EXCEPTION 'Per-address rate limits must count inquiries, not distinct CRM contacts';
   END IF;
 
+  -- Existing manually registered customers are reused without changing their
+  -- phone, source or recorded identity; only a fresh lead is added.
+  INSERT INTO public.contacts(organization_id,first_name,last_name,email,phone,source)
+  VALUES(alpha,'Laura','Manual','laura.manual@example.test','3001111111','MANUAL');
+  PERFORM public.submit_public_website_lead('alpha-agency','Laura Manual','laura.manual@example.test',
+    '+57 300 123 4567','Administración','Consulta desde la web',true,'');
+  IF (SELECT count(*) FROM public.contacts
+      WHERE organization_id=alpha AND email='laura.manual@example.test')<>1
+     OR (SELECT count(*) FROM public.contacts
+      WHERE organization_id=alpha AND email='laura.manual@example.test'
+        AND source='MANUAL' AND phone='3001111111')<>1
+     OR (SELECT count(*) FROM private.website_lead_consents event
+      JOIN public.contacts c ON c.id=event.contact_id
+      WHERE c.email='laura.manual@example.test' AND event.organization_id=alpha)<>1
+  THEN RAISE EXCEPTION 'Existing manual client was duplicated or overwritten'; END IF;
+
   -- A shared email with a different full name does not merge individuals.
   PERFORM public.submit_public_website_lead('alpha-agency','Ana Compartida','shared@example.test',
     '+57 300 123 4567','Consulta','Primera persona',true,'');
