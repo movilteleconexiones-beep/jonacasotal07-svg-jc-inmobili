@@ -16,6 +16,12 @@ export const HISTORIC_FUNCTION_SOURCES = Object.freeze({
   record_tenant_rent_receipt: '20261012130000_rent_receipts_and_owner_drafts.sql',
 });
 
+// Later source may intentionally supersede a pinned historical definition.
+// Keep both versions: deleting the history would erase the audit trail.
+export const KNOWN_LATER_FINANCE_REVISIONS = Object.freeze({
+  create_tenant_rent_period:'20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql',
+});
+
 export function extractDollarQuotedFunctionBody(sql, functionName) {
   if (!/^[a-z][a-z0-9_]*$/.test(functionName)) throw Error('Unsafe function identifier');
   const header = new RegExp('\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?FUNCTION\\s+public\\.' + functionName + '\\s*\\(', 'ig');
@@ -44,10 +50,17 @@ export function compareHistoricFinanceBodies(snapshot, readSql) {
     const sql = readSql(file);
     const localBody = extractDollarQuotedFunctionBody(sql, row.proname);
     const localMd5 = createHash('md5').update(localBody,'utf8').digest('hex');
+    const laterFile = KNOWN_LATER_FINANCE_REVISIONS[row.proname] ?? null;
+    const laterMd5 = laterFile
+      ? createHash('md5').update(extractDollarQuotedFunctionBody(readSql(laterFile),row.proname),'utf8').digest('hex')
+      : null;
+    const status = localMd5 === row.body_md5 ? 'body-identical-in-captured-catalog'
+      : laterMd5 === row.body_md5 ? 'body-matches-later-revision'
+      : 'body-different-or-unmapped';
     return {
       function:row.proname, source_file:file, historic_body_md5:localMd5,
-      captured_live_body_md5:row.body_md5,
-      status:localMd5 === row.body_md5 ? 'body-identical-in-captured-catalog' : 'body-different-or-superseded',
+      later_source_file:laterFile, later_body_md5:laterMd5,
+      captured_live_body_md5:row.body_md5, status,
       anon_can_execute:row.anon_can_execute,
       authenticated_can_execute:row.authenticated_can_execute,
       captured_security_definer:row.security_definer,
@@ -55,9 +68,12 @@ export function compareHistoricFinanceBodies(snapshot, readSql) {
     };
   });
   const equal = comparisons.filter(x=>x.status==='body-identical-in-captured-catalog').length;
+  const revised = comparisons.filter(x=>x.status==='body-matches-later-revision').length;
   return {
     captured_at:snapshot.captured_at,
     count:comparisons.length, identical_bodies:equal,
+    verified_later_revisions:revised,
+    unresolved_bodies:comparisons.length-equal-revised,
     differing_or_superseded_bodies:comparisons.length-equal,
     comparisons,
     full_ddl_equivalence_verified:false,
@@ -77,6 +93,7 @@ function main(args) {
     for (const row of report.comparisons)
       console.log(row.status+': '+row.function+' [historic='+row.historic_body_md5+', snapshot='+row.captured_live_body_md5+']');
     console.log('Historical function bodies identical: '+report.identical_bodies+'/'+report.count);
+    console.log('Verified later revisions: '+report.verified_later_revisions+'; bodies without mapped source: '+report.unresolved_bodies);
     console.log('NO-GO: function-body equality does not prove DDL/ACL/RLS equivalence or authorize migration repair/db push.');
   }
   return 0; // means offline comparison ran, NOT that a production change is authorized
