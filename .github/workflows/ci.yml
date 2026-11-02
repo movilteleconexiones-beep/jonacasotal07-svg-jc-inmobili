@@ -72,6 +72,8 @@ jobs:
         run: |
           node --test tests/finance-function-equivalence-audit.test.mjs
           node scripts/ops/finance-function-equivalence-audit.mjs
+      - name: Finance tenant FK, numeric checks and RLS catalog snapshot (#104)
+        run: node --test tests/finance-integrity-catalog.test.mjs
       - name: Historic finance migration drift fail-closed gate (#104)
         run: |
           node --test tests/finance-migration-gate.test.mjs
