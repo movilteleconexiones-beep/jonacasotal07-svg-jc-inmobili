@@ -5,12 +5,24 @@ BEGIN;
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='30s';
 
--- New event-level evidence is immutable and inaccessible to anon/authenticated.
+-- The production contacts table already has UNIQUE(organization_id,id);
+-- leads only has a UUID PK, so the extra pair index enables a composite FK.
+-- This prevents accidental cross-agency consent references at DB level.
+CREATE UNIQUE INDEX IF NOT EXISTS website_public_leads_tenant_pair_unique_idx
+  ON public.leads (organization_id,id);
+
+-- New event-level evidence is inaccessible to anon/authenticated.
 -- The legacy per-contact consent table remains untouched for historical records.
 CREATE TABLE private.website_lead_consents (
-  lead_id uuid PRIMARY KEY REFERENCES public.leads(id) ON DELETE RESTRICT,
+  lead_id uuid PRIMARY KEY,
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE RESTRICT,
-  contact_id uuid NOT NULL REFERENCES public.contacts(id) ON DELETE RESTRICT,
+  contact_id uuid NOT NULL,
+  CONSTRAINT website_lead_consents_tenant_lead_fk
+    FOREIGN KEY (organization_id,lead_id)
+    REFERENCES public.leads(organization_id,id) ON DELETE RESTRICT,
+  CONSTRAINT website_lead_consents_tenant_contact_fk
+    FOREIGN KEY (organization_id,contact_id)
+    REFERENCES public.contacts(organization_id,id) ON DELETE RESTRICT,
   -- One UUID per intended inquiry. Retrying that same UUID is a no-op.
   request_id uuid NOT NULL,
   payload_sha256 bytea NOT NULL CHECK (pg_catalog.octet_length(payload_sha256)=32),
@@ -23,6 +35,8 @@ CREATE TABLE private.website_lead_consents (
 );
 CREATE INDEX website_lead_consents_org_created_idx
   ON private.website_lead_consents (organization_id, consented_at DESC);
+CREATE INDEX website_lead_consents_org_contact_idx
+  ON private.website_lead_consents (organization_id,contact_id);
 
 ALTER TABLE private.website_lead_consents ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE private.website_lead_consents FROM PUBLIC, anon, authenticated, service_role;
