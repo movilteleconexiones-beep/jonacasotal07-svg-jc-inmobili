@@ -74,6 +74,10 @@ jobs:
           node scripts/ops/finance-function-equivalence-audit.mjs
       - name: Finance tenant FK, numeric checks and RLS catalog snapshot (#104)
         run: node --test tests/finance-integrity-catalog.test.mjs
+      - name: API MAINTAIN privilege isolation and two-tenant RLS (PostgreSQL 17 disposable)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/public_api_maintain_revocation_pg17.sh
       - name: Historic finance migration drift fail-closed gate (#104)
         run: |
           node --test tests/finance-migration-gate.test.mjs
