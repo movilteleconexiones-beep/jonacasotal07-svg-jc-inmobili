@@ -3,6 +3,17 @@
 set -euo pipefail
 export PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD="${PGPASSWORD:-postgres}"
 db=jco_public_maintain_acl_test
+# Roles are cluster-wide even when their test tables are database-local.
+# Remove our disposable database AND its four synthetic roles on every exit,
+# or the next pre-existing CI fixture will fail with "role already exists".
+cleanup() {
+  status=$?
+  trap - EXIT
+  psql -X -v ON_ERROR_STOP=1 -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+  psql -X -v ON_ERROR_STOP=1 -d postgres -c "DROP ROLE IF EXISTS anon, authenticated, service_role, supabase_admin" || status=1
+  exit "$status"
+}
+trap cleanup EXIT
 psql -X -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE $db"
 psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
 CREATE ROLE anon NOLOGIN;
