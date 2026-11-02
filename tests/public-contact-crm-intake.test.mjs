@@ -19,7 +19,8 @@ test('tenant contact page registers a CRM prospect only after explicit consent',
  assert.match(app,/Consulta registrada correctamente/);
  assert.match(app,/quedó registrada en el CRM de/);
  assert.match(app,/No fue posible registrar la consulta/);
- assert.match(app,/!automaticContactEnabled && branding\.email/);
+ assert.match(app,/!automaticContactEnabled && contactFallbackEmail/);
+ assert.match(app,/tenantSlug && !automaticContactEnabled && !contactFallbackEmail/);
  assert.match(app,/No se ha confirmado una cita|todavía no se ha confirmado una cita/);
 });
 
