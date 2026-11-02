@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getPublicInquiryRequestId, clearPublicInquiryAttempt } from './core/public-inquiry-attempt';
 import React, { useState, useMemo } from 'react';
 import {
   CASE_STUDIES,
@@ -168,6 +169,7 @@ export default function App() {
   const [contactConsent, setContactConsent] = useState(false);
   const [contactTrap, setContactTrap] = useState('');
   const [contactBusy, setContactBusy] = useState(false);
+  const contactSubmitInFlight = React.useRef(false);
   React.useEffect(() => {
     setContactSubmitted(false);
     setContactConsent(false);
@@ -255,7 +257,7 @@ export default function App() {
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (contactBusy) return;
+    if (contactBusy || contactSubmitInFlight.current) return;
     if (contactName.trim().length < 3) {
       setContactError('Por favor ingresa tu nombre completo.');
       return;
@@ -287,26 +289,37 @@ export default function App() {
       setContactSubmitted(true);
       return;
     }
+    contactSubmitInFlight.current = true;
     setContactBusy(true);
+    const inquiry = {
+      p_slug: tenantSlug,
+      p_name: contactName.trim(),
+      p_email: contactEmail.trim(),
+      p_phone: contactPhone.trim(),
+      p_service: contactService,
+      p_message: contactNotes.trim(),
+      p_consent: contactConsent,
+      p_trap: contactTrap,
+    };
+    // Default OFF: must only enable after the corresponding candidate RPC is
+    // deployed and verified in the same Supabase environment.
+    const useReplaySafeCrm = import.meta.env.VITE_PUBLIC_CRM_IDEMPOTENT === 'true';
     try {
-      const { data, error } = await supabase.rpc('submit_public_website_lead', {
-        p_slug: tenantSlug,
-        p_name: contactName.trim(),
-        p_email: contactEmail.trim(),
-        p_phone: contactPhone.trim(),
-        p_service: contactService,
-        p_message: contactNotes.trim(),
-        p_consent: contactConsent,
-        p_trap: contactTrap,
-      });
+      const { data, error } = useReplaySafeCrm
+        ? await supabase.rpc('submit_public_website_lead_once', {
+            ...inquiry, p_request_id: await getPublicInquiryRequestId(inquiry),
+          })
+        : await supabase.rpc('submit_public_website_lead', inquiry);
       if (error || data !== true) {
-        throw new Error('No fue posible registrar la consulta. Intenta nuevamente o utiliza los datos de contacto publicados.');
+        throw new Error('No fue posible registrar la consulta. Verifica si llegó al CRM antes de volver a enviarla.');
       }
+      if (useReplaySafeCrm) clearPublicInquiryAttempt(tenantSlug);
       setContactSubmitted(true);
       setContactConsent(false);
     } catch (error) {
       setContactError(error instanceof Error ? error.message : 'No fue posible enviar la consulta.');
     } finally {
+      contactSubmitInFlight.current = false;
       setContactBusy(false);
     }
   };
