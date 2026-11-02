@@ -684,6 +684,9 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f supabase/migrations/20261029090000_rental_draft_correction_and_duplicates.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f security/tests/rental_draft_duplicates_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -Atqc "SELECT count(*) FROM public.audit_log" | grep -qx 0
+          # Two concurrent PostgreSQL sessions compete for one apartment/one signed PDF.
+          # All operations use deterministic fictional data in a disposable DB.
+          bash security/tests/jco_concurrent_lease_pdf_race.sh
 
       - name: Rental draft edit and signed PDF duplicate UI regression
         run: node --test tests/rental-draft-duplicate-control.test.mjs
