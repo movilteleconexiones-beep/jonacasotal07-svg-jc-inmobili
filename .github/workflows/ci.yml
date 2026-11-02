@@ -914,3 +914,5 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_serialization_test -f security/tests/billing_order_serialization_assertions.sql
           bash security/tests/billing_order_revocation_concurrency.sh
           bash security/tests/billing_shared_role_concurrency.sh
+          # Bounded lock wait + idempotent retry + 16 synthetic orders across two tenants.
+          bash security/tests/billing_lock_timeout_and_load.sh
