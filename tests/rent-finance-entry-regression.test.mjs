@@ -104,3 +104,19 @@ test('financial network failures release buttons and retain receipt retry identi
     assert.match(section,/finally\s*\{\s*setSaving\(false\)/);
   }
 });
+
+
+test('contract draft double-submit lock and database duplicate message',()=>{
+  const section=main.slice(main.indexOf('async function createContract('),main.indexOf('async function correctDraft('));
+  assert.match(main,/const contractSubmissionInFlight=useRef\(false\)/);
+  assert.match(section,/if\(!contractAllowed\|\|busy\|\|contractSubmissionInFlight\.current\)return/);
+  const locked=section.indexOf('contractSubmissionInFlight.current=true');
+  const preflight=section.indexOf("await Promise.all(");
+  const insert=section.indexOf(".from('leases').insert(");
+  assert.ok(locked>0 && locked<preflight && preflight<insert,
+    'synchronous lock must precede preflight and insert');
+  assert.match(section,/failure\?\.code==='23505'/);
+  assert.match(section,/failure\.message\.includes\('leases_one_open_contract_per_property'\)/);
+  assert.match(section,/Busca y corrige el existente en lugar de crear otro/);
+  assert.match(section,/finally\s*\{\s*setBusy\(false\);\s*contractSubmissionInFlight\.current=false/);
+});
