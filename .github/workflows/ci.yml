@@ -701,6 +701,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f security/tests/owner_payout_end_to_end_assertions.sql
           # Every test action is inside a rolled-back transaction.
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -Atqc "SELECT COUNT(*) FROM public.owner_statement_payouts" | grep -qx 0
+          # Real row-lock and UNIQUE checks under two concurrent PostgreSQL sessions.
+          bash security/tests/jco_concurrent_owner_payout_race.sh
 
       - name: Owner statement issuance authorization regression
         run: node --test tests/owner-statement-issuance.test.mjs
