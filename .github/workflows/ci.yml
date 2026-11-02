@@ -374,6 +374,9 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/tenant_role_portal_isolation_assertions.sql
+          # Two concurrent admins must not overwrite revocations from stale role-editor forms.
+          # Synthetic PostgreSQL 17 database only; the script refuses other databases.
+          bash security/tests/jco_concurrent_role_permission_edit.sh
       - name: Role permission editor interface regression
         run: node --test tests/admin-role-permission-editor.test.mjs
       - name: Advisor coordinator and portal client role regressions
