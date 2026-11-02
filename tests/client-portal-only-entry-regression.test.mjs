@@ -65,3 +65,11 @@ test('role assignment module clarifies mixed elevated accounts',()=>{
  assert.match(users,/displayTenantRole\(role\)/);
  assert.match(tenantMenu,/permissions:\s*\[P\.CLIENTS_VIEW\]/);
 });
+
+test('changing agency or authenticated account remounts the portal before displaying old tenant\'s private rows',()=>{
+ assert.match(dashboard,/const portalScopeKey = /);
+ assert.match(dashboard,/organizationId \\?\\? 'no-organization'/);
+ assert.match(dashboard,/user\\?\\.id \\?\\? 'no-user'/);
+ assert.equal((dashboard.match(/<PortalHub key=\\{portalScopeKey\\} \\/>/g)??[]).length,2);
+ assert.doesNotMatch(dashboard,/<PortalHub\\s*\\/>/);
+});
