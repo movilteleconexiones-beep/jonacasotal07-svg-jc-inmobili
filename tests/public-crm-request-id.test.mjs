@@ -56,3 +56,14 @@ test('portal rollout is OFF by default and guarded by the matching DB deployment
   assert.match(source,/contactSubmitInFlight\.current = true/);
   assert.match(source,/contactSubmitInFlight\.current = false/);
 });
+
+test('tenant inquiry is unavailable without policy and a verified email fallback', () => {
+  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+  assert.match(app,/const contactFallbackEmail = /);
+  assert.match(app,/tenantSlug && !automaticContactEnabled && !contactFallbackEmail/);
+  assert.match(app,/Contacto temporalmente no disponible/);
+  assert.match(app,/No solicitaremos tus datos hasta que exista un canal/);
+  assert.match(app,/contactSubmitted \? \(/);
+  assert.match(app,/href=\{\x60mailto:\$\{contactFallbackEmail\}/);
+  assert.match(app,/setContactError\('La inmobiliaria todavía no tiene un canal de contacto configurado/);
+});
