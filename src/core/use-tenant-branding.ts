@@ -41,6 +41,8 @@ const DEFAULTS: TenantBrandingState = {
 export function useTenantBranding() {
   const { activeMembership } = useAuth();
   const [branding, setBranding] = useState<TenantBrandingState>(DEFAULTS);
+  // Records which tenant the fetched branding belongs to, not just its content.
+  const [brandingScope, setBrandingScope] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const loadVersion = useRef(0);
 
@@ -50,6 +52,7 @@ export function useTenantBranding() {
     const version = ++loadVersion.current;
     if (!organizationId) {
       setBranding(DEFAULTS);
+      setBrandingScope(null);
       setLoading(false);
       return;
     }
@@ -97,6 +100,7 @@ export function useTenantBranding() {
       locale: settingsResult.data?.locale || 'es-CO',
       timezone: settingsResult.data?.timezone || 'America/Bogota',
     });
+    setBrandingScope(organizationId);
     setLoading(false);
   }, [organizationId, activeMembership?.organization.name]);
 
@@ -112,5 +116,10 @@ export function useTenantBranding() {
     };
   }, [refresh]);
 
-  return { branding, loading, refresh };
+  // React renders once before a tenant-switch effect runs. Never expose the
+  // previous tenant's logo, colours or contact data during that render.
+  const scopedBranding = brandingScope === (organizationId ?? null)
+    ? branding
+    : { ...DEFAULTS, companyName: activeMembership?.organization.name || DEFAULTS.companyName };
+  return { branding: scopedBranding, loading: loading || Boolean(organizationId && brandingScope !== organizationId), refresh };
 }
