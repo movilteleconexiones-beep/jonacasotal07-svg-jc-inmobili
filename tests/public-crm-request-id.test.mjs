@@ -67,3 +67,12 @@ test('tenant inquiry is unavailable without policy and a verified email fallback
   assert.match(app,/href=\{\x60mailto:\$\{contactFallbackEmail\}/);
   assert.match(app,/setContactError\('La inmobiliaria todavía no tiene un canal de contacto configurado/);
 });
+
+test('settings warns the tenant owner when public inquiries have no valid destination', () => {
+  const settings=readFileSync(new URL('../src/modules/settings/SettingsModule.tsx',import.meta.url),'utf8');
+  assert.match(settings,/const hasPublishedContactEmail = /);
+  assert.match(settings,/El formulario público no puede recibir consultas/);
+  assert.match(settings,/Configurar correo comercial/);
+  assert.match(settings,/id="correo-comercial"/);
+  assert.match(settings,/Sin ella, solo podrá prepararse un correo manual/);
+});
