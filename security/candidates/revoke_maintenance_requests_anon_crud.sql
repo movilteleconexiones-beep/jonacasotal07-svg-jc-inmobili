@@ -48,6 +48,19 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'maintenance anon CRUD blocked: asymmetric RLS policy expressions';
   END IF;
+  -- Production policy expressions observed via SELECT on 2026-11-03.
+  -- Fail closed if BOTH USING and WITH CHECK are widened identically.
+  -- Digest is of pg_get_expr output, not raw pg_node_tree bytes.
+  IF EXISTS (
+    SELECT 1 FROM pg_policy p WHERE p.polrelid=v_oid AND (
+      (p.polname='jco_commercial_access' AND
+       md5(pg_get_expr(p.polqual,p.polrelid)) <> 'af2c87c5b0ad71d480f3aab921912bad')
+      OR (p.polname='maintenance_org_access' AND
+       md5(pg_get_expr(p.polqual,p.polrelid)) <> '8575656ba75ff57acadaaa0bcf9e6cab')
+    )
+  ) THEN
+    RAISE EXCEPTION 'maintenance anon CRUD blocked: RLS policy semantic baseline changed';
+  END IF;
   -- A PUBLIC grant would survive REVOKE FROM anon; never claim success then.
   IF EXISTS (
     SELECT 1 FROM pg_class c
