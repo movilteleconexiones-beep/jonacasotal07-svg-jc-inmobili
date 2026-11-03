@@ -199,6 +199,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: bash security/tests/maintenance_anon_crud_pg17.sh
+      - name: Maintenance/property composite tenant FK isolation (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/maintenance_property_tenant_fk_pg17.sh
       - name: Historic finance migration drift fail-closed gate (#104)
         run: |
           node --test tests/finance-migration-gate.test.mjs
