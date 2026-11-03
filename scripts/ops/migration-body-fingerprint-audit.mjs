@@ -67,29 +67,44 @@ export function auditMigrationBodies(snapshot, files, loadFile) {
   if (!Array.isArray(files) || typeof loadFile !== 'function')
     throw Error('Expected filenames and a local byte-loading callback');
   const appliedByName = new Map(applied.map((r) => [r.name, r]));
-  const used = new Set(), paths = new Set();
+  // Every recorded SQL body is compared across EVERY local file, even when
+  // the migration's version/name was retimed. Hash + SHA256 + size prevent
+  // reliance on a Git SHA1 collision alone.
+  const appliedByBody = new Map();
+  for (const entry of applied) {
+    const group = appliedByBody.get(entry.blob_sha1) ?? [];
+    group.push(entry);
+    appliedByBody.set(entry.blob_sha1, group);
+  }
+  const usedNames = new Set(), localNames = new Set(), exactApplied = new Set();
   const results = [];
   for (const filename of [...files].filter((s) => s.endsWith('.sql')).sort()) {
-    if (paths.has(filename)) throw Error('Duplicate local migration filename');
-    paths.add(filename);
+    if (localNames.has(filename)) throw Error('Duplicate local migration filename');
+    localNames.add(filename);
     const match = SQL_FILENAME.exec(filename);
     if (!match) throw Error('Unexpected local SQL migration filename: ' + filename);
     const [, version, stem] = match;
     const appliedName = version.length === 4 ? version + '_' + stem : stem;
     const entry = appliedByName.get(appliedName);
+    const buffer = loadFile(filename);
+    if (!Buffer.isBuffer(buffer)) throw Error('Expected raw file bytes for ' + filename);
+    const sql = buffer.toString('utf8');
+    const blobSha = gitBlobSha(buffer), contentSha = sha256(buffer);
+    const exactBodyMatches = (appliedByBody.get(blobSha) ?? []).filter(e =>
+      e.body_sha256 === contentSha && e.bytes === buffer.length);
+    for (const exact of exactBodyMatches) exactApplied.add(exact.version);
     if (!entry) {
-      results.push({ filename, classification: 'unmatched_local_name' });
+      const linked = exactBodyMatches[0];
+      results.push(linked
+        ? { filename, applied_version: linked.version, classification: 'renamed_byte_identical' }
+        : { filename, classification: 'unmatched_local_name' });
       continue;
     }
-    if (used.has(entry.version)) throw Error('Two local files map to one applied statement: ' + appliedName);
-    used.add(entry.version);
-    const localBuffer = loadFile(filename);
-    if (!Buffer.isBuffer(localBuffer)) throw Error('Expected raw file bytes for ' + filename);
-    const sql = localBuffer.toString('utf8');
+    if (usedNames.has(entry.version))
+      throw Error('Two local files map to one applied statement: ' + appliedName);
+    usedNames.add(entry.version);
     let classification;
-    if (gitBlobSha(localBuffer) === entry.blob_sha1 &&
-        sha256(localBuffer) === entry.body_sha256 &&
-        localBuffer.length === entry.bytes) {
+    if (exactBodyMatches.some(e => e.version === entry.version)) {
       classification = 'byte_identical';
     } else if (sha256(trimSql(sql)) === entry.trimmed_sha256) {
       classification = 'edge_whitespace_only';
@@ -100,13 +115,17 @@ export function auditMigrationBodies(snapshot, files, loadFile) {
     }
     results.push({ filename, applied_version: entry.version, classification });
   }
-  const kinds = ['byte_identical','edge_whitespace_only','comment_or_whitespace_candidate',
+  const kinds = ['byte_identical','renamed_byte_identical',
+    'edge_whitespace_only','comment_or_whitespace_candidate',
     'substantive_sql_difference','unmatched_local_name'];
-  const summary = Object.fromEntries(kinds.map((name) => [name, results.filter((x) => x.classification === name).length]));
+  const summary = Object.fromEntries(kinds.map(name =>
+    [name, results.filter(x => x.classification === name).length]));
   summary.local_files = results.length;
   summary.applied_migrations = applied.length;
-  summary.applied_without_local_name = applied.length - used.size;
-  summary.matched_by_name = used.size;
+  summary.applied_without_local_name = applied.length - usedNames.size;
+  summary.applied_without_any_exact_body = applied.length - exactApplied.size;
+  summary.matched_by_name = usedNames.size;
+  summary.exact_applied_any_name = exactApplied.size;
   summary.body_equivalence_proven = false;
   summary.migration_push_authorized = false;
   return { summary, results };
