@@ -70,7 +70,7 @@ BEGIN
        AND status='PENDING';
   END LOOP;
 END;
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION public.claim_my_invitations() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.claim_my_invitations() TO authenticated;
