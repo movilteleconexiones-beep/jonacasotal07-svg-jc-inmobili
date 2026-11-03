@@ -94,7 +94,11 @@ export function OwnerDeductionEvidence({
   const uploadInFlight = useRef(false);
   // Preserve UUIDs for an identical selection if Storage/metadata returned an
   // uncertain result: upsert:false then blocks a second physical PDF object.
-  const pendingUpload = useRef<{ fingerprint: string; ids: Partial<Record<DeductionProofKind,string>> } | null>(null);
+  const pendingUpload = useRef<{
+    fingerprint: string;
+    ids: Partial<Record<DeductionProofKind,string>>;
+    confirmed: Partial<Record<DeductionProofKind,true>>;
+  } | null>(null);
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
 
@@ -147,7 +151,7 @@ export function OwnerDeductionEvidence({
     const fingerprint = JSON.stringify([organizationId, deductionId, category, userId,
       ...selected.map(({kind,file}) => [kind,file.name,file.size,file.lastModified,file.type])]);
     if (pendingUpload.current?.fingerprint !== fingerprint)
-      pendingUpload.current = {fingerprint, ids:{}};
+      pendingUpload.current = {fingerprint, ids:{}, confirmed:{}};
     const attempt = pendingUpload.current;
     setBusy(true);
     setMessage('');
@@ -158,6 +162,8 @@ export function OwnerDeductionEvidence({
       }
       const failures: string[] = [];
       for (const item of selected) {
+        // On a partial success, do not try to upload an already-linked PDF again.
+        if (attempt.confirmed[item.kind]) continue;
         const uploadId = attempt.ids[item.kind] ?? crypto.randomUUID();
         attempt.ids[item.kind] = uploadId;
         const error = await uploadDeductionEvidence({
@@ -165,6 +171,7 @@ export function OwnerDeductionEvidence({
           kind: item.kind, file: item.file, uploadId,
         });
         if (error) failures.push(error);
+        else attempt.confirmed[item.kind] = true;
       }
       if (failures.length) setMessage(failures.join(' ') +
         ' Si algún archivo ya figura en la lista, no vuelvas a subirlo.');
