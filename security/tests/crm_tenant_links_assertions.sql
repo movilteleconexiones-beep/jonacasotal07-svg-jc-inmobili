@@ -9,6 +9,11 @@ BEGIN
                        'jco_consignment_org_lead_contact_fk'))<>5 THEN
    RAISE EXCEPTION 'Composite CRM foreign key validation incomplete';
  END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint
+     WHERE connamespace='public'::regnamespace AND convalidated
+       AND conname='jco_consignment_lead_requires_contact') THEN
+   RAISE EXCEPTION 'Nullable lead/contact guard missing or unvalidated';
+ END IF;
  -- Legitimate matching agency records continue working.
  INSERT INTO public.leads VALUES (
    'cccccccc-1111-4111-8111-111111111111',
@@ -86,6 +91,28 @@ BEGIN
  END;
  IF NOT denied THEN RAISE EXCEPTION 'Consignment lead accepted with wrong contact in same agency'; END IF;
 
+ -- Without this CHECK, MATCH SIMPLE skips the 3-column FK when contact_id
+ -- is NULL, allowing an unrelated lead from a different organization.
+ denied:=false;
+ BEGIN
+  INSERT INTO public.property_consignments VALUES (
+   'dddddddd-3333-4333-8333-333333333333',
+   '11111111-1111-4111-8111-111111111111',
+   NULL,'bbbbbbbb-2222-4222-8222-222222222222',NULL);
+ EXCEPTION WHEN check_violation THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'NULL contact bypassed composite lead FK'; END IF;
+
+ denied:=false;
+ BEGIN
+  INSERT INTO public.property_consignments VALUES (
+   'dddddddd-3333-4333-8333-333333333333',
+   '11111111-1111-4111-8111-111111111111',
+   NULL,'aaaaaaaa-1111-4111-8111-111111111111',NULL);
+ EXCEPTION WHEN check_violation THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'NULL contact accepted with same-tenant lead'; END IF;
+
  denied:=false;
  BEGIN
   UPDATE public.leads SET contact_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -117,4 +144,4 @@ BEGIN
  IF NOT blocked THEN RAISE EXCEPTION 'Authenticated actor bypassed tenant FK'; END IF;
 END $actor$;
 ROLLBACK;
-SELECT 'PASS: five validated composite CRM FKs; cross-tenant INSERT/UPDATE rejected; legitimate links accepted' AS result;
+SELECT 'PASS: five validated composite CRM FKs and lead/contact NULL guard; cross-tenant INSERT/UPDATE rejected; legitimate links accepted' AS result;
