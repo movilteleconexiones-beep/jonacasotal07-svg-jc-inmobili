@@ -20,7 +20,7 @@ WITH objects_scope AS (
       AND d.document_type = 'INVOICE'
       AND d.entity_id IS NOT NULL
       AND d.uploaded_by IS NOT NULL
-      AND d.storage_path ~* '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/owner-deductions/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(invoice|payment)/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}\\.pdf$'
+      AND d.storage_path ~* '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/owner-deductions/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(invoice|payment)/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}[.]pdf$'
       AND split_part(d.storage_path, '/', 1) = d.organization_id::text
       AND split_part(d.storage_path, '/', 3) = d.entity_id::text AS valid_link
   FROM documents_scope d
@@ -39,5 +39,5 @@ SELECT
     SELECT storage_path FROM documents_scope GROUP BY storage_path HAVING count(*)>1
   ) duplicates) AS duplicate_path_groups,
   (SELECT count(*) FROM objects_scope o
-     WHERE NOT (o.name ~* '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/owner-deductions/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(invoice|payment)/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}\\.pdf$')
+     WHERE NOT (o.name ~* '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/owner-deductions/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/(invoice|payment)/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}[.]pdf$')
   ) AS invalid_storage_paths;
