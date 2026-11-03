@@ -128,6 +128,10 @@ export function OwnerDeductionEvidence({
   } | null>(null);
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
+  // Invalidate pending signed-URL responses immediately on tenant/document switch.
+  const evidenceScope = organizationId + ':' + deductionId + ':' + userId;
+  const currentEvidenceScope = useRef(evidenceScope);
+  currentEvidenceScope.current = evidenceScope;
 
   useEffect(() => {
     let cancelled = false;
@@ -218,16 +222,19 @@ export function OwnerDeductionEvidence({
   }
 
   async function openEvidence(document: DeductionProofDocument) {
+    const requestedScope = currentEvidenceScope.current;
     if (!canRead || !deductionProofKind(document, organizationId, deductionId)) return;
     try {
       const { data, error } = await supabase.storage.from(DEDUCTION_PROOF_BUCKET)
         .createSignedUrl(document.storage_path, 60);
+      if (currentEvidenceScope.current !== requestedScope) return;
       if (error || !data?.signedUrl) {
         setMessage('No fue posible abrir el soporte. Revisa tus permisos de documentos.');
         return;
       }
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
     } catch {
+      if (currentEvidenceScope.current !== requestedScope) return;
       setMessage('No se pudo generar el enlace privado del PDF.');
     }
   }
