@@ -86,6 +86,17 @@ fi
 grep -q 'maintenance anon CRUD blocked: PUBLIC privileges remain' "$log"
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "REVOKE SELECT ON public.maintenance_requests FROM PUBLIC"
 
+# An inherited grant can keep anonymous CRUD effective after direct REVOKE.
+# The postcondition must reject and roll back the entire transaction.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "GRANT authenticated TO anon"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: inherited authenticated CRUD escaped the postcondition'; exit 1
+fi
+grep -q 'maintenance anon CRUD revocation not effective' "$log"
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','SELECT')")" == t ]] ||
+  { echo 'ERROR: inherited-grant failure did not roll back'; exit 1; }
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "REVOKE authenticated FROM anon"
+
 # Authorized simulated postgres owner: repeat to verify idempotence.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate"
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate"
