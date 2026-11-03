@@ -35,6 +35,7 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
       - name: npm audit security gate (reject any published vulnerability)
         run: |
           npm audit --json > "$RUNNER_TEMP/inmojco-audit.json" || true
@@ -374,6 +375,9 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/admin_role_permissions_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_role_perms_test -f security/tests/tenant_role_portal_isolation_assertions.sql
+          # Two concurrent admins must not overwrite revocations from stale role-editor forms.
+          # Synthetic PostgreSQL 17 database only; the script refuses other databases.
+          bash security/tests/jco_concurrent_role_permission_edit.sh
       - name: Role permission editor interface regression
         run: node --test tests/admin-role-permission-editor.test.mjs
       - name: Advisor coordinator and portal client role regressions
@@ -898,3 +902,57 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f security/tests/atomic_order_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f supabase/migrations/0032_atomic_sandbox_payment_order_draft.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f security/tests/atomic_order_assertions.sql
+
+      - name: Serialized Wompi sandbox order authorization vs revocation (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # Candidate schema and two-session races only; NEVER deploy to live Supabase.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_serialization_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_serialization_test -f security/tests/billing_order_serialization_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_serialization_test -f security/candidates/billing_authorization_serialization.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_serialization_test -f security/tests/billing_order_serialization_assertions.sql
+          bash security/tests/billing_order_revocation_concurrency.sh
+          bash security/tests/billing_shared_role_concurrency.sh
+          # Bounded lock wait + idempotent retry + 16 synthetic orders across two tenants.
+          bash security/tests/billing_lock_timeout_and_load.sh
+
+      - name: Invitation claim row locks versus global billing authorization (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_invitation_lock_order_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            # Roles are shared with prior databases in this CI job. Only drop this database.
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_order_serialization_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/billing_authorization_serialization.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_invitation_lock_order_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/claim_my_invitations_live_baseline.sql
+          bash security/tests/billing_invitation_lock_order_concurrency.sh "$db"
+      - name: Role editor advisory lock order vs authorization trigger (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_role_lock_order_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_order_serialization_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/billing_authorization_serialization.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_role_editor_lock_order_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/admin_update_role_permissions_live_baseline.sql
+          bash security/tests/billing_role_editor_lock_order_concurrency.sh "$db"
