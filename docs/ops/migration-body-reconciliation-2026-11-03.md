@@ -188,6 +188,26 @@ Los dos casos **siguen clasificados como diferencias sustantivas
 históricas** para #104. No ejecutar DDL, `db push` ni
 `migration repair` en producción por este resultado.
 
+### Comisiones → negocios: FK sin alcance de inmobiliaria (03-nov, revisión adicional)
+
+En el catálogo productivo `commissions.deal_id` usa FK simple hacia
+`deals.id`; no obliga que ambas tablas coincidan en `organization_id`.
+En una consulta de agregados, **6 comisiones existentes y 0 cruces entre
+inmobiliarias**. El candidato
+[`security/candidates/commissions_deal_tenant_fk.sql`](../../security/candidates/commissions_deal_tenant_fk.sql)
+construye `UNIQUE(deals.organization_id,deals.id)` y **reemplaza** la FK
+original por una compuesta, preservando su nombre y `ON DELETE CASCADE`.
+Se evita tener simultáneamente dos FKs hacia `deals`, que generaría
+ambigüedad de relaciones de PostgREST. La prueba aislada
+`security/tests/commissions_deal_tenant_fk_pg17.sh` demuestra el vínculo
+cruzado previo, su rechazo posterior, validación de datos antiguos,
+RLS entre dos inmobiliarias, permisos e idempotencia.
+
+[Análisis y condiciones de ejecución](commissions-deal-tenant-fk-2026-11-03.md).
+**Este candidato no se ha ejecutado en Supabase real ni se incorpora al
+historial de migraciones.** La corrección requiere staging, backup
+restaurable, compatibilidad PostgREST, control de locks y NO-GO #104/#203.
+
 ## Decisión y pasos seguros
 
 **Mantener #104 y #203 como NO-GO.** No ejecutar ni programar
