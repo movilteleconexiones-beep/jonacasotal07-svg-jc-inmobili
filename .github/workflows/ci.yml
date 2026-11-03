@@ -3,6 +3,10 @@ name: Verify JCO application
 on:
   pull_request:
     branches: [main]
+  # Apply the same checks to the actual commit deployed from main.
+  # PR checks alone do not cover direct pushes or merge-result drift.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -66,6 +70,8 @@ jobs:
               process.exit(1);
             }
           '
+      - name: Main deployment CI and migration NO-GO contract regression
+        run: node --test tests/main-deployment-gate-contract.test.mjs
       - name: Migration lineage classification and unpublished billing-draft quarantine (#104)
         run: node --test tests/migration-lineage-audit.test.mjs
       - name: Four public SECURITY DEFINER RPC source and tenant-guard audit (#104)
