@@ -6,9 +6,9 @@ const source = readFileSync(new URL('../src/modules/contacts/ContactsModule.tsx'
 
 test('contact creation prevents repeated submits before React state is applied', () => {
   assert.match(source, /const createInFlight = useRef\(false\)/);
-  assert.match(source, /if \(createInFlight\.current \|\| contactBusy\) return/);
-  assert.match(source, /createInFlight\.current = true;\s*setContactBusy\(true\);\s*try/);
-  assert.match(source, /finally \{\s*createInFlight\.current = false;\s*setContactBusy\(false\);/);
+  assert.match(source, /if \(createInFlight\.current \|\| contactMutationInFlight\.current \|\| contactBusy\) return/);
+  assert.match(source, /createInFlight\.current = true;\s*contactMutationInFlight\.current = true;\s*setContactBusy\(true\);\s*try/);
+  assert.match(source, /finally \{\s*createInFlight\.current = false;\s*contactMutationInFlight\.current = false;\s*setContactBusy\(false\);/);
   assert.match(source, /<button type="submit" disabled=\{contactBusy\}/);
 });
 
@@ -55,7 +55,7 @@ function functionBody(startMarker, endMarker) {
 
 function assertTenantScopedAsyncMutation(body, rpc, label) {
   const confirmation = body.indexOf('window.confirm(');
-  const preWriteGuard = body.indexOf('if(currentOrganization.current!==organizationId)return;', confirmation);
+  const preWriteGuard = body.indexOf('if(currentOrganization.current!==organizationId||contactMutationInFlight.current)return;', confirmation);
   const rpcCall = body.indexOf(`await supabase.rpc('${rpc}'`);
   const responseGuard = body.indexOf('if(currentOrganization.current!==organizationId)return;', rpcCall);
   const clearEditor = body.indexOf('setEditContact(null)', rpcCall);
@@ -86,4 +86,37 @@ test('contact deletion responses cannot clear or message a different agency', ()
   const body = functionBody('async function deleteUnlinkedContact(', '  return (');
   assertTenantScopedAsyncMutation(body, 'admin_delete_unlinked_contact', 'deletion');
   assert.match(body, /target_org:organizationId,target_contact:contact\.id/);
+});
+
+test('one synchronous lock serializes create, correction and deletion before React re-renders', () => {
+  assert.match(source, /const contactMutationInFlight = useRef\(false\)/);
+
+  const create = functionBody('async function createContact(', 'async function correctContact(');
+  const correction = functionBody('async function correctContact(', 'async function deleteUnlinkedContact(');
+  const deletion = functionBody('async function deleteUnlinkedContact(', '  return (');
+
+  for (const [label, body, rpc] of [
+    ['correction', correction, 'admin_correct_client_contact'],
+    ['deletion', deletion, 'admin_delete_unlinked_contact'],
+  ]) {
+    const entryGuard = body.indexOf('||contactMutationInFlight.current||contactBusy');
+    const confirmation = body.indexOf('window.confirm(');
+    const preflightGuard = body.indexOf('if(currentOrganization.current!==organizationId||contactMutationInFlight.current)return;', confirmation);
+    const acquired = body.indexOf('contactMutationInFlight.current=true;', preflightGuard);
+    const rpcPos = body.indexOf(`await supabase.rpc('${rpc}'`, acquired);
+    const finallyPos = body.indexOf('}finally{', rpcPos);
+    const released = body.indexOf('contactMutationInFlight.current=false;', finallyPos);
+    assert.ok(entryGuard >= 0 && entryGuard < confirmation, `${label}: early reentrancy guard`);
+    assert.ok(preflightGuard > confirmation && acquired > preflightGuard && acquired < rpcPos,
+      `${label}: lock acquired before server mutation`);
+    assert.ok(finallyPos > rpcPos && released > finallyPos,
+      `${label}: lock released even on failure, early return or tenant switch`);
+  }
+
+  const entryGuard = create.indexOf('createInFlight.current || contactMutationInFlight.current || contactBusy');
+  const acquired = create.indexOf('contactMutationInFlight.current = true;', entryGuard);
+  const written = create.indexOf(".from('contacts').insert(payload)", acquired);
+  const released = create.indexOf('contactMutationInFlight.current = false;', written);
+  assert.ok(entryGuard >= 0 && acquired > entryGuard && written > acquired && released > written,
+    'creation must share the same lock during lookup and INSERT');
 });
