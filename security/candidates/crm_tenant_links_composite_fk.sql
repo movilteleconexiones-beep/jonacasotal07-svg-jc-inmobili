@@ -1,6 +1,6 @@
 -- INMOJCO | Candidate only. DO NOT apply to production while issue #104 is NO-GO.
 -- Requires staged proof with authentic schema, trusted backup and a measured lock window.
--- Enforces same organization for CRM leads, linked properties, and accepted consignments.
+-- Enforces same organization for CRM leads, linked properties, consignments and private consent receipts.
 -- PostgreSQL 17. Runs atomically: any failed preflight or VALIDATE rolls back all changes.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
@@ -34,6 +34,11 @@ BEGIN
     JOIN public.leads l ON l.id=pc.lead_id
     WHERE pc.organization_id<>l.organization_id OR pc.contact_id IS DISTINCT FROM l.contact_id
   ) THEN RAISE EXCEPTION 'NO-GO: consignment lead belongs to another agency/contact'; END IF;
+  IF EXISTS (
+    SELECT 1 FROM private.website_contact_consents receipt
+    JOIN public.contacts c ON c.id=receipt.contact_id
+    WHERE receipt.organization_id<>c.organization_id
+  ) THEN RAISE EXCEPTION 'NO-GO: public website consent points to contact of another agency'; END IF;
 END $preflight$;
 
 -- contacts and properties already have UNIQUE (organization_id,id) in the active schema.
@@ -61,10 +66,17 @@ ALTER TABLE public.property_consignments
     FOREIGN KEY (organization_id,lead_id,contact_id)
     REFERENCES public.leads(organization_id,id,contact_id) NOT VALID;
 
+-- Website consent must be bound to the contact within that SAME organization.
+ALTER TABLE private.website_contact_consents
+  ADD CONSTRAINT jco_website_consent_org_contact_fk
+    FOREIGN KEY (organization_id,contact_id)
+    REFERENCES public.contacts(organization_id,id) NOT VALID;
+
 -- Protect existing rows too. If any check fails the whole candidate is rolled back.
 ALTER TABLE public.leads VALIDATE CONSTRAINT jco_leads_org_contact_fk;
 ALTER TABLE public.leads VALIDATE CONSTRAINT jco_leads_org_property_fk;
 ALTER TABLE public.property_consignments VALIDATE CONSTRAINT jco_consignment_org_contact_fk;
 ALTER TABLE public.property_consignments VALIDATE CONSTRAINT jco_consignment_org_property_fk;
 ALTER TABLE public.property_consignments VALIDATE CONSTRAINT jco_consignment_org_lead_contact_fk;
+ALTER TABLE private.website_contact_consents VALIDATE CONSTRAINT jco_website_consent_org_contact_fk;
 COMMIT;
