@@ -26,11 +26,6 @@ DECLARE
   invitation record;
   member_id uuid;
 BEGIN
-  -- Acquire the transaction authorization lock BEFORE locking invitations.
-  -- It matches the BEFORE STATEMENT triggers on member and role mutations.
-  PERFORM pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtext('inmojco.billing.authorization'), 0
-  );
   IF current_user_id IS NULL THEN RETURN; END IF;
 
   -- Read identity from the authoritative Supabase Auth table, not the
@@ -44,6 +39,13 @@ BEGIN
      AND nullif(btrim(u.email),'') IS NOT NULL;
 
   IF confirmed_email IS NULL THEN RETURN; END IF;
+
+  -- Acquire global billing lock after trusted Auth verification, but BEFORE
+  -- invitation FOR UPDATE and any member/role mutation. Unconfirmed or
+  -- anonymous requests must not consume the global billing lock.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtext('inmojco.billing.authorization'), 0
+  );
 
   FOR invitation IN
     SELECT i.*
