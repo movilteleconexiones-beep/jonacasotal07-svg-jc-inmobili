@@ -89,13 +89,18 @@ grep -q 'maintenance anon CRUD blocked: expected postgres-owned RLS table' "$log
   { echo 'ERROR: disabled-RLS denial mutated ACL'; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests ENABLE ROW LEVEL SECURITY"
 
-# Fail closed if PUBLIC inherits table rights; anon REVOKE alone is insufficient.
-psql -X -v ON_ERROR_STOP=1 -d "$db" -c "GRANT SELECT ON public.maintenance_requests TO PUBLIC"
-if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
-  echo 'ERROR: PUBLIC grant bypass was ignored'; exit 1
-fi
-grep -q 'maintenance anon CRUD blocked: PUBLIC privileges remain' "$log"
-psql -X -v ON_ERROR_STOP=1 -d "$db" -c "REVOKE SELECT ON public.maintenance_requests FROM PUBLIC"
+# Every PUBLIC CRUD grant is inherited by anon; check all four independently.
+# A failed preflight must preserve the original ACL (transaction rollback).
+for privilege in SELECT INSERT UPDATE DELETE; do
+  psql -X -v ON_ERROR_STOP=1 -d "$db" -c "GRANT $privilege ON public.maintenance_requests TO PUBLIC"
+  if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+    echo "ERROR: PUBLIC $privilege grant bypass was ignored"; exit 1
+  fi
+  grep -q 'maintenance anon CRUD blocked: PUBLIC privileges remain' "$log"
+  [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('PUBLIC','public.maintenance_requests','$privilege')")" == t ]] ||
+    { echo "ERROR: denied candidate modified PUBLIC $privilege ACL"; exit 1; }
+  psql -X -v ON_ERROR_STOP=1 -d "$db" -c "REVOKE $privilege ON public.maintenance_requests FROM PUBLIC"
+done
 
 # An inherited grant can keep anonymous CRUD effective after direct REVOKE.
 # The postcondition must reject and roll back the entire transaction.
