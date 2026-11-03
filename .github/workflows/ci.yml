@@ -672,8 +672,8 @@ jobs:
 
       - name: Contact correction and linked-record deletion prevention UI
         run: node --test tests/audited-contact-edit-delete.test.mjs
-      - name: Contact registration single-flight and uncertain retry prevention
-        run: node --test tests/contact-create-single-flight.test.mjs
+      - name: Contact registration single-flight and shared-email identity matching
+        run: node --import tsx --test tests/contact-create-single-flight.test.mjs tests/contact-identity-match.test.mjs
 
       - name: Duplicate CRM contact identity across independent sessions (PostgreSQL 17)
         env:
