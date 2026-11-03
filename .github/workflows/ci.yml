@@ -584,6 +584,23 @@ jobs:
           if grep -v '[|]OK$' "$structural_report" || grep -v '[|]OK$' "$semantic_report"; then
             echo "Finance fixture was not restored safely"; exit 1
           fi
+          # Distinguish the six current production policy bodies from historic SQL.
+          policies=security/checks/finance_20261012_pinned_write_policies.sql
+          policy_report="$RUNNER_TEMP/jco-finance-write-policies.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$policies" > "$policy_report"
+          test "$(wc -l < "$policy_report" | tr -d ' ')" = 6
+          test "$(grep -c '[|]OK$' "$policy_report")" = 5
+          test "$(grep -c '[|]POLICY_BODY_DRIFT$' "$policy_report")" = 1
+          grep -Fx 'owner_statement_deductions.owner_deductions_insert|POLICY_BODY_DRIFT' "$policy_report"
+          # Negative fixture: a more permissive UPDATE policy must become unexpected drift.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER POLICY owner_deductions_update_status ON public.owner_statement_deductions USING (true) WITH CHECK (true)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$policies" > "$policy_report"
+          grep -Fx 'owner_statement_deductions.owner_deductions_update_status|POLICY_BODY_DRIFT' "$policy_report"
+          test "$(grep -c '[|]POLICY_BODY_DRIFT$' "$policy_report")" = 2
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER POLICY owner_deductions_update_status ON public.owner_statement_deductions USING (public.has_org_permission(organization_id,'owner_statements.create')) WITH CHECK (public.has_org_permission(organization_id,'owner_statements.create'))"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$policies" > "$policy_report"
+          test "$(grep -c '[|]OK$' "$policy_report")" = 5
+          test "$(grep -c '[|]POLICY_BODY_DRIFT$' "$policy_report")" = 1
           # Compare complete PG17 constraint definitions, not just names.
           exact=security/checks/finance_20261012_pinned_constraint_definitions.sql
           exact_report="$RUNNER_TEMP/jco-finance-pinned-constraints.txt"
