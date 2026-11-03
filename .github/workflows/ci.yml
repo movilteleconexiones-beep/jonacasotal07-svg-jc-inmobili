@@ -3,7 +3,15 @@ name: Verify JCO application
 on:
   pull_request:
     branches: [main]
+  # A merged commit or direct push must be verified against its real SHA.
+  push:
+    branches: [main]
   workflow_dispatch:
+
+# Concurrent updates to the same main ref cancel only older CI runs.
+concurrency:
+  group: inmojco-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -35,6 +43,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: Production CI source contract regression
+        run: node --test tests/main-ci-deploy-contract.test.mjs
       - name: npm audit security gate (reject any published vulnerability)
         run: |
           npm audit --json > "$RUNNER_TEMP/inmojco-audit.json" || true
