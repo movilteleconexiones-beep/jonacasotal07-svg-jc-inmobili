@@ -120,3 +120,11 @@ test('one synchronous lock serializes create, correction and deletion before Rea
   assert.ok(entryGuard >= 0 && acquired > entryGuard && written > acquired && released > written,
     'creation must share the same lock during lookup and INSERT');
 });
+
+test('database rejects simultaneous duplicate identity with an actionable non-retry notice', () => {
+  assert.match(source, /error\.code === '23505'/);
+  assert.match(source, /jco_contacts_tenant_email_name_unique/);
+  assert.match(source, /Otro usuario ya registró este cliente\. Actualiza la lista/);
+  assert.match(source, /La corrección duplicaría la ficha de otro cliente/);
+  assert.doesNotMatch(source, /onConflict\s*:/);
+});
