@@ -38,19 +38,23 @@ productivos). Sus scripts NO están en `supabase/migrations/`:
 
 1. **Postgres — fase 1:**
    `security/candidates/revoke_public_api_maintain_postgres_phase.sql`.
-   Preflight `current_user=postgres` y ownership de todas las tablas
-   public. Revoca MAINTAIN de `anon` y `authenticated` en tablas
-   existentes y en futuros objetos creados por postgres. **No cierra el
-   riesgo futuro de `supabase_admin`**; no considerar completado.
+   Preflight `current_user=postgres` y revisión de propietarios: únicamente
+   `postgres` o `supabase_admin`. Revoca MAINTAIN de `anon` y
+   `authenticated` **solo en las tablas de propiedad de postgres** y
+   en futuros objetos creados por ese rol. **No cierra el riesgo futuro
+   de `supabase_admin`**; no considerar completado.
 2. **supabase_admin — fase 2:**
    `security/candidates/revoke_public_api_maintain_supabase_admin_phase.sql`.
    Solo puede ejecutarlo una sesión con `current_user=supabase_admin`;
-   revoca las default ACL para tablas futuras que cree ese propietario.
+   revoca las default ACL para tablas futuras que cree ese propietario
+   **y los permisos MAINTAIN en las tablas actualmente propiedad de
+   `supabase_admin`**, incluidas las creadas entre fases.
    No cambiar de rol mediante un bypass ni solicitar elevaciones de
    credenciales.
 3. **Postgres — barrido final obligatorio:** repetir fase 1 para revocar
-   MAINTAIN de cualquier objeto creado **entre** la primera y segunda
-   fase. Sin ese paso, la remediación puede dejar grants residuales.
+   MAINTAIN de cualquier objeto **propiedad de postgres** creado entre
+   la primera y segunda fase. La fase 2 ya retiró permisos de tablas
+   `supabase_admin`. Sin ese paso, la remediación puede dejar grants residuales.
    A continuación, verificar `has_table_privilege` en **todas** las
    tablas de public, ausencia de default ACL problemáticas de ambos
    propietarios, permisos `service_role`, y comportamiento de
