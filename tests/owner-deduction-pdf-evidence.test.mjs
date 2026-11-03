@@ -107,12 +107,14 @@ test('a timeout with the same PDF selection retains a stable scoped UUID and nev
   const start=evidence.indexOf('async function submitEvidence(');
   const end=evidence.indexOf('async function openEvidence(',start);
   const body=evidence.slice(start,end);
-  assert.match(evidence,/const pendingUpload = useRef<\{ fingerprint: string; ids:/);
+  assert.match(evidence,/const pendingUpload = useRef<\{\s*fingerprint: string;\s*ids:/);
   assert.match(body,/const fingerprint = JSON\.stringify\(\[organizationId, deductionId, category, userId,/);
   assert.match(body,/\.\.\.selected\.map\(\(\{kind,file\}\) => \[kind,file\.name,file\.size,file\.lastModified,file\.type\]\)/);
   assert.match(body,/if \(pendingUpload\.current\?\.fingerprint !== fingerprint\)/);
   assert.match(body,/const uploadId = attempt\.ids\[item\.kind\] \?\? crypto\.randomUUID\(\)/);
   assert.match(body,/attempt\.ids\[item\.kind\] = uploadId/);
+  assert.match(body,/if \(attempt\.confirmed\[item\.kind\]\) continue/);
+  assert.match(body,/else attempt\.confirmed\[item\.kind\] = true/);
   assert.match(body,/kind: item\.kind, file: item\.file, uploadId/);
   assert.match(body,/if \(failures\.length\) setMessage/);
   assert.match(body,/else \{\s*pendingUpload\.current = null;\s*form\.reset\(\)/);
