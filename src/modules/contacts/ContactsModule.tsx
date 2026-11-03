@@ -185,17 +185,24 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       }
     }
     if(!window.confirm('¿Guardar correcciones en esta ficha? Quedarán en auditoría con el motivo.'))return;
+    if(currentOrganization.current!==organizationId)return;
     setContactBusy(true);
     try{
       const {error}=await supabase.rpc('admin_correct_client_contact',{
         target_org:organizationId,target_contact:editContact.id,...fields,reason,
       });
+      // A response from an earlier tenant must never clear or replace the
+      // active tenant's contact editor, list or success/error notices.
+      if(currentOrganization.current!==organizationId)return;
       if(error){setMessage('No se pudo corregir: '+error.message);return;}
       setEditContact(null);
       await load();
-      setMessage('Ficha corregida y auditada, sin crear otro cliente.');
-    }catch{setMessage('No se confirmó la corrección. Actualiza antes de reintentar.');}
-    finally{setContactBusy(false);}
+      if(currentOrganization.current===organizationId)
+        setMessage('Ficha corregida y auditada, sin crear otro cliente.');
+    }catch{
+      if(currentOrganization.current===organizationId)
+        setMessage('No se confirmó la corrección. Actualiza antes de reintentar.');
+    }finally{setContactBusy(false);}
   }
 
   async function deleteUnlinkedContact(contact:ContactRow){
