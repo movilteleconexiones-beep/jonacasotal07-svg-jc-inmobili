@@ -78,6 +78,16 @@ jobs:
         run: |
           set -eu
           db=jco_public_catalog_runtime_test
+          # PostgreSQL roles are cluster-wide. Restore the exact clean CI state
+          # even if this test fails, so later fixtures can create anon/authenticated.
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_catalog_runtime_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261020070000_editable_public_portal_sections.sql
