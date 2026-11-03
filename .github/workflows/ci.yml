@@ -103,6 +103,29 @@ jobs:
             echo 'ERROR: SQL-runtime catalog regression failed to detect invalid definer'; exit 1
           fi
           grep -q 'permission denied' "$RUNNER_TEMP/catalog-negative.log"
+      - name: Current public CRM consent and cross-tenant SQL runtime (PostgreSQL 17 fake data)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_public_crm_current_runtime_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated, service_role" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_lead_current_runtime_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261021041500_public_website_contact_consent_receipts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_lead_current_runtime_assertions.sql
+          # Callers can create leads only through the scoped RPC, never by direct table write/read.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE anon; SELECT count(*) FROM public.contacts" > "$RUNNER_TEMP/lead-direct-deny.log" 2>&1; then
+            echo 'ERROR: anonymous contact SELECT was allowed'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/lead-direct-deny.log"
       - name: Six live finance function body fingerprints vs historic SQL (#104)
         run: |
           node --test tests/finance-function-equivalence-audit.test.mjs
