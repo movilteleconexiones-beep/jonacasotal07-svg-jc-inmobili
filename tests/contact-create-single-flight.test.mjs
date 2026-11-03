@@ -32,8 +32,17 @@ test('live duplicate lookup is scoped and fail closed before insert', () => {
   assert.match(source, /literalEmailPattern = email\.replace\(/);
   assert.match(source, /\.eq\('organization_id', organizationId\)\s*\.ilike\('email', literalEmailPattern\)/);
   assert.match(source, /if \(duplicateError\)/);
-  assert.match(source, /if \(duplicates\?\.length\)/);
+  assert.match(source, /duplicates\?\.some\(row => sameContactIdentity\(row, candidateIdentity\)\)/);
   assert.match(source, /if \(currentOrganization\.current !== organizationId\) return/);
+});
+
+test('duplicate check respects shared email while failing closed on incomplete results', () => {
+  assert.match(source, /rows\.some\(row => sameContactIdentity\(row, candidateIdentity\)\)/);
+  assert.match(source, /\.select\('id,first_name,last_name,email', \{ count: 'exact' \}\)/);
+  assert.match(source, /\.limit\(500\)/);
+  assert.match(source, /count === null \|\| count > \(duplicates\?\.length \?\? 0\)/);
+  assert.match(source, /const candidateIdentity = \{ email, first_name: firstName, last_name: lastName \}/);
+  assert.doesNotMatch(source, /rows\.some\(row=>row\.email\?\.trim\(\)\.toLowerCase\(\)===email\.toLowerCase\(\)\)/);
 });
 
 test('tenant switch prevents a stale contact from advancing another organization wizard', () => {
