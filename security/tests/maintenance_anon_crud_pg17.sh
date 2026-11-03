@@ -90,6 +90,28 @@ grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
   { echo 'ERROR: policy-drift denial mutated ACL'; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "DROP POLICY maintenance_public_future ON public.maintenance_requests"
 
+# A policy with the same name/role but a narrower command is contract drift.
+# Recreate only in the disposable database, then restore the exact fixture.
+psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
+DROP POLICY maintenance_org_access ON public.maintenance_requests;
+CREATE POLICY maintenance_org_access ON public.maintenance_requests
+ AS PERMISSIVE FOR SELECT TO authenticated
+ USING (is_platform_admin() OR jco_private.is_internal_staff(organization_id));
+SQL
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: changed policy command accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','SELECT')")" == t ]] ||
+  { echo 'ERROR: policy-command denial mutated ACL'; exit 1; }
+psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
+DROP POLICY maintenance_org_access ON public.maintenance_requests;
+CREATE POLICY maintenance_org_access ON public.maintenance_requests
+ AS PERMISSIVE FOR ALL TO authenticated
+ USING (is_platform_admin() OR jco_private.is_internal_staff(organization_id))
+ WITH CHECK (is_platform_admin() OR jco_private.is_internal_staff(organization_id));
+SQL
+
 # Names and roles alone are insufficient: a relaxed WITH CHECK must fail closed.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests WITH CHECK (true)"
 if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
