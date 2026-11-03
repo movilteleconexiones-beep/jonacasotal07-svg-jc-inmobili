@@ -211,16 +211,21 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     if(!reason)return;
     if(reason.length<12||reason.length>500){setMessage('Motivo obligatorio de 12-500 caracteres.');return;}
     if(!window.confirm('¿Eliminar esta ficha SOLO si nunca tuvo operaciones vinculadas? No se eliminará ningún contrato, abono ni prospecto.'))return;
+    if(currentOrganization.current!==organizationId)return;
     setContactBusy(true);
     try{
       const {error}=await supabase.rpc('admin_delete_unlinked_contact',{
         target_org:organizationId,target_contact:contact.id,reason,
       });
+      if(currentOrganization.current!==organizationId)return;
       if(error){setMessage('No se puede eliminar esta ficha: '+error.message);return;}
       setEditContact(null);await load();
-      setMessage('Ficha sin relaciones eliminada con auditoría. No se modificó ningún contrato ni pago.');
-    }catch{setMessage('No se confirmó la eliminación. Consulta los registros antes de reintentar.');}
-    finally{setContactBusy(false);}
+      if(currentOrganization.current===organizationId)
+        setMessage('Ficha sin relaciones eliminada con auditoría. No se modificó ningún contrato ni pago.');
+    }catch{
+      if(currentOrganization.current===organizationId)
+        setMessage('No se confirmó la eliminación. Consulta los registros antes de reintentar.');
+    }finally{setContactBusy(false);}
   }
 
   return (
