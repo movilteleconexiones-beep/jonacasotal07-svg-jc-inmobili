@@ -208,6 +208,28 @@ RLS entre dos inmobiliarias, permisos e idempotencia.
 historial de migraciones.** La corrección requiere staging, backup
 restaurable, compatibilidad PostgREST, control de locks y NO-GO #104/#203.
 
+### Portal externo: vínculos entre cliente, propietario y organización (03-nov)
+
+Se confirmó por catálogo que `portal_access_links` conserva FKs simples
+hacia `contacts(id)` y `property_owners(id)`. **Su política RLS de
+inserción ya exige pertenencia a la misma organización**, y una
+consulta agregada sobre los 3 vínculos existentes (2 de contacto, 1
+de propietario) devolvió **0 cruces**. No hay evidencia de una fuga
+activa; se busca reforzar también las operaciones privilegiadas
+que no dependen de RLS.
+
+Se preparó, **sin aplicar**,
+[`security/candidates/portal_links_tenant_composite_fks.sql`](../../security/candidates/portal_links_tenant_composite_fks.sql)
+y un fixture `security/tests/portal_links_tenant_composite_fks_pg17.sh`
+de dos organizaciones sintéticas. La candidata sustituye las FKs
+por versiones con `(organization_id,contact_id)` y
+`(organization_id,owner_id)`, conservando nombres y ON DELETE CASCADE,
+sin introducir un segundo camino de unión PostgREST.
+[Análisis y criterios de aceptación](portal-links-tenant-fk-2026-11-03.md).
+
+Estas defensas quedan como candidatas, no migraciones aplicadas ni
+autorización de `db push` / `migration repair`.
+
 ## Decisión y pasos seguros
 
 **Mantener #104 y #203 como NO-GO.** No ejecutar ni programar
