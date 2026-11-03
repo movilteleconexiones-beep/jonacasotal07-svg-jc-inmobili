@@ -37,6 +37,20 @@ race() {
     WHERE datname=current_database() AND wait_event='PgSleep'
       AND query LIKE '%organization_invitations SET status=status%'
       AND pid<>pg_backend_pid()"
+  if [[ "$mode" == "guarded" ]]; then
+    # An unconfirmed visitor is not entitled to hold or wait for the global
+    # billing authorization lock. This must complete with a 250ms lock limit.
+    "${pg[@]}" -c "BEGIN; SET LOCAL ROLE authenticated;
+      SET LOCAL lock_timeout='250ms';
+      SELECT pg_catalog.set_config('request.jwt.claim.sub',
+        '99999999-bbbb-4bbb-8bbb-999999999999',true);
+      SELECT public.claim_my_invitations();
+      COMMIT;" >"$workdir/$mode.unconfirmed.out" 2>"$workdir/$mode.unconfirmed.err" || {
+      echo "Unconfirmed actor tried to acquire global billing lock" >&2
+      cat "$workdir/$mode.unconfirmed.err" >&2
+      exit 1
+    }
+  fi
   "${pg[@]}" -c "BEGIN; SET LOCAL ROLE authenticated;
     SELECT pg_catalog.set_config('request.jwt.claim.sub','$user_id',true);
     SELECT public.claim_my_invitations();
