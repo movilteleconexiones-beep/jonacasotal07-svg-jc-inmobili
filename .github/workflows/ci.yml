@@ -203,6 +203,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: bash security/tests/maintenance_property_tenant_fk_pg17.sh
+      - name: Commission/deal single composite tenant FK security (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/commissions_deal_tenant_fk_pg17.sh
       - name: Historic finance migration drift fail-closed gate (#104)
         run: |
           node --test tests/finance-migration-gate.test.mjs
