@@ -27,16 +27,28 @@ INSERT INTO public.maintenance_requests VALUES
  (1,'11111111-1111-4111-8111-111111111111','Synthetic tenant A'),
  (2,'22222222-2222-4222-8222-222222222222','Synthetic tenant B');
 ALTER TABLE public.maintenance_requests ENABLE ROW LEVEL SECURITY;
+CREATE SCHEMA jco_private;
+GRANT USAGE ON SCHEMA jco_private TO authenticated;
+CREATE FUNCTION public.is_platform_admin() RETURNS boolean LANGUAGE sql STABLE AS
+$ SELECT false $;
+CREATE FUNCTION jco_private.is_internal_staff(p_org uuid) RETURNS boolean LANGUAGE sql STABLE AS
+$ SELECT p_org=current_setting('app.tenant_id',true)::uuid $;
+CREATE FUNCTION jco_private.operational_access(p_org uuid) RETURNS boolean LANGUAGE sql STABLE AS
+$ SELECT current_setting('app.operational',true)='enabled'
+      AND p_org=current_setting('app.tenant_id',true)::uuid $;
+GRANT EXECUTE ON FUNCTION public.is_platform_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION jco_private.is_internal_staff(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION jco_private.operational_access(uuid) TO authenticated;
 CREATE POLICY maintenance_org_access ON public.maintenance_requests
  AS PERMISSIVE FOR ALL TO authenticated
- USING (organization_id=current_setting('app.tenant_id',true)::uuid)
- WITH CHECK (organization_id=current_setting('app.tenant_id',true)::uuid);
+ USING (is_platform_admin() OR jco_private.is_internal_staff(organization_id))
+ WITH CHECK (is_platform_admin() OR jco_private.is_internal_staff(organization_id));
 CREATE POLICY jco_commercial_access ON public.maintenance_requests
  AS RESTRICTIVE FOR ALL TO authenticated
- USING (current_setting('app.operational',true)='enabled'
-   AND organization_id=current_setting('app.tenant_id',true)::uuid)
- WITH CHECK (current_setting('app.operational',true)='enabled'
-   AND organization_id=current_setting('app.tenant_id',true)::uuid);
+ USING (jco_private.operational_access(organization_id)
+   AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)))
+ WITH CHECK (jco_private.operational_access(organization_id)
+   AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)));
 GRANT SELECT,INSERT,UPDATE,DELETE,MAINTAIN ON public.maintenance_requests
  TO anon,authenticated;
 GRANT ALL ON public.maintenance_requests TO service_role;
@@ -86,7 +98,17 @@ fi
 grep -q 'maintenance anon CRUD blocked: asymmetric RLS policy expressions' "$log"
 [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','SELECT')")" == t ]] ||
   { echo 'ERROR: asymmetric RLS denial mutated ACL'; exit 1; }
-psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests WITH CHECK (organization_id=current_setting('app.tenant_id',true)::uuid)"
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests WITH CHECK (true)"
+
+# Symmetric widening previously escaped the structural/asymmetry guard.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests USING (true) WITH CHECK (true)"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: symmetric RLS widening accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: RLS policy semantic baseline changed' "$log"
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','SELECT')")" == t ]] ||
+  { echo 'ERROR: symmetric policy drift changed ACL'; exit 1; }
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests USING (is_platform_admin() OR jco_private.is_internal_staff(organization_id)) WITH CHECK (is_platform_admin() OR jco_private.is_internal_staff(organization_id))"
 
 # RLS must remain enabled: an unexpected table-level disable must fail
 # before the candidate can revoke privileges or claim a safe deployment.
