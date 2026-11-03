@@ -126,6 +126,28 @@ jobs:
             echo 'ERROR: anonymous contact SELECT was allowed'; exit 1
           fi
           grep -q 'permission denied' "$RUNNER_TEMP/lead-direct-deny.log"
+      - name: Public property consignment SQL runtime tenant and retry regression (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_public_consignment_runtime_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_consignment_runtime_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261021033500_gate_public_consignment_operational_access.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_consignment_runtime_assertions.sql
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE anon; SELECT count(*) FROM public.property_consignments" > "$RUNNER_TEMP/consignment-direct-deny.log" 2>&1; then
+            echo 'ERROR: anonymous read of consignations succeeded'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/consignment-direct-deny.log"
       - name: Six live finance function body fingerprints vs historic SQL (#104)
         run: |
           node --test tests/finance-function-equivalence-audit.test.mjs
