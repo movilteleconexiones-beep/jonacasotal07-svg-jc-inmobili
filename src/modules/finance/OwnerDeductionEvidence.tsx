@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { FileText, Paperclip, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { validateSignedLeasePdf } from '../../core/signed-lease-pdf';
@@ -29,12 +29,16 @@ export async function uploadDeductionEvidence(args: {
   category: string;
   kind: DeductionProofKind;
   file: File;
+  // UUID retained for exact retries of a previously uncertain upload.
+  uploadId?: string;
 }): Promise<string | null> {
   const validation = await validateSignedLeasePdf(args.file);
   if (validation) return validation;
 
+  if (args.uploadId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(args.uploadId))
+    return 'Identificador de carga inválido. No se guardó ningún documento.';
   const path = deductionProofPrefix(args.organizationId, args.deductionId, args.kind)
-    + crypto.randomUUID() + '.pdf';
+    + (args.uploadId ?? crypto.randomUUID()) + '.pdf';
   try {
     const { error: uploadError } = await supabase.storage.from(DEDUCTION_PROOF_BUCKET)
       .upload(path, args.file, {
@@ -42,7 +46,8 @@ export async function uploadDeductionEvidence(args: {
         contentType: 'application/pdf',
         cacheControl: '0',
       });
-    if (uploadError) return 'No se pudo subir ' + LABELS[args.kind] + ': ' + uploadError.message;
+    if (uploadError) return 'No se pudo confirmar la carga de ' + LABELS[args.kind] + ': ' + uploadError.message +
+      '. Si el archivo ya existe, consulta los soportes antes de intentar una nueva carga.';
 
     const { error: metadataError } = await supabase.from('documents').insert({
       organization_id: args.organizationId,
@@ -85,6 +90,11 @@ export function OwnerDeductionEvidence({
   const [documents, setDocuments] = useState<DeductionProofDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  // React state updates do not synchronously block a second submit event.
+  const uploadInFlight = useRef(false);
+  // Preserve UUIDs for an identical selection if Storage/metadata returned an
+  // uncertain result: upsert:false then blocks a second physical PDF object.
+  const pendingUpload = useRef<{ fingerprint: string; ids: Partial<Record<DeductionProofKind,string>> } | null>(null);
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
 
@@ -124,7 +134,7 @@ export function OwnerDeductionEvidence({
 
   async function submitEvidence(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canUpload || !userId || busy) return;
+    if (!canUpload || !userId || busy || uploadInFlight.current) return;
     const form = event.currentTarget;
     const invoice = (form.elements.namedItem('invoice_pdf') as HTMLInputElement | null)?.files?.[0];
     const payment = (form.elements.namedItem('payment_pdf') as HTMLInputElement | null)?.files?.[0];
@@ -133,6 +143,12 @@ export function OwnerDeductionEvidence({
     if (payment) selected.push({ kind: 'payment', file: payment });
     if (!selected.length) { setMessage('Selecciona una factura o un comprobante de pago en PDF.'); return; }
 
+    uploadInFlight.current = true;
+    const fingerprint = JSON.stringify([organizationId, deductionId, category, userId,
+      ...selected.map(({kind,file}) => [kind,file.name,file.size,file.lastModified,file.type])]);
+    if (pendingUpload.current?.fingerprint !== fingerprint)
+      pendingUpload.current = {fingerprint, ids:{}};
+    const attempt = pendingUpload.current;
     setBusy(true);
     setMessage('');
     try {
@@ -142,20 +158,27 @@ export function OwnerDeductionEvidence({
       }
       const failures: string[] = [];
       for (const item of selected) {
+        const uploadId = attempt.ids[item.kind] ?? crypto.randomUUID();
+        attempt.ids[item.kind] = uploadId;
         const error = await uploadDeductionEvidence({
           organizationId, deductionId, category, userId,
-          kind: item.kind, file: item.file,
+          kind: item.kind, file: item.file, uploadId,
         });
         if (error) failures.push(error);
       }
       if (failures.length) setMessage(failures.join(' ') +
         ' Si algún archivo ya figura en la lista, no vuelvas a subirlo.');
-      else { form.reset(); setMessage('PDF guardados como soportes privados de esta deducción.'); }
+      else {
+        pendingUpload.current = null;
+        form.reset();
+        setMessage('PDF guardados como soportes privados de esta deducción.');
+      }
       setRevision(previous => previous + 1);
     } catch {
       setMessage('No se confirmó el resultado de la carga. Revisa los archivos antes de reintentar.');
       setRevision(previous => previous + 1);
     } finally {
+      uploadInFlight.current = false;
       setBusy(false);
     }
   }
