@@ -90,6 +90,19 @@ grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
   { echo 'ERROR: policy-drift denial mutated ACL'; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "DROP POLICY maintenance_public_future ON public.maintenance_requests"
 
+# An existing policy retargeted from authenticated to PUBLIC is also drift.
+# Verify all four original anon grants survive the rejected transaction.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests TO PUBLIC"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: existing RLS policy retargeted to PUBLIC was accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
+for privilege in SELECT INSERT UPDATE DELETE; do
+  [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','$privilege')")" == t ]] ||
+    { echo "ERROR: PUBLIC-policy denial mutated anon $privilege grant"; exit 1; }
+done
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests TO authenticated"
+
 # A policy with the same name/role but a narrower command is contract drift.
 # Recreate only in the disposable database, then restore the exact fixture.
 psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
