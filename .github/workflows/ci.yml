@@ -563,6 +563,26 @@ jobs:
           if grep -v '[|]OK$' "$structural_report" || grep -v '[|]OK$' "$semantic_report"; then
             echo "Finance fixture was not restored safely"; exit 1
           fi
+          # Compare complete PG17 constraint definitions, not just names.
+          exact=security/checks/finance_20261012_pinned_constraint_definitions.sql
+          exact_report="$RUNNER_TEMP/jco-finance-pinned-constraints.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$exact" > "$exact_report"
+          test "$(wc -l < "$exact_report" | tr -d ' ')" = 24
+          if grep -v '[|]OK$' "$exact_report"; then
+            echo "Historic finance constraint definition drift"; exit 1
+          fi
+          # Negative test: same name, weakened date validation.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases DROP CONSTRAINT leases_financial_dates_valid"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases ADD CONSTRAINT leases_financial_dates_valid CHECK (start_date IS NOT NULL)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$exact" > "$exact_report"
+          grep -Fx 'leases.leases_financial_dates_valid|DEFINITION_DRIFT' "$exact_report"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases DROP CONSTRAINT leases_financial_dates_valid"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases ADD CONSTRAINT leases_financial_dates_valid CHECK (isfinite(start_date) AND (end_date IS NULL OR (isfinite(end_date) AND end_date>=start_date)))"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$exact" > "$exact_report"
+          test "$(wc -l < "$exact_report" | tr -d ' ')" = 24
+          if grep -v '[|]OK$' "$exact_report"; then
+            echo "Constraint fixture not restored after mutation"; exit 1
+          fi
       - name: Future Supabase public table RLS and explicit API grants compatibility
         run: node --test tests/supabase-future-public-api-grants.test.mjs
       - name: Disabled free-trial RPC execution grants (isolated PostgreSQL)
