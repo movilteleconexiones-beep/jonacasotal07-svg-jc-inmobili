@@ -83,7 +83,7 @@ test('audited contact corrections cannot update the new agency UI after a tenant
 });
 
 test('contact deletion responses cannot clear or message a different agency', () => {
-  const body = functionBody('async function deleteUnlinkedContact(', '\\n  return (');
+  const body = functionBody('async function deleteUnlinkedContact(', '  return (');
   assertTenantScopedAsyncMutation(body, 'admin_delete_unlinked_contact', 'deletion');
   assert.match(body, /target_org:organizationId,target_contact:contact\.id/);
 });
