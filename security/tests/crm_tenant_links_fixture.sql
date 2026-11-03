@@ -7,6 +7,7 @@ BEGIN
 END $r$;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO authenticated;
+CREATE SCHEMA private;
 CREATE TABLE public.organizations (id uuid PRIMARY KEY);
 CREATE TABLE public.contacts (
  id uuid PRIMARY KEY,
