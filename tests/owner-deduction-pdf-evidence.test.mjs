@@ -4,6 +4,7 @@ import { File } from 'node:buffer';
 import { readFileSync } from 'node:fs';
 import { deductionProofKind, deductionProofPrefix, DEDUCTION_PROOF_BUCKET } from '../src/core/owner-deduction-pdf.ts';
 import { validateSignedLeasePdf } from '../src/core/signed-lease-pdf.ts';
+import { isExistingStorageObjectError } from '../src/core/storage-existing-object.ts';
 
 const org='11111111-1111-4111-8111-111111111111';
 const otherOrg='22222222-2222-4222-8222-222222222222';
@@ -130,4 +131,51 @@ test('a timeout with the same PDF selection retains a stable scoped UUID and nev
   assert.ok(uploadBlock.indexOf('if (uploadError) return')<
     uploadBlock.indexOf("await supabase.from('documents').insert("),
     'a Storage collision must not create duplicate document metadata');
+});
+
+test('only known Storage object collisions are eligible for recovery checks',()=>{
+  for (const error of [
+    {code:'ResourceAlreadyExists'},
+    {code:'KeyAlreadyExists'},
+    {error:'already_exists'},
+    {status:409},
+    {statusCode:'409'},
+  ]) assert.equal(isExistingStorageObjectError(error),true);
+
+  for (const error of [
+    {status:401,code:'AccessDenied'},
+    {status:403,error:'Unauthorized'},
+    {status:500,error:'DatabaseError'},
+    {message:'resource already exists'},
+    null,
+    undefined,
+  ]) assert.equal(isExistingStorageObjectError(error),false);
+});
+
+test('Storage 409 recovery only succeeds for already linked private metadata in the same agency',()=>{
+  const start=evidence.indexOf('export async function uploadDeductionEvidence(');
+  const end=evidence.indexOf('export function OwnerDeductionEvidence(',start);
+  assert.ok(start>=0 && end>start);
+  const block=evidence.slice(start,end);
+  const collision=block.indexOf('if (args.uploadId && isExistingStorageObjectError(uploadError))');
+  const scoped=block.indexOf("await supabase.from('documents')",collision);
+  const done=block.indexOf('if (!checkError && existing?.id) return null;',scoped);
+  const missing=block.indexOf('El archivo privado ya existe, pero no se confirmó su vínculo',done);
+  const metadataInsert=block.indexOf("await supabase.from('documents').insert(",done);
+  assert.ok(collision>=0 && scoped>collision && done>scoped && missing>done && metadataInsert>missing,
+    'recover known existing object only after verifying an exact previously linked row');
+  for (const scope of [
+    ".eq('organization_id', args.organizationId)",
+    ".eq('entity_type', 'GENERAL')",
+    ".eq('entity_id', args.deductionId)",
+    ".eq('document_type', 'INVOICE')",
+    ".eq('storage_bucket', DEDUCTION_PROOF_BUCKET)",
+    ".eq('storage_path', path)",
+    ".eq('uploaded_by', args.userId)",
+  ]) assert.ok(block.indexOf(scope,scoped)>scoped && block.indexOf(scope,scoped)<done,scope);
+  assert.match(block,/return 'El archivo privado ya existe[\s\S]*?no vuelvas a cargarlo/);
+  assert.match(block,/if \(uploadError\) \{/);
+  assert.match(block,/upsert: false/);
+  assert.ok(block.indexOf('.remove([path])')>metadataInsert,
+    'only the original metadata-insert failure path may consider cleanup');
 });
