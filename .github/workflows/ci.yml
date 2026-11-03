@@ -148,6 +148,31 @@ jobs:
             echo 'ERROR: anonymous read of consignations succeeded'; exit 1
           fi
           grep -q 'permission denied' "$RUNNER_TEMP/consignment-direct-deny.log"
+      - name: Composite CRM agency-link FK violation and correction candidate (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_crm_tenant_integrity_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS authenticated" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_preflight.sql
+          # Invalid existing cross-agency rows MUST abort the candidate BEFORE adding DDL.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql > "$RUNNER_TEMP/crm-fk-denied.log" 2>&1; then
+            echo 'ERROR: proposed FK accepted already-crossed CRM links'; exit 1
+          fi
+          grep -q 'NO-GO: leads reference contacts from another agency' "$RUNNER_TEMP/crm-fk-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_cleanup.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_assertions.sql
       - name: Six live finance function body fingerprints vs historic SQL (#104)
         run: |
           node --test tests/finance-function-equivalence-audit.test.mjs
