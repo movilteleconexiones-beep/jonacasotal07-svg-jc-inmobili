@@ -17,7 +17,7 @@ BEGIN
       AND pg_catalog.btrim(first_name) <> ''
     GROUP BY organization_id,
       pg_catalog.lower(pg_catalog.btrim(email)),
-      pg_catalog.lower(pg_catalog.btrim(first_name || ' ' || pg_catalog.coalesce(last_name,'')))
+      pg_catalog.lower(pg_catalog.btrim(first_name || ' ' || coalesce(last_name,'')))
     HAVING count(*) > 1
   ) THEN
     RAISE EXCEPTION 'NO-GO: duplicate tenant/email/full-name contacts require manual review';
@@ -37,7 +37,7 @@ CREATE UNIQUE INDEX jco_contacts_tenant_email_name_unique
 ON public.contacts (
   organization_id,
   pg_catalog.lower(pg_catalog.btrim(email)),
-  pg_catalog.lower(pg_catalog.btrim(first_name || ' ' || pg_catalog.coalesce(last_name,'')))
+  pg_catalog.lower(pg_catalog.btrim(first_name || ' ' || coalesce(last_name,'')))
 )
 WHERE email IS NOT NULL AND pg_catalog.btrim(email) <> ''
   AND pg_catalog.btrim(first_name) <> '';
