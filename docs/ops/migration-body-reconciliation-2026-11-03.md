@@ -122,6 +122,20 @@ tablas, FK y políticas. No ejecutar la revocación ni `migration repair`
 en producción mientras #104/#203 sigan abiertos. Esta prueba cierra
 **presencia de objetos base, no equivalencia histórica completa**.
 
+**Candidato adicional no desplegado (03-nov):** tras revisar los grants
+reales de `maintenance_requests` se preparó
+[`security/candidates/revoke_maintenance_requests_anon_crud.sql`](../../security/candidates/revoke_maintenance_requests_anon_crud.sql).
+Su prueba PostgreSQL 17 aislada
+(`security/tests/maintenance_anon_crud_pg17.sh`) comprueba revocación
+de CRUD anónimo, bloqueo por cambios de rol/políticas/grants `PUBLIC`,
+idempotencia, conservación de los derechos de personal y `service_role`,
+y aislamiento entre dos inmobiliarias ficticias. Ver
+[`docs/ops/maintenance-anon-crud-hardening-2026-11-03.md`](maintenance-anon-crud-hardening-2026-11-03.md).
+**No retira MAINTAIN**, cuya remediación global continúa separada en
+dos fases por propietario. Ninguno de los candidatos se ejecutó sobre
+producción, y las ocho diferencias históricas siguen sin equivalencia
+completa probada.
+
 ### Preflight de consignación y recursión (03-nov, solo lectura)
 
 Se consultó el SQL **auténticamente registrado** en Supabase para las
