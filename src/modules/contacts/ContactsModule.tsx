@@ -142,7 +142,14 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
       if (currentOrganization.current !== organizationId) return;
       if (error) {
-        setMessage('No se pudo registrar el contacto: ' + error.message);
+        // Database-level uniqueness also arbitrates independent staff sessions.
+        // Do not blindly retry an INSERT after a 23505 identity conflict.
+        if (error.code === '23505' &&
+            error.message.includes('jco_contacts_tenant_email_name_unique')) {
+          setMessage('Otro usuario ya registró este cliente. Actualiza la lista y selecciona su ficha; no lo registres de nuevo.');
+        } else {
+          setMessage('No se pudo registrar el contacto: ' + error.message);
+        }
         return;
       }
       if (created?.id) onCreated?.(created.id);
@@ -200,7 +207,12 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       // A response from an earlier tenant must never clear or replace the
       // active tenant's contact editor, list or success/error notices.
       if(currentOrganization.current!==organizationId)return;
-      if(error){setMessage('No se pudo corregir: '+error.message);return;}
+      if(error){
+        setMessage(error.code==='23505' && error.message.includes('jco_contacts_tenant_email_name_unique')
+          ? 'La corrección duplicaría la ficha de otro cliente. Actualiza y utiliza la ficha existente.'
+          : 'No se pudo corregir: '+error.message);
+        return;
+      }
       setEditContact(null);
       await load();
       if(currentOrganization.current===organizationId)
