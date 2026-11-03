@@ -92,7 +92,7 @@ test('financial network failures release buttons and retain receipt retry identi
   for(const method of ['createContract','activateContract','createPeriod']) {
     const section=main.slice(main.indexOf('async function '+method), main.indexOf('async function '+({createContract:'activateContract',activateContract:'createPeriod',createPeriod:'recordReceipt'}[method])));
     assert.match(section,/catch\s*\{/);
-    assert.match(section,/finally\s*\{\s*setBusy\(false\)/);
+    assert.match(section,/finally\s*\{\s*(?:rentMutationInFlight\.current=false;\s*)?setBusy\(false\)/);
   }
   assert.match(owner,/Falló la conexión al consultar contratos y pagos/);
   assert.match(owner,/finally\s*\{\s*if\(!cancelled\) setLoading\(false\)/);
@@ -109,7 +109,7 @@ test('financial network failures release buttons and retain receipt retry identi
 test('contract draft double-submit lock and database duplicate message',()=>{
   const section=main.slice(main.indexOf('async function createContract('),main.indexOf('async function correctDraft('));
   assert.match(main,/const contractSubmissionInFlight=useRef\(false\)/);
-  assert.match(section,/if\(!contractAllowed\|\|busy\|\|contractSubmissionInFlight\.current\)return/);
+  assert.match(section,/if\(!contractAllowed\|\|busy\|\|contractSubmissionInFlight\.current\|\|rentMutationInFlight\.current\)return/);
   const locked=section.indexOf('contractSubmissionInFlight.current=true');
   const preflight=section.indexOf("await Promise.all(");
   const insert=section.indexOf(".from('leases').insert(");
@@ -120,5 +120,52 @@ test('contract draft double-submit lock and database duplicate message',()=>{
   assert.match(section,/Busca y corrige el existente en lugar de crear otro/);
   const duplicateMessage=section.slice(section.indexOf("failure?.code==='23505'"),section.indexOf('} else {',section.indexOf("failure?.code==='23505'")));
   assert.doesNotMatch(duplicateMessage,/setRevision\(/,'duplicate message must not disappear on a refresh');
-  assert.match(section,/finally\s*\{\s*setBusy\(false\);\s*contractSubmissionInFlight\.current=false/);
+  assert.match(section,/finally\s*\{\s*setBusy\(false\);\s*contractSubmissionInFlight\.current=false;\s*rentMutationInFlight\.current=false/);
+});
+
+test('all six rent and contract mutations acquire the SAME synchronous lock before awaiting', () => {
+  assert.match(main, /const rentMutationInFlight=useRef\(false\)/);
+
+  const boundaries = [
+    ['createContract','correctDraft'],
+    ['correctDraft','cancelDraft'],
+    ['cancelDraft','activateContract'],
+    ['activateContract','createPeriod'],
+    ['createPeriod','recordReceipt'],
+    ['recordReceipt',null],
+  ];
+  for (const [handler,next] of boundaries) {
+    const start=main.indexOf('async function '+handler+'(');
+    const stop=next
+      ? main.indexOf('async function '+next+'(',start)
+      : main.indexOf('const active=leases.filter',start);
+    assert.ok(start>=0 && stop>start,'Missing function boundary '+handler);
+    const body=main.slice(start,stop);
+    const guard=body.indexOf('rentMutationInFlight.current');
+    const acquired=body.indexOf('rentMutationInFlight.current=true;',guard);
+    const awaited=body.indexOf('await ',acquired);
+    const released=body.indexOf('rentMutationInFlight.current=false;',awaited);
+    assert.ok(guard>=0 && acquired>guard && awaited>acquired,
+      handler+' must guard and acquire before starting the first async operation');
+    assert.ok(released>awaited,handler+' must release after the awaited operation');
+    assert.match(body,/finally\s*\{[\s\S]*?rentMutationInFlight\.current=false;/,
+      handler+' must release the shared lock on all paths, including failure and return');
+  }
+});
+
+test('fast repeated financial submits are rejected without generating a second receipt request', () => {
+  const start=main.indexOf('async function recordReceipt(');
+  const end=main.indexOf('const active=leases.filter',start);
+  const receipt=main.slice(start,end);
+  const earlyGuard=receipt.indexOf('if(!paymentAllowed||busy||rentMutationInFlight.current)return;');
+  const requestKey=receipt.indexOf('pendingReceiptRequest.current={fingerprint,key:crypto.randomUUID()}');
+  const acquired=receipt.indexOf('rentMutationInFlight.current=true;');
+  const upload=receipt.indexOf('await validateRentReceiptEvidence(file)');
+  const ledger=receipt.indexOf("await supabase.rpc('record_tenant_rent_receipt'");
+  assert.ok(earlyGuard>=0 && earlyGuard<requestKey && requestKey<acquired &&
+    acquired<upload && acquired<ledger,
+  'second fast event must be rejected BEFORE generating/uploading a receipt');
+  assert.match(receipt,/request_key:request\.key/);
+  assert.match(receipt,/pendingReceiptRequest\.current=null;/);
+  assert.match(receipt,/finally\s*\{\s*rentMutationInFlight\.current=false;\s*setBusy\(false\);/);
 });
