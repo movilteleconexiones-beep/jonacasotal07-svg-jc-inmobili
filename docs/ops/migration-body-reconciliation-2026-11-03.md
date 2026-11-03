@@ -84,6 +84,44 @@ lógico ni cuerpo exacto. Los 7 borradores `0026–0032` de Wompi permanecen
    financieras** en las auditorías del PR #285, pero la equivalencia
    histórica global sigue sin probarse.
 
+### Verificación puntual de `0026_rental_management_core` (03-nov, solo lectura)
+
+Se contrastó la sentencia SQL histórica auténtica de la versión
+`20261005153559` (4.878 bytes) con el catálogo vivo de Supabase.
+La consulta reproducible, **SELECT únicamente**, quedó en
+[`security/checks/rental_core_0026_live_catalog.sql`](../../security/checks/rental_core_0026_live_catalog.sql).
+**Resultado ejecutado y comprobado**:
+
+| Tabla del SQL aplicado | Existe | RLS | Índice inicial | Política inicial `TO authenticated` | Grants anon SELECT/INSERT/UPDATE/DELETE/MAINTAIN |
+| --- | --- | --- | --- | --- | --- |
+| `leases` | Sí | Sí | Sí | Sí | No/No/No/No/No |
+| `rent_payments` | Sí | Sí | Sí | Sí | No/No/No/No/No |
+| `owner_statements` | Sí | Sí | Sí | Sí | No/No/No/No/No |
+| `maintenance_requests` | Sí | Sí | Sí | Sí | **Sí/Sí/Sí/Sí/Sí** |
+
+También están las **10 claves funcionales** originales de permisos.
+Las cuatro tablas tienen las restricciones y columnas actuales; otras
+migraciones posteriores han añadido/modificado controles, por lo que el
+catálogo actual **no puede declararse idéntico al estado histórico** ni
+restablecerse a partir del SQL antiguo.
+
+**Detalle de riesgo:** las dos políticas actuales de
+`maintenance_requests` se dirigen a `authenticated`, una PERMISSIVE
+(`maintenance_org_access`) y otra RESTRICTIVE
+(`jco_commercial_access`) con guardas de acceso operacional por agencia.
+Por tanto, los grants anónimos de CRUD **no demuestran** lectura/escritura
+indebida de filas; sí crean privilegios SQL innecesarios, y el grant
+`MAINTAIN` **no está gobernado por RLS**. Esta consulta no hizo `SET ROLE`
+ni intentó acceder a datos de otra inmobiliaria.
+
+**Siguiente aceptación para este caso:** en PostgreSQL 17 aislado
+comprobar la revocación de grants anónimos innecesarios sin afectar el
+acceso autorizado del equipo, el portal público ni `service_role`; auditar
+la definición completa y el orden de las migraciones posteriores sobre
+tablas, FK y políticas. No ejecutar la revocación ni `migration repair`
+en producción mientras #104/#203 sigan abiertos. Esta prueba cierra
+**presencia de objetos base, no equivalencia histórica completa**.
+
 ## Decisión y pasos seguros
 
 **Mantener #104 y #203 como NO-GO.** No ejecutar ni programar
