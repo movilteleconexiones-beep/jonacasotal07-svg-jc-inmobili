@@ -123,3 +123,20 @@ La herramienta siempre devuelve `production_change_authorized=false` y `migratio
 **Plan seguro de ejecución cuando exista staging aislado:** revisar previamente los privilegios del executor realmente disponible, identificar un procedimiento autorizado para modificar también los **DEFAULT PRIVILEGES de `supabase_admin`** (no conceder ni autoasignarse privilegios adicionales), ensayar el cambio de manera reversible en ese entorno, validar las tablas existentes y futuras, y probar de nuevo CRUD, RLS, Storage y perfiles. Si no existe ese executor autorizado, mantener **NO-GO** y solicitar el canal oficial de Supabase. Una revocación parcial hecha por `postgres` no debe presentarse como remediación completa.
 
 La incidencia #104 también continúa abierta por el historial de migraciones; ni este preflight ni los tests de ACL lo reemplazan.
+
+
+## Auditoría de RPC públicos SECURITY DEFINER (portal, consignación y CRM)
+
+**Supabase de producción, solo lectura (02-nov-2026):** el linter lista cuatro funciones `SECURITY DEFINER` intencionalmente ejecutables por `anon`. Retirar su EXECUTE o convertirlas indiscriminadamente a invoker rompería la portada de cada inmobiliaria y sus formularios. Se capturaron solo huellas de `pg_proc`, configuración y ACL en `docs/ops/snapshots/public-rpc-catalog-2026-11-02.json`; no se copiaron datos de clientes.
+
+| RPC público | Fuente SQL final identificada | Control contractual observado |
+| --- | --- | --- |
+| `get_public_property_intake_site` | `20261021033500_gate_public_consignment_operational_access.sql` | Sitio habilitado, organización activa, acceso operativo |
+| `submit_property_consignment` | `20261021033500_gate_public_consignment_operational_access.sql` | Consentimiento, límites de payload, `request_id` idempotente, cuotas bajo bloqueo por organización |
+| `submit_public_website_lead` | `20261021041500_public_website_contact_consent_receipts.sql` | Consentimiento, URL HTTPS de política, registro de aceptación, cuotas bajo bloqueo por organización |
+| `tenant_public_catalog` | `20261020070000_editable_public_portal_sections.sql` | Inmuebles `AVAILABLE`, misma organización, máximo 100 y cuenta activa |
+
+El script offline `scripts/ops/public-rpc-source-audit.mjs` y su suite `tests/public-rpc-source-audit.test.mjs` exigen que las cuatro definiciones locales mantengan el cuerpo idéntico al snapshot, `search_path=''`, ejecución anónima intencionada y salvaguardas concretas. El script no puede desplegar, revocar ni modificar el esquema. **Las coincidencias no demuestran ausencia de vulnerabilidades**: la ejecución real como `anon`, los límites de abuso distribuido, la privacidad del `public_page_content` configurable y las autorizaciones RLS de tablas internas siguen en la lista de pruebas E2E para staging.
+
+En particular, la RPC vigente `submit_public_website_lead` no tiene un `request_id` para reutilizar una consulta al recibir un reintento HTTP ambiguo; el PR #282 mantiene una solución candidata de idempotencia/consentimiento **sin desplegar**. No se debe duplicar esta modificación en #285 ni publicar la nueva firma RPC sin validar migración y compatibilidad. La auditoría es una protección de regresión sobre el estado conocido, no una habilitación comercial.
+
