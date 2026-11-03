@@ -68,6 +68,8 @@ jobs:
           '
       - name: Migration lineage classification and unpublished billing-draft quarantine (#104)
         run: node --test tests/migration-lineage-audit.test.mjs
+      - name: Authentic applied SQL body fingerprints, all migrations NO-GO (#104)
+        run: node --test tests/migration-body-fingerprint-audit.test.mjs
       - name: Four public SECURITY DEFINER RPC source and tenant-guard audit (#104)
         run: |
           node --test tests/public-rpc-source-audit.test.mjs
