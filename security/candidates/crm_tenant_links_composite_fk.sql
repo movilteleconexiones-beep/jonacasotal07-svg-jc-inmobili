@@ -31,6 +31,10 @@ BEGIN
   ) THEN RAISE EXCEPTION 'NO-GO: consignments reference properties from another agency'; END IF;
   IF EXISTS (
     SELECT 1 FROM public.property_consignments pc
+    WHERE pc.lead_id IS NOT NULL AND pc.contact_id IS NULL
+  ) THEN RAISE EXCEPTION 'NO-GO: consignment with lead has no contact (composite FK null bypass)'; END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.property_consignments pc
     JOIN public.leads l ON l.id=pc.lead_id
     WHERE pc.organization_id<>l.organization_id OR pc.contact_id IS DISTINCT FROM l.contact_id
   ) THEN RAISE EXCEPTION 'NO-GO: consignment lead belongs to another agency/contact'; END IF;
@@ -61,7 +65,15 @@ ALTER TABLE public.property_consignments
     FOREIGN KEY (organization_id,lead_id,contact_id)
     REFERENCES public.leads(organization_id,id,contact_id) NOT VALID;
 
+-- MATCH SIMPLE composite FKs skip validation when ANY referencing column is NULL.
+-- A consignment linked to a lead must carry a contact for the 3-column FK
+-- to enforce exact lead/contact/organization identity (including future writes).
+ALTER TABLE public.property_consignments
+  ADD CONSTRAINT jco_consignment_lead_requires_contact
+  CHECK (lead_id IS NULL OR contact_id IS NOT NULL) NOT VALID;
+
 -- Protect existing rows too. If any check fails the whole candidate is rolled back.
+ALTER TABLE public.property_consignments VALIDATE CONSTRAINT jco_consignment_lead_requires_contact;
 ALTER TABLE public.leads VALIDATE CONSTRAINT jco_leads_org_contact_fk;
 ALTER TABLE public.leads VALIDATE CONSTRAINT jco_leads_org_property_fk;
 ALTER TABLE public.property_consignments VALIDATE CONSTRAINT jco_consignment_org_contact_fk;
