@@ -33,7 +33,7 @@ const requiredControls=Object.freeze({
     /jco_private\.operational_access\s*\(\s*o\.id\s*\)/i,
   ],
   tenant_public_catalog:[
-    /p\.status\s*=\s*'AVAILABLE'/i,
+    /\bstatus\s*=\s*'AVAILABLE'/i,
     /organization_id\s*=\s*o\.id/i,
     /LIMIT\s+100/i,
     /o\.status\s*=\s*'ACTIVE'/i,
