@@ -72,6 +72,27 @@ jobs:
         run: |
           node --test tests/public-rpc-source-audit.test.mjs
           node scripts/ops/public-rpc-source-audit.mjs --snapshot docs/ops/snapshots/public-rpc-catalog-2026-11-02.json
+      - name: Public catalog real SQL runtime isolation (PostgreSQL 17 synthetic tenants)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_public_catalog_runtime_test
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_catalog_runtime_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261020070000_editable_public_portal_sections.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_catalog_runtime_assertions.sql
+          # Anonymous callers must not bypass the RPC to read inventory tables.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE anon; SELECT count(*) FROM public.properties" > "$RUNNER_TEMP/catalog-denied.log" 2>&1; then
+            echo 'ERROR: anon can query private inventory directly'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/catalog-denied.log"
+          # Negative mutation: without SECURITY DEFINER, the public catalog cannot read private tables.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION public.tenant_public_catalog(text) SECURITY INVOKER"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_catalog_runtime_assertions.sql > "$RUNNER_TEMP/catalog-negative.log" 2>&1; then
+            echo 'ERROR: SQL-runtime catalog regression failed to detect invalid definer'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/catalog-negative.log"
       - name: Six live finance function body fingerprints vs historic SQL (#104)
         run: |
           node --test tests/finance-function-equivalence-audit.test.mjs
