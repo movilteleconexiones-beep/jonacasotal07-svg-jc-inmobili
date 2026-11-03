@@ -129,7 +129,7 @@ export function OwnerDeductionEvidence({
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
   // Invalidate pending signed-URL responses immediately on tenant/document switch.
-  const evidenceScope = organizationId + ':' + deductionId + ':' + userId;
+  const evidenceScope = organizationId + ':' + deductionId + ':' + userId + ':' + canRead;
   const currentEvidenceScope = useRef(evidenceScope);
   currentEvidenceScope.current = evidenceScope;
 
