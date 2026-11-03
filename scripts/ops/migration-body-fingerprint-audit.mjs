@@ -17,7 +17,7 @@ const sha256 = (data) => createHash('sha256').update(data).digest('hex');
 export function gitBlobSha(buffer) {
   const bytes = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
   return createHash('sha1')
-    .update('blob ' + bytes.length + '\\0')
+    .update('blob ' + bytes.length + '\0')
     .update(bytes)
     .digest('hex');
 }
