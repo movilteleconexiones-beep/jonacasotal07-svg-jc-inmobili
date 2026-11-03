@@ -35,12 +35,14 @@ test('real 99-statement snapshot gives 80 exact local SQL matches, no speculativ
   assert.deepEqual({
     applied:counts.applied_migrations, local:counts.local_files,
     matched:counts.matched_by_name, missingFromRepo:counts.applied_without_local_name,
-    exact:counts.byte_identical, trim:counts.edge_whitespace_only,
-    comments:counts.comment_or_whitespace_candidate,
+    exact:counts.byte_identical, renamedExact:counts.renamed_byte_identical,
+    exactAll:counts.exact_applied_any_name, appliedNoExact:counts.applied_without_any_exact_body,
+    trim:counts.edge_whitespace_only, comments:counts.comment_or_whitespace_candidate,
     changed:counts.substantive_sql_difference, unmatched:counts.unmatched_local_name,
   }, {
     applied:99, local:109, matched:86, missingFromRepo:13,
-    exact:80, trim:2, comments:2, changed:2, unmatched:23,
+    exact:80, renamedExact:11, exactAll:91, appliedNoExact:8,
+    trim:2, comments:2, changed:2, unmatched:12,
   });
   assert.equal(counts.body_equivalence_proven,false);
   assert.equal(counts.migration_push_authorized,false);
@@ -58,6 +60,20 @@ test('real 99-statement snapshot gives 80 exact local SQL matches, no speculativ
     .map(x => x.filename), [
     '20261012150000_finance_approval_and_audit_timestamp_hardening.sql',
     '20261029171601_revoke_disabled_trial_authorization_rpc.sql',
+  ]);
+  assert.deepEqual(report.results.filter(x => x.classification === 'renamed_byte_identical')
+    .map(x => x.filename), [
+    '20261013051500_fix_archive_reason.sql',
+    '20261015081500_basic_pro_functional_parity.sql',
+    '20261018130000_direct_paid_onboarding.sql',
+    '20261018140000_tenant_public_catalog.sql',
+    '20261018162000_strict_private_property_read_boundary.sql',
+    '20261019205000_tenant_public_website_brand_and_services.sql',
+    '20261020070000_editable_public_portal_sections.sql',
+    '20261020183000_owner_organization_public_slug.sql',
+    '20261020183500_owner_slug_strict_execute_acl.sql',
+    '20261020221500_public_website_leads.sql',
+    '20261020222000_revoke_anonymous_crm_access.sql',
   ]);
   assert.deepEqual(readdirSync(migrations).filter(x=>x.endsWith('.sql')).length,109);
 });
