@@ -67,3 +67,23 @@ test('CLI cannot deploy or revoke privileges',()=>{
     assert.match(bad.stderr,/read-only/);
   }
 });
+
+test('all four public RPCs fail the control audit when their tenant isolation guard disappears',()=>{
+  for(const rpc of Object.keys(PUBLIC_RPC_SOURCES)){
+    const target=PUBLIC_RPC_SOURCES[rpc];
+    const modified=filename=>{
+      const sql=read(filename);
+      if(filename!==target)return sql;
+      // The source uses SQL, not a regex: remove the literal tenant guard.
+      const actual=/jco_private\.operational_access\s*\(\s*o\.id\s*\)/i;
+      assert.match(sql,actual,'fixture must contain tenant guard for '+rpc);
+      return sql.replace(actual,'true');
+    };
+    const result=inspectPublicRpcBodies(snapshot,modified);
+    const row=result.rows.find(x=>x.rpc===rpc);
+    assert.equal(row.expected_controls_present,false,rpc);
+    assert.equal(row.source_matches_snapshot,false,rpc);
+    assert.equal(result.result_ok,false,rpc);
+    assert.match(row.missing_control_patterns.join(' '),/operational_access/,rpc);
+  }
+});
