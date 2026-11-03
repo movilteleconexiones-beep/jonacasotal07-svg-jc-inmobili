@@ -30,12 +30,12 @@ ALTER TABLE public.maintenance_requests ENABLE ROW LEVEL SECURITY;
 CREATE SCHEMA jco_private;
 GRANT USAGE ON SCHEMA jco_private TO authenticated;
 CREATE FUNCTION public.is_platform_admin() RETURNS boolean LANGUAGE sql STABLE AS
-$ SELECT false $;
+$$ SELECT false $$;
 CREATE FUNCTION jco_private.is_internal_staff(p_org uuid) RETURNS boolean LANGUAGE sql STABLE AS
-$ SELECT p_org=current_setting('app.tenant_id',true)::uuid $;
+$$ SELECT p_org=current_setting('app.tenant_id',true)::uuid $$;
 CREATE FUNCTION jco_private.operational_access(p_org uuid) RETURNS boolean LANGUAGE sql STABLE AS
-$ SELECT current_setting('app.operational',true)='enabled'
-      AND p_org=current_setting('app.tenant_id',true)::uuid $;
+$$ SELECT current_setting('app.operational',true)='enabled'
+      AND p_org=current_setting('app.tenant_id',true)::uuid $$;
 GRANT EXECUTE ON FUNCTION public.is_platform_admin() TO authenticated;
 GRANT EXECUTE ON FUNCTION jco_private.is_internal_staff(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION jco_private.operational_access(uuid) TO authenticated;
