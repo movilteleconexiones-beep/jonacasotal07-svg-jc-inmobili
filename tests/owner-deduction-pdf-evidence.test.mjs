@@ -186,7 +186,7 @@ test('Storage 409 recovery only succeeds for already linked private metadata in 
 
 
 test('signed PDF links from a previous agency cannot open after tenant switch',()=>{
-  assert.match(evidence,/const evidenceScope = organizationId \+ ':' \+ deductionId \+ ':' \+ userId/);
+  assert.match(evidence,/const evidenceScope = organizationId \+ ':' \+ deductionId \+ ':' \+ userId \+ ':' \+ canRead/);
   assert.match(evidence,/currentEvidenceScope\.current = evidenceScope/);
   const start=evidence.indexOf('async function openEvidence(');
   const end=evidence.indexOf('if (!canRead) return <span',start);
