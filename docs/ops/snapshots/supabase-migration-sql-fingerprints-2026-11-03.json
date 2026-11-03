@@ -1,0 +1,900 @@
+{
+  "captured_on": "2026-11-03",
+  "source": "Supabase production supabase_migrations.schema_migrations read-only catalog",
+  "integrity_only": true,
+  "contains_sql_bodies": false,
+  "normalization_note": "Trimmed and full-line-comment-normalized fingerprints are diagnostic only; not proof of SQL semantic equivalence.",
+  "entries": [
+    {
+      "version": "20261005051941",
+      "name": "0001_multi_tenant_core",
+      "bytes": 15724,
+      "blob_sha1": "a55ae066b1d6cc38b7ee9ca7d81087508ea17c96",
+      "body_sha256": "65c0a4c2b576a45f70b482781e9f10c98866c30fd6a3d5eaa67af8b87e1c20a1",
+      "trimmed_sha256": "3bef6e5f20e669c95fcf86e3df11974c3f3c23a5dc867028bca7eba7517fed82",
+      "no_full_line_comment_whitespace_sha256": "5d88cb4e2da823d30874b8baef5acaa1b21085d97c40008dfa12a918f04c88c8"
+    },
+    {
+      "version": "20261005051944",
+      "name": "0002_organization_bootstrap",
+      "bytes": 5135,
+      "blob_sha1": "a586f016e7f620032877fe8251acdb39dcd1fd64",
+      "body_sha256": "24f8106724656efcedc0a1bd2199ad9b7f9cfbf70f4a5984668643e90c892e8c",
+      "trimmed_sha256": "385f70ac7ce5aa788139990e1ca98d05db59617fea229497232d08809ffb330e",
+      "no_full_line_comment_whitespace_sha256": "4e0850d892d9718abce7dd2112648a3482daa5c0133c78b12e88b74eca6d44ae"
+    },
+    {
+      "version": "20261005051947",
+      "name": "0003_real_estate_crm_core",
+      "bytes": 10802,
+      "blob_sha1": "68daaefc7ec7b2869df15b3539ec401e51f19074",
+      "body_sha256": "56e4fb64d1aafe9f103398f559ce49b3ad34458efc0e6e6a7dacaabba96c23f9",
+      "trimmed_sha256": "c6d85c742a044554cb006c369356aef890a6e05cccf4f28d1c48cb3ec1a14079",
+      "no_full_line_comment_whitespace_sha256": "b3d6421f3fb12028d7e77f25ec2fd148c078bc429540e93f175516d2a7a2300c"
+    },
+    {
+      "version": "20261005051955",
+      "name": "0004_data_import_onboarding",
+      "bytes": 5315,
+      "blob_sha1": "af525c8f3163b67838bf5ed4e33352b538d24a1b",
+      "body_sha256": "ba3263f1f894f27cad56c43791b9b49463e02a9961617e26cc05691b47a167d1",
+      "trimmed_sha256": "497d26eb53cb0f2f297b445cd54c75060906cb364a7359a9d61dd910bf6aedd3",
+      "no_full_line_comment_whitespace_sha256": "0dc1cae1dcbc5b49cd210980df8088c97c5cdbca0b81cfebf17002e9e1f1857c"
+    },
+    {
+      "version": "20261005051958",
+      "name": "0005_security_hardening_and_indexes",
+      "bytes": 3849,
+      "blob_sha1": "ed2ff47f5e886d0245907f8f35a1b08d0bc94f9a",
+      "body_sha256": "3e75324d3867340b5f358d701a307f658b4b34206291f9048c34a2d044419bde",
+      "trimmed_sha256": "fb089fda7af3bc7e1a99f1684a33e8b9052cf4148745086de062014d49bce539",
+      "no_full_line_comment_whitespace_sha256": "b315da11c3bb1c7a79f33e2f4fec8e12f75ed7f43180a60cd5b2d556479be1d5"
+    },
+    {
+      "version": "20261005052000",
+      "name": "0006_colombia_branding_defaults",
+      "bytes": 876,
+      "blob_sha1": "2440a99fc494f47764d2fbf2cc86436d9882f62a",
+      "body_sha256": "a85955e649f5fd139322ff82533d40557ae8affd75a2fc7716ec8561b9798a58",
+      "trimmed_sha256": "5634f64219835da90c52cb24b22662d6ed3476ea7d665f26a00d7e1ba81ab08c",
+      "no_full_line_comment_whitespace_sha256": "9fc885a2e0eddc1b9714b2c89bf60f6494c37d3e4fec86ed16a669d8dcd337e5"
+    },
+    {
+      "version": "20261005052014",
+      "name": "0007_organization_identity_update_policy",
+      "bytes": 390,
+      "blob_sha1": "cccc0097e89715a462079ecdf00e4b5f1a5ffa9d",
+      "body_sha256": "f5483b35629ad68c9e81d6e2acb95cc1eb181dd8dd8e0c2c87f6d0a9b4ff893b",
+      "trimmed_sha256": "3f966bd1319c0b001a1100e07fe21724353efd32d133495ca8c3200865aa9b78",
+      "no_full_line_comment_whitespace_sha256": "61e44844ad7f54717c67d2c8ad39707d429fa4c9662bf0c83d794db533e0c602"
+    },
+    {
+      "version": "20261005052017",
+      "name": "0008_latam_country_profiles_and_compliance",
+      "bytes": 13638,
+      "blob_sha1": "61558d6b13f32547490ce80a5721cb70c5c46029",
+      "body_sha256": "494a27d685eeeff1a21ea15aea231a107b87497949c977a5afbb268fe7cf2753",
+      "trimmed_sha256": "9003fde9d52ef8ea434ebaed17bb58e01c4d8538e34af28cbff760c7182cb4b5",
+      "no_full_line_comment_whitespace_sha256": "3a274532f2be34a9e0f3cc8d796a3bf931bbce1179db5ff0b7ff248b25ca2b50"
+    },
+    {
+      "version": "20261005052020",
+      "name": "0009_country_switching",
+      "bytes": 2070,
+      "blob_sha1": "e1809fa82b90bb7b979362a7e949a7f331d9e6b3",
+      "body_sha256": "d4a604199fe3561f8f1e6681496e81be17a04ea72330bd48bd2dda5195a5b881",
+      "trimmed_sha256": "6a92b9a4672b542e676714020dc703e25d73e3a6e690973bb1984e2779b0de8e",
+      "no_full_line_comment_whitespace_sha256": "b1180b827aa50ee52a85879eed0111341343940dcaca1a756ecc13ed39f47d06"
+    },
+    {
+      "version": "20261005052023",
+      "name": "0010_user_invitations_roles_permissions",
+      "bytes": 1195,
+      "blob_sha1": "458819e19f8c66e15863600276fd296d1d8d7916",
+      "body_sha256": "97f8416ff760da040b8e8666cbf339c4cc7d9ad70d71c0d6ffb999593ebbfd65",
+      "trimmed_sha256": "bd3e8409a99f3d1f19eaec2cccb6394bd14c64ddd54dcf2ec9402c6b4915c19c",
+      "no_full_line_comment_whitespace_sha256": "485afb19d654f603f52f4f958f8612f78f1519f6a7a1254a307917bd61c400eb"
+    },
+    {
+      "version": "20261005052038",
+      "name": "0011_invitation_performance_hardening",
+      "bytes": 811,
+      "blob_sha1": "0cf6d15cf04dcbd8d137cd1bb877f2f65aaf5083",
+      "body_sha256": "dd14773880f373f334648cb1602bdb73f36d42da5bf4e7bd4564ecccd28bacb4",
+      "trimmed_sha256": "515a84e92c8bb3e2d9eb560e4c9d74eac16ab3aaf33bfd24c2cf677ca1d7c848",
+      "no_full_line_comment_whitespace_sha256": "10924557c3158839b356b6d3a7f9241ddcda2a55eef77cb899e5043dbe8d6fe5"
+    },
+    {
+      "version": "20261005052041",
+      "name": "0012_default_software_name_jco",
+      "bytes": 377,
+      "blob_sha1": "a1c546a9e1f126c90742eb30f848503a498142e3",
+      "body_sha256": "39d1aba4964b1cf688297b1104a8baa43991fd2e75f4bd7776a3a279b84cb09e",
+      "trimmed_sha256": "17e0c49d6c77951adacada4c024f51f2ecb0139223e8edc88029551d4afe1545",
+      "no_full_line_comment_whitespace_sha256": "42e0d67aa134b63afe50a2a5b54c080953fa880e6d2d81acf4cebd99490fbf38"
+    },
+    {
+      "version": "20261005052044",
+      "name": "0013_license_terms_and_no_resale",
+      "bytes": 189,
+      "blob_sha1": "fc120f802e7ba31b60a1c7369a0c0b8ef419a415",
+      "body_sha256": "4932bdf1023b27b149aff542bcd4d92c4981704c24caacbcd7cf677e29343328",
+      "trimmed_sha256": "3f0353d3577a341ff89bedf9c462a3142e16c937a08b8ea09057d83a26569ba8",
+      "no_full_line_comment_whitespace_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "version": "20261005052047",
+      "name": "0014_owners_documents_commissions",
+      "bytes": 8792,
+      "blob_sha1": "9b7e48d70af71892124ef78b93ed9616f9ccd441",
+      "body_sha256": "0c865caa8dad97fd7c61dbb6d92ec1acd8e683b762e99b3843821140c53efae7",
+      "trimmed_sha256": "5ef1e41b5fda1c564312cc87e414e70a8a3f5b51d1ab32477c33e8e19b2ab4f0",
+      "no_full_line_comment_whitespace_sha256": "ea01df7daf3f1ad4618eee98e6687daef9843062cedd4139b26dc5651f40e4eb"
+    },
+    {
+      "version": "20261005052050",
+      "name": "0015_software_name_display_casing",
+      "bytes": 944,
+      "blob_sha1": "c06cfe2e58b3863a873c704614df9b839eadb286",
+      "body_sha256": "35f4e171d276dccab6ad0ff8db93567f9ff5b3e112d968ab95666e2a9cd324ca",
+      "trimmed_sha256": "d8bc603fccab21c5b615ab317a6ab6353613f4e644db9fc344fd7a83ee02688b",
+      "no_full_line_comment_whitespace_sha256": "85e22b2da23d9688f6b3237516ee28138d038934b1e93ff09575db2d26932696"
+    },
+    {
+      "version": "20261005052053",
+      "name": "0016_default_role_permission_trigger",
+      "bytes": 2154,
+      "blob_sha1": "19b2ed3a4dc7c9c37c011626e8015051f6116b57",
+      "body_sha256": "68ee7dccec60000300911b4272174f32858939aa5ae2be4ebe96bbcc745c2f0e",
+      "trimmed_sha256": "430df0f22e5c1160fd0a8e32a0856e927bbb778aff36e4007a4cf16820a81211",
+      "no_full_line_comment_whitespace_sha256": "850daa4c0a358372167b8219bd15fa94599505ec8381548c919b3020e0ce9471"
+    },
+    {
+      "version": "20261005052056",
+      "name": "0017_portal_access_links_and_rls",
+      "bytes": 294,
+      "blob_sha1": "bda55e5d6fcd8b1492df43b5c1957fbfdbb85d5c",
+      "body_sha256": "19770a3cc7256d3bfb0a53489f836d76111615b4aa457f51b3c9294d5db527a1",
+      "trimmed_sha256": "53a58a1ab92c17bb17a2b3243fe25f8dc500adc0d14613a7d43229e256770444",
+      "no_full_line_comment_whitespace_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "version": "20261005052059",
+      "name": "0018_portal_storage_and_client_role_hardening",
+      "bytes": 296,
+      "blob_sha1": "1dd857c01ca73520a35126d2b1b86ead8c685891",
+      "body_sha256": "ed623acfcea3041131dd3f0b142138503a5ab8531c11788fc15eb27b3c12891d",
+      "trimmed_sha256": "8e12ca44685d4b29acf979274d0ee64e048fd9183773601ff1395e683a0e582d",
+      "no_full_line_comment_whitespace_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "version": "20261005052102",
+      "name": "0019_saas_plans_subscriptions_super_admin",
+      "bytes": 7771,
+      "blob_sha1": "25761b0a44ad1c03b6c735c82d354b468abfaa8d",
+      "body_sha256": "71889dccfcf595af3abba4cb49bd5becc21b7d9931dce76c5f981efd1d30a573",
+      "trimmed_sha256": "bdcf7acc5c4f1d0e633c05b421af19ba0421e9231f5ca91dca301cad484d6f4a",
+      "no_full_line_comment_whitespace_sha256": "706e6081f0e5eb5e7d2057040148e8a9c4371a9a2e4c0790396bf725e8ba0226"
+    },
+    {
+      "version": "20261005052732",
+      "name": "0020_security_and_index_cleanup",
+      "bytes": 839,
+      "blob_sha1": "f339ea2e6de20706e900f4573f1ca5e50544530a",
+      "body_sha256": "2cca0c7215874fd863d5cbd28a36a35e9e0b17b750324da3621ce8292f6792d6",
+      "trimmed_sha256": "ba17f4737aca9490ac51d6847f2ebcfcb0332acf77a23dbdbae3bbd261fa7ef9",
+      "no_full_line_comment_whitespace_sha256": "8a5f8aecd56af42b615c5256f44f5b4f330efe46966565de7452f4dcb81d0f35"
+    },
+    {
+      "version": "20261005052735",
+      "name": "0021_missing_features_repair",
+      "bytes": 17318,
+      "blob_sha1": "542c4edb12fe05861cdffe62b43f664b495a75e1",
+      "body_sha256": "5d92b2b0034b91e5999f7b52d46936f4c3edba1821b232b165a37ef448bfce07",
+      "trimmed_sha256": "ef8512a8e52cfbe87848d0459a9b1442f8d55b6e7055096ea3f1de321aa9d1bf",
+      "no_full_line_comment_whitespace_sha256": "5ae722ffb87867f90fd2d09e2fd4328b6fbabcecfe39b988efc2ba9cf2f76b4e"
+    },
+    {
+      "version": "20261005053050",
+      "name": "0022_enable_invitation_rls",
+      "bytes": 135,
+      "blob_sha1": "1c6bb3998397e53dbb05adbd210786c4d60bae5f",
+      "body_sha256": "96c5a4b1ee46c0c80102f88a6c1d21a1750fce4b9d2ffa914c3b8f0746751a9f",
+      "trimmed_sha256": "95e99726c60fcf3465908f96802d661e90b8c27108db28bdf5ecce4f48b09021",
+      "no_full_line_comment_whitespace_sha256": "e5fdc820a71d4a5778e6b1912ab3429ca98ce7e7d4532f770ab73260d8e727b5"
+    },
+    {
+      "version": "20261005053711",
+      "name": "0023_harden_client_portal_access",
+      "bytes": 7143,
+      "blob_sha1": "28c7c198140327114f11a4629c9d17d3cc37ce2a",
+      "body_sha256": "12c29e14c2230125a3be9da278d432412aa684c4a1da3f6e408f3e20874a5a1b",
+      "trimmed_sha256": "cfe1836f1e227c624d06ebd2a223bd677c7ef14267f58e123eaf21c0ea7d6263",
+      "no_full_line_comment_whitespace_sha256": "25326c17387001ff351b5e375bbd9dee9f975b4840fbc4eb7e56dc8e852da3b6"
+    },
+    {
+      "version": "20261005053749",
+      "name": "0024_fix_portal_link_tenant_check",
+      "bytes": 864,
+      "blob_sha1": "21a2506201cf9aa4544fb4cbc2e10252212dc631",
+      "body_sha256": "563aa3846322dec00ba9ebe54bfc71a07f77dc2b9f0dae2818952480ec3f3698",
+      "trimmed_sha256": "32499c14a1ac6acfeb8117beb0b3b494b04c0c4e753297ffaf8ffe20d287c932",
+      "no_full_line_comment_whitespace_sha256": "43cd6b6ebe71de09e82b245d92fe6f4b9d65adb70969ce07d70d8d7c55a53c84"
+    },
+    {
+      "version": "20261005095428",
+      "name": "0025_licensing_branding_responsibility_v2",
+      "bytes": 15730,
+      "blob_sha1": "57cc951adb1037a1019c70b34d2eb9eb5b3c7fde",
+      "body_sha256": "dcb6da318e9771405f45309634f98dd647f27a84d345c348b3e177c62820cfe6",
+      "trimmed_sha256": "e77f39d06feed24d1ff233854fd474422e0e254c7ccd8d72082c2aaa3128ec34",
+      "no_full_line_comment_whitespace_sha256": "6d6d2d6626607ce4282c1b4961c3bf72bb0ea1f65b2008232dc263adc7ed35d1"
+    },
+    {
+      "version": "20261005153559",
+      "name": "0026_rental_management_core",
+      "bytes": 4878,
+      "blob_sha1": "9adae5331dee21fd0d3a97f4543b7e22c771a5cf",
+      "body_sha256": "9c2777306c2e44673d69cf5138afafab01d5eaca72284df11df72c6b6f825eb2",
+      "trimmed_sha256": "9c2777306c2e44673d69cf5138afafab01d5eaca72284df11df72c6b6f825eb2",
+      "no_full_line_comment_whitespace_sha256": "839d02d14afdf78f801cf29c7b9124a03570f12c2dbd86b296e335f39805bcb6"
+    },
+    {
+      "version": "20261010232900",
+      "name": "compatible_licensing_records",
+      "bytes": 4792,
+      "blob_sha1": "4fb3c28cf21d333c41f2e65e4abff23839545ec4",
+      "body_sha256": "287dc9bedc12db5c271ad34f954934d666bc4232cfb28194d9f0351fcbf77bc4",
+      "trimmed_sha256": "b5cf0f919cfba3e38901bdee7388fbc5be0504acaf27c78e19e7f3c6eaa6629c",
+      "no_full_line_comment_whitespace_sha256": "b521af9beb3916d0a65c015448e3cd08e9f3cd06b6edb74ca03702b6988c5465"
+    },
+    {
+      "version": "20261010232928",
+      "name": "property_consignment_intake",
+      "bytes": 1530,
+      "blob_sha1": "865df141f0e78daf472dac5c42021a063caed6d4",
+      "body_sha256": "bc214b1e2916dfc03b6a3b5e473fe95783ec8467b2d066038779b344c461cfe4",
+      "trimmed_sha256": "bc214b1e2916dfc03b6a3b5e473fe95783ec8467b2d066038779b344c461cfe4",
+      "no_full_line_comment_whitespace_sha256": "c8651a6faa5f61c4328b23e5b65a5d6834e4b7c83e0dc8241dab070bbdcbd665"
+    },
+    {
+      "version": "20261010232930",
+      "name": "fix_property_portal_rls_recursion",
+      "bytes": 630,
+      "blob_sha1": "9f5f0b41b79bebdbe70bf15b4f190da31e725a60",
+      "body_sha256": "a32ec2b778504318231c2ae7920183eb3be94d7f5b08601e105d78c39d3430ce",
+      "trimmed_sha256": "a32ec2b778504318231c2ae7920183eb3be94d7f5b08601e105d78c39d3430ce",
+      "no_full_line_comment_whitespace_sha256": "169b1e226e775cfb1ad2992e9de65c4e0b28de52b0186cfaac1c84a52b5dfbb2"
+    },
+    {
+      "version": "20261011001955",
+      "name": "verified_tenant_billing",
+      "bytes": 33036,
+      "blob_sha1": "00b05a4aac0984e495bf1006e58a7617c8f464d1",
+      "body_sha256": "710b8c50751612071c3d34fa347879ce281b310319ab9086f5eb9a3c00242f28",
+      "trimmed_sha256": "7fb2058dd97d19e749ce856b94d6b7b6f94245a57655685024609952bafeb370",
+      "no_full_line_comment_whitespace_sha256": "d9c0bb8fcd3765d42884db8d62b719299f5c8a9d1201083e7c059630b634de1a"
+    },
+    {
+      "version": "20261011002021",
+      "name": "owner_trials_and_platform_overview",
+      "bytes": 9584,
+      "blob_sha1": "52411f4ff05babab4520b99e8f79bb55915183b8",
+      "body_sha256": "a290d0cbf9f1a4eaf9ecfdd3c29cda52873d606e71449fce47f431abff100df5",
+      "trimmed_sha256": "7572109c96c2439e6978043905ebec8753e5eec10999f3c71b276a424530662c",
+      "no_full_line_comment_whitespace_sha256": "0a08f959680e73434a8b64e193d595e1a60eb06ded17d858f182f1019e4ee2c6"
+    },
+    {
+      "version": "20261011002448",
+      "name": "independent_owner_trial_entitlements",
+      "bytes": 4557,
+      "blob_sha1": "0cb55f6853983d6ad4aa7fc8b34b69a1db57a8e7",
+      "body_sha256": "410ad098880461864f0211e5c8047526fcc9c5abddd3d49c50e4225165feb9b2",
+      "trimmed_sha256": "b6a6955d346e726e4d8cd8ee46d64b1d400d122dcb2fe77f28d72933f57ef3c8",
+      "no_full_line_comment_whitespace_sha256": "59fa9fe401e6409ea60dae274424793da48d8a2a272005555b25567c4b7f2e8d"
+    },
+    {
+      "version": "20261011091611",
+      "name": "private_consignment_photos",
+      "bytes": 2914,
+      "blob_sha1": "ee4c5a97b3114b9112659dbdcff182632e1f9e67",
+      "body_sha256": "ccc70099821e3c98bdb3213d9d268b950ec74f3e294fea079207d3303d891022",
+      "trimmed_sha256": "d2b637f4ec55eae19cc05c1522b1fd7c37be2cdd318cee77c7921cc3a4c024a8",
+      "no_full_line_comment_whitespace_sha256": "44a668fa53ec5f34ddcc0f4a8157b04fb8be4cea7ac2cbe039d9a6edbdaefe75"
+    },
+    {
+      "version": "20261011091614",
+      "name": "private_inventory_property_photos",
+      "bytes": 3898,
+      "blob_sha1": "3d471ac388e89ec0fb77973028d51f17203897aa",
+      "body_sha256": "5918a4f092b41600adc71fc24ed0fb352a7aca7c652fa008597e00ac3158b68b",
+      "trimmed_sha256": "03a26cd43ea55122d86e9fa28122c23d16a9a14ac25e98b2871745cc68b729ea",
+      "no_full_line_comment_whitespace_sha256": "23cbb1638a4c1654f2dc9b5a37662e7de4044789cb0d5966d18eac1771f8d624"
+    },
+    {
+      "version": "20261011100200",
+      "name": "basic_pro_explicit_entitlements",
+      "bytes": 1802,
+      "blob_sha1": "d85ae857d84111d27ca71dcaba4703785eaf2d80",
+      "body_sha256": "692f48974fbc083dce882bca2601f5c9cb93ec72ca2aca761a9817b9ff23a7df",
+      "trimmed_sha256": "cf49c2e21222fa4411c537ad238d889eed9834218df46c8bf63933ce074439f7",
+      "no_full_line_comment_whitespace_sha256": "78c03aea0a8081fa7555dd69118c79ecd4f2dd1cc47b129ea2f734900fc0e9c8"
+    },
+    {
+      "version": "20261012070133",
+      "name": "audited_rent_receipts_owner_deductions_finance_permissions",
+      "bytes": 28005,
+      "blob_sha1": "839678456b37ee5b2d4336e7f2c6e5155235421d",
+      "body_sha256": "053f494332f4e87f0b4c7e95085d2929e7665b475997bc569b3a45338a06014f",
+      "trimmed_sha256": "053f494332f4e87f0b4c7e95085d2929e7665b475997bc569b3a45338a06014f",
+      "no_full_line_comment_whitespace_sha256": "2648e6f04fde12e0468ea47911c42ef4d085f268cbf4bcac9a69645553fa1059"
+    },
+    {
+      "version": "20261012071309",
+      "name": "finance_approval_and_audit_timestamp_hardening",
+      "bytes": 889,
+      "blob_sha1": "6192fe3dd3b38ed100b9eec778c79db2231c6c74",
+      "body_sha256": "4eab5a0e05dd5a4b5b6ad5bbf13bb9191e47f319bad8aa12ffd97afd8f1012c4",
+      "trimmed_sha256": "4eab5a0e05dd5a4b5b6ad5bbf13bb9191e47f319bad8aa12ffd97afd8f1012c4",
+      "no_full_line_comment_whitespace_sha256": "51777dd98ff33d3dff80b72f4bb09c39dbc3ad9c9be52b523540913c4863b7c3"
+    },
+    {
+      "version": "20261012174610",
+      "name": "guided_rental_intake_admin_approval",
+      "bytes": 3768,
+      "blob_sha1": "e6f7b6b62fcee5e2b42659ec1f319d0623563f87",
+      "body_sha256": "abe79d26dd21a94fc599a729b02f9ca45813b3fd29849e851d86096613ef54c6",
+      "trimmed_sha256": "553e4a84243387e4066cf0a60d5d2b70d3b1ecb1b80f6d8d771b8b939083a71d",
+      "no_full_line_comment_whitespace_sha256": "085135d85e6336bfcf74a6c08644949912eeb0685a0a8de5fd5a83819dc366b8"
+    },
+    {
+      "version": "20261012191634",
+      "name": "deals_safe_admin_deletion",
+      "bytes": 3389,
+      "blob_sha1": "0f475d0d819f2abe9130c2ef6e34addf1cde4956",
+      "body_sha256": "bc775d77173a2d86a63d20754a39348c31dcfcca5e85ed43df41c27ee2c56a08",
+      "trimmed_sha256": "0737899980a3bcfd031beee43e208c01dce850a0e3daf35dbb7c68dadac1ecb9",
+      "no_full_line_comment_whitespace_sha256": "80c9b36ce3edf8b2750df9353c1c130f523b86cee33da7b813643fde6d9d2b6f"
+    },
+    {
+      "version": "20261012232901",
+      "name": "owner_reconciliation_audit_and_safe_undo",
+      "bytes": 8436,
+      "blob_sha1": "c8092a9ac239a3f97f54b84183596521c291705d",
+      "body_sha256": "544939d537efad63ba8ee54f1bd9c713157d2be85b93dbc32e8daf5dee384508",
+      "trimmed_sha256": "ecda2c6b7ae95f262070dc12fa8f8c9a8ef054b2b8e35624754cd28d6b2535ce",
+      "no_full_line_comment_whitespace_sha256": "b3b5d74f77fef75038dcb6a22df47e0ebcc7ca57a7514367a79ae873e1915af7"
+    },
+    {
+      "version": "20261012235553",
+      "name": "restrict_excessive_api_role_table_grants",
+      "bytes": 753,
+      "blob_sha1": "ec3e513b753d728e8999352438bd95776120bc61",
+      "body_sha256": "a426b68db3cdfa8b4b2bc12dd4569e611fa53ea26fb579420a3f38bdec5b5088",
+      "trimmed_sha256": "75f08aec45d5c5e422abe9145122ecb33df17bf39e7588a3a6961642f682b8dc",
+      "no_full_line_comment_whitespace_sha256": "7f8696205ee23e34df008f080eaf055dd30feb797bf5ec663b8361d4322dc412"
+    },
+    {
+      "version": "20261013001626",
+      "name": "safe_future_rent_amendments_and_unpaid_corrections",
+      "bytes": 13432,
+      "blob_sha1": "e4271e9197055cc5b4b3eb8eaf0ce2922a32ff8b",
+      "body_sha256": "129f71c094409dbf0606c4720b2bd5bd16a8dc96f15ec7099dca2cd3b6f96148",
+      "trimmed_sha256": "4a8f385267dec4c201fb8e74b96fc41e065529034baf3015a315f09ce8bbedb7",
+      "no_full_line_comment_whitespace_sha256": "40f56ceaa65d48e1becab566ccfa5d5ae28d5ea2d15a774a7ab38491916f7fd0"
+    },
+    {
+      "version": "20261013003214",
+      "name": "owner_statement_percentage_commission",
+      "bytes": 2803,
+      "blob_sha1": "c4aa3f78e61dca5424d976364102f95efc4d15c1",
+      "body_sha256": "fa6bc828a5b8f0d5f7a5ad986617aa903fc8f7de2395d22321ce95d3e5397759",
+      "trimmed_sha256": "70adac0329173d5ea6e2f4d50e76b6732361069bb5b27d832ca4c1afb0ad6f2c",
+      "no_full_line_comment_whitespace_sha256": "ebbd49d4b5f53bce2093da5340d6ce3955c5eee296e760c3235df01a5fc6492a"
+    },
+    {
+      "version": "20261013012448",
+      "name": "commission_safe_edit_and_paid_review",
+      "bytes": 17967,
+      "blob_sha1": "d7586d99a98aed408c9962ecb43a4cacb570bd08",
+      "body_sha256": "4656cad3ef3038664abe6ad8809197d0ab4030347aa12d37ffc3fe57d45ad200",
+      "trimmed_sha256": "88629bbaddcd7eab02a4165cccb79e0ac8ba035544aa3b610a6a3cfcbf30bf96",
+      "no_full_line_comment_whitespace_sha256": "b013bcd22e0452a4e95e657ee1a3a1ab46d8ab4c087cad73e253acb7489bf09c"
+    },
+    {
+      "version": "20261013012930",
+      "name": "commission_tenant_insert_validation",
+      "bytes": 1545,
+      "blob_sha1": "e72ce5c330a4fe9c9418cff4ef884b4dd411ccc7",
+      "body_sha256": "fd18ee092216ee42c1939489084ad9116ced2cad13afadb6baa3c64fd5c93cb8",
+      "trimmed_sha256": "f774c13b4d9d59e1614f7efaaca23708c42f03ba346adef766c336ff09fa3c19",
+      "no_full_line_comment_whitespace_sha256": "a7befe354f924fde705710aa47537b299fdb02bfec6969062364fc434a098744"
+    },
+    {
+      "version": "20261013034808",
+      "name": "commission_admin_void_only",
+      "bytes": 4413,
+      "blob_sha1": "fa239eee6e09a466fab56b1ab29c8fd54c4b90fd",
+      "body_sha256": "98d66df4ae15cb124d13d7702ba91892cf291136c8c1058d876cad782749db22",
+      "trimmed_sha256": "37f71039f2c25479d614011c26ef8664f177424f4ef2bb28e14325b89b069706",
+      "no_full_line_comment_whitespace_sha256": "95238b7e3c5879df37ba06660a5e4587d38a5b0de26bae16eaa1e7634977aec7"
+    },
+    {
+      "version": "20261013040202",
+      "name": "commission_recording_corrections",
+      "bytes": 1821,
+      "blob_sha1": "ae8fe4418637e0478fd804ccd07f6c77f244132a",
+      "body_sha256": "c37bb5ad1154f5fc3a808328f722726b19fdde0d621aef08630ee8f4c737a32f",
+      "trimmed_sha256": "3795316e16acf93214a0f2e622ef5fa28407c151018cdf03bd58c4e125be6ee2",
+      "no_full_line_comment_whitespace_sha256": "4d5c72be9f601009ba4660291bd68440a7df944720544b0b16762405e62554b4"
+    },
+    {
+      "version": "20261013040916",
+      "name": "owner_deduction_admin_only_void",
+      "bytes": 1087,
+      "blob_sha1": "ab76e15e7179739b49ff7b7a909e0133a4250624",
+      "body_sha256": "c4d3a518c2fee545c7e156e4372c2f422af11caef52d82e954dc3a5535b4c8df",
+      "trimmed_sha256": "b93ac3171537a26cd69d5bc777ed57fafad70dc5de1fcb7b90b13332d9c42b40",
+      "no_full_line_comment_whitespace_sha256": "5890b9e283da13aa890805652e124fc6c676d3ef837e351addf8e71dde8d8681"
+    },
+    {
+      "version": "20261013042724",
+      "name": "paid_commission_admin_accept_no_disbursement",
+      "bytes": 3908,
+      "blob_sha1": "7e637baa768285f46d130f41e35e2493f7e3077e",
+      "body_sha256": "c2d1e1bc76f3115e9e6b21992b6439b269a2529b550a8df03be5962d294ab152",
+      "trimmed_sha256": "908abcea64fb20d72a5cdd7a2c43e718677820ee39b817d5a34dcbcd570f0df6",
+      "no_full_line_comment_whitespace_sha256": "9bfee43969fe0653a77536d7b6dace61d80a4f7b85881dfdc03a33c88283ca75"
+    },
+    {
+      "version": "20261013043618",
+      "name": "archive_rectified_commissions",
+      "bytes": 2377,
+      "blob_sha1": "42054be114c803f904f5db6e64726b33ddcccb36",
+      "body_sha256": "8afcf56dbb8cf1461643398e818538db0b7632fe690c84cc9982cf509cbf8bf6",
+      "trimmed_sha256": "63192a5cc464d9f44ec6c35486fc115a20225b38b98d6007d25f0373f999b506",
+      "no_full_line_comment_whitespace_sha256": "f513178209c57e459cff3d2c4055ca43b24e17d84e01f63a18ed71a6ab439183"
+    },
+    {
+      "version": "20261013045818",
+      "name": "fix_commission_archive_reason_ambiguity",
+      "bytes": 1861,
+      "blob_sha1": "b059125bfcdc8f8749e9d0ce4a882b22227fa94c",
+      "body_sha256": "28c4ac51a8416f893c3e53b990dfcfe930fafec2b19813579591d9d99015a998",
+      "trimmed_sha256": "3e7fbcc2b2ff30bbad1995a393ab504e3805b9f08354969e271259e49c18f04c",
+      "no_full_line_comment_whitespace_sha256": "aedc8a6d2ebdf59853b0a9ae93482f89943bcda3375545359b7b3be4fcf6b80c"
+    },
+    {
+      "version": "20261013045906",
+      "name": "restore_cancelled_commissions",
+      "bytes": 1556,
+      "blob_sha1": "6518768ef989df49ee9ff901b9a49ba1a97e8b70",
+      "body_sha256": "9f2bff9cd2fd397db8d23c7c7abf8c44c2d5a075cff3fd66c7b1cd3eae9d1ad6",
+      "trimmed_sha256": "9f2bff9cd2fd397db8d23c7c7abf8c44c2d5a075cff3fd66c7b1cd3eae9d1ad6",
+      "no_full_line_comment_whitespace_sha256": "a977e2bfeec69659634df6706cfd10acf9c0f2dc150cef9aa31108c62d10f48c"
+    },
+    {
+      "version": "20261013053938",
+      "name": "admin_direct_commission_payment_status",
+      "bytes": 1685,
+      "blob_sha1": "e2b1d2d789ced5630c62c0448fc708cd7f3944d1",
+      "body_sha256": "9448fa077b09cddfabb6683bebb82daf4824985a4530ab4787650b19359093b4",
+      "trimmed_sha256": "9448fa077b09cddfabb6683bebb82daf4824985a4530ab4787650b19359093b4",
+      "no_full_line_comment_whitespace_sha256": "129aff035230b7e445b9991369eeb901963ddeb9cd55714ace6ccdfeebf09490"
+    },
+    {
+      "version": "20261013055708",
+      "name": "archived_commission_replacement",
+      "bytes": 3581,
+      "blob_sha1": "7d771ab657c930e30f3f189163c276e7ca80b897",
+      "body_sha256": "e3e802839ee16cf1903bed3bcd2b79dfdc2db3699f476ad3ce977a8eb5e5f665",
+      "trimmed_sha256": "928362a9b0f9b839d3a344aa25747c39133cadb059bd791ee26057ea74ec1dc3",
+      "no_full_line_comment_whitespace_sha256": "2b2380270e575dd419690efe46f6222bb97dc75562b1a44b75f2882909aa5daf"
+    },
+    {
+      "version": "20261013062339",
+      "name": "restore_voided_owner_deduction",
+      "bytes": 3436,
+      "blob_sha1": "b37d02cb95bbe0b781b05bc65356928040ee7a51",
+      "body_sha256": "5c01ce30ccc6b6cfe3c60bc590159f6808354da92cc19b3f84360b3b31037c87",
+      "trimmed_sha256": "5c01ce30ccc6b6cfe3c60bc590159f6808354da92cc19b3f84360b3b31037c87",
+      "no_full_line_comment_whitespace_sha256": "81fc0eb667a7f333483c62c89a5020bd44ce386e4a8432f30537384933f4bca7"
+    },
+    {
+      "version": "20261013163914",
+      "name": "correct_owner_draft_commission_percentage",
+      "bytes": 2995,
+      "blob_sha1": "f8ab6417cdb4f15825eeafd132062e864341ea83",
+      "body_sha256": "2283bbf382667adedfa6601d6ff9495e2226bb189beeec6baf52a081310ae17c",
+      "trimmed_sha256": "2283bbf382667adedfa6601d6ff9495e2226bb189beeec6baf52a081310ae17c",
+      "no_full_line_comment_whitespace_sha256": "a9a9449df756bf61265dbf7169009f201dab106be1a52f7e51ab2c1f001ad076"
+    },
+    {
+      "version": "20261013165553",
+      "name": "prevent_duplicate_active_commissions",
+      "bytes": 1728,
+      "blob_sha1": "ffc8ec6dd0ab0459a8c57655bbb800517702ccd8",
+      "body_sha256": "0cfcd6f98cc58a6660475f788b7baf5a60cd3584cd91a7b8409a9444c0ff8b2e",
+      "trimmed_sha256": "0cfcd6f98cc58a6660475f788b7baf5a60cd3584cd91a7b8409a9444c0ff8b2e",
+      "no_full_line_comment_whitespace_sha256": "e08185fd8acf1b6805c7af887ad92940f3e2720430ef393e0632e48fdc1d05c4"
+    },
+    {
+      "version": "20261013173011",
+      "name": "finance_fk_lookup_indexes",
+      "bytes": 590,
+      "blob_sha1": "e28f1ebe62fe17301081327690e47c98e3205276",
+      "body_sha256": "48dc55937d1f1c9c6f25fcf35f727837bfed444883767345fe3b77c1fcd6b572",
+      "trimmed_sha256": "0bfbb75ec477877c34f6ce819243beaab83345f90b2c5a3664f8f153c76a43c2",
+      "no_full_line_comment_whitespace_sha256": "c3a3d8290f071858d13b40690392a051e705380fd9966cf93d2d9332baf6b58e"
+    },
+    {
+      "version": "20261014001304",
+      "name": "owner_deduction_admin_approval",
+      "bytes": 792,
+      "blob_sha1": "102afcf6cc68c4f9d8d5b5b665fce95bdf4a9a04",
+      "body_sha256": "0418da4650d7d02c35edf3789d8ab2ab3cc1bd06d7e02dd283b387fa38a13860",
+      "trimmed_sha256": "74a9af90c1ff224418ee138c82637bca4237e7fcb4d0e50fb9a83be74905ca59",
+      "no_full_line_comment_whitespace_sha256": "48936fc74ac4a2a6eef26fae084bdead1925b186f713f9f2de15b35f4edef7ba"
+    },
+    {
+      "version": "20261014005233",
+      "name": "admin_archive_commission_reviews",
+      "bytes": 1412,
+      "blob_sha1": "b34998595cb49c28bbc6e5d7f76f7e0d1a72ee11",
+      "body_sha256": "dcd61de6cb15c94082d694d0aba1d669c84962d35066d69c2f28aa5c7fdf7ec5",
+      "trimmed_sha256": "922d65bb48c47131026bddaf17c5ebcb0c5abdc89cb0c58555725956004cb647",
+      "no_full_line_comment_whitespace_sha256": "1a2e0edd48e1ad90e81c0d76c2de0573f63bf9bf1c886eaa59932af46c641b5f"
+    },
+    {
+      "version": "20261014013656",
+      "name": "admin_issue_owner_statement",
+      "bytes": 2308,
+      "blob_sha1": "e1ff250a23d47a8cb4e7303b549f30956d3025b8",
+      "body_sha256": "955a0bc54295db830fa81336afee70a23b4958da7d3deb277a8602866b96d28b",
+      "trimmed_sha256": "00a364adc0553b468fb32ff2758d8596710868d1e3efa0f56ee03dc7fe78c1ea",
+      "no_full_line_comment_whitespace_sha256": "fddf04bc9916322ec2a3ac56ec0f26450d51a80f39e1a56789b159ca827332a4"
+    },
+    {
+      "version": "20261014015052",
+      "name": "owner_payout_ledger",
+      "bytes": 4238,
+      "blob_sha1": "97e1a678082f7ff86d8a6a7498d411b25d6109c0",
+      "body_sha256": "92dc3adc9a86122d303f3b75516f503548fb3fc26020434070505f87ce33e360",
+      "trimmed_sha256": "4a6fe2e548c258ea3ec9f9030781d708a7ac2becea61aa1f08924ad097bd11b8",
+      "no_full_line_comment_whitespace_sha256": "b2553b7538a32c68c33e8c52bd002325ff0d4e6d90ae57f32223e276f3fd6fed"
+    },
+    {
+      "version": "20261014022955",
+      "name": "owner_payout_review_requests",
+      "bytes": 2610,
+      "blob_sha1": "1a1ed0cb788a182d66b0f43bda571f33ebdb94ee",
+      "body_sha256": "f2b2b7799cc2277aa928d5feb583830ec7d4303b43f5ea4dc62ab79d87aa3f01",
+      "trimmed_sha256": "d6a21199c493b4c6eb25f7d6730b5b0e150f782da3ff15515d018095317b1fc2",
+      "no_full_line_comment_whitespace_sha256": "26528bf9649a1ae42ed7b0131645e24160cf0aae6279be6d16fd704a19c640ac"
+    },
+    {
+      "version": "20261014025531",
+      "name": "owner_payout_admin_review",
+      "bytes": 1633,
+      "blob_sha1": "a3b9a74994c4651ac2b59418e4f67ac699944183",
+      "body_sha256": "ba96abf8da87104bd10cb72d7ed7ca4eb98bc8e94d70700fbfdcb6f0b7db70d7",
+      "trimmed_sha256": "4720fbd4fed0cf76d2a1cdb1d7ba86e7b3fd2d464bdb330c6ea9a7c0bf92492f",
+      "no_full_line_comment_whitespace_sha256": "c1f44790f3fba33d8b66821fb7b51a9305ed4409aac9b19e6df5e290bd7853ad"
+    },
+    {
+      "version": "20261014042102",
+      "name": "audited_rental_end_owner_retirement",
+      "bytes": 13573,
+      "blob_sha1": "1a5148501741b57db38f9775d3424e6f97fcf597",
+      "body_sha256": "e8d703ebbf835d2473a442fdca8bfa934c33ef1fb53cd8dbb4314e4219daa7ef",
+      "trimmed_sha256": "99dba12f3edce9be145153396cffd48c68510ef1f4806e873cf0378e2d8c5e0d",
+      "no_full_line_comment_whitespace_sha256": "4c53bbe6633698f5534e2afefbe846dcc663a1839a065e41cc9d4e8609fdf22b"
+    },
+    {
+      "version": "20261014044203",
+      "name": "sync_rented_property_on_lease_activation",
+      "bytes": 5805,
+      "blob_sha1": "b5c5708d63895c28ad3f21fa15d8fd95e88dac23",
+      "body_sha256": "332ac0c2fef9272fedc5530b22e11f2e792de27ef0aec5ea13c77e50ae7c55d8",
+      "trimmed_sha256": "bb223df5850857dcd7a5eb6ec42f8b7106be39fe09fa15d6c5fa2857e41ea55b",
+      "no_full_line_comment_whitespace_sha256": "7da4482e2b4acf42612d5d907c6dca60bb00f36ec7a3821665653b51d5bf58a8"
+    },
+    {
+      "version": "20261014050327",
+      "name": "private_rent_receipt_supports",
+      "bytes": 8100,
+      "blob_sha1": "de9908222d21619bd83a598e07a7f5c59c96ed0a",
+      "body_sha256": "ee6bff9157ba30b9f03f95812daf1c637316da77f6cbba37176fe8de0debe090",
+      "trimmed_sha256": "80c4a46968bc8444aad348e0ecb33a4d6cbe0133cad8eba0fb7172bc3dbc4482",
+      "no_full_line_comment_whitespace_sha256": "3b1176ad9b57d1e2c4e8d07cc6ec2e665940b9a0d6bd2919b6eb99440c45c5ed"
+    },
+    {
+      "version": "20261014052310",
+      "name": "audited_role_permission_editor",
+      "bytes": 9984,
+      "blob_sha1": "a8d2627efe04925bf645d8c0e5d28a45616487ca",
+      "body_sha256": "4fb5977f7e845b1cea546a5d35571f2b4866f8aabefd25c9fec7dc35db286306",
+      "trimmed_sha256": "212987160254f01bc6b7e83de66280ad537429662740b60c38dad930affb07f4",
+      "no_full_line_comment_whitespace_sha256": "7e222184a3a907b2ee6aed4b7966ae08955dda31260a273e50355693d3ada40b"
+    },
+    {
+      "version": "20261014174632",
+      "name": "isolate_client_portal_role_grants",
+      "bytes": 1250,
+      "blob_sha1": "497d6685191628a6fe37e8d1db22716fd1aae14b",
+      "body_sha256": "4ea1eff651029f63cd5567d343d7bcbfee24ab73a62afa8ed7bd1f415d6cd6ff",
+      "trimmed_sha256": "1a356b1f845f22233e08f603ec815a4d7936868fe52a52fc281775adda913168",
+      "no_full_line_comment_whitespace_sha256": "f860703a54e6f1255f2e929736d236b2396bdd804d8ffb5d924fb6f3d73aceba"
+    },
+    {
+      "version": "20261015073530",
+      "name": "approved_monthly_prices_preserve_lifetime",
+      "bytes": 2537,
+      "blob_sha1": "d8ac0b937850c175d3754311c2d77b22923e788f",
+      "body_sha256": "776cd7767188af98c014a22e30bd88769ee132da8ef023c6919ffc197ce5f95d",
+      "trimmed_sha256": "0bc2ab33522df10e4504eef571c6ac814c14a8aa393d6e9d3aa3877523cb4c0d",
+      "no_full_line_comment_whitespace_sha256": "1c59ba4681be308ca6ee530d06a9dc79d123505b52c355e007e50860c677298a"
+    },
+    {
+      "version": "20261015074727",
+      "name": "basic_pro_equal_functionality_20261015",
+      "bytes": 3937,
+      "blob_sha1": "88e75c7e0858c29784b1a3b053aa8401907d7f09",
+      "body_sha256": "ab45de6c4cbf5743dd8df6a77d9ee7b49f4544e1dc8c1c383b0e19735f2fc336",
+      "trimmed_sha256": "aa5d3e1cdd5b9b7c42aa02a8cea3d452517b11861f029b9e948682ed3bbdd195",
+      "no_full_line_comment_whitespace_sha256": "872c882fa07a7811dd7f442f03c9175f7f3aacd2111da41de3df1831a7920d0b"
+    },
+    {
+      "version": "20261015085227",
+      "name": "isolate_external_accounts_and_staff_seats",
+      "bytes": 12913,
+      "blob_sha1": "5ca0b657b1ec0b39ecf40db7452302bce5074121",
+      "body_sha256": "a5b01325c4000271e05d263a6d0fc92e7d84fef4c7d7be430c0c79dcd13813c8",
+      "trimmed_sha256": "dfd1d78db83dda79d587a8c1b40468415a01a0eb26595b2380fafb59b1264c60",
+      "no_full_line_comment_whitespace_sha256": "8fa5e41deb4c5ad9b37b05064ecf0d78c938b6ee2eab1248b72d29a088ed18eb"
+    },
+    {
+      "version": "20261015085250",
+      "name": "scope_external_owner_and_tenant_data",
+      "bytes": 4670,
+      "blob_sha1": "02b04f0f9002a3068d62c954cc27a5c524c420b9",
+      "body_sha256": "dbfff00d041d8980573430136a259c4a85bf3afab67208f10e6f91e0b5dbaecb",
+      "trimmed_sha256": "15db3b70af9d0c2646dc716c4ead2621c8c81efcbe0579f0002b9912b63226cc",
+      "no_full_line_comment_whitespace_sha256": "b11e004ca3547cc3eb97749b10e7dc8d39ead168217f5d04438b352127cecafe"
+    },
+    {
+      "version": "20261015100034",
+      "name": "reconcile_restrictive_portal_read_with_staff_write",
+      "bytes": 4527,
+      "blob_sha1": "3b2521faf91aa3aee77c760eb2e2252965d0edb6",
+      "body_sha256": "3464011499000558188d70d2430fcee8ca45a6ed96f07009a5d592431721f43d",
+      "trimmed_sha256": "91126459629470ce2b65601f3cfe9860aecac04d04a6e42e93ff9ad7902fcd5a",
+      "no_full_line_comment_whitespace_sha256": "0b391d4827708bad02b40ff791a92515131595a6254351adb28bf34591e47406"
+    },
+    {
+      "version": "20261018065139",
+      "name": "public_tenant_catalog_readonly_20261018",
+      "bytes": 2175,
+      "blob_sha1": "5e5808548c1b775d9a932e71000cfa786b68f357",
+      "body_sha256": "accc33661e19b2804932567d1b416e9cbcee0ceb7bad0ad5b17883883693ec9e",
+      "trimmed_sha256": "28d366b2cb2c5d50e701e6efaa766a57a1e87ff0c36f2d350f11908966d167a6",
+      "no_full_line_comment_whitespace_sha256": "41e1f84b590dd7303ce084ff98881469df33c40ae513e173987a3baf00f9fa04"
+    },
+    {
+      "version": "20261018065837",
+      "name": "direct_paid_onboarding_explicit_20261018",
+      "bytes": 10858,
+      "blob_sha1": "4542e133eec6575737eff22b85f7f3a7cf961ded",
+      "body_sha256": "09f4302c9f23e4cb6a300c2ed803cc11a48e7994d6a502b1a526138c0b119463",
+      "trimmed_sha256": "9990d6081009cbc8dd7934f727fac452182b54b4e3822319bf8bc2d786974b70",
+      "no_full_line_comment_whitespace_sha256": "edbc6ec2970e5223cefcdb5731da2624f8f53dadd6fe54932c8b99435dd24a7f"
+    },
+    {
+      "version": "20261018073033",
+      "name": "strict_private_property_read_boundary_20261018",
+      "bytes": 4704,
+      "blob_sha1": "ef2a275ff0bf269db75cef31a5157c920199d8a4",
+      "body_sha256": "1399825ade8f5a3ec3e4aed5a1cf4eb2bbcbda10de498d340bfe305d8f175a01",
+      "trimmed_sha256": "301f6610834155ad8eb4b7be4aacde576928cafda2c742057a5d4ca870d6932f",
+      "no_full_line_comment_whitespace_sha256": "563f0153f24f1330d3ae808bdf04d0afcfd05828997c6f5925faa28907b57b21"
+    },
+    {
+      "version": "20261020014525",
+      "name": "tenant_public_brand_services_20261019",
+      "bytes": 3579,
+      "blob_sha1": "10b164746e54a3e3811972055b8fd8f3f5250864",
+      "body_sha256": "6258c0bc29bf975d0d32fe9bbca29d4ce858e931074549c180e0b9417d1fe642",
+      "trimmed_sha256": "687360a3d2c2ec358ab04f49d600d4f824f79498bed3550da3b4a0deb740112f",
+      "no_full_line_comment_whitespace_sha256": "454cee9875add682504a03e6b0645db2e94116b9218775ab3c46790bbbdc18ed"
+    },
+    {
+      "version": "20261020070236",
+      "name": "editable_public_portal_sections_20261020",
+      "bytes": 2747,
+      "blob_sha1": "afbd56dedcfced8fb9ec78cb5133e6d94b62656c",
+      "body_sha256": "179a1f4fedb0917192a47d29a281f6167c8f2aa39b2194fe0cef52bfe438bffc",
+      "trimmed_sha256": "9cfab9d4cd7d524fa6b3c37671b7cedec9f034c2e56c987a9d8f68297da91355",
+      "no_full_line_comment_whitespace_sha256": "0320f48eb8f5b50e93e09a9a50e0680f84042ac90b99abd7350ede35bfb345c6"
+    },
+    {
+      "version": "20261020233104",
+      "name": "owner_organization_public_slug_20261020",
+      "bytes": 2666,
+      "blob_sha1": "ba78e3d3c1d40389b31c23a68d0a4dbf7d9ca8fc",
+      "body_sha256": "410859688cf9253b02779e9c025733ac195a25a7700ebbe7d5764f0b3f56c3c8",
+      "trimmed_sha256": "ce4d2f89a92e40634268668d3f53eb1a6f562c0563322a637f81700bc2fd7ffc",
+      "no_full_line_comment_whitespace_sha256": "7eeadcccfb6104cf72275e20b1ded5fc5b8fe5d069517e3c8f1ded79bcc0a0ea"
+    },
+    {
+      "version": "20261020233218",
+      "name": "owner_slug_strict_execute_acl_20261020",
+      "bytes": 516,
+      "blob_sha1": "b85ef90257d8b4e2a792ada79c78a4045d42674e",
+      "body_sha256": "d3704509eebdf1c751d26178ae64a29d6508ec5103180bec77cb38f75c095e0c",
+      "trimmed_sha256": "b81f72e40873940da79d344b1d7ad3962118c19c734620da00e28d5e1be01952",
+      "no_full_line_comment_whitespace_sha256": "bd67981770b73f77bc803ad5a3ae028b65a6f83a1583f6d86f90a9a785bf2532"
+    },
+    {
+      "version": "20261021024321",
+      "name": "public_website_leads_20261020",
+      "bytes": 4323,
+      "blob_sha1": "faff9a8567a417e264d7bb5521247fca21b6f7c5",
+      "body_sha256": "4860bcc7a6ec7ac21e83fdc3525ad3cc07a5ce11ef7a770ca917245e485120ea",
+      "trimmed_sha256": "a996f2a5313443649cc2b3558796d0f32b1234431cd8c0a855f8eff8d536b248",
+      "no_full_line_comment_whitespace_sha256": "e02d09e684946273ad51567f50857f9b6c8650b8eb1bff4166c7a0e1f18d4c0a"
+    },
+    {
+      "version": "20261021024734",
+      "name": "revoke_anonymous_crm_access_20261020",
+      "bytes": 314,
+      "blob_sha1": "cf9ccc2034947b879189aaae603bb3cfd9b8e001",
+      "body_sha256": "94ce1cf78d4349b88f27c28a5b80aae165889e39032068386e1f7c516d4d997f",
+      "trimmed_sha256": "c10292315856ad0df35d7df46b82a9f7e1380f78bcbef8dc088d7bbd05b786ad",
+      "no_full_line_comment_whitespace_sha256": "b85ddcd7e32eff492c408d4c33a570081f09fab939f6b0560f2a4c3c6406beb7"
+    },
+    {
+      "version": "20261021032153",
+      "name": "gate_public_consignment_operational_access",
+      "bytes": 7668,
+      "blob_sha1": "9af251abf443787d0dc7a1d4caae8911651a826a",
+      "body_sha256": "88b83219fa59976f803fb08a5c7cc321536e7703fa0534335afe8f6c0155e760",
+      "trimmed_sha256": "2bf1c6bc153927bae0983c54d056e00bac0cb1cac2fc881c904ade064a3316b5",
+      "no_full_line_comment_whitespace_sha256": "22b2d6cfd9c3087f89cae5d0350bee541b21537431c50ebafdfc679f53e134c0"
+    },
+    {
+      "version": "20261021033218",
+      "name": "optimize_owner_deduction_rls_initplan",
+      "bytes": 411,
+      "blob_sha1": "5c4726413e42dd609ed6feacb1943c0fb47ffd9b",
+      "body_sha256": "90277198f9021546be0ebdd58ac6026e69812bd8ffa7fa5e8b7504e867aa824f",
+      "trimmed_sha256": "750dfec0e36d028a888dd8b0731f6ec0941245cc6e731eeeaafc3b95e6bef634",
+      "no_full_line_comment_whitespace_sha256": "26131effed649ccc997979ac910a479a5f4ebdbbc03675d8d28911257215c830"
+    },
+    {
+      "version": "20261021033609",
+      "name": "public_website_contact_consent_receipts",
+      "bytes": 5434,
+      "blob_sha1": "8ddd19fbfbda62b02624a31615898896ffecf3ea",
+      "body_sha256": "93df87bb81e31ac85d3ef76b5e877dc83fe5ef3d8489be21f319d9ce2a26b6e4",
+      "trimmed_sha256": "3de9137fe38edd3099faa9e4e9b59739e77746744a3f3a40839667ab7d71163c",
+      "no_full_line_comment_whitespace_sha256": "86ddfd992d2168ae76e9aa3dbc81c2638c228e5e2a9c2c5dc8cffbedc6259799"
+    },
+    {
+      "version": "20261021162358",
+      "name": "block_incompatible_checkout_contracts",
+      "bytes": 4231,
+      "blob_sha1": "44a9d7e25ef2eb924d95d3f497da90f5b2d073ab",
+      "body_sha256": "2214429435f48dd74fd05e001283d105275ab258bff51ed9ad1ba5b2e1a0ced6",
+      "trimmed_sha256": "2a6c021c70c626109ae5cec95e31bdd7c790c270c3a36d735729f8eacd6f3ef7",
+      "no_full_line_comment_whitespace_sha256": "89b2fa8129453bda9dc22b8a10934e0e20dae249375d862f37cfca6a4ce5665e"
+    },
+    {
+      "version": "20261021195335",
+      "name": "index_critical_tenant_relationships",
+      "bytes": 803,
+      "blob_sha1": "a9a442b2c0976ef46df9190e4d4663048c78ca4f",
+      "body_sha256": "6c366850d68e46b12d43b31c21a8bcfcd02a17c9e8abbccc30141a4ef7b48187",
+      "trimmed_sha256": "9e60b54bcfc00a2266e9de1fb818bbb7f70411abfdd274509176b83917da679c",
+      "no_full_line_comment_whitespace_sha256": "595b834884d8b151952aed5472dd25dbed126ab5b6633a2e4dfe4edee8addfd6"
+    },
+    {
+      "version": "20261029034349",
+      "name": "allow_trial_to_paid_wompi_activation",
+      "bytes": 12032,
+      "blob_sha1": "15d4aa1618376686b77b3228a2d05bd0887e7fe2",
+      "body_sha256": "728907e07e0f5dbe0413b4f3dec1db4d95f2703565a29ca7220e6a4965778cb4",
+      "trimmed_sha256": "4d767afd2e6b1831f18d0cac27dee2d60b4eacb9ec5fc10be7e72bffdbf03aa4",
+      "no_full_line_comment_whitespace_sha256": "a7616587d1ed1d25ff81c83ff459727739a54f5deb5508dc032d252c258355a7"
+    },
+    {
+      "version": "20261029034410",
+      "name": "reconcile_verified_sandbox_trial_payment",
+      "bytes": 7227,
+      "blob_sha1": "405193ac5610aa4bb8c9a155cff516742c8fb5c9",
+      "body_sha256": "c5af8e40e0d5fb140b12e0fb5f77de5de7d75f7ad469d8b4dbe5b0d4483b0d82",
+      "trimmed_sha256": "53df647be6aaf925063d6013c3e06b0f815ebc150c5e2446766af6ee73a0b09e",
+      "no_full_line_comment_whitespace_sha256": "12aa9c3a148346d2c63cad0c224d2ea0712f1c0615ada7d135e129290c023262"
+    },
+    {
+      "version": "20261029050050",
+      "name": "repair_financial_portal_select_rls",
+      "bytes": 3010,
+      "blob_sha1": "ee09d19d30429423b972d45bcf32d8a21d682ef5",
+      "body_sha256": "0cb707a107d29624be6394db2ced005de471828fc623209d51be802f146c7f5d",
+      "trimmed_sha256": "0cb707a107d29624be6394db2ced005de471828fc623209d51be802f146c7f5d",
+      "no_full_line_comment_whitespace_sha256": "4e1eb795335a9b5f052bc8e8e8fce6d0a67565f80897218c72968faa2b638fb6"
+    },
+    {
+      "version": "20261029053907",
+      "name": "linked_person_signed_lease_private_pdf",
+      "bytes": 2519,
+      "blob_sha1": "6bd4582f45fe90f191c8a58869b5eea9cfd47e6f",
+      "body_sha256": "931e34f2bc900ff15d31a744e566e2f91bba3ed0f9885f3c4e56533fc304ae7b",
+      "trimmed_sha256": "d76db49e607e00800db27e1f1f820fefc12a1014caa0742936f9fbe55cac06ac",
+      "no_full_line_comment_whitespace_sha256": "bada5e2b4d2f45fe625dd3ac918707742989cd2420658c9ed0cca5eeb57c4314"
+    },
+    {
+      "version": "20261029065403",
+      "name": "rental_draft_correction_and_duplicates",
+      "bytes": 9828,
+      "blob_sha1": "f72ebff1098ac1a1ef8ec33b9000a33bd2da84a1",
+      "body_sha256": "8952d6db889a8494c01739cb778f8a4bfad2c0f36875443943d0ce835c002580",
+      "trimmed_sha256": "1c456efda031c967e3f67b33b6addeeaedf190aa9d79de6625ee144db6168e8e",
+      "no_full_line_comment_whitespace_sha256": "bba0578ed9daf60a1ca1ee277d16ea0b1015706243f0acea68d0f59d8a5d2bd3"
+    },
+    {
+      "version": "20261029070436",
+      "name": "audited_contact_correction_and_unlinked_removal",
+      "bytes": 6831,
+      "blob_sha1": "f48a092df0903c334fc32c8e1d47d1cf0811d98c",
+      "body_sha256": "be16bf3e178ab61cd8ac13429ec9356b7f261091521c99f9eaa81d03b2ab0eac",
+      "trimmed_sha256": "be16bf3e178ab61cd8ac13429ec9356b7f261091521c99f9eaa81d03b2ab0eac",
+      "no_full_line_comment_whitespace_sha256": "81d729de556c264fe8a310f5a9f61b741bf913fe8af65ac758f4fc4917445671"
+    },
+    {
+      "version": "20261029073612",
+      "name": "active_lease_rectification_with_signed_evidence",
+      "bytes": 11087,
+      "blob_sha1": "b75495e43fde0cfd304e01f7327850fa4618470b",
+      "body_sha256": "7ce037def638a619d73a8cbf37391ca7a9cb4bf943d331b12f428da6045dc24f",
+      "trimmed_sha256": "d56d56096b1fa8348e75749cf0ca980783d179af26a010db4e93e9e2f45dfe40",
+      "no_full_line_comment_whitespace_sha256": "7fcfc7dd0305b4acd05e6f56012a69dfaff3f1f3b52ce11286eff7b02c6888b4"
+    },
+    {
+      "version": "20261029171601",
+      "name": "revoke_disabled_trial_authorization_rpc",
+      "bytes": 491,
+      "blob_sha1": "444d52f7bbbad6db43d90c790f60dd627a582ae6",
+      "body_sha256": "f23b6148617d334f34b29298ac26afe61607ad3aa38246dc355d8365cdb50dbf",
+      "trimmed_sha256": "f23b6148617d334f34b29298ac26afe61607ad3aa38246dc355d8365cdb50dbf",
+      "no_full_line_comment_whitespace_sha256": "0f64f1492414fc4ec4784e887840e270798bb6c6b06b87d6eb0e68e54b8aa701"
+    },
+    {
+      "version": "20261029212907",
+      "name": "remaining_foreign_key_covering_indexes",
+      "bytes": 2177,
+      "blob_sha1": "71785872624bcaea579fd42e71a0a4d46cb920d7",
+      "body_sha256": "1659247c56ad027db384fb4448b4242d1b1534ee429ff0ecf51d22b6f897204a",
+      "trimmed_sha256": "b825a0a54611f0297853381becd3e644a01945eed3dae27d4549dff12fcd3daf",
+      "no_full_line_comment_whitespace_sha256": "313cb32035b6d761b05b1f5d51bbbb305738b90b70be0c73df7aada46d526c73"
+    },
+    {
+      "version": "20261031013710",
+      "name": "verified_email_invitation_claims",
+      "bytes": 2900,
+      "blob_sha1": "a8b97bec6024f2daf5b51816266c431cd43f8708",
+      "body_sha256": "01d20f30e8d47755db98a65dbb804649b25d3592e53e852f35931a99d929c590",
+      "trimmed_sha256": "06fedc4b056e28e16f8a724f3df4bb33a78396cd4a2fcfef204b3b9800e530d6",
+      "no_full_line_comment_whitespace_sha256": "2cd169765ad41302acf21604e37436c1a3891e6b068078fe7ad76d58011db427"
+    },
+    {
+      "version": "20261031032350",
+      "name": "restrict_organization_commercial_updates",
+      "bytes": 2882,
+      "blob_sha1": "dbbf1539036c30322b6d7005832ce5b27249dfac",
+      "body_sha256": "35cf26fad52cd093bc245b9bf6939ee7966a81663669cebf83d0e3b1d4d41b62",
+      "trimmed_sha256": "47489d5ec5c5194628585956810cc785f68adc2f64ae8563516d04d417cd1b9a",
+      "no_full_line_comment_whitespace_sha256": "6a6c9a9ffd75850f922e9043ef3f0fa840711deae335d0d2c35d280919fa69cb"
+    }
+  ]
+}
