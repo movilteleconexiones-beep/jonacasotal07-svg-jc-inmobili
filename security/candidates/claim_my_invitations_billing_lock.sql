@@ -92,6 +92,6 @@ BEGIN
        AND status='PENDING';
   END LOOP;
 END;
-$function$
+$function$;
 
 COMMIT;
