@@ -110,6 +110,17 @@ grep -q 'maintenance anon CRUD blocked: RLS policy semantic baseline changed' "$
   { echo 'ERROR: symmetric policy drift changed ACL'; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests USING (is_platform_admin() OR jco_private.is_internal_staff(organization_id)) WITH CHECK (is_platform_admin() OR jco_private.is_internal_staff(organization_id))"
 
+# The RESTRICTIVE policy is equally security-critical: widening both clauses
+# must be rejected, not just a change to the PERMISSIVE policy.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY jco_commercial_access ON public.maintenance_requests USING (true) WITH CHECK (true)"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: restrictive RLS symmetric widening accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: RLS policy semantic baseline changed' "$log"
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','SELECT')")" == t ]] ||
+  { echo 'ERROR: restrictive policy drift changed ACL'; exit 1; }
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY jco_commercial_access ON public.maintenance_requests USING (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id))) WITH CHECK (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)))"
+
 # RLS must remain enabled: an unexpected table-level disable must fail
 # before the candidate can revoke privileges or claim a safe deployment.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests DISABLE ROW LEVEL SECURITY"
