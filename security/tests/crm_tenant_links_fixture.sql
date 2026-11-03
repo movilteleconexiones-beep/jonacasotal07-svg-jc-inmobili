@@ -7,7 +7,6 @@ BEGIN
 END $r$;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO authenticated;
-CREATE SCHEMA private;
 CREATE TABLE public.organizations (id uuid PRIMARY KEY);
 CREATE TABLE public.contacts (
  id uuid PRIMARY KEY,
@@ -30,14 +29,6 @@ CREATE TABLE public.property_consignments (
  lead_id uuid REFERENCES public.leads(id),
  property_id uuid REFERENCES public.properties(id)
 );
-CREATE TABLE private.website_contact_consents (
- contact_id uuid PRIMARY KEY REFERENCES public.contacts(id) ON DELETE CASCADE,
- organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
- policy_url text NOT NULL
-);
-ALTER TABLE private.website_contact_consents ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON SCHEMA private FROM PUBLIC,authenticated;
-REVOKE ALL ON private.website_contact_consents FROM PUBLIC,authenticated;
 INSERT INTO public.organizations VALUES
  ('11111111-1111-4111-8111-111111111111'),
  ('22222222-2222-4222-8222-222222222222');
