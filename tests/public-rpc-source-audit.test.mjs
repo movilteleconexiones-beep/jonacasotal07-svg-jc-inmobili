@@ -77,7 +77,7 @@ test('all four public RPCs fail the control audit when their tenant isolation gu
       // The source uses SQL, not a regex: remove the literal tenant guard.
       const actual=/jco_private\.operational_access\s*\(\s*o\.id\s*\)/i;
       assert.match(sql,actual,'fixture must contain tenant guard for '+rpc);
-      return sql.replace(actual,'true');
+      return sql.replace(/jco_private\.operational_access\s*\(\s*o\.id\s*\)/gi,'true');
     };
     const result=inspectPublicRpcBodies(snapshot,modified);
     const row=result.rows.find(x=>x.rpc===rpc);
