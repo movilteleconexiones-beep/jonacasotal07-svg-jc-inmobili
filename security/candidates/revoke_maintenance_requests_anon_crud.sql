@@ -38,6 +38,16 @@ BEGIN
   THEN
     RAISE EXCEPTION 'maintenance anon CRUD blocked: RLS policy contract changed';
   END IF;
+  -- Each observed policy has identical USING and WITH CHECK expressions.
+  -- Reject asymmetric drift before touching grants; full semantic baselining
+  -- of both expressions remains a separate pre-deployment requirement.
+  IF EXISTS (
+    SELECT 1 FROM pg_policy p WHERE p.polrelid=v_oid
+      AND pg_get_expr(p.polqual,p.polrelid)
+          IS DISTINCT FROM pg_get_expr(p.polwithcheck,p.polrelid)
+  ) THEN
+    RAISE EXCEPTION 'maintenance anon CRUD blocked: asymmetric RLS policy expressions';
+  END IF;
   -- A PUBLIC grant would survive REVOKE FROM anon; never claim success then.
   IF EXISTS (
     SELECT 1 FROM pg_class c
