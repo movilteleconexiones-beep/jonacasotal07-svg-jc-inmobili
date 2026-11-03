@@ -13,7 +13,7 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 // GitHub's required check and Railway checkSuites must still be configured
 // separately. A successful CI run is not the same thing as release approval.
 test('main push and PR to main run the same full validation job', () => {
-  const triggers = workflow.match(/^on:\n([\s\S]*?)(?=^[^\s#]|\s*$)/m)?.[1] ?? '';
+  const triggers = workflow.split(/^concurrency:\s*$/m)[0];
   assert.match(triggers, /^  pull_request:\s*\n    branches: \[main\]/m);
   assert.match(triggers, /^  push:\s*\n    branches: \[main\]/m);
   assert.match(triggers, /^  workflow_dispatch:\s*$/m);
