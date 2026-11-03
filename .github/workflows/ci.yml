@@ -675,6 +675,32 @@ jobs:
       - name: Contact registration single-flight and uncertain retry prevention
         run: node --test tests/contact-create-single-flight.test.mjs
 
+      - name: Duplicate CRM contact identity across independent sessions (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          db=jco_contact_identity_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/contacts_tenant_identity_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/contacts_tenant_identity_preflight.sql
+          # An existing duplicate must prevent any DDL, not be silently merged.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/contacts_tenant_identity_unique.sql > "$RUNNER_TEMP/jco-contact-identity-preflight.log" 2>&1; then
+            echo 'ERROR: duplicate contact identity did not fail the preflight'; exit 1
+          fi
+          grep -q 'NO-GO: duplicate tenant/email/full-name contacts' "$RUNNER_TEMP/jco-contact-identity-preflight.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "DELETE FROM public.contacts WHERE email ILIKE 'duplicate@example.test'"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/contacts_tenant_identity_unique.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/contacts_tenant_identity_assertions.sql
+          bash security/tests/contacts_tenant_identity_concurrency.sh "$db"
+
       - name: Prevent duplicate apartment contracts and audit rental draft correction
         env:
           PGPASSWORD: postgres
