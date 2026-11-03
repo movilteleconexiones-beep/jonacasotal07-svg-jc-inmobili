@@ -183,3 +183,20 @@ test('Storage 409 recovery only succeeds for already linked private metadata in 
   assert.match(block,/No se pudo confirmar el vínculo/);
   assert.match(block,/solicita revisión al administrador/);
 });
+
+
+test('signed PDF links from a previous agency cannot open after tenant switch',()=>{
+  assert.match(evidence,/const evidenceScope = organizationId \+ ':' \+ deductionId \+ ':' \+ userId/);
+  assert.match(evidence,/currentEvidenceScope\.current = evidenceScope/);
+  const start=evidence.indexOf('async function openEvidence(');
+  const end=evidence.indexOf('if (!canRead) return <span',start);
+  assert.ok(start>=0 && end>start);
+  const body=evidence.slice(start,end);
+  assert.match(body,/const requestedScope = currentEvidenceScope\.current/);
+  const signed=body.indexOf('await supabase.storage.from(');
+  const stale=body.indexOf('if (currentEvidenceScope.current !== requestedScope) return;',signed);
+  const open=body.indexOf('window.open(',stale);
+  assert.ok(signed>=0 && stale>signed && open>stale,
+    'a delayed signed URL must be discarded before opening a private document');
+  assert.match(body,/catch \{\s*if \(currentEvidenceScope\.current !== requestedScope\) return;/);
+});
