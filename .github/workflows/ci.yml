@@ -913,6 +913,12 @@ jobs:
         run: node --import tsx --test tests/rental-multi-owner-property.test.mjs
       - name: Owner deduction pure accounting tests
         run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
+      - name: Private deduction PDF Storage-vs-documents integrity (read-only SQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          bash security/tests/owner_deduction_storage_audit.sh
+
       - name: Owner deduction invoice and payment PDF security tests
         run: node --import tsx --test tests/owner-deduction-pdf-evidence.test.mjs
       - name: Audited owner reconciliation update and reversal UI security tests
