@@ -927,7 +927,7 @@ jobs:
             status=$?
             trap - EXIT
             psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
-            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated" || status=1
+            # Roles are shared with prior databases in this CI job. Only drop this database.
             exit "$status"
           }
           trap cleanup EXIT
