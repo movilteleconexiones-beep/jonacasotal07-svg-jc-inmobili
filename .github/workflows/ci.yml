@@ -417,6 +417,27 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_staff_seats_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_cross_person_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_signed_lease_private_pdf_assertions.sql
+          # #104 - Exact portal policy-expression comparison, including tenant
+          # links/status gates, not merely named policy existence.
+          pinned_policy=security/checks/finance_20261029_portal_policy_fingerprints.sql
+          policy_report="$RUNNER_TEMP/jco-financial-portal-rls.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -At -F '|' -f "$pinned_policy" > "$policy_report"
+          test "$(wc -l < "$policy_report" | tr -d ' ')" = 3
+          if grep -v '[|]OK$' "$policy_report"; then
+            echo 'Personal financial portal policy drift'; exit 1
+          fi
+          # Negative: broaden an owner statement policy without renaming it.
+          # Only mutate the disposable PostgreSQL CI database.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -c "ALTER POLICY owner_statement_financial_view ON public.owner_statements USING (true)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -At -F '|' -f "$pinned_policy" > "$policy_report"
+          grep -Fx 'owner_statements.owner_statement_financial_view|POLICY_BODY_DRIFT' "$policy_report"
+          # Restore from the reviewed migration, then assert exact match again.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261029070000_repair_financial_portal_select_rls.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -At -F '|' -f "$pinned_policy" > "$policy_report"
+          test "$(wc -l < "$policy_report" | tr -d ' ')" = 3
+          if grep -v '[|]OK$' "$policy_report"; then
+            echo 'Personal policy fixture not safely restored'; exit 1
+          fi
       - name: Private inventory RLS guard (two organizations + global SuperAdmin)
         env:
           PGPASSWORD: postgres
