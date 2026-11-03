@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { FileText, Paperclip, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { validateSignedLeasePdf } from '../../core/signed-lease-pdf';
+import { isExistingStorageObjectError } from '../../core/storage-existing-object';
 import {
   DEDUCTION_PROOF_BUCKET, deductionProofKind, deductionProofPrefix,
   type DeductionProofDocument, type DeductionProofKind,
@@ -46,8 +47,32 @@ export async function uploadDeductionEvidence(args: {
         contentType: 'application/pdf',
         cacheControl: '0',
       });
-    if (uploadError) return 'No se pudo confirmar la carga de ' + LABELS[args.kind] + ': ' + uploadError.message +
-      '. Si el archivo ya existe, consulta los soportes antes de intentar una nueva carga.';
+    if (uploadError) {
+      if (args.uploadId && isExistingStorageObjectError(uploadError)) {
+        // A timeout can occur AFTER both the object and its documents row
+        // committed. On an exact retry, a 409 is expected. Recover only when
+        // the private metadata row exists in this tenant for this deduction
+        // and the identical storage path; never fabricate a successful upload.
+        const {data:existing,error:checkError} = await supabase.from('documents')
+          .select('id')
+          .eq('organization_id', args.organizationId)
+          .eq('entity_type', 'GENERAL')
+          .eq('entity_id', args.deductionId)
+          .eq('document_type', 'INVOICE')
+          .eq('storage_bucket', DEDUCTION_PROOF_BUCKET)
+          .eq('storage_path', path)
+          .eq('uploaded_by', args.userId)
+          .maybeSingle();
+        if (!checkError && existing?.id) return null;
+        // If the file exists but no matching document is readable, fail
+        // closed: it may be orphaned or the lookup may lack permission.
+        // Do NOT delete, overwrite or insert a second metadata row here.
+        return 'El archivo privado ya existe, pero no se confirmó su vínculo con esta deducción. ' +
+          'Actualiza la lista de soportes y solicita revisión al administrador; no vuelvas a cargarlo.';
+      }
+      return 'No se pudo confirmar la carga de ' + LABELS[args.kind] + ': ' + uploadError.message +
+        '. Si el archivo ya existe, consulta los soportes antes de intentar una nueva carga.';
+    }
 
     const { error: metadataError } = await supabase.from('documents').insert({
       organization_id: args.organizationId,
