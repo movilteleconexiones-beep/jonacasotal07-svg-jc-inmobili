@@ -524,6 +524,531 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          # Reconcile concrete catalog objects from the five separate 12-Oct
+          # finance files, not just the names in migration metadata.
+          contract=security/checks/finance_20261012_live_catalog.sql
+          report="$RUNNER_TEMP/finance-20261012-catalog.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$contract" > "$report"
+          test "$(wc -l < "$report" | tr -d ' ')" = 46
+          if grep -v '[|]OK
+      - name: Future Supabase public table RLS and explicit API grants compatibility
+        run: node --test tests/supabase-future-public-api-grants.test.mjs
+      - name: Disabled free-trial RPC execution grants (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_disabled_trial_rpc_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_disabled_trial_rpc_test -f security/tests/disabled_trial_rpc_acl_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_disabled_trial_rpc_test -f supabase/migrations/20261029171601_revoke_disabled_trial_authorization_rpc.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_disabled_trial_rpc_test -f supabase/migrations/20261029171601_revoke_disabled_trial_authorization_rpc.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_disabled_trial_rpc_test -f security/tests/disabled_trial_rpc_acl_assertions.sql
+      - name: Supabase configuration regression tests
+        run: node --test tests/supabase-config.test.mjs
+      - name: Platform admin access regression tests
+        run: node --test tests/platform-admin-access.test.mjs
+      - name: Wompi signature verification regression tests
+        run: node --import tsx --test tests/wompi-event-verification.test.mjs
+      - name: Private Storage metadata inventory consistency and drift protection
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_storage_inventory_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_storage_inventory_test -c "CREATE SCHEMA storage; CREATE TABLE storage.buckets(id text PRIMARY KEY,name text NOT NULL,public boolean NOT NULL,updated_at timestamptz); CREATE TABLE storage.objects(id uuid PRIMARY KEY,bucket_id text NOT NULL REFERENCES storage.buckets(id),name text NOT NULL,version text,updated_at timestamptz,metadata jsonb)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_storage_inventory_test -c "INSERT INTO storage.buckets VALUES ('organization-documents','organization-documents',false,now()),('jco-inventory-private','jco-inventory-private',false,now()); INSERT INTO storage.objects VALUES ('10000000-0000-0000-0000-000000000001','organization-documents','signed/mock-lease.pdf','v1',now(),'{\"size\":220}'),('10000000-0000-0000-0000-000000000002','jco-inventory-private','apt/fixture.png','v2',now(),'{\"size\":100}')"
+          node --test tests/inmojco-storage-inventory.test.mjs
+      - name: Encrypted INMOJCO database and private Storage offline backup verification
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_format_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_format_test -c "CREATE TABLE backup_fixture(id bigint PRIMARY KEY, document_name text NOT NULL)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_format_test -c "INSERT INTO backup_fixture VALUES (1, 'fictitious contract')"
+          # Use version 17 tools from the local ephemeral PostgreSQL CI service.
+          # Runner-default pg_dump/pg_restore may have an older major version.
+          db_container="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n 1)"
+          test -n "$db_container"
+          mkdir -p "$RUNNER_TEMP/inmojco-pg17-client"
+          for tool in pg_dump pg_restore psql; do
+            printf '#!/bin/sh\nexec docker exec -i %s %s "$@"\n' "$db_container" "$tool" > "$RUNNER_TEMP/inmojco-pg17-client/$tool"
+            chmod 700 "$RUNNER_TEMP/inmojco-pg17-client/$tool"
+          done
+          # A separate, disposable source and empty target demonstrate a real
+          # PostgreSQL restoration. All records are fabricated; never connect
+          # this CI step to Supabase or a production database.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_drill_source"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_drill_restored"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_drill_source -c "CREATE TABLE fixture_organizations(id text PRIMARY KEY, label text NOT NULL); CREATE TABLE fixture_documents(doc_ref text PRIMARY KEY, organization_id text NOT NULL REFERENCES fixture_organizations(id), amount numeric(12,0) NOT NULL, filename text NOT NULL); CREATE INDEX fixture_documents_amount_idx ON fixture_documents(amount); ALTER TABLE fixture_documents ENABLE ROW LEVEL SECURITY; CREATE POLICY fixture_docs_visible ON fixture_documents FOR SELECT USING (true)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_drill_source -c "INSERT INTO fixture_organizations VALUES ('org-a','Inmobiliaria ficticia A'),('org-b','Inmobiliaria ficticia B'); INSERT INTO fixture_documents VALUES ('DOC-A','org-a',1300000,'contrato-ficticio-A.pdf'),('DOC-B','org-b',1700000,'contrato-ficticio-B.pdf')"
+          PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-offline-backup.test.mjs tests/inmojco-backup-isolated-restore.test.mjs
+          PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-backup-preflight.test.mjs
+      - name: Wompi private-key transaction reconciliation tests
+        run: node --import tsx --test tests/wompi-transaction-lookup.test.mjs
+      - name: Wompi webhook handler regression tests
+        run: node --import tsx --test tests/wompi-webhook-handler.test.mjs
+      - name: Supabase payment store regression tests
+        run: node --import tsx --test tests/supabase-payment-store.test.mjs
+      - name: Payment migration static safety checks
+        run: node --test tests/payment-migration-gates.test.mjs
+      - name: Platform-only billing access regression
+        run: node --test tests/platform-billing-access-review.test.mjs
+      - name: Wompi release readiness preflight checks
+        run: node --test tests/wompi-release-readiness.test.mjs
+      - name: Commercial launch GO-NO-GO safety gates
+        run: node --test tests/release-readiness-gates.test.mjs
+      - name: Owner deduction administrator approval regression
+        run: node --test tests/owner-deduction-admin-approval.test.mjs
+      - name: Wompi private runtime readiness regression
+        run: node --test tests/wompi-runtime-readiness.test.mjs
+      - name: Wompi HTTP endpoint tests
+        run: node --import tsx --test tests/wompi-express-router.test.mjs
+      - name: JCO tax policy and approved prices tests
+        run: node --import tsx --test tests/jco-pricing-tax-policy.test.mjs
+      - name: Trusted Wompi sandbox quote tests
+        run: node --import tsx --test tests/wompi-sandbox-order-quote.test.mjs
+      - name: Wompi server-only order draft tests
+        run: node --import tsx --test tests/wompi-order-draft.test.mjs
+      - name: Wompi authorization preflight regression tests
+        run: node --import tsx --test tests/wompi-authorized-order-draft.test.mjs
+      - name: Trusted Wompi order authorization resolver tests
+        run: node --import tsx --test tests/wompi-order-authorization-resolver.test.mjs
+      - name: Billing permission contract tests
+        run: node --import tsx --test tests/wompi-billing-permission.test.mjs
+      - name: Atomic sandbox order SQL safety checks
+        run: node --test tests/wompi-atomic-order-sql.test.mjs
+      - name: Billing revocation concurrency release-gate checks
+        run: node --test tests/wompi-billing-revocation-contract.test.mjs
+      - name: Existing property operation and rental price edit safety
+        run: node --test tests/property-edit-existing-operation.test.mjs
+
+      - name: Property consignment validation tests
+        run: node --import tsx --test tests/property-consignment.test.mjs
+      - name: Verified checkout and webhook tests
+        run: node --import tsx --test tests/billing-edge-handler.test.mjs
+      - name: Sandbox payment labels cannot imply real sales
+        run: node --import tsx --test tests/wompi-sandbox-commercial-separation.test.mjs
+      - name: Wompi Edge gateway JWT and signed webhook safety
+        run: node --import tsx --test tests/wompi-edge-gateway-auth.test.mjs
+      - name: PostgREST explicit deal joins and accurate count regression tests
+        run: node --test tests/deals-postgrest-ambiguous-joins.test.mjs
+      - name: Deal editing and audited deletion UI checks
+        run: node --test tests/deals-edit-safe-delete.test.mjs
+      - name: Deal date validation and stage persistence regression tests
+        run: node --import tsx --test tests/deals-edit-persistence-regression.test.mjs
+      - name: API role table grant hardening and RLS preservation SQL tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_api_grants_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_api_grants_test -f security/tests/api_role_table_grants_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_api_grants_test -f supabase/migrations/20261012235500_restrict_excessive_api_role_table_grants.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_api_grants_test -f security/tests/api_role_table_grants_assertions.sql
+      - name: Deal administrator deletion SQL integrity and tenant isolation tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_deals_cleanup_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_deals_cleanup_test -f security/tests/deals_safe_delete_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_deals_cleanup_test -f supabase/migrations/20261012193000_deals_safe_admin_deletion.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_deals_cleanup_test -f security/tests/deals_safe_delete_assertions.sql
+      - name: Spanish localization of labels, states and navigation
+        run: node --import tsx --test tests/spanish-portal-localization.test.mjs
+      - name: Customer menu and monthly overview tests
+        run: node --import tsx --test tests/tenant-menu-overview.test.mjs
+      - name: Dashboard home card navigation and permission tests
+        run: node --import tsx --test tests/dashboard-card-navigation.test.mjs
+      - name: Colombian geography and catalog filter tests
+        run: node --import tsx --test tests/catalog-location.test.mjs
+      - name: Older official schema, owner trials and monthly overview
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_overview_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f security/tests/owner_overview_legacy_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010231042_compatible_licensing_records.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010231042_compatible_licensing_records.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261010231048_owner_trials_and_platform_overview.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f supabase/migrations/20261011000300_independent_owner_trial_entitlements.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_overview_test -f security/tests/owner_overview_assertions.sql
+      - name: Commercial activation SQL security and atomicity
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_activation_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_activation_test -f security/tests/billing_activation_assertions.sql
+          bash security/tests/billing_activation_concurrency.sh
+      - name: Trial-to-paid Wompi billing SQL regression
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_trial_to_paid_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -c "ALTER TABLE public.subscriptions ADD COLUMN started_at timestamptz; ALTER TABLE public.subscriptions ADD COLUMN trial_ends_at timestamptz; ALTER TABLE public.license_acceptances ADD COLUMN accepted_at timestamptz NOT NULL DEFAULT now();"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029034500_reconcile_verified_sandbox_trial_payment.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f security/tests/billing_trial_to_paid_assertions.sql
+      - name: Property consignment SQL security and atomicity tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_consignment_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261010212630_property_consignment_intake.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261021033500_gate_public_consignment_operational_access.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_consignment_assertions.sql
+          bash security/tests/property_consignment_concurrency.sh
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261010214633_fix_property_portal_rls_recursion.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_assertions.sql
+      - name: Consignment private photo safety checks
+        run: node --test tests/consignment-photo-upload.test.mjs
+      - name: Private inventory photos security checks
+        run: node --test tests/private-inventory-photos.test.mjs
+      - name: Billing plan entitlement safety tests
+        run: node --test tests/billing-plan-entitlements.test.mjs
+      - name: Dual Panel and SuperAdmin navigation regression
+        run: node --test tests/dual-panel-navigation-regression.test.mjs
+      - name: Consignment photo retry regression
+        run: node --test tests/consignment-photo-retry.test.mjs
+      - name: Deals form prerequisites and tenant write safety
+        run: node --test tests/deals-prerequisites.test.mjs
+      - name: Financial UI audited RPC release gate
+        run: node --test tests/finance-rpc-release-gate.test.mjs
+      - name: Commission edit, cancellation and paid-approval UI regression
+        run: node --test tests/commission-correction-approval.test.mjs
+      - name: Commission tenant and beneficiary insert security tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_commission_links_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_links_test -f security/tests/commission_correction_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_links_test -f supabase/migrations/20261013040000_commission_safe_edit_and_paid_review.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_links_test -f supabase/migrations/20261013044000_commission_tenant_insert_validation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_links_test -f security/tests/commission_tenant_insert_assertions.sql
+      - name: Commission financial correction and approval SQL isolation tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_commission_corrections_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_corrections_test -f security/tests/commission_correction_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_corrections_test -f supabase/migrations/20261013040000_commission_safe_edit_and_paid_review.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_corrections_test -f security/tests/commission_correction_assertions.sql
+      - name: Commission prerequisites and safe paid status
+        run: node --test tests/commissions-prerequisites.test.mjs
+      - name: Active member and organization owner UI safety
+        run: node --test tests/member-status-safety.test.mjs
+      - name: Report reliability and tenant scoping tests
+        run: node --test tests/reports-reliability.test.mjs
+      - name: CRM prerequisites and tenant isolation checks
+        run: node --test tests/crm-prerequisites.test.mjs
+      - name: Commercial form lifecycle and tenant isolation regression
+        run: node --test tests/commercial-workflow-reliability.test.mjs
+      - name: Central Wompi merchant and non-resale policy checks
+        run: node --import tsx --test tests/central-wompi-merchant-nonresale.test.mjs
+      - name: Per-tenant logo, palette and website regression
+        run: node --import tsx --test tests/tenant-logo-palette-site.test.mjs
+      - name: Tenant rent editing and paid payment safety UI regression
+        run: node --test tests/safe-tenant-rent-edit.test.mjs
+      - name: Future rent amendment and unpaid correction financial SQL regression
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_rent_edit_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/owner_reconciliation_undo_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f supabase/migrations/20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_edit_test -f security/tests/safe_tenant_rent_edits_assertions.sql
+      - name: Owner payout admin review decision regression
+        run: node --test tests/owner-payout-admin-review.test.mjs
+      - name: Owner payout audit review requests regression
+        run: node --test tests/owner-payout-review-requests.test.mjs
+      - name: Owner payout private evidence upload regression
+        run: node --test tests/owner-payout-evidence-upload.test.mjs
+      - name: Owner payout ledger authorization regression
+        run: node --test tests/owner-payout-ledger.test.mjs
+      - name: Active signed lease correction and rent-reference warnings
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_active_contract_correction_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_active_contract_correction_test -f security/tests/active_lease_correction_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_active_contract_correction_test -f supabase/migrations/20261029081500_active_lease_rectification_with_signed_evidence.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_active_contract_correction_test -f security/tests/active_lease_correction_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_active_contract_correction_test -Atqc "SELECT COUNT(*) FROM public.audit_log" | grep -qx 0
+          node --test tests/active-lease-canon-alert.test.mjs
+
+      - name: Audited contact edit and unlinked-only deletion SQL security
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_contact_audit_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_contact_audit_test -f security/tests/audited_contact_edit_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_contact_audit_test -f supabase/migrations/20261029100000_audited_contact_correction_and_unlinked_removal.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_contact_audit_test -f security/tests/audited_contact_edit_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_contact_audit_test -Atqc "SELECT COUNT(*) FROM public.audit_log" | grep -qx 0
+
+      - name: Contact correction and linked-record deletion prevention UI
+        run: node --test tests/audited-contact-edit-delete.test.mjs
+
+      - name: Prevent duplicate apartment contracts and audit rental draft correction
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_rental_draft_safety_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f security/tests/rental_draft_duplicates_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f supabase/migrations/20261029090000_rental_draft_correction_and_duplicates.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f security/tests/rental_draft_duplicates_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -Atqc "SELECT count(*) FROM public.audit_log" | grep -qx 0
+
+      - name: Rental draft edit and signed PDF duplicate UI regression
+        run: node --test tests/rental-draft-duplicate-control.test.mjs
+
+      - name: Owner payout PostgreSQL end-to-end transaction and access audit
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_payout_e2e_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f security/tests/owner_payout_end_to_end_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f supabase/migrations/20261014030000_owner_payout_ledger.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f security/tests/owner_payout_end_to_end_assertions.sql
+          # Every test action is inside a rolled-back transaction.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -Atqc "SELECT COUNT(*) FROM public.owner_statement_payouts" | grep -qx 0
+
+      - name: Owner statement issuance authorization regression
+        run: node --test tests/owner-statement-issuance.test.mjs
+      - name: Tenant rent and owner liquidation balances regression
+        run: node --import tsx --test tests/rent-owner-financial-balances.test.mjs
+      - name: Historical rent period vs signed canon and addenda audit
+        run: node --import tsx --test tests/rent-period-canon-audit.test.mjs
+      - name: Monthly commercial split and single-KPI export regression
+        run: node --import tsx --test tests/report-commercial-split.test.mjs
+      - name: Monthly accounting XLSX and internal receipt tests
+        run: node --import tsx --test tests/accounting-monthly-excel-receipts.test.mjs
+      - name: Safe tenant, user and role retirement regression
+        run: node --test tests/safe-retirement-tenant-users-roles.test.mjs
+      - name: Commission percentage consistency and exact COP preview
+        run: node --import tsx --test tests/commission-percentage-consistency.test.mjs
+      - name: Owner percentage commission SQL security and accuracy
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_commission_pct_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f supabase/migrations/20261013020000_owner_statement_percentage_commission.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_commission_pct_test -f security/tests/commission_percentage_owner_statements_assertions.sql
+      - name: Owner commission percentage correction regression
+        run: node --test tests/owner-commission-percentage-correction.test.mjs
+      - name: Owner report one-click reconciliation regression
+        run: node --test tests/owner-report-reconcile-action.test.mjs
+      - name: Owner net preview reporting regression
+        run: node --test tests/owner-net-preview.test.mjs
+      - name: Owner draft reconciliation warning regression
+        run: node --test tests/owner-stale-reconciliation-warning.test.mjs
+      - name: Owner deduction reporting and recovery regression
+        run: node --test tests/owner-deduction-report-recovery.test.mjs
+      - name: Owner deduction administrator void regression
+        run: node --test tests/owner-deduction-admin-void.test.mjs
+      - name: Effective commission dashboard and Excel regression
+        run: node --test tests/effective-commission-reports.test.mjs
+      - name: Archived commission recover-as-new regression
+        run: node --test tests/archived-commission-replacement.test.mjs
+      - name: Finance lookup index regression
+        run: node --test tests/finance-lookup-indexes.test.mjs
+      - name: Commission duplicate guard regression
+        run: node --test tests/commission-duplicate-guard.test.mjs
+      - name: Paid commission administrative action selector regression
+        run: node --test tests/commission-paid-admin-actions.test.mjs
+      - name: Paid commission dropdown status regression
+        run: node --test tests/paid-commission-dropdown.test.mjs
+      - name: Direct administrator commission payment regression
+        run: node --test tests/commission-admin-direct-payment.test.mjs
+      - name: Commission visible confirmation regression
+        run: node --test tests/commission-visible-confirmation.test.mjs
+      - name: Commission archive and restoration regression
+        run: node --test tests/commission-restore.test.mjs
+      - name: Commission administrator cancel selector regression
+        run: node --test tests/commission-cancel-status-option.test.mjs
+      - name: Commission closed review archival regression
+        run: node --test tests/commission-review-archive.test.mjs
+      - name: Commission archive and history regression
+        run: node --test tests/commission-archive.test.mjs
+      - name: Commission administrator no-disbursement review tests
+        run: node --test tests/commission-admin-review-approval.test.mjs
+      - name: Commission admin void action regression
+        run: node --test tests/commission-admin-void.test.mjs
+      - name: Receipt retry idempotency regression
+        run: node --test tests/rent-receipt-idempotency.test.mjs
+      - name: Private rent receipt image and PDF validation
+        run: node --import tsx --test tests/rent-receipt-private-evidence.test.mjs
+      - name: Financial form and permission gate regressions
+        run: node --test tests/rent-finance-entry-regression.test.mjs
+      - name: Signed lease PDF private storage and tenant isolation tests
+        run: node --import tsx --test tests/signed-lease-pdf.test.mjs
+      - name: Separate Clients from six-step rental workflow regression
+        run: node --test tests/separate-clients-rental-intake-workflow.test.mjs
+
+      - name: Guided rental intake and approval regression tests
+        run: node --test tests/rental-intake-guided-flow.test.mjs
+      - name: Rental and owner agency lifecycle UI regression
+        run: node --test tests/rental-agency-lifecycle.test.mjs
+      - name: Approved lease activation and synchronized property status
+        run: node --test tests/rental-property-state-sync.test.mjs
+      - name: Owner and dwelling one-click selection guided intake tests
+        run: node --test tests/rental-intake-owner-click-selection.test.mjs
+      - name: Multi-property owner autofill and rental availability regression
+        run: node --import tsx --test tests/rental-multi-owner-property.test.mjs
+      - name: Owner deduction pure accounting tests
+        run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
+      - name: Private deduction PDF Storage-vs-documents integrity (read-only SQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          bash security/tests/owner_deduction_storage_audit.sh
+
+      - name: Owner deduction invoice and payment PDF security tests
+        run: node --import tsx --test tests/owner-deduction-pdf-evidence.test.mjs
+      - name: Audited owner reconciliation update and reversal UI security tests
+        run: node --test tests/owner-reconciliation-undo-ui.test.mjs
+      - name: Audited owner reconciliation and safe reversal SQL regression
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_reconcile_undo_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f security/tests/owner_reconciliation_undo_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f supabase/migrations/20261012203000_owner_reconciliation_audit_and_safe_undo.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_reconcile_undo_test -f security/tests/owner_reconciliation_undo_assertions.sql
+      - name: Rent receipts and owner statements SQL checks
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_rent_entries_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_assertions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_entries_test -f security/tests/rent_entry_isolation_assertions.sql
+          bash security/tests/rent_receipts_concurrency.sh
+      - name: Guided rental activation SQL and duplicate occupied-property tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_guided_rent_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rent_entry_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012140000_reconcile_owner_deductions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_intake_admin_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f supabase/migrations/20261012180000_guided_rental_intake_admin_approval.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_intake_admin_assertions.sql
+      - name: Rental exit and owner retirement SQL release gate
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_guided_rent_test -f security/tests/rental_owner_exit_assertions.sql
+      - name: Itemized owner ledger SQL and concurrency checks
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_owner_deductions_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f supabase/migrations/20261012120000_owner_statement_deduction_lines.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f supabase/migrations/20261021040000_optimize_owner_deduction_rls_initplan.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_deductions_test -f security/tests/owner_deductions_assertions.sql
+          bash security/tests/owner_deductions_concurrency.sh
+      - name: Production build
+        run: npm run build
+      - name: Cross-tenant RLS regression tests (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jco_security_test -f security/tests/member_roles_rls_test.sql
+
+      - name: Payment SQL integration tests (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_payment_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f security/tests/payment_staging_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0026_payment_orders_wompi_sandbox.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0027_process_verified_payment_events.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f supabase/migrations/0028_verified_payment_subscription_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_payment_test -f security/tests/payment_staging_assertions.sql
+
+      - name: Approved COP pricing SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_pricing_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f security/tests/pricing_catalog_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f supabase/migrations/0029_approved_jco_cop_pricing_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_pricing_test -f security/tests/pricing_catalog_assertions.sql
+
+      - name: Billing permission SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_permission_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f security/tests/billing_permission_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f supabase/migrations/0030_billing_manage_permission_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f supabase/migrations/0030_billing_manage_permission_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_permission_test -f security/tests/billing_permission_assertions.sql
+
+      - name: Tenant billing authorization RPC tests (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_billing_auth_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f supabase/migrations/0031_tenant_billing_authorization_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_billing_auth_test -f security/tests/billing_auth_assertions.sql
+
+      - name: Atomic sandbox order SQL integration (isolated PostgreSQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_atomic_order_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f security/tests/atomic_order_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f supabase/migrations/0032_atomic_sandbox_payment_order_draft.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_atomic_order_test -f security/tests/atomic_order_assertions.sql
+ "$report"; then
+            echo 'Finance schema contract failed after five migration files'; exit 1
+          fi
+          # Intentional negative: a disabled audit trigger MUST be detected.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c \
+            'ALTER TABLE public.owner_statement_deductions DISABLE TRIGGER aaa_owner_deductions_server_timestamps'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$contract" > "$report"
+          grep -Fx 'trigger|owner_statement_deductions.aaa_owner_deductions_server_timestamps|TRIGGER_DISABLED' "$report"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c \
+            'ALTER TABLE public.owner_statement_deductions ENABLE TRIGGER aaa_owner_deductions_server_timestamps'
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f security/tests/rent_receipt_supports_assertions.sql
       - name: Future Supabase public table RLS and explicit API grants compatibility
         run: node --test tests/supabase-future-public-api-grants.test.mjs
