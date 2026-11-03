@@ -88,10 +88,12 @@ export async function uploadDeductionEvidence(args: {
       uploaded_by: args.userId,
     });
     if (metadataError) {
-      const { error: cleanupError } = await supabase.storage.from(DEDUCTION_PROOF_BUCKET)
-        .remove([path]);
-      return 'No se pudo vincular ' + LABELS[args.kind] + ': ' + metadataError.message +
-        (cleanupError ? '. Revisa con el administrador el archivo privado pendiente.' : '');
+      // The metadata insert may have committed even when the response reports
+      // a network failure. Deleting Storage here would destroy a valid link.
+      // Keep the scoped object for exact-path recovery or admin reconciliation.
+      return 'No se pudo confirmar el vínculo de ' + LABELS[args.kind] + ': ' +
+        metadataError.message + '. Actualiza los soportes antes de reintentar; ' +
+        'si no aparece, solicita revisión al administrador.';
     }
     return null;
   } catch {
