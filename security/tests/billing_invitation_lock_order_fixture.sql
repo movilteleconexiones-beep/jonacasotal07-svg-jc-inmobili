@@ -1,5 +1,6 @@
 -- PostgreSQL 17 disposable data ONLY. Installs after billing_order_serialization_fixture
 -- and billing_authorization_serialization (both isolated tests).
+ALTER TABLE public.organization_members ALTER COLUMN id SET DEFAULT pg_catalog.gen_random_uuid();
 ALTER TABLE public.organization_members
  ADD COLUMN joined_at timestamptz,
  ADD CONSTRAINT invitation_fixture_member_unique UNIQUE(organization_id,user_id);
