@@ -97,7 +97,7 @@ for privilege in SELECT INSERT UPDATE DELETE; do
     echo "ERROR: PUBLIC $privilege grant bypass was ignored"; exit 1
   fi
   grep -q 'maintenance anon CRUD blocked: PUBLIC privileges remain' "$log"
-  [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('PUBLIC','public.maintenance_requests','$privilege')")" == t ]] ||
+  [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT EXISTS (SELECT 1 FROM pg_class c, LATERAL aclexplode(c.relacl) acl WHERE c.oid='public.maintenance_requests'::regclass AND acl.grantee=0 AND acl.privilege_type='$privilege')")" == t ]] ||
     { echo "ERROR: denied candidate modified PUBLIC $privilege ACL"; exit 1; }
   psql -X -v ON_ERROR_STOP=1 -d "$db" -c "REVOKE $privilege ON public.maintenance_requests FROM PUBLIC"
 done
