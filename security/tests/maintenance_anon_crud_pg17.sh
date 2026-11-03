@@ -78,6 +78,16 @@ grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
   { echo 'ERROR: policy-drift denial mutated ACL'; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "DROP POLICY maintenance_public_future ON public.maintenance_requests"
 
+# Names and roles alone are insufficient: a relaxed WITH CHECK must fail closed.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests WITH CHECK (true)"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: asymmetric RLS policy accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: asymmetric RLS policy expressions' "$log"
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','SELECT')")" == t ]] ||
+  { echo 'ERROR: asymmetric RLS denial mutated ACL'; exit 1; }
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER POLICY maintenance_org_access ON public.maintenance_requests WITH CHECK (organization_id=current_setting('app.tenant_id',true)::uuid)"
+
 # RLS must remain enabled: an unexpected table-level disable must fail
 # before the candidate can revoke privileges or claim a safe deployment.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests DISABLE ROW LEVEL SECURITY"
