@@ -26,6 +26,9 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
   const loadVersion = useRef(0);
   // Synchronous lock: a second submit can fire before React renders busy state.
   const createInFlight = useRef(false);
+  // One synchronous lock for CREATE, CORRECT and DELETE: React state updates
+  // are asynchronous, so a fast second click must not submit a second RPC.
+  const contactMutationInFlight = useRef(false);
 
   const organizationId = activeMembership?.organization.id;
   const currentOrganization = useRef(organizationId);
@@ -67,7 +70,7 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
 
   async function createContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (createInFlight.current || contactBusy) return;
+    if (createInFlight.current || contactMutationInFlight.current || contactBusy) return;
     if (!organizationId || !user || !can(PERMISSIONS.CLIENTS_CREATE)) {
       setMessage('No tienes permiso para crear contactos.');
       return;
@@ -111,6 +114,7 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     };
 
     createInFlight.current = true;
+    contactMutationInFlight.current = true;
     setContactBusy(true);
     try {
       if (email) {
@@ -155,13 +159,14 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       }
     } finally {
       createInFlight.current = false;
+      contactMutationInFlight.current = false;
       setContactBusy(false);
     }
   }
 
   async function correctContact(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if(!editContact||!organizationId||!adminMayCorrect||contactBusy)return;
+    if(!editContact||!organizationId||!adminMayCorrect||contactMutationInFlight.current||contactBusy)return;
     const data=new FormData(event.currentTarget);
     const reason=String(data.get('reason')||'').trim();
     const fields={
@@ -185,7 +190,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       }
     }
     if(!window.confirm('¿Guardar correcciones en esta ficha? Quedarán en auditoría con el motivo.'))return;
-    if(currentOrganization.current!==organizationId)return;
+    if(currentOrganization.current!==organizationId||contactMutationInFlight.current)return;
+    contactMutationInFlight.current=true;
     setContactBusy(true);
     try{
       const {error}=await supabase.rpc('admin_correct_client_contact',{
@@ -202,16 +208,20 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     }catch{
       if(currentOrganization.current===organizationId)
         setMessage('No se confirmó la corrección. Actualiza antes de reintentar.');
-    }finally{setContactBusy(false);}
+    }finally{
+      contactMutationInFlight.current=false;
+      setContactBusy(false);
+    }
   }
 
   async function deleteUnlinkedContact(contact:ContactRow){
-    if(!organizationId||!adminMayCorrect||contactBusy)return;
+    if(!organizationId||!adminMayCorrect||contactMutationInFlight.current||contactBusy)return;
     const reason=window.prompt('Motivo de eliminación (12-500 caracteres). Si existe cualquier contrato, negocio o vínculo, se bloqueará.')?.trim();
     if(!reason)return;
     if(reason.length<12||reason.length>500){setMessage('Motivo obligatorio de 12-500 caracteres.');return;}
     if(!window.confirm('¿Eliminar esta ficha SOLO si nunca tuvo operaciones vinculadas? No se eliminará ningún contrato, abono ni prospecto.'))return;
-    if(currentOrganization.current!==organizationId)return;
+    if(currentOrganization.current!==organizationId||contactMutationInFlight.current)return;
+    contactMutationInFlight.current=true;
     setContactBusy(true);
     try{
       const {error}=await supabase.rpc('admin_delete_unlinked_contact',{
@@ -225,7 +235,10 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     }catch{
       if(currentOrganization.current===organizationId)
         setMessage('No se confirmó la eliminación. Consulta los registros antes de reintentar.');
-    }finally{setContactBusy(false);}
+    }finally{
+      contactMutationInFlight.current=false;
+      setContactBusy(false);
+    }
   }
 
   return (
