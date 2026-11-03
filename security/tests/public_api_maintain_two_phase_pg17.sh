@@ -65,12 +65,15 @@ psql -X -v ON_ERROR_STOP=1 -d "$db" -c 'SET ROLE supabase_admin' -c 'CREATE TABL
 # table still gets unsafe default MAINTAIN grants from its separate role.
 [[ "$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.interim_supabase_admin','MAINTAIN')")" == t ]]
 [[ "$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.after_postgres','MAINTAIN')")" == f ]]
-# Phase 2 removes future supabase_admin grants, not prior interim grants.
+# Phase 2 removes BOTH supabase_admin future defaults and grants on its
+# own interim tables, even when they were created after the first phase.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c 'SET ROLE supabase_admin' -f "$phase2"
+[[ "$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.interim_supabase_admin','MAINTAIN')")" == f ]]
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c 'SET ROLE supabase_admin' -f "$phase2"
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c 'SET ROLE supabase_admin' -c 'CREATE TABLE public.after_supabase_admin (id int)'
 [[ "$(psql -X -At -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.after_supabase_admin','MAINTAIN')")" == f ]]
-# Final postgres sweep is mandatory: clear objects created between phases.
+# Final postgres sweep is mandatory: clear postgres-owned objects created
+# between phases; phase 2 independently cleaned supabase_admin-owned objects.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$phase1"
 psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
 DO $verify$
