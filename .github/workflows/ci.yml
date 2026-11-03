@@ -195,6 +195,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: bash security/tests/public_api_maintain_two_phase_pg17.sh
+      - name: Maintenance anonymous CRUD reduction contract (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/maintenance_anon_crud_pg17.sh
       - name: Historic finance migration drift fail-closed gate (#104)
         run: |
           node --test tests/finance-migration-gate.test.mjs
