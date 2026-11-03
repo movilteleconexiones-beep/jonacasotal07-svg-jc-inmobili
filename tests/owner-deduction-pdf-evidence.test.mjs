@@ -124,7 +124,9 @@ test('a timeout with the same PDF selection retains a stable scoped UUID and nev
   // A retry must target the SAME private Storage key, so the previous object
   // cannot be silently overwritten or duplicated under a newly random path.
   assert.match(evidence,/\(args\.uploadId \?\? crypto\.randomUUID\(\)\) \+ '\.pdf'/);
-  assert.match(evidence,/if \(uploadError\) return [\s\S]*?consulta los soportes antes de intentar una nueva carga/);
+  assert.match(evidence,/if \(uploadError\) \{/);
+  assert.match(evidence,/return 'No se pudo confirmar la carga de ' \+ LABELS\[args\.kind\]/);
+  assert.match(evidence,/consulta los soportes antes de intentar una nueva carga/);
   assert.match(evidence,/upsert: false/);
   const uploadBlock=evidence.slice(evidence.indexOf('async function uploadDeductionEvidence'),
     evidence.indexOf('export function OwnerDeductionEvidence'));
