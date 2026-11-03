@@ -917,6 +917,26 @@ jobs:
           # Bounded lock wait + idempotent retry + 16 synthetic orders across two tenants.
           bash security/tests/billing_lock_timeout_and_load.sh
 
+      - name: Invitation claim row locks versus global billing authorization (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_invitation_lock_order_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_order_serialization_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/billing_authorization_serialization.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_invitation_lock_order_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/claim_my_invitations_live_baseline.sql
+          bash security/tests/billing_invitation_lock_order_concurrency.sh "$db"
       - name: Role editor advisory lock order vs authorization trigger (PostgreSQL 17)
         env:
           PGPASSWORD: postgres
