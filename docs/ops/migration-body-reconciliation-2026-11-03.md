@@ -136,6 +136,19 @@ dos fases por propietario. Ninguno de los candidatos se ejecutó sobre
 producción, y las ocho diferencias históricas siguen sin equivalencia
 completa probada.
 
+**Integridad adicional detectada (03-nov):** el FK original de
+`maintenance_requests.property_id` referencia solamente `properties.id`,
+sin verificar que ambas filas tengan el mismo `organization_id`.
+En producción hay cero solicitudes registradas y cero vínculos
+cruzados, pero las escrituras futuras quedarían expuestas a un vínculo
+incorrecto aun con RLS. Se preparó la candidata
+[`security/candidates/maintenance_requests_property_tenant_fk.sql`](../../security/candidates/maintenance_requests_property_tenant_fk.sql)
+para agregar una FK compuesta y conservar `ON DELETE CASCADE`, junto a
+un fixture PostgreSQL 17 de dos organizaciones que comprueba la
+vulnerabilidad original y su rechazo después de la candidata.
+[Análisis, preflight y plan de staging](maintenance-property-tenant-integrity-2026-11-03.md).
+**No desplegada ni autorizada para producción.**
+
 ### Preflight de consignación y recursión (03-nov, solo lectura)
 
 Se consultó el SQL **auténticamente registrado** en Supabase para las
