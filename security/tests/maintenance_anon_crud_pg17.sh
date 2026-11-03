@@ -78,6 +78,17 @@ grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
   { echo 'ERROR: policy-drift denial mutated ACL'; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "DROP POLICY maintenance_public_future ON public.maintenance_requests"
 
+# RLS must remain enabled: an unexpected table-level disable must fail
+# before the candidate can revoke privileges or claim a safe deployment.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests DISABLE ROW LEVEL SECURITY"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: disabled RLS was accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: expected postgres-owned RLS table' "$log"
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','SELECT')")" == t ]] ||
+  { echo 'ERROR: disabled-RLS denial mutated ACL'; exit 1; }
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests ENABLE ROW LEVEL SECURITY"
+
 # Fail closed if PUBLIC inherits table rights; anon REVOKE alone is insufficient.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "GRANT SELECT ON public.maintenance_requests TO PUBLIC"
 if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
