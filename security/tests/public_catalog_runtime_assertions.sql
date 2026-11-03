@@ -36,12 +36,12 @@ BEGIN
    RAISE EXCEPTION 'Featured listing ordering failed';
  END IF;
  IF EXISTS (
-   SELECT 1 FROM jsonb_array_elements(listing) p
-   WHERE p->>'id' IN (
+   SELECT 1 FROM jsonb_array_elements(listing) AS item(value)
+   WHERE item.value->>'id' IN (
      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
      'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
      'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
-   ) OR p ? 'owner_phone' OR p ? 'internal_notes'
+   ) OR item.value ? 'owner_phone' OR item.value ? 'internal_notes'
  ) OR catalog::text LIKE '%PRIVATE-OWNER-PHONE%'
    OR catalog::text LIKE '%PRIVATE-INTERNAL-NOTES%' THEN
    RAISE EXCEPTION 'Anonymous listing exposed another tenant, unavailable item or private field';
