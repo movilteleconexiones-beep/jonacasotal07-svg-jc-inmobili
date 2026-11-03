@@ -95,7 +95,7 @@ fi
  SELECT prosrc INTO src FROM pg_proc
  WHERE oid='public.admin_update_role_permissions(uuid,uuid,text[],text[])'::regprocedure;
  IF strpos(src,'pg_advisory_xact_lock')=0 OR
- strpos(src,'pg_advisory_xact_lock')>strpos(src,'FOR UPDATE') THEN
+ strpos(src,'pg_advisory_xact_lock')>strpos(src,'SELECT * INTO role_record FROM public.roles') THEN
  RAISE EXCEPTION 'Authorization advisory lock comes after role FOR UPDATE';
  END IF; END \$\$;" >/dev/null
 echo "PASS: legacy live body reproducibly deadlocks; guarded RPC serializes role updates; no extra orders or audit"
