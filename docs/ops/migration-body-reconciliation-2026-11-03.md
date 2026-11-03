@@ -122,6 +122,45 @@ tablas, FK y políticas. No ejecutar la revocación ni `migration repair`
 en producción mientras #104/#203 sigan abiertos. Esta prueba cierra
 **presencia de objetos base, no equivalencia histórica completa**.
 
+### Preflight de consignación y recursión (03-nov, solo lectura)
+
+Se consultó el SQL **auténticamente registrado** en Supabase para las
+versiones `20261010232928 / property_consignment_intake` y
+`20261010232930 / fix_property_portal_rls_recursion`.
+Ambas contienen **bloques `DO` de preflight y `NOTIFY` de recarga**,
+no las definiciones de objetos presentes en los dos archivos DDL locales.
+No intentar conciliarlos con renombrado automático ni repetir el DDL.
+
+La consulta de catálogo segura y reproducible
+[`security/checks/consignment_portal_20261010_preflight_live_catalog.sql`](../../security/checks/consignment_portal_20261010_preflight_live_catalog.sql)
+se ejecutó mediante SELECT en producción. Resultado: **16/16
+comprobaciones `OK`, ninguna `DRIFT`**:
+
+- **12 comprobaciones de consignación:** tablas `private.property_intake_sites`
+  y `public.property_consignments` presentes; sus RLS activas; tres RPC
+  presentes; sin SELECT anónimo a la tabla privada ni INSERT autenticado
+  a la cola; RPC anónima de envío concedida; política de lectura de la
+  cola y los seis índices originales presentes.
+- **4 comprobaciones de recursión:** helper
+  `private.can_read_portal_property(uuid,uuid)` presente; política de
+  propiedades lo referencia; política de propietarios vinculados presente;
+  `anon` sin permiso EXECUTE sobre el helper.
+
+Se agregó prueba offline
+`tests/historic-consignment-portal-preflight.test.mjs` para asegurar que
+este preflight se mantiene como SELECT, conserva los 16 identificadores
+y rechaza cambios mutadores u omisiones; añadida al job CI existente
+`Authentic applied SQL body fingerprints, all migrations NO-GO (#104)`.
+
+**Interpretación limitada:** el resultado 16/16 demuestra que el
+preflight histórico seguiría encontrando los objetos esperados con las
+restricciones listadas; **no** acredita equivalencia byte a byte entre
+el cuerpo SQL aplicado y los archivos DDL locales, ni prueba que el
+helper elimine toda recursión, ni la seguridad E2E con sesiones reales.
+Los dos casos **siguen clasificados como diferencias sustantivas
+históricas** para #104. No ejecutar DDL, `db push` ni
+`migration repair` en producción por este resultado.
+
 ## Decisión y pasos seguros
 
 **Mantener #104 y #203 como NO-GO.** No ejecutar ni programar
