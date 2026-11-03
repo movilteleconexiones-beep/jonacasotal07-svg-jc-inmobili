@@ -178,6 +178,8 @@ test('Storage 409 recovery only succeeds for already linked private metadata in 
   assert.match(block,/return 'El archivo privado ya existe[\s\S]*?no vuelvas a cargarlo/);
   assert.match(block,/if \(uploadError\) \{/);
   assert.match(block,/upsert: false/);
-  assert.ok(block.indexOf('.remove([path])')>metadataInsert,
-    'only the original metadata-insert failure path may consider cleanup');
+  assert.doesNotMatch(block,/\.remove\(\[path\]\)/,
+    'an uncertain metadata insert must never delete a potentially linked private object');
+  assert.match(block,/No se pudo confirmar el vínculo/);
+  assert.match(block,/solicita revisión al administrador/);
 });
