@@ -14,7 +14,7 @@ const checks = [
   ['ci.passed', 'CI combinada aprobada'],
   // CI passing on a PR alone does not protect the deployable main branch.
   ['ci.main_branch_protected', 'Rama main protegida contra cambios sin revisión'],
-  ['ci.required_status_check_enforced', 'Check obligatorio Verify JCO application / validate en main'],
+  ['ci.required_status_check_enforced', 'Check obligatorio validate emitido por GitHub Actions en main'],
   ['deployment.railway_app_waits_for_ci', 'Railway aplicación espera CI aprobada antes de publicar'],
   ['deployment.railway_wompi_waits_for_ci', 'Railway Wompi espera CI aprobada antes de publicar'],
   ['database.applied_migration_bodies_reconciled', 'Diferencias históricas de SQL aplicadas y locales conciliadas'],
@@ -81,8 +81,13 @@ export function evaluateReleaseReadiness(evidence, {
     errors.push('La protección y comprobación obligatoria de main deben revisarse en las últimas 24 horas.');
   if (!recentTimestamp(e.deployment?.railway_ci_verified_at, now, 24))
     errors.push('El bloqueo de Railway por CI debe comprobarse en ambos servicios en las últimas 24 horas.');
-  if (e.ci?.required_check_name !== 'Verify JCO application / validate')
-    errors.push('El check obligatorio de main debe coincidir con Verify JCO application / validate.');
+  // Github REST check-runs returns the actual job context ('validate'),
+  // not the UI's combined workflow/job label ('Verify JCO application / validate').
+  // Also pin the check-run app: an identically named third-party status
+  // cannot attest the required first-party workflow.
+  if (e.ci?.required_check_name !== 'validate' ||
+      e.ci?.required_check_app_slug !== 'github-actions')
+    errors.push('El check obligatorio de main debe ser validate emitido por GitHub Actions.');
   if (!SHA256.test(e.database?.backup_sha256 ?? ''))
     errors.push('Falta la huella SHA-256 del archivo de respaldo privado.');
   if (!recentTimestamp(e.database?.backup_created_at, now, 24))
