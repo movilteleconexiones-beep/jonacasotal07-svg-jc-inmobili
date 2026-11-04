@@ -270,6 +270,41 @@ sin introducir un segundo camino de unión PostgREST.
 Estas defensas quedan como candidatas, no migraciones aplicadas ni
 autorización de `db push` / `migration repair`.
 
+### Origen de DDL de consignación: prueba de procedencia (03-nov, SELECT)
+
+La consulta reproducible de lectura
+[`security/checks/consignment_ddl_provenance_live_catalog.sql`](../../security/checks/consignment_ddl_provenance_live_catalog.sql)
+buscó **definiciones directas** `CREATE TABLE` y `CREATE FUNCTION`
+sobre cinco objetos históricos en los **99 cuerpos SQL registrados**
+en `supabase_migrations.schema_migrations`. Las cinco entidades
+**existen actualmente** en el catálogo de Supabase.
+
+| Objeto presente hoy | Coincidencias de DDL directo en el ledger |
+| --- | --- |
+| `private.property_intake_sites` | **0** sentencias `CREATE TABLE` directas |
+| `public.property_consignments` | **0** sentencias `CREATE TABLE` directas |
+| `private.can_read_portal_property` | 1: `20261015085250 / scope_external_owner_and_tenant_data` |
+| `public.get_public_property_intake_site` | 1: `20261021032153 / gate_public_consignment_operational_access` |
+| `public.submit_property_consignment` | 1: `20261021032153 / gate_public_consignment_operational_access` |
+
+**Implicación:** los dos `DO` de preflight aplicados el
+10-oct no justifican por sí mismos la creación de las dos tablas.
+El historial registrado tampoco muestra instrucciones directas
+`CREATE TABLE` para ellas. Las definiciones posteriores de funciones
+no demuestran su fuente original previa a la prueba de precondiciones.
+Esta observación **no demuestra** DDL manual: aún podrían existir
+instrucciones SQL dinámicas, otras rutas de aplicación o DDL no
+registrado. Se requiere identificar la procedencia original o
+reconstruirla en un staging íntegramente recuperable, sin cambiar
+el historial productivo a ciegas.
+
+El SELECT de procedencia está protegido por
+`tests/historic-consignment-ddl-provenance.test.mjs` y su ejecución
+offline en CI. Busca firmas directas y devuelve únicamente
+identificadores y versiones; **no** exporta cuerpos SQL, datos
+personales ni credenciales. Tampoco prueba equivalencia histórica de
+funciones o cuándo se instalaron por primera vez.
+
 ## Decisión y pasos seguros
 
 **Mantener #104 y #203 como NO-GO.** No ejecutar ni programar
