@@ -83,6 +83,7 @@ jobs:
         run: bash security/tests/consignment_local_ddl_replay_pg17.sh
       - name: Four public SECURITY DEFINER RPC source and tenant-guard audit (#104)
         run: |
+          node --test tests/public-definer-exposure-preflight.test.mjs
           node --test tests/public-rpc-source-audit.test.mjs
           node scripts/ops/public-rpc-source-audit.mjs --snapshot docs/ops/snapshots/public-rpc-catalog-2026-11-02.json
       - name: Public catalog real SQL runtime isolation (PostgreSQL 17 synthetic tenants)
