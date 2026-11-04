@@ -95,3 +95,19 @@ test('CLI fails closed for unrecognized flags, repeated ledger and positional ex
   assert.equal(valid.status,0,valid.stderr);
   assert.equal(JSON.parse(valid.stdout).migration_push_authorized,false);
 });
+
+test('matching ledger name cannot certify a colliding local migration version',()=>{
+  const result=buildMigrationLineage([
+    '20261013040000_first.sql',
+    '20261013040000_second.sql',
+  ],[{version:'20261013040000',name:'first'}]);
+  assert.equal(result.summary.duplicate_local_versions,1);
+  assert.deepEqual(result.version_collisions,[{
+    version:'20261013040000',
+    filenames:['20261013040000_first.sql','20261013040000_second.sql'],
+  }]);
+  assert.equal(result.results[0].classification,'exact-version-and-name');
+  assert.equal(result.results[1].classification,'unmatched-local-name');
+  assert.equal(result.sql_equivalence_verified,false);
+  assert.equal(result.migration_push_authorized,false);
+});
