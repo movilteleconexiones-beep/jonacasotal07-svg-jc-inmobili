@@ -85,6 +85,10 @@ export function inspectPublicRpcBodies(snapshot,readMigration){
 function main(args){
   if(args.some(v=>['--apply','--deploy','--repair','--revoke'].includes(v)))
     throw Error('Audit is read-only; DDL and API permission changes are forbidden');
+  // Reject unknown switches instead of silently accepting a requested operation.
+  const allowed=new Set(['--snapshot','--json']);
+  if(args.some((v,i)=>v.startsWith('--') && !allowed.has(v)))
+    throw Error('Unknown option; audit is read-only');
   const ix=args.indexOf('--snapshot');
   if(ix<0||!args[ix+1])throw Error('Usage: node public-rpc-source-audit.mjs --snapshot <catalog.json> [--json]');
   const catalog=JSON.parse(readFileSync(resolve(args[ix+1]),'utf8'));
