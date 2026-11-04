@@ -15,10 +15,10 @@ CREATE TABLE public.plan_features (
  enabled boolean NOT NULL,
  PRIMARY KEY(plan_id,feature_key)
 );
-INSERT INTO public.plans (id,code,billing_cycle,price,currency,max_users,max_properties,active)
-VALUES (1,'BASIC','MONTHLY',129900,'COP',5,200,true),
-       (2,'PRO','MONTHLY',299900,'COP',25,2000,true),
-       (3,'ENTERPRISE','CUSTOM',0,'USD',NULL,NULL,true);
+INSERT INTO public.plans (code,billing_cycle,price,currency,max_users,max_properties,active)
+VALUES ('BASIC','MONTHLY',129900,'COP',5,200,true),
+       ('PRO','MONTHLY',299900,'COP',25,2000,true),
+       ('ENTERPRISE','CUSTOM',0,'USD',NULL,NULL,true);
 INSERT INTO public.plan_features(plan_id,feature_key,enabled)
 SELECT p.id,'permission:synthetic_'||lpad(g.n::text,2,'0'),true
 FROM public.plans p CROSS JOIN generate_series(1,47) AS g(n)
