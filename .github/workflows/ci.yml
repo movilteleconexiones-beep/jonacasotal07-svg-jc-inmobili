@@ -175,8 +175,18 @@ jobs:
           if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql > "$RUNNER_TEMP/crm-fk-denied.log" 2>&1; then
             echo 'ERROR: proposed FK accepted already-crossed CRM links'; exit 1
           fi
-          grep -q 'NO-GO: leads reference contacts from another agency' "$RUNNER_TEMP/crm-fk-denied.log"
+          grep -q 'NO-GO: existing CRM cross-agency/contact links' "$RUNNER_TEMP/crm-fk-denied.log"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_cleanup.sql
+          # A second FK to contacts must fail BEFORE any replacement to prevent
+          # PostgREST PGRST201 ambiguity (and the legacy FK must remain).
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c             "ALTER TABLE public.leads ADD CONSTRAINT crm_duplicate_contact_fk FOREIGN KEY(contact_id) REFERENCES public.contacts(id)"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql > "$RUNNER_TEMP/crm-ambiguous-denied.log" 2>&1; then
+            echo 'ERROR: CRM candidate permitted ambiguous PostgREST path'; exit 1
+          fi
+          grep -q 'unexpected or parallel relationship' "$RUNNER_TEMP/crm-ambiguous-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c             "ALTER TABLE public.leads DROP CONSTRAINT crm_duplicate_contact_fk"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql
+          # Retry to prove idempotence, not just a successful one-shot change.
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_assertions.sql
       - name: Six live finance function body fingerprints vs historic SQL (#104)
