@@ -137,9 +137,15 @@ export function auditRepository(snapshot, migrationDirectory) {
 }
 
 function main(args) {
-  const at = args.indexOf('--snapshot');
-  if (at !== -1 && !args[at + 1]) throw Error('--snapshot requires a JSON path');
-  const snapshotPath = resolve(at === -1 ? DEFAULT_SNAPSHOT : args[at + 1]);
+  // Fail closed: a read-only audit must not silently accept deployment flags,
+  // extra paths, duplicate options or flags disguised as snapshot filenames.
+  const usage = 'Usage: node migration-body-fingerprint-audit.mjs [--snapshot <metadata-only JSON>]';
+  if (args.length !== 0 &&
+      (args.length !== 2 || args[0] !== '--snapshot' ||
+       !args[1] || args[1].startsWith('-'))) {
+    throw Error('Refusing unknown or mutation arguments. ' + usage);
+  }
+  const snapshotPath = resolve(args.length === 0 ? DEFAULT_SNAPSHOT : args[1]);
   const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
   const report = auditRepository(snapshot, resolve('supabase/migrations'));
   const s = report.summary;
