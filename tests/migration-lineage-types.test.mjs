@@ -27,3 +27,12 @@ test('valid migration metadata remains read-only and cannot authorize push', () 
   assert.equal(result.sql_equivalence_verified, false);
   assert.equal(result.migration_push_authorized, false);
 });
+
+test('case-variant SQL suffix cannot silently disappear from migration reconciliation', () => {
+  for (const filename of ['20261012070133_safe_migration.SQL', '20261012070133_safe_migration.Sql']) {
+    assert.throws(() => buildMigrationLineage([filename], valid), /Unexpected migration SQL extension case/);
+  }
+  const result = buildMigrationLineage(['README.md', '20261012070133_safe_migration.sql'], valid);
+  assert.equal(result.summary.local_files, 1);
+  assert.equal(result.migration_push_authorized, false);
+});
