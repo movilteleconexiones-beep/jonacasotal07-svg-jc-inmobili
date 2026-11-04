@@ -9,6 +9,9 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF;
 END $roles$;
+-- Match the active Supabase catalog digest namespace without contacting it.
+CREATE SCHEMA extensions;
+CREATE EXTENSION pgcrypto WITH SCHEMA extensions;
 CREATE SCHEMA auth;
 CREATE TABLE public.organizations(id uuid PRIMARY KEY);
 CREATE TABLE public.properties(id uuid PRIMARY KEY);
