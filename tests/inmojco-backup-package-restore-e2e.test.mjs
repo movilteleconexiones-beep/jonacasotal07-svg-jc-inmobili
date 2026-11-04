@@ -52,6 +52,20 @@ function query(db, expression) {
   return run.stdout.toString('utf8').trim();
 }
 
+// Verify effective tenant filtering as a NON-owner login role, before and
+// after restoration. A policy row existing in pg_catalog is insufficient.
+function visibleDocuments(database, organization) {
+  assert.ok(['org-a', 'org-b', 'org-missing'].includes(organization));
+  const scoped = [
+    'BEGIN',
+    'SET LOCAL ROLE jco_restore_fixture_reader',
+    "SET LOCAL app.organization_id = '" + organization + "'",
+    "SELECT coalesce(string_agg(doc_ref, ',' ORDER BY doc_ref),'') FROM public.fixture_documents",
+    'ROLLBACK',
+  ].join('; ') + ';';
+  return query(database, scoped);
+}
+
 function runCli(command, archive, extraction) {
   return spawnSync(process.execPath, [
     resolve('scripts/inmojco-backup.mjs'), command,
@@ -82,6 +96,12 @@ test('real PG17 dump and two private documents survive authenticated package, CL
   const expectedLedger = query(SOURCE,
     "SELECT string_agg(doc_ref || ':' || amount::text, ',' ORDER BY doc_ref) FROM fixture_documents");
   assert.equal(expectedLedger, 'DOC-A:1300000,DOC-B:1700000');
+  // The isolated fixture role is neither table owner nor SuperAdmin.
+  assert.equal(query(SOURCE,
+    "SELECT has_table_privilege('jco_restore_fixture_reader','public.fixture_documents','SELECT')"), 't');
+  assert.equal(visibleDocuments(SOURCE,'org-a'),'DOC-A');
+  assert.equal(visibleDocuments(SOURCE,'org-b'),'DOC-B');
+  assert.equal(visibleDocuments(SOURCE,'org-missing'),'');
 
   const dump = runPg('pg_dump', ['--dbname=' + SOURCE, '--format=custom']);
   assert.equal(dump.status, 0, 'Synthetic PostgreSQL 17 pg_dump failed');
@@ -179,7 +199,7 @@ test('real PG17 dump and two private documents survive authenticated package, CL
   targetCreated = true;
   const restored = runPg('pg_restore', [
     '--dbname=' + TARGET,
-    '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error',
+    '--no-owner', '--single-transaction', '--exit-on-error',
   ], await readFile(join(extraction,'database.dump')));
   assert.equal(restored.status, 0, 'Isolated PostgreSQL 17 restore failed');
   assert.equal(query(TARGET,
@@ -193,7 +213,14 @@ test('real PG17 dump and two private documents survive authenticated package, CL
     "SELECT count(*) FROM pg_policy WHERE polrelid='public.fixture_documents'::regclass"),'1');
   assert.equal(query(TARGET,
     "SELECT count(*) FROM pg_indexes WHERE tablename='fixture_documents' AND indexname='fixture_documents_amount_idx'"),'1');
+  assert.equal(query(TARGET,
+    "SELECT has_table_privilege('jco_restore_fixture_reader','public.fixture_documents','SELECT')"), 't');
+  assert.equal(visibleDocuments(TARGET,'org-a'),'DOC-A');
+  assert.equal(visibleDocuments(TARGET,'org-b'),'DOC-B');
+  assert.equal(visibleDocuments(TARGET,'org-missing'),'');
   assert.equal(query(SOURCE,
     "SELECT string_agg(doc_ref || ':' || amount::text, ',' ORDER BY doc_ref) FROM fixture_documents"),
     expectedLedger, 'Source changed during isolated restore');
+  assert.equal(visibleDocuments(SOURCE,'org-a'),'DOC-A');
+  assert.equal(visibleDocuments(SOURCE,'org-b'),'DOC-B');
 });
