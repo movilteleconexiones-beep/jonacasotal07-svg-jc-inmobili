@@ -30,6 +30,9 @@ function verifyReadOnlyContract(raw) {
   assert.match(source, /original_all_authenticated_policy_present/);
   assert.match(source, /AND idx\.indisvalid AND idx\.indisready/);
   assert.match(source, /original_index_definition_intact/);
+  assert.match(source, /extra\.polrelid=t\.oid AND extra\.polpermissive/);
+  assert.match(source, /extra\.polname<>t\.initial_policy/);
+  assert.match(source, /AND NOT unexpected_permissive_policy_present/);
   assert.match(source, /current_staff_guard_intact/);
   assert.match(source, /pol\.polcmd='\*' AND pol\.polpermissive/);
   assert.match(source, /pol\.polroles=ARRAY\['authenticated'::regrole::oid\]/);
@@ -113,6 +116,21 @@ test('0026 current policy and index guards reject a relaxed predicate or substit
   ];
   for (const modified of denied) {
     assert.notEqual(modified,sql, 'Negative fixture must actually change the source');
+    assert.throws(()=>verifyReadOnlyContract(modified));
+  }
+});
+
+test('0026 preflight rejects any extra permissive policy on a rental table',()=>{
+  const source = verifyReadOnlyContract(sql);
+  assert.match(source,/extra\.polrelid=t\.oid AND extra\.polpermissive/);
+  assert.match(source,/extra\.polname<>t\.initial_policy/);
+  assert.match(source,/AND NOT unexpected_permissive_policy_present/);
+  for (const modified of [
+    sql.replace('AND extra.polpermissive','AND NOT extra.polpermissive'),
+    sql.replace('extra.polname<>t.initial_policy','extra.polname=t.initial_policy'),
+    sql.replace('AND NOT unexpected_permissive_policy_present',''),
+  ]) {
+    assert.notEqual(modified,sql);
     assert.throws(()=>verifyReadOnlyContract(modified));
   }
 });
