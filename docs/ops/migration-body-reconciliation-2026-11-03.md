@@ -330,6 +330,33 @@ identificadores y versiones; **no** exporta cuerpos SQL, datos
 personales ni credenciales. Tampoco prueba equivalencia histórica de
 funciones o cuándo se instalaron por primera vez.
 
+### Recuperación de la forma real de las dos tablas de consignación (03-nov)
+
+Se añadió una referencia **de solo lectura** que permite detectar
+cambios en la estructura de `private.property_intake_sites` y
+`public.property_consignments`, dos tablas presentes cuyo `CREATE TABLE`
+directo no se localizó en las 99 sentencias aplicadas.
+
+[`security/checks/consignment_restore_shape_fingerprint.sql`](../../security/checks/consignment_restore_shape_fingerprint.sql)
+fija 6 SHA-256 por tabla (columnas/defaults, constraints, índices,
+políticas, triggers y ACL) más dueño/tipo/RLS. El SELECT en la
+base real devolvió **14/14 `OK`**, sin leer datos de clientes:
+`private.property_intake_sites` tiene 5 columnas, 6 constraints,
+2 índices, 0 políticas y 0 triggers; `public.property_consignments`
+tiene 15 columnas, 15 constraints, 9 índices, 2 políticas y
+0 triggers. Se verificaron también privilegios API.
+
+Un [test offline](../../tests/consignment-restore-shape-contract.test.mjs)
+en CI comprueba que el auditor **no lee datos ni ejecuta DDL/DML**,
+que las huellas están fijas y que se necesitan exactamente
+14 respuestas `OK` para aprobar una captura real.
+[Informe de recuperación y límites](consignment-recovery-shape-2026-11-03.md).
+
+**Importante:** la huella no reemplaza un `pg_dump`, backup
+restaurable, archivos Storage, ni establece el origen histórico de
+las tablas. Es evidencia de la estructura **actual**, no autorización
+para recrear objetos o reparar migraciones productivas.
+
 ## Decisión y pasos seguros
 
 **Mantener #104 y #203 como NO-GO.** No ejecutar ni programar
