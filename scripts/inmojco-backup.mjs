@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { preflightOfflineBackup, assertPathOutsideRepository } from './lib/inmojco-backup-preflight.mjs';
 import { readStorageInventory, verifyStorageCoverage } from './lib/inmojco-storage-inventory.mjs';
+import { validateBackupManifest } from './lib/inmojco-backup-manifest.mjs';
 import { FORMAT, deriveBackupKey, sealStream, sealBuffer, openEncrypted,
   openEncryptedBuffer } from './lib/inmojco-encrypted-backup.mjs';
 
@@ -100,9 +101,9 @@ async function readAndVerify(archive, passphrase, extractRoot) {
   const key = deriveBackupKey(passphrase, meta.salt);
   const manifest = JSON.parse((await openEncryptedBuffer(
     join(archive, 'manifest.enc'), key, meta.manifestSeal)).toString('utf8'));
-  if (manifest.format !== FORMAT || manifest.project !== PROJECT
-    || manifest.database?.file !== 'database.enc' || !Array.isArray(manifest.objects)
-    || !Array.isArray(manifest.buckets)) throw new Error('Invalid encrypted manifest');
+  // Authenticate identifiers, references, numbered objects, and coverage
+  // *before* creating any plaintext output directory or reading file bytes.
+  const manifestContract = validateBackupManifest(manifest, PROJECT);
   const files = new Set();
   let createdExtraction = false;
   try {
@@ -135,7 +136,8 @@ async function readAndVerify(archive, passphrase, extractRoot) {
       { flag: 'wx', mode: 0o600 });
   }
   return { files: manifest.objects.length, buckets: manifest.buckets.length,
-    databaseBytes: manifest.database.seal.bytes };
+    databaseBytes: manifest.database.seal.bytes,
+    metadataCoverageRecorded: manifestContract.coverageRecorded };
   } catch (error) {
     // Never leave partially decrypted contracts or SQL on disk on failed extract.
     // Only remove a folder that THIS invocation successfully created.
