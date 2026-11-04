@@ -19,7 +19,7 @@ test('tenant contact page registers a CRM prospect only after explicit consent',
  assert.match(app,/Consulta registrada correctamente/);
  assert.match(app,/quedó registrada en el CRM de/);
  assert.match(app,/No fue posible registrar la consulta/);
- assert.match(app,/!automaticContactEnabled && branding\.email/);
+ assert.match(app,/!automaticContactEnabled && contactFallbackEmail/);
  assert.match(app,/No se ha confirmado una cita|todavía no se ha confirmado una cita/);
 });
 
@@ -69,4 +69,30 @@ test('web intake keeps a private, tenant-scoped receipt of the accepted policy U
  assert.match(sql,/policy_url text NOT NULL/);
  assert.match(sql,/consented_at timestamptz NOT NULL DEFAULT now\(\)/);
  assert.match(sql,/INSERT INTO public\.leads/);
+});
+
+test('public intake never asks for PII without a configured destination',()=>{
+ const app=read('src/App.tsx');
+ const settings=read('src/modules/settings/SettingsModule.tsx');
+ assert.match(app,/const contactFallbackEmail = /);
+ assert.match(app,/tenantSlug && !automaticContactEnabled && !contactFallbackEmail/);
+ assert.match(app,/Contacto temporalmente no disponible/);
+ assert.match(app,/No solicitaremos tus datos hasta que exista un canal/);
+ assert.match(app,/href=\{\x60mailto:\$\{contactFallbackEmail\}/);
+ assert.match(app,/setContactError\('La inmobiliaria todavía no tiene un canal de contacto configurado/);
+ assert.match(settings,/const hasPublishedContactEmail = /);
+ assert.match(settings,/Configurar correo comercial/);
+ assert.match(settings,/id="correo-comercial"/);
+});
+
+test('CRM submit refuses rapid duplicate clicks and warns on uncertain response',()=>{
+ const app=read('src/App.tsx');
+ const handler=app.slice(app.indexOf('const handleContactSubmit = async'),app.indexOf('if (isSuperAdminRoute)'));
+ assert.match(handler,/contactSubmitInFlight\.current/);
+ assert.match(handler,/if \(contactBusy \|\| contactSubmitInFlight\.current\) return/);
+ assert.match(handler,/contactSubmitInFlight\.current = true;\s*setContactBusy\(true\)/);
+ assert.match(handler,/finally \{\s*contactSubmitInFlight\.current = false;/);
+ assert.match(handler,/Comprueba si llegó al CRM antes de volver a enviarla/);
+ assert.match(handler,/supabase\.rpc\('submit_public_website_lead'/);
+ assert.doesNotMatch(handler,/submit_public_website_lead_once/);
 });
