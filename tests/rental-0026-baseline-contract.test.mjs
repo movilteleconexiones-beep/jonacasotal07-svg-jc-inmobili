@@ -28,13 +28,13 @@ function verifyReadOnlyContract(raw) {
   assert.match(source, /a\.attnotnull=o\.original_not_null/);
   assert.match(source, /original_index_present_valid/);
   assert.match(source, /original_all_authenticated_policy_present/);
-  assert.match(source, /AND idx\\.indisvalid AND idx\\.indisready/);
+  assert.match(source, /AND idx\.indisvalid AND idx\.indisready/);
   assert.match(source, /original_index_definition_intact/);
   assert.match(source, /current_staff_guard_intact/);
-  assert.match(source, /pol\\.polcmd='\\*' AND pol\\.polpermissive/);
-  assert.match(source, /pol\\.polroles=ARRAY\\['authenticated'::regrole::oid\\]/);
-  assert.match(source, /pg_get_expr\\(pol\\.polqual,pol\\.polrelid\\)/);
-  assert.match(source, /pg_get_expr\\(pol\\.polwithcheck,pol\\.polrelid\\)/);
+  assert.match(source, /pol\.polcmd='\*' AND pol\.polpermissive/);
+  assert.match(source, /pol\.polroles=ARRAY\['authenticated'::regrole::oid\]/);
+  assert.match(source, /pg_get_expr\(pol\.polqual,pol\.polrelid\)/);
+  assert.match(source, /pg_get_expr\(pol\.polwithcheck,pol\.polrelid\)/);
   assert.match(source, /AND original_index_definition_intact AND current_staff_guard_intact/);
   const expectedGuard = '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))';
   assert.equal(source.split(expectedGuard).length - 1, 2,
