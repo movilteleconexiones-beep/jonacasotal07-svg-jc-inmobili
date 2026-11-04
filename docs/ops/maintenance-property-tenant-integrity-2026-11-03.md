@@ -33,16 +33,23 @@ crea, en **transacción única y con bloqueo de tiempo limitado**:
 `FOREIGN KEY (organization_id,property_id) REFERENCES
 public.properties(organization_id,id) ON DELETE CASCADE`
 
-La clave original de una columna se conserva inicialmente para reducir
-el riesgo de alterar dependencias; una eliminación posterior de esa
-redundancia requeriría revisión aparte. La nueva FK se añade como
-`NOT VALID` y se valida en la misma transacción, por lo que un dato
-existente que incumpla el aislamiento aborta toda la operación.
+**Corrección de diseño (03-nov):** la candidata **sustituye la clave
+foránea original manteniendo su nombre**
+`maintenance_requests_property_id_fkey`, en lugar de agregar
+una segunda FK a la misma tabla padre. Dos caminos de unión
+`maintenance_requests -> properties` causarían riesgo de
+ambigüedad en embeds de PostgREST (`PGRST201`), incluso si
+la integridad de los datos fuera correcta. El mismo nombre protege
+referencias explícitas en consultas existentes, pendiente de ensayo E2E.
+
+La FK se agrega como `NOT VALID` y se valida en la **misma transacción**
+que elimina la anterior; cualquier dato inválido aborta y deja intacta
+la definición original. No queda una relación duplicada.
 
 La candidata exige propietario legítimo `postgres`, RLS activo y
-`UNIQUE` compuesto existente, la FK original con cascada, inexistencia
-de vínculos cruzados/huérfanos, y contrato de FK compuesta esperada si
-ya se ejecutó antes. Conserva permisos SQL de roles autenticados y
+`UNIQUE` compuesto existente, la FK original con cascada, **una sola FK** hacia propiedades,
+inexistencia de vínculos cruzados/huérfanos y contrato compuesto esperado
+si ya se ejecutó antes. Conserva permisos SQL de roles autenticados y
 `service_role`, y se puede repetir. **No corrige MAINTAIN ni grants
 de CRUD anónimos**, tratados por candidatos distintos.
 
@@ -56,9 +63,11 @@ PostgreSQL 17 desechable: dos inmobiliarias y dos propiedades sintéticas.
   el FK antiguo solo comprueba `id` (la prueba hace rollback).
 - Introduce una relación incorrecta solo en la base descartable y
   confirma que el preflight aborta **sin dejar una FK parcial**.
-- Comprueba que una sesión no autorizada no instala el constraint.
+- Comprueba que una sesión no autorizada no modifica la FK existente.
+- Rechaza una FK adicional hacia `properties` sin dejar cambios parciales.
 - Aplica la candidata dos veces para verificar idempotencia.
-- Confirma que la FK rechaza el cruce incluso para el propietario SQL,
+- Confirma que queda **exactamente una FK**, bajo el nombre original,
+  y que se rechaza el cruce incluso para el propietario SQL,
   mantiene solicitudes válidas por agencia y respeta RLS.
 - Comprueba `service_role`, registros existentes y la cascada
   `ON DELETE CASCADE` de la relación original.
