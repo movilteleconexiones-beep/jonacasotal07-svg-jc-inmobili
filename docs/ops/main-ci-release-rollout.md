@@ -40,40 +40,81 @@ publicación automática segura por sí solo, ni repara el historial de Supabase
 - Wompi debe permanecer en **sandbox**; no habilitar cobro real durante
   estas pruebas, ni crear recursos con costo.
 
-## Secuencia segura para activar el control
+## Secuencia segura para activar el control (Railway, documentación oficial)
 
-1. Verificar el CI verde del PR mínimo que contiene este documento y el
-   nuevo trigger. No mezclar en él migrations, propuestas financieras ni
-   cambios a `src`. Mantener separado del PR de seguridad #285.
-2. Antes de mezclar a main, **proteger la rama** en GitHub: impedir push
-   directo y exigir el **job de check-run** `validate` emitido por la
-   aplicación `github-actions` (GitHub App ID `15368`), no un estado con
-   el mismo nombre emitido por terceros. La interfaz muestra el conjunto
-   `Verify JCO application / validate`, pero la API
-   `commits/{sha}/check-runs` confirma `name="validate"` y
-   `app.slug="github-actions"` en los SHA de PR #285 y #286.
-   Exigir rama actualizada y evitar bypass de administradores.
-   Confirmar la fuente y el contexto activos en la protección de `main`. 
+**DEPENDENCIA QUE NO DEBE OMITIRSE:** Railway únicamente ofrece
+`Wait for CI` cuando el repositorio ya tiene un workflow en la
+rama conectada que escucha `on: push: branches: [main]`.
+Actualmente el workflow de `main` solo escucha PR / ejecución manual;
+la condición `push` está preparada **únicamente en este PR #286**.
+Por eso es posible que el interruptor **no aparezca todavía** en
+los dos servicios Railway. No intentar remediarlo reconectando el
+repositorio: `connect-service-source` puede construir/desplegar
+inmediatamente. Fuente: https://docs.railway.com/deployments/github-autodeploys
 
-3. Preparar un rollback del commit actual `main` y **usar la
-   evidencia del respaldo auténtico ya acreditada en #214**; revisar
-   únicamente la custodia/acceso del respaldo existente, sin volver a
-   exportar ni volver a cifrar. En Railway, revisar ambos servicios y
-   establecer `source.checkSuites=true` mediante cambio controlado, con
-   comprobación de efectos y sin desplegar migraciones. No aplicar cambios
-   staged adicionales ni cambios de variables en el mismo bloque.
-4. Una vez verificados los pasos 2 y 3, fusionar **solo el PR mínimo de
-   CI** y confirmar que el evento `push` de GitHub ejecuta el job
-   `validate` sobre el SHA fusionado. Comprobar que el despliegue usa ese
-   mismo SHA y espera su resultado. No asumir que la ejecución PR valida
-   el SHA posterior al merge.
-5. Prueba negativa en una **rama de pruebas sin afectar producción**:
-   un fallo intencional del check no debe pasar a deployment. Validar
-   las reglas de branch protection y el checkSuite de Railway mediante
-   una comprobación verificable. Restaurar el cambio sintético.
-6. Solo después, realizar un smoke test de portal y Wompi sandbox:
-   navegación, roles, separación de inmobiliarias y webhook firmado de
-   prueba. Para lanzar licencias reales siguen abiertos #104 y #203.
+Orden obligatorio **sin ventanas de despliegue sin CI**:
+
+1. **Aprobar CI mínima:** este PR #286 solo modifica tres archivos de
+   CI/contrato/runbook. Comprobar `validate` verde emitido por la app
+   `github-actions`; no mezclarlo con el PR #285 ni con migraciones.
+2. **GitHub ADMIN — proteger `main` antes de fusionar:**
+   `Settings → Rules → Rulesets` (o Branches/Branch protection).
+   Aplicar a `main`, exigir PR y status `validate` de GitHub Actions,
+   bloquear force-push y borrado, exigir rama actualizada, no permitir
+   bypass. La UI muestra `Verify JCO application / validate`; el
+   contexto de API es `validate` de `github-actions` (`app.id=15368`).
+   Verificar por GitHub API que `main.protected=true` y check requerido.
+3. **Railway ADMIN — CONGELAR ambos autodeploys antes de fusionar:**
+   para el portal `a1d375e9-e457-4d23-bfdf-11f175f5db75` y
+   Wompi sandbox `43835f59-e9a7-4bb6-a487-e8a409f689bc`, ir a
+   `Service → Settings → Source → Disable automatic deployments`.
+   Verificar en ambos que un push a `main` **no puede provocar
+   autodeploy**. Si uno no puede deshabilitarse o el estado es incierto,
+   **DETENERSE sin hacer merge**. No desconectar fuentes, no pausar
+   procesos vivos ni crear servicios adicionales.
+4. **Solo con pasos 2 y 3 acreditados**, fusionar **exclusivamente**
+   PR #286 (tres archivos de CI). Mantener los autodeploys apagados
+   durante el cambio de `main`; comprobar CI `push: main` ejecutado
+   para el nuevo SHA y resultado `validate=success`. Comprobar que
+   Railway **no** haya creado despliegues nuevos durante el merge.
+   Si GitHub rechaza el merge por protección legítima, revisar el
+   check requerido; nunca desactivar la regla para sortearlo.
+5. **Railway ADMIN — activar `Wait for CI` en AMBOS servicios:**
+   tras la existencia del workflow `push: main` en `main`,
+   habilitar `Service → Settings → Source → Wait for CI` y comprobar
+   `source.checkSuites=true` en portal y Wompi sandbox mediante el
+   conector. Aceptar permisos actualizados de la aplicación GitHub
+   de Railway si el panel los requiere. Mantener autodeploy desactivado.
+   **Si la opción no aparece o falla en un servicio, detenerse:
+   mantener ambos autodeploys apagados.**
+6. **Restablecer autodeploys solo tras la verificación doble:**
+   confirmar `main.protected=true`, check requerido `validate`,
+   CI verde sobre SHA real y `checkSuites=true` en ambos servicios;
+   comprobar `staged=null`, último deployment sano, Wompi en sandbox.
+   Habilitar de nuevo el trigger automático en ambos y observar
+   cualquier deployment que la UI pudiera disparar al reactivarlo;
+   este paso necesita verificación operativa y capacidad de rollback.
+7. **Prueba negativa sin datos productivos:** una rama/PR ficticio con
+   `validate` fallido no puede fusionarse en `main`. Para comprobar
+   la espera real de Railway, usar entorno independiente o un commit
+   inocuo cuya CI pase; **no introducir fallos intencionales en
+   `main` del servicio en producción** ni reemplazar el Wompi sandbox
+   operativo por una simulación. Verificar conclusiones `WAITING`,
+   `SKIPPED` y `SUCCESS` contra el SHA exacto y documentar rollback.
+8. Solo después, smoke tests de portal HTTPS, roles, aislamiento de
+   dos inmobiliarias, Wompi sandbox firmado y rutas de renovación.
+   #104/#203 y protección de Auth siguen pendientes: **NO-GO** para
+   `supabase db push`, `migration repair`, migraciones financieras,
+   activar Wompi real o vender licencias.
+
+**Importante sobre Railway:** `Wait for CI` evalúa las conclusiones de
+las **suites de GitHub Actions** del SHA, no todos los checks individuales
+ni apps externas; suites fallidas bloquean, pero algunas canceladas
+pueden ignorarse si hay otra exitosa. Un control crítico de ejecución
+obligatoria no debe depender únicamente de `Wait for CI`:
+se exige además el check `validate` obligatorio en GitHub `main`.
+La primera incorporación de este workflow se hace **con autodeploy
+desactivado**, precisamente para eliminar ese intervalo de riesgo.
 
 ## Política de fallo cerrado
 
