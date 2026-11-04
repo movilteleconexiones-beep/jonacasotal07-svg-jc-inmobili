@@ -21,6 +21,9 @@ function assertReadOnlyQuery(source) {
   assert.match(noComments, /FROM\s+supabase_migrations\.schema_migrations/i);
   assert.match(noComments, /to_regclass\(e\.object_ref\)/i);
   assert.match(noComments, /to_regprocedure\(e\.signature\)/i);
+  const boundary = String.raw`l.sql_body ~* ('\m'||split_part(e.object_ref,'.',2)||'\M')`;
+  assert.equal(noComments.split(boundary).length - 1,2,
+    'Both chronology counters must use actual PostgreSQL word boundaries');
 }
 
 test('consignment origin scan is SELECT-only and references the actual applied ledger', () => {
@@ -66,6 +69,7 @@ test('rejects mistaken escaped boundaries that hide historical object mentions',
   assert.notEqual(broken,sql);
   assert.equal(sql.split(valid).length-1,2);
   assert.equal(broken.split(valid).length-1,0);
+  assert.throws(()=>assertReadOnlyQuery(broken));
 });
 
 test('exposes provenance limits, never claims out-of-band DDL or SQL equivalence', () => {
