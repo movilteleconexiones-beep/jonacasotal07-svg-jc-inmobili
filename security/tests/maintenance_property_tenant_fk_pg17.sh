@@ -75,15 +75,24 @@ if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
  echo 'ERROR: migration accepted cross-tenant existing row'; exit 1
 fi
 grep -q 'existing cross-tenant/dangling records' "$log"
-[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT count(*) FROM pg_constraint WHERE conrelid='public.maintenance_requests'::regclass AND conname='maintenance_requests_property_same_tenant_fk'")" == 0 ]] ||
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT count(*) FROM pg_constraint WHERE conrelid='public.maintenance_requests'::regclass AND conname='maintenance_requests_property_id_fkey' AND cardinality(conkey)=2")" == 0 ]] ||
   { echo 'ERROR: failed preflight created a partial FK'; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "DELETE FROM public.maintenance_requests WHERE id=3"
 # An unauthorized executor must not apply DDL.
 if psql -X -v ON_ERROR_STOP=1 -d "$db" -c 'SET ROLE authenticated' -f "$candidate" > "$log" 2>&1; then
  echo 'ERROR: unauthorized authenticated executor changed constraints'; exit 1
 fi
-[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT count(*) FROM pg_constraint WHERE conrelid='public.maintenance_requests'::regclass AND conname='maintenance_requests_property_same_tenant_fk'")" == 0 ]] ||
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT count(*) FROM pg_constraint WHERE conrelid='public.maintenance_requests'::regclass AND conname='maintenance_requests_property_id_fkey' AND cardinality(conkey)=2")" == 0 ]] ||
   { echo 'ERROR: denied role left an FK'; exit 1; }
+# Duplicate paths to properties must be rejected before modifying the old FK.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests ADD CONSTRAINT maintenance_duplicate_property_fk FOREIGN KEY(property_id) REFERENCES public.properties(id)"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+ echo 'ERROR: accepted ambiguous parallel FK to properties'; exit 1
+fi
+grep -q 'single PostgREST FK contract changed' "$log"
+[[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT cardinality(conkey) FROM pg_constraint WHERE conrelid='public.maintenance_requests'::regclass AND conname='maintenance_requests_property_id_fkey'")" == 1 ]] ||
+ { echo 'ERROR: ambiguous FK preflight changed legacy FK'; exit 1; }
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests DROP CONSTRAINT maintenance_duplicate_property_fk"
 # Original owner applies; rerun must be idempotent.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate"
 psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate"
@@ -94,10 +103,14 @@ DECLARE
 BEGIN
  SELECT convalidated,confdeltype,pg_get_constraintdef(oid,true) AS definition
  INTO c FROM pg_constraint WHERE conrelid='public.maintenance_requests'::regclass
- AND conname='maintenance_requests_property_same_tenant_fk';
+ AND conname='maintenance_requests_property_id_fkey';
  IF c.convalidated IS DISTINCT FROM true OR c.confdeltype<>'c'
    OR c.definition <> 'FOREIGN KEY (organization_id, property_id) REFERENCES properties(organization_id, id) ON DELETE CASCADE'
  THEN RAISE EXCEPTION 'Composite FK missing, invalid or changed cascade'; END IF;
+ IF (SELECT count(*) FROM pg_constraint
+   WHERE conrelid='public.maintenance_requests'::regclass
+     AND contype='f' AND confrelid='public.properties'::regclass) <> 1
+ THEN RAISE EXCEPTION 'Duplicate maintenance/property relationship (PGRST201)'; END IF;
  IF (SELECT count(*) FROM public.maintenance_requests)<>2
    OR NOT (SELECT relrowsecurity FROM pg_class
            WHERE oid='public.maintenance_requests'::regclass)
@@ -111,7 +124,7 @@ SQL
 if psql -X -v ON_ERROR_STOP=1 -d "$db" -c "INSERT INTO public.maintenance_requests VALUES (3,'11111111-1111-4111-8111-111111111111','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','Cross org blocked')" > "$log" 2>&1; then
  echo 'ERROR: composite FK allowed a cross-tenant property'; exit 1
 fi
-grep -q 'maintenance_requests_property_same_tenant_fk' "$log"
+grep -q 'maintenance_requests_property_id_fkey' "$log"
 # Confirm real staff RLS and original valid operations for each fake tenant.
 psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
 BEGIN;
@@ -139,8 +152,8 @@ END
 $tenant$;
 ROLLBACK;
 SQL
-# The original delete cascade remains, including the newly added composite FK.
+# Original ON DELETE CASCADE remains with exactly one PostgREST relationship.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "DELETE FROM public.properties WHERE id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'"
 [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT count(*) FROM public.maintenance_requests")" == 1 ]] ||
  { echo 'ERROR: property delete cascade changed'; exit 1; }
-echo 'PASS: composite FK prevents cross-org maintenance/property links; owner gates, rollback, RLS and cascade.'
+echo 'PASS: single named PostgREST maintenance FK, cross-org isolation, fail-closed drift, RLS and cascade.'
