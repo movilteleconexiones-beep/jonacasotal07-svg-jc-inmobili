@@ -1,4 +1,19 @@
-# Tarifario aprobado JCO — preparación de despliegue
+# Tarifario histórico propuesto — NO vigente en INMOJCO producción
+
+> **ADVERTENCIA (04-nov-2026): documento histórico, no usar como tarifario actual.**
+> La propuesta de precios 104.900/194.900 COP indicada abajo es un borrador
+> **NO aplicado**. Una consulta SELECT a `public.plans` en el proyecto
+> activo `cuitgyqrjibgwuniapmk` confirmó precios **vigentes en base de datos**:
+> Básico 129.900 COP/mes (5 usuarios, 200 inmuebles) y Profesional
+> 299.900 COP/mes (25 usuarios, 2.000 inmuebles), ambos con las mismas 47
+> funciones habilitadas. El estado real de cobros y su autorización
+> comercial se validan por separado. No ejecutar la migración `0029`
+> histórica, cambiar precios, habilitar Wompi real ni promocionar
+> este borrador sin decisión comercial y tributaria expresa.
+
+## Propuesta histórica archivada (sin ejecutar)
+
+
 
 Tarifas COP aprobadas: Básico mensual 104900 / anual 1039000; Profesional mensual 194900 / anual 1949000; Empresarial mensual 389900 / anual 3899000; Vitalicio pago único 6490000.
 

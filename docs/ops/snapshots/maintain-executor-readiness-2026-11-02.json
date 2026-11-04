@@ -1,0 +1,21 @@
+{
+  "captured_at": "2026-11-02",
+  "project_ref": "cuitgyqrjibgwuniapmk",
+  "source": "pg_catalog / pg_roles / pg_default_acl read-only on production; NO authentication secrets",
+  "purpose": "Explain why all-in-one MAINTAIN remediation must fail closed under actual Supabase executor",
+  "executor": "postgres",
+  "executor_superuser": false,
+  "member_of_postgres": true,
+  "member_of_supabase_admin": false,
+  "can_set_supabase_admin": false,
+  "public_tables": 58,
+  "anon_maintain": 35,
+  "authenticated_maintain": 41,
+  "other_owner_tables": 0,
+  "default_owner_roles": [
+    "postgres",
+    "supabase_admin"
+  ],
+  "problematic_default_grants": 4,
+  "production_mutation_authorized": false
+}

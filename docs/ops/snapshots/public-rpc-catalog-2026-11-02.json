@@ -1,0 +1,57 @@
+{
+  "captured_at": "2026-11-02",
+  "source": "Supabase pg_proc read-only; positive public RPC EXECUTE intentional; no user rows or credentials",
+  "project_ref": "cuitgyqrjibgwuniapmk",
+  "rpcs": [
+    {
+      "name": "get_public_property_intake_site",
+      "args": "p_slug text",
+      "body_md5": "39598ff5d3d279fd2e177c062905afc3",
+      "definition_md5": "3d2810f06b67001122d9692ab34870a5",
+      "security_definer": true,
+      "settings": "search_path=\"\"",
+      "anon_execute": true,
+      "authenticated_execute": true,
+      "service_execute": true,
+      "volatility": "s"
+    },
+    {
+      "name": "submit_property_consignment",
+      "args": "p_site_slug text, p_request_id uuid, p_payload jsonb",
+      "body_md5": "5eb71a9f7aafa5098136a53b098bd659",
+      "definition_md5": "ac9339350040e19b08aea38041426a1c",
+      "security_definer": true,
+      "settings": "search_path=\"\";lock_timeout=5s",
+      "anon_execute": true,
+      "authenticated_execute": true,
+      "service_execute": true,
+      "volatility": "v"
+    },
+    {
+      "name": "submit_public_website_lead",
+      "args": "p_slug text, p_name text, p_email text, p_phone text, p_service text, p_message text, p_consent boolean, p_trap text",
+      "body_md5": "f2b9ed150e3f47bf1e94595b101e8ca7",
+      "definition_md5": "66c4fcc5a45a55ba064b5c39ad4ac903",
+      "security_definer": true,
+      "settings": "search_path=\"\"",
+      "anon_execute": true,
+      "authenticated_execute": true,
+      "service_execute": false,
+      "volatility": "v"
+    },
+    {
+      "name": "tenant_public_catalog",
+      "args": "tenant_slug text",
+      "body_md5": "d0568071391c93d9a1d04c27877853ba",
+      "definition_md5": "650371045000e24f90a02bb7af802a72",
+      "security_definer": true,
+      "settings": "search_path=\"\"",
+      "anon_execute": true,
+      "authenticated_execute": true,
+      "service_execute": true,
+      "volatility": "s"
+    }
+  ],
+  "source_code_validated": false,
+  "production_change_authorized": false
+}

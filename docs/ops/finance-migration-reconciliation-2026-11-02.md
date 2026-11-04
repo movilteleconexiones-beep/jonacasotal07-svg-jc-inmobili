@@ -1,0 +1,142 @@
+# INMOJCO — Conciliación del historial de migraciones (bloqueo #104)
+
+Fecha de auditoría: 2026-11-02. Fuente de datos: repositorio `main` y `Supabase.list_migrations` del proyecto `cuitgyqrjibgwuniapmk`. **Todas las consultas realizadas fueron de solo lectura.**
+
+## Diagnóstico cuantificado
+
+| Señal | Resultado |
+| --- | ---: |
+| Archivos SQL en `supabase/migrations/` | 109 |
+| Versiones de 14 dígitos distintas en el repositorio | 76 |
+| Migraciones registradas como aplicadas en Supabase | 99 |
+| Versiones coincidentes exactamente | **1** |
+| Versiones locales fechadas sin coincidencia en el ledger | **75** |
+| Archivos del repositorio con el mismo nombre funcional que un registro aplicado | 61 |
+| Prefijos duplicados preexistentes en repo | `20261013040000` (2 archivos) |
+
+Los nombres coincidentes sirven únicamente para **identificar candidatos a equivalencia**, no para acreditar que el DDL o sus permisos son iguales. La carpeta también contiene 32 archivos con prefijos antiguos de cuatro dígitos que no deben subirse automáticamente.
+
+En el bloque financiero `20261012120000`–`20261012150000`, los cinco identificadores locales no aparecen en el historial. En origen constan las migraciones consolidadas `20261012070133` y `20261012071309`. Una verificación read-only de catálogo confirmó **32/32 objetos** de ese bloque presentes: 2 tablas, 6 funciones, 11 restricciones, 9 políticas, 2 índices y 2 disparadores. **No acredita equivalencia de definiciones ni de grants.**
+
+## Preflight de seguridad incorporado
+
+```bash
+# Sin conexión ni credenciales; comprueba versiones duplicadas nuevas y fija las
+# cinco migraciones históricas para que no cambien sin revisión:
+node scripts/ops/finance-migration-gate.mjs
+
+# Con un JSON de versiones realmente aplicadas, revisa todo el historial local:
+# Se admite ["2026..."] o {"migrations":[{"version":"2026..."}]}.
+node scripts/ops/finance-migration-gate.mjs --ledger ruta/al/ledger.json
+```
+
+**Resultado esperado con el ledger comprobado el 2-nov:** código de salida 2 / NO-GO. Un resultado positivo de esta herramienta **no autoriza por sí solo** `supabase db push`, pues no compara definiciones de producción, RLS, ACL ni datos.
+
+## Camino mínimo al cierre sin repetir DDL
+
+1. Revisar objeto por objeto los **15 archivos fechados sin coincidencia exacta de nombre funcional** y el conjunto histórico de cuatro dígitos. Mapear cada operación a un objeto/efecto existente; no deducir equivalencia a partir del nombre.
+2. Para los archivos con mismo nombre y fecha distinta, comparar funciones `pg_get_functiondef`, políticas `pg_policies`, restricciones `pg_get_constraintdef`, disparadores, ACL, índices y efectos de migraciones posteriores; documentar equivalencia o diferencia real.
+3. En una base aislada restaurada a partir del respaldo **ya certificado** (no en producción), ensayar la conciliación de versiones sin ejecutar DDL histórico sobre datos reales.
+4. Solo cuando el mapa esté firmado y las pruebas sean satisfactorias, aplicar el mecanismo **oficial** de reparación del historial de migraciones, sin escribir versiones directamente en las tablas ni repetir `CREATE TABLE`/`ALTER TABLE`. Confirmar `supabase migration list` y volver a ejecutar el preflight antes de aprobar un despliegue.
+5. Mantener Wompi sandbox, RLS y producción sin cambios hasta pasar los controles de lanzamiento #203.
+
+La rama de respaldo de código permanece protegida; la incidencia #214 de recuperación ya se cerró. No se necesitan nuevas exportaciones, cifrado, USB ni migraciones por duplicado.
+
+## Evidencia puntual adicional de versiones sin coincidencia de nombre (2-nov-2026)
+
+Inspección **solo lectura** en Supabase `cuitgyqrjibgwuniapmk`, comparada con los archivos de `main`. Se eligieron tres de las migraciones fechadas clasificadas como `unmatched-name` en el mapa; estas comprobaciones **no** cambian sus versiones ni demuestran qué migración se ejecutó originalmente.
+
+| Archivo local no registrado con su versión | Evidencia efectiva en producción | Alcance de la conclusión |
+| --- | --- | --- |
+| `20261013051500_fix_archive_reason.sql` | `pg_get_functiondef('public.archive_rectified_commission(uuid,uuid,text)'::regprocedure)`: cuerpo PL/pgSQL idéntico al bloque `AS $func$ ... $func$` del archivo, **1646 caracteres en ambos**. `anon EXECUTE=false`, `authenticated EXECUTE=true`. | El cuerpo de la función está presente; falta rastrear procedencia histórica, grants completos y posibles efectos de otras migraciones. |
+| `20261015081500_basic_pro_functional_parity.sql` | Los planes activos `BASIC` y `PRO`, mensuales en COP, tienen **47** `permission:%` habilitados cada uno; la diferencia de conjuntos en ambas direcciones es **0**; catálogo global: **47** permisos. | La paridad funcional observada coincide con el objetivo del script, **no prueba que su transacción se aplicara**, ni equivalencia de cuotas, precios o historial. |
+| `20261020222000_revoke_anonymous_crm_access.sql` | `public.contacts` y `public.leads`: RLS activo, `anon` sin SELECT/INSERT/UPDATE/DELETE efectivos; sin privilegios explícitos concedidos a `PUBLIC` en ACL. | La restricción anónima de lectura/escritura observada coincide con el efecto buscado, no prueba equivalencia histórica ni seguridad completa de RPCs. |
+
+Estas evidencias reducen incertidumbre sobre **tres efectos concretos** dentro del grupo sin coincidencia de nombre; **no se reclasifican como versiones equivalentes ni se reduce el contador de 75 desajustes**. No ejecutar `migration repair`, `db push` ni DDL histórico basándose en esta tabla. La verificación E2E/RLS y la conciliación de definiciones restantes siguen pendientes.
+
+
+## Segundo corte automatizado: 109 SQL vs. 99 migraciones aplicadas
+
+El generador **sin red y sin escritura** `scripts/ops/migration-lineage-audit.mjs` cruza el repositorio con el listado real de versiones/nombres recopilado por `Supabase.list_migrations` y guardado en `docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json`. La prueba `tests/migration-lineage-audit.test.mjs` impide presentar como aplicados archivos que no se correlacionan, y reconoce la colisión preexistente `20261013040000`.
+
+| Clasificación local | Archivos | Interpretación |
+| --- | ---: | --- |
+| Nombre Y versión coincidentes | **1** | Solo coincidencia de metadatos; DDL no comprobado |
+| Mismo nombre pero versión diferente | **60** | Posible reversionado; DDL no comprobado |
+| Archivo antiguo (4 dígitos) con nombre coincidente | **25** | Posible ejecución con nueva versión; DDL no comprobado |
+| Archivo antiguo sin nombre aplicado | **7** | **Borradores no desplegados `0026_payment_orders_wompi_sandbox` a `0032_atomic_sandbox_payment_order_draft`** |
+| Archivo fechado sin nombre aplicado | **16** | Requiere estudio de alias, consolidación u omisión |
+| Registro aplicado sin nombre local exacto | **13** | Requiere relación con archivos locales o restauración del DDL histórico |
+| Versiones locales duplicadas | **1** | Dos archivos con prefijo `20261013040000` |
+
+**Punto importante:** la migración aplicada `0026_rental_management_core` no corresponde al archivo local `0026_payment_orders_wompi_sandbox.sql`. Coinciden por número `0026` pero **son operaciones distintas**. Los siete borradores de facturación no pueden considerarse ejecutados ni publicarse automáticamente.
+
+### Clasificación de los 16 archivos fechados sin nombre aplicado
+
+- **11 candidatos de nombre renombrado**: `fix_archive_reason` ↔ `fix_commission_archive_reason_ambiguity`; `basic_pro_functional_parity` ↔ `basic_pro_equal_functionality_20261015`; `direct_paid_onboarding` ↔ `direct_paid_onboarding_explicit_20261018`; `tenant_public_catalog` ↔ `public_tenant_catalog_readonly_20261018`; `strict_private_property_read_boundary` ↔ `strict_private_property_read_boundary_20261018`; `tenant_public_website_brand_and_services` ↔ `tenant_public_brand_services_20261019`; `editable_public_portal_sections` ↔ `editable_public_portal_sections_20261020`; `owner_organization_public_slug` ↔ `owner_organization_public_slug_20261020`; `owner_slug_strict_execute_acl` ↔ `owner_slug_strict_execute_acl_20261020`; `public_website_leads` ↔ `public_website_leads_20261020`; `revoke_anonymous_crm_access` ↔ `revoke_anonymous_crm_access_20261020`.
+- **4 del bloque financiero consolidado**: `owner_statement_deduction_lines`, `rent_receipts_and_owner_drafts`, `reconcile_owner_deductions`, `finance_rls_and_tenant_links`. Candidato de consolidación **únicamente por temática**, no por equivalencia SQL, con el registro aplicado `20261012070133_audited_rent_receipts_owner_deductions_finance_permissions`.
+- **1 sin candidato exacto reconocido**: `commercial_plan_permissions`. Comparar privilegios, políticas y registros realmente presentes antes de asignarle procedencia.
+
+Los **13 registros aplicados sin nombre local exacto** contienen los once candidatos anteriores y, además, `0026_rental_management_core` y el agregado financiero `audited_rent_receipts_owner_deductions_finance_permissions`. Las relaciones indicadas son hipótesis para revisión; **ninguna autoriza `migration repair`**.
+
+### Ejecutar la auditoría offline
+
+```bash
+node --test tests/migration-lineage-audit.test.mjs
+node scripts/ops/migration-lineage-audit.mjs --ledger docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json
+# Para obtener cada fila en JSON reproducible:
+node scripts/ops/migration-lineage-audit.mjs --ledger docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json --json
+```
+
+**NO-GO sigue vigente**: falta comparar SQL/DDL real, historial de efectos, ACL/RLS y dependencia entre migraciones. Las listas son una fotografía del 02-nov-2026, no una lectura actualizada automáticamente de Supabase ni una autorización de `db push`. La conciliación solo debe ensayarse en una base aislada con el respaldo auténtico existente.
+
+
+## Riesgo confirmado: migración comercial antigua no compatible
+
+El archivo sin nombre aplicado `20261010222700_commercial_plan_permissions.sql` no debe considerarse «pendiente de ejecutar». Sus instrucciones históricas harían **UPDATE** de precios de `BASIC` a 104.900 COP y `PRO` a 194.900 COP, cambiarían `ENTERPRISE` y `LIFETIME`, crearían planes anuales e insertarían permisos de forma desigual: en el SQL, `BASIC` no recibe categorías `documents/owners/commissions/reports` mediante ese INSERT, mientras los niveles superiores sí. Es incompatible con el requisito actual de mismas funciones para Básico y Profesional; no se debe reejecutar.
+
+**Evidencia de catálogo productivo consultado el 02-nov-2026, solo lectura:** `BASIC` activo = **129.900 COP**, 5 usuarios, 200 inmuebles, **47** funciones habilitadas (10 de documentos/propietarios/comisiones/reportes); `PRO` activo = **299.900 COP**, 25 usuarios, 2.000 inmuebles, **47** funciones habilitadas (las mismas 10 categorías financieras/documentales). `ENTERPRISE` y `LIFETIME` existen con reglas comerciales distintas a las que contiene ese SQL antiguo. **No se modificaron precios ni permisos.**
+
+**Conclusión limitada:** el archivo histórico está **materialmente desactualizado respecto al estado vigente**; no hay prueba de que alguna versión se aplicó originalmente ni se ha formalizado su reemplazo en el ledger. Bloquear cualquier intento de ejecutarlo o marcarlo aplicado sin un mapeo respaldado por definiciones, historia y decisión explícita.
+
+El preflight `scripts/ops/finance-migration-gate.mjs --ledger` ahora detecta los **32 SQL legados de cuatro dígitos** (incluidos los siete borradores de facturación `0026–0032`). Aunque las 76 versiones fechadas coincidieran hipotéticamente, devuelve **NO-GO**, evitando una aprobación falsa por omitir archivos no fechados. Un resultado positivo de la comprobación *solo del repositorio* tampoco autoriza desplegar.
+
+
+## Preflight de executor para MAINTAIN: bloqueo reproducido sin escritura
+
+La consulta de **solo lectura** realizada el 02-nov-2026 en `cuitgyqrjibgwuniapmk` confirmó:
+- Executor actual de SQL: `postgres` (PostgreSQL 17.11), **no es superusuario**; `member_of_postgres=true`, `member_of_supabase_admin=false` y `can_set_supabase_admin=false`.
+- Las **58 tablas públicas actuales** pertenecen a `postgres`. De ellas, **35** conceden `MAINTAIN` a `anon` y **41** a `authenticated`.
+- Existen **cuatro concesiones predeterminadas** de `MAINTAIN` a esos roles sobre futuras tablas, definidas por dos propietarios: `postgres` y `supabase_admin`.
+
+**Resultado operativo: NO ejecutar** `security/candidates/revoke_public_api_maintain.sql` usando la conexión actual. La protección de ese archivo verifica las dos membresías y aborta toda la transacción si faltan. La prueba con rol sin privilegios, simulando el entorno alojado, demuestra rechazo **antes de modificar permisos**; el ensayo positivo como superusuario en CI demuestra semántica de PostgreSQL, **no** privilegios disponibles en Supabase real.
+
+La evidencia está versionada en `docs/ops/snapshots/maintain-executor-readiness-2026-11-02.json`. El nuevo preflight offline y su test:
+
+```bash
+node --test tests/maintain-executor-readiness.test.mjs
+node scripts/ops/maintain-executor-readiness.mjs --snapshot docs/ops/snapshots/maintain-executor-readiness-2026-11-02.json
+```
+
+La herramienta siempre devuelve `production_change_authorized=false` y `migration_push_authorized=false`. Ejecutarla no revalida el estado actual de Supabase: se trata de una captura con fecha.
+
+**Plan seguro de ejecución cuando exista staging aislado:** revisar previamente los privilegios del executor realmente disponible, identificar un procedimiento autorizado para modificar también los **DEFAULT PRIVILEGES de `supabase_admin`** (no conceder ni autoasignarse privilegios adicionales), ensayar el cambio de manera reversible en ese entorno, validar las tablas existentes y futuras, y probar de nuevo CRUD, RLS, Storage y perfiles. Si no existe ese executor autorizado, mantener **NO-GO** y solicitar el canal oficial de Supabase. Una revocación parcial hecha por `postgres` no debe presentarse como remediación completa.
+
+La incidencia #104 también continúa abierta por el historial de migraciones; ni este preflight ni los tests de ACL lo reemplazan.
+
+
+## Auditoría de RPC públicos SECURITY DEFINER (portal, consignación y CRM)
+
+**Supabase de producción, solo lectura (02-nov-2026):** el linter lista cuatro funciones `SECURITY DEFINER` intencionalmente ejecutables por `anon`. Retirar su EXECUTE o convertirlas indiscriminadamente a invoker rompería la portada de cada inmobiliaria y sus formularios. Se capturaron solo huellas de `pg_proc`, configuración y ACL en `docs/ops/snapshots/public-rpc-catalog-2026-11-02.json`; no se copiaron datos de clientes.
+
+| RPC público | Fuente SQL final identificada | Control contractual observado |
+| --- | --- | --- |
+| `get_public_property_intake_site` | `20261021033500_gate_public_consignment_operational_access.sql` | Sitio habilitado, organización activa, acceso operativo |
+| `submit_property_consignment` | `20261021033500_gate_public_consignment_operational_access.sql` | Consentimiento, límites de payload, `request_id` idempotente, cuotas bajo bloqueo por organización |
+| `submit_public_website_lead` | `20261021041500_public_website_contact_consent_receipts.sql` | Consentimiento, URL HTTPS de política, registro de aceptación, cuotas bajo bloqueo por organización |
+| `tenant_public_catalog` | `20261020070000_editable_public_portal_sections.sql` | Inmuebles `AVAILABLE`, misma organización, máximo 100 y cuenta activa |
+
+El script offline `scripts/ops/public-rpc-source-audit.mjs` y su suite `tests/public-rpc-source-audit.test.mjs` exigen que las cuatro definiciones locales mantengan el cuerpo idéntico al snapshot, `search_path=''`, ejecución anónima intencionada y salvaguardas concretas. El script no puede desplegar, revocar ni modificar el esquema. **Las coincidencias no demuestran ausencia de vulnerabilidades**: la ejecución real como `anon`, los límites de abuso distribuido, la privacidad del `public_page_content` configurable y las autorizaciones RLS de tablas internas siguen en la lista de pruebas E2E para staging.
+
+En particular, la RPC vigente `submit_public_website_lead` no tiene un `request_id` para reutilizar una consulta al recibir un reintento HTTP ambiguo; el PR #282 mantiene una solución candidata de idempotencia/consentimiento **sin desplegar**. No se debe duplicar esta modificación en #285 ni publicar la nueva firma RPC sin validar migración y compatibilidad. La auditoría es una protección de regresión sobre el estado conocido, no una habilitación comercial.
+

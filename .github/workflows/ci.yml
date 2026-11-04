@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: inmojco-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -62,6 +66,184 @@ jobs:
               process.exit(1);
             }
           '
+      - name: Migration lineage classification and unpublished billing-draft quarantine (#104)
+        run: node --test tests/migration-lineage-audit.test.mjs
+      - name: Authentic applied SQL body fingerprints, all migrations NO-GO (#104)
+        run: |
+          node --test tests/migration-body-fingerprint-audit.test.mjs
+          node --test tests/historic-consignment-portal-preflight.test.mjs
+          node --test tests/migration-format-differences-reconciliation.test.mjs
+          node --test tests/historic-consignment-ddl-provenance.test.mjs
+          node --test tests/consignment-restore-shape-contract.test.mjs
+          node --test tests/rental-0026-baseline-contract.test.mjs
+          node --test tests/finance-20261012-object-manifest.test.mjs
+      - name: Historic local consignment table DDL replay vs pinned Supabase shapes (isolated PG17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          node --test tests/consignment-local-ddl-replay-safety.test.mjs
+          bash security/tests/consignment_local_ddl_replay_pg17.sh
+      - name: Four public SECURITY DEFINER RPC source and tenant-guard audit (#104)
+        run: |
+          node --test tests/public-definer-exposure-preflight.test.mjs
+          node --test tests/public-rpc-source-audit.test.mjs
+          node scripts/ops/public-rpc-source-audit.mjs --snapshot docs/ops/snapshots/public-rpc-catalog-2026-11-02.json
+      - name: Closed billing/private table RLS and ACL deny boundary (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          node --test tests/closed-privileged-table-boundary.test.mjs
+          bash security/tests/closed_privileged_table_pg17.sh
+      - name: Public catalog real SQL runtime isolation (PostgreSQL 17 synthetic tenants)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_public_catalog_runtime_test
+          # PostgreSQL roles are cluster-wide. Restore the exact clean CI state
+          # even if this test fails, so later fixtures can create anon/authenticated.
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_catalog_runtime_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261020070000_editable_public_portal_sections.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_catalog_runtime_assertions.sql
+          # Anonymous callers must not bypass the RPC to read inventory tables.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE anon; SELECT count(*) FROM public.properties" > "$RUNNER_TEMP/catalog-denied.log" 2>&1; then
+            echo 'ERROR: anon can query private inventory directly'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/catalog-denied.log"
+          # Negative mutation: without SECURITY DEFINER, the public catalog cannot read private tables.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION public.tenant_public_catalog(text) SECURITY INVOKER"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_catalog_runtime_assertions.sql > "$RUNNER_TEMP/catalog-negative.log" 2>&1; then
+            echo 'ERROR: SQL-runtime catalog regression failed to detect invalid definer'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/catalog-negative.log"
+      - name: Current public CRM consent and cross-tenant SQL runtime (PostgreSQL 17 fake data)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_public_crm_current_runtime_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated, service_role" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_lead_current_runtime_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261021041500_public_website_contact_consent_receipts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_lead_current_runtime_assertions.sql
+          # Callers can create leads only through the scoped RPC, never by direct table write/read.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE anon; SELECT count(*) FROM public.contacts" > "$RUNNER_TEMP/lead-direct-deny.log" 2>&1; then
+            echo 'ERROR: anonymous contact SELECT was allowed'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/lead-direct-deny.log"
+      - name: Public property consignment SQL runtime tenant and retry regression (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_public_consignment_runtime_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_consignment_runtime_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261021033500_gate_public_consignment_operational_access.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/public_consignment_runtime_assertions.sql
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "SET ROLE anon; SELECT count(*) FROM public.property_consignments" > "$RUNNER_TEMP/consignment-direct-deny.log" 2>&1; then
+            echo 'ERROR: anonymous read of consignations succeeded'; exit 1
+          fi
+          grep -q 'permission denied' "$RUNNER_TEMP/consignment-direct-deny.log"
+      - name: Composite CRM agency-link FK violation and correction candidate (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -eu
+          db=jco_crm_tenant_integrity_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS authenticated" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_preflight.sql
+          # Invalid existing cross-agency rows MUST abort the candidate BEFORE adding DDL.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql > "$RUNNER_TEMP/crm-fk-denied.log" 2>&1; then
+            echo 'ERROR: proposed FK accepted already-crossed CRM links'; exit 1
+          fi
+          grep -q 'NO-GO: existing CRM cross-agency/contact links' "$RUNNER_TEMP/crm-fk-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_cleanup.sql
+          # A second FK to contacts must fail BEFORE any replacement to prevent
+          # PostgREST PGRST201 ambiguity (and the legacy FK must remain).
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c             "ALTER TABLE public.leads ADD CONSTRAINT crm_duplicate_contact_fk FOREIGN KEY(contact_id) REFERENCES public.contacts(id)"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql > "$RUNNER_TEMP/crm-ambiguous-denied.log" 2>&1; then
+            echo 'ERROR: CRM candidate permitted ambiguous PostgREST path'; exit 1
+          fi
+          grep -q 'unexpected or parallel relationship' "$RUNNER_TEMP/crm-ambiguous-denied.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c             "ALTER TABLE public.leads DROP CONSTRAINT crm_duplicate_contact_fk"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql
+          # Retry to prove idempotence, not just a successful one-shot change.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/crm_tenant_links_composite_fk.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/crm_tenant_links_assertions.sql
+      - name: Six live finance function body fingerprints vs historic SQL (#104)
+        run: |
+          node --test tests/finance-function-equivalence-audit.test.mjs
+          node --test tests/finance-six-function-live-contract.test.mjs
+          node scripts/ops/finance-function-equivalence-audit.mjs
+      - name: Finance tenant FK, numeric checks and RLS catalog snapshot (#104)
+        run: node --test tests/finance-integrity-catalog.test.mjs
+      - name: Hosted Supabase MAINTAIN executor permissions readiness (#104)
+        run: |
+          node --test tests/maintain-executor-readiness.test.mjs
+          node scripts/ops/maintain-executor-readiness.mjs --snapshot docs/ops/snapshots/maintain-executor-readiness-2026-11-02.json
+      - name: API MAINTAIN privilege isolation and two-tenant RLS (PostgreSQL 17 disposable)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/public_api_maintain_revocation_pg17.sh
+      - name: Phased MAINTAIN remediation and final owner sweep (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/public_api_maintain_two_phase_pg17.sh
+      - name: Maintenance anonymous CRUD reduction contract (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/maintenance_anon_crud_pg17.sh
+      - name: Maintenance/property composite tenant FK isolation (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/maintenance_property_tenant_fk_pg17.sh
+      - name: Commission/deal single composite tenant FK security (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/commissions_deal_tenant_fk_pg17.sh
+      - name: Portal contact and owner composite tenant FK security (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: bash security/tests/portal_links_tenant_composite_fks_pg17.sh
+      - name: Historic finance migration drift fail-closed gate (#104)
+        run: |
+          node --test tests/finance-migration-gate.test.mjs
+          node scripts/ops/finance-migration-gate.mjs
       - name: Express runtime patched dependencies regression
         run: node --test tests/npm-dependency-security.test.mjs
       - name: Privileged RPC anonymous allowlist and negative ACL tests (PostgreSQL 17)
@@ -288,6 +470,27 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_staff_seats_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_portal_cross_person_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f security/tests/external_signed_lease_private_pdf_assertions.sql
+          # #104 - Exact portal policy-expression comparison, including tenant
+          # links/status gates, not merely named policy existence.
+          pinned_policy=security/checks/finance_20261029_portal_policy_fingerprints.sql
+          policy_report="$RUNNER_TEMP/jco-financial-portal-rls.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -At -F '|' -f "$pinned_policy" > "$policy_report"
+          test "$(wc -l < "$policy_report" | tr -d ' ')" = 3
+          if grep -v '[|]OK$' "$policy_report"; then
+            echo 'Personal financial portal policy drift'; exit 1
+          fi
+          # Negative: broaden an owner statement policy without renaming it.
+          # Only mutate the disposable PostgreSQL CI database.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -c "ALTER POLICY owner_statement_financial_view ON public.owner_statements USING (true)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -At -F '|' -f "$pinned_policy" > "$policy_report"
+          grep -Fx 'owner_statements.owner_statement_financial_view|POLICY_BODY_DRIFT' "$policy_report"
+          # Restore from the reviewed migration, then assert exact match again.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -f supabase/migrations/20261029070000_repair_financial_portal_select_rls.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_external_access_test -At -F '|' -f "$pinned_policy" > "$policy_report"
+          test "$(wc -l < "$policy_report" | tr -d ' ')" = 3
+          if grep -v '[|]OK$' "$policy_report"; then
+            echo 'Personal policy fixture not safely restored'; exit 1
+          fi
       - name: Private inventory RLS guard (two organizations + global SuperAdmin)
         env:
           PGPASSWORD: postgres
@@ -396,6 +599,81 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -f security/tests/rent_receipt_supports_assertions.sql
+          # 46 structural and 20 effective security checks on disposable PG17.
+          structural=security/checks/finance_20261012_live_catalog.sql
+          semantic=security/checks/finance_20261012_semantic_permissions.sql
+          structural_report="$RUNNER_TEMP/jco-finance-catalog.txt"
+          semantic_report="$RUNNER_TEMP/jco-finance-security.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$structural" > "$structural_report"
+          test "$(wc -l < "$structural_report" | tr -d ' ')" = 46
+          if grep -v '[|]OK$' "$structural_report"; then
+            echo "Finance catalog contract failed"; exit 1
+          fi
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$semantic" > "$semantic_report"
+          test "$(wc -l < "$semantic_report" | tr -d ' ')" = 20
+          if grep -v '[|]OK$' "$semantic_report"; then
+            echo "Finance permission contract failed"; exit 1
+          fi
+          # Negative fixture: disabled audit trigger.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.owner_statement_deductions DISABLE TRIGGER aaa_owner_deductions_server_timestamps"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$structural" > "$structural_report"
+          grep -Fx 'trigger|owner_statement_deductions.aaa_owner_deductions_server_timestamps|TRIGGER_DISABLED' "$structural_report"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.owner_statement_deductions ENABLE TRIGGER aaa_owner_deductions_server_timestamps"
+          # Negative fixture: a direct rent UPDATE grant.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "GRANT UPDATE ON public.rent_payments TO authenticated"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$semantic" > "$semantic_report"
+          grep -Fx 'table_acl|rent_payments|WRONG_UPDATE_GRANT' "$semantic_report"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "REVOKE UPDATE ON public.rent_payments FROM authenticated"
+          # Negative fixture: a lease INSERT policy without tenant/DRAFT guard.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER POLICY leases_financial_insert ON public.leases WITH CHECK (true)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$semantic" > "$semantic_report"
+          grep -Fx 'policy_acl|leases.leases_financial_insert|NO_TENANT_PERMISSION_GUARD' "$semantic_report"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER POLICY leases_financial_insert ON public.leases WITH CHECK (public.has_org_permission(organization_id, 'leases.create') AND status='DRAFT')"
+          # All checks return OK again after restoring synthetic changes.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$structural" > "$structural_report"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$semantic" > "$semantic_report"
+          test "$(wc -l < "$structural_report" | tr -d ' ')" = 46
+          test "$(wc -l < "$semantic_report" | tr -d ' ')" = 20
+          if grep -v '[|]OK$' "$structural_report" || grep -v '[|]OK$' "$semantic_report"; then
+            echo "Finance fixture was not restored safely"; exit 1
+          fi
+          # Distinguish the six current production policy bodies from historic SQL.
+          policies=security/checks/finance_20261012_pinned_write_policies.sql
+          policy_report="$RUNNER_TEMP/jco-finance-write-policies.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$policies" > "$policy_report"
+          test "$(wc -l < "$policy_report" | tr -d ' ')" = 6
+          test "$(grep -c '[|]OK$' "$policy_report")" = 5
+          test "$(grep -c '[|]POLICY_BODY_DRIFT$' "$policy_report")" = 1
+          grep -Fx 'owner_statement_deductions.owner_deductions_insert|POLICY_BODY_DRIFT' "$policy_report"
+          # Negative fixture: a more permissive UPDATE policy must become unexpected drift.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER POLICY owner_deductions_update_status ON public.owner_statement_deductions USING (true) WITH CHECK (true)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$policies" > "$policy_report"
+          grep -Fx 'owner_statement_deductions.owner_deductions_update_status|POLICY_BODY_DRIFT' "$policy_report"
+          test "$(grep -c '[|]POLICY_BODY_DRIFT$' "$policy_report")" = 2
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER POLICY owner_deductions_update_status ON public.owner_statement_deductions USING (public.has_org_permission(organization_id,'owner_statements.create')) WITH CHECK (public.has_org_permission(organization_id,'owner_statements.create'))"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$policies" > "$policy_report"
+          test "$(grep -c '[|]OK$' "$policy_report")" = 5
+          test "$(grep -c '[|]POLICY_BODY_DRIFT$' "$policy_report")" = 1
+          # Compare complete PG17 constraint definitions, not just names.
+          exact=security/checks/finance_20261012_pinned_constraint_definitions.sql
+          exact_report="$RUNNER_TEMP/jco-finance-pinned-constraints.txt"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$exact" > "$exact_report"
+          test "$(wc -l < "$exact_report" | tr -d ' ')" = 24
+          if grep -v '[|]OK$' "$exact_report"; then
+            echo "Historic finance constraint definition drift"; exit 1
+          fi
+          # Negative test: same name, weakened date validation.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases DROP CONSTRAINT leases_financial_dates_valid"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases ADD CONSTRAINT leases_financial_dates_valid CHECK (start_date IS NOT NULL)"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$exact" > "$exact_report"
+          grep -Fx 'leases.leases_financial_dates_valid|DEFINITION_DRIFT' "$exact_report"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases DROP CONSTRAINT leases_financial_dates_valid"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -c "ALTER TABLE public.leases ADD CONSTRAINT leases_financial_dates_valid CHECK (isfinite(start_date) AND (end_date IS NULL OR (isfinite(end_date) AND end_date>=start_date)))"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rent_proofs_test -At -F '|' -f "$exact" > "$exact_report"
+          test "$(wc -l < "$exact_report" | tr -d ' ')" = 24
+          if grep -v '[|]OK$' "$exact_report"; then
+            echo "Constraint fixture not restored after mutation"; exit 1
+          fi
       - name: Future Supabase public table RLS and explicit API grants compatibility
         run: node --test tests/supabase-future-public-api-grants.test.mjs
       - name: Disabled free-trial RPC execution grants (isolated PostgreSQL)
@@ -442,9 +720,11 @@ jobs:
           # this CI step to Supabase or a production database.
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_drill_source"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE jco_backup_drill_restored"
-          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_drill_source -c "CREATE TABLE fixture_organizations(id text PRIMARY KEY, label text NOT NULL); CREATE TABLE fixture_documents(doc_ref text PRIMARY KEY, organization_id text NOT NULL REFERENCES fixture_organizations(id), amount numeric(12,0) NOT NULL, filename text NOT NULL); CREATE INDEX fixture_documents_amount_idx ON fixture_documents(amount); ALTER TABLE fixture_documents ENABLE ROW LEVEL SECURITY; CREATE POLICY fixture_docs_visible ON fixture_documents FOR SELECT USING (true)"
+          # A CI-only non-superuser must retain real SELECT grants after restore.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE ROLE jco_restore_fixture_reader NOLOGIN"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_drill_source -c "CREATE TABLE fixture_organizations(id text PRIMARY KEY, label text NOT NULL); CREATE TABLE fixture_documents(doc_ref text PRIMARY KEY, organization_id text NOT NULL REFERENCES fixture_organizations(id), amount numeric(12,0) NOT NULL, filename text NOT NULL); CREATE INDEX fixture_documents_amount_idx ON fixture_documents(amount); ALTER TABLE fixture_documents ENABLE ROW LEVEL SECURITY; CREATE POLICY fixture_docs_visible ON fixture_documents FOR SELECT TO jco_restore_fixture_reader USING (organization_id = current_setting('app.organization_id', true)); GRANT USAGE ON SCHEMA public TO jco_restore_fixture_reader; GRANT SELECT ON fixture_documents TO jco_restore_fixture_reader"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_backup_drill_source -c "INSERT INTO fixture_organizations VALUES ('org-a','Inmobiliaria ficticia A'),('org-b','Inmobiliaria ficticia B'); INSERT INTO fixture_documents VALUES ('DOC-A','org-a',1300000,'contrato-ficticio-A.pdf'),('DOC-B','org-b',1700000,'contrato-ficticio-B.pdf')"
-          PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-offline-backup.test.mjs tests/inmojco-backup-isolated-restore.test.mjs
+          PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-offline-backup.test.mjs tests/inmojco-backup-isolated-restore.test.mjs tests/inmojco-backup-manifest.test.mjs tests/inmojco-backup-package-restore-e2e.test.mjs
           PATH="$RUNNER_TEMP/inmojco-pg17-client:$PATH" node --test tests/inmojco-backup-preflight.test.mjs
       - name: Wompi private-key transaction reconciliation tests
         run: node --import tsx --test tests/wompi-transaction-lookup.test.mjs
@@ -458,6 +738,12 @@ jobs:
         run: node --test tests/platform-billing-access-review.test.mjs
       - name: Wompi release readiness preflight checks
         run: node --test tests/wompi-release-readiness.test.mjs
+      - name: Paid Basic and Professional plan capacity, 47-feature parity (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          node --test tests/commercial-basic-pro-parity.test.mjs
+          bash security/tests/commercial_plan_parity_pg17.sh
       - name: Commercial launch GO-NO-GO safety gates
         run: node --test tests/release-readiness-gates.test.mjs
       - name: Owner deduction administrator approval regression
@@ -784,6 +1070,12 @@ jobs:
         run: node --import tsx --test tests/rental-multi-owner-property.test.mjs
       - name: Owner deduction pure accounting tests
         run: node --import tsx --test tests/owner-deduction-ledger.test.mjs
+      - name: Private deduction PDF Storage-vs-documents integrity (read-only SQL)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          bash security/tests/owner_deduction_storage_audit.sh
+
       - name: Owner deduction invoice and payment PDF security tests
         run: node --import tsx --test tests/owner-deduction-pdf-evidence.test.mjs
       - name: Audited owner reconciliation update and reversal UI security tests

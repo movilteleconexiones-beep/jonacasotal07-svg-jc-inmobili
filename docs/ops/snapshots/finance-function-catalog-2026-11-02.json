@@ -1,0 +1,74 @@
+{
+  "captured_at": "2026-11-02",
+  "origin": "Production pg_proc read-only: live fingerprints, NOT proof of historic migration execution",
+  "project_ref": "cuitgyqrjibgwuniapmk",
+  "schema": "public",
+  "functions": [
+    {
+      "proname": "create_owner_draft_statement",
+      "args": "target_org uuid, target_lease uuid, target_month date, agency_commission numeric, withholding_tax numeric",
+      "body_md5": "610c219f26080452e9a0b4d13da27d71",
+      "definition_md5": "6c6efdd8d41115de3b6446e90e1a905b",
+      "security_definer": true,
+      "function_settings": "search_path=pg_catalog, public, auth",
+      "anon_can_execute": false,
+      "authenticated_can_execute": true,
+      "service_role_can_execute": true
+    },
+    {
+      "proname": "create_tenant_rent_period",
+      "args": "target_org uuid, target_lease uuid, target_period date",
+      "body_md5": "19484f5e7df50025559c5195f8fc205b",
+      "definition_md5": "cde79b372877a8583357af0c73b5e040",
+      "security_definer": true,
+      "function_settings": "search_path=pg_catalog, public, auth",
+      "anon_can_execute": false,
+      "authenticated_can_execute": true,
+      "service_role_can_execute": true
+    },
+    {
+      "proname": "guard_owner_statement_deduction_change",
+      "args": "",
+      "body_md5": "30f0f84353b1aa1d45e20aa14122cf95",
+      "definition_md5": "aac398d4397f06d3e1b7ecb2c93b675b",
+      "security_definer": true,
+      "function_settings": "search_path=pg_catalog, public, auth",
+      "anon_can_execute": false,
+      "authenticated_can_execute": false,
+      "service_role_can_execute": true
+    },
+    {
+      "proname": "normalize_owner_deduction_audit_fields",
+      "args": "",
+      "body_md5": "40a446e02f95857a5c013bd71fe49913",
+      "definition_md5": "bcf8f9ecea72157b1ad6991320cb0a83",
+      "security_definer": false,
+      "function_settings": "search_path=pg_catalog",
+      "anon_can_execute": false,
+      "authenticated_can_execute": false,
+      "service_role_can_execute": true
+    },
+    {
+      "proname": "reconcile_owner_draft_statement",
+      "args": "target_org uuid, target_statement uuid",
+      "body_md5": "a8af9ad02e088039ecb5c381c04717c8",
+      "definition_md5": "c3e1ce9d703bc89c940db384cfc7d405",
+      "security_definer": true,
+      "function_settings": "search_path=pg_catalog, public, auth",
+      "anon_can_execute": false,
+      "authenticated_can_execute": true,
+      "service_role_can_execute": true
+    },
+    {
+      "proname": "record_tenant_rent_receipt",
+      "args": "target_org uuid, target_payment uuid, receipt_amount numeric, receipt_method text, receipt_reference text, request_key uuid",
+      "body_md5": "72524a27180f43869c30065706fd5251",
+      "definition_md5": "7907aa26dc85bff0c06936d0d12c03ad",
+      "security_definer": true,
+      "function_settings": "search_path=pg_catalog, public, auth",
+      "anon_can_execute": false,
+      "authenticated_can_execute": true,
+      "service_role_can_execute": true
+    }
+  ]
+}

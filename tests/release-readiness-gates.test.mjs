@@ -9,9 +9,18 @@ function completeEvidence() {
   return {
     project_ref: PRODUCTION_PROJECT_REF,
     commit_sha: sha,
-    ci: { passed: true, commit_sha: sha },
+    ci: {
+      passed: true,
+      commit_sha: sha,
+      main_branch_protected: true,
+      required_status_check_enforced: true,
+      required_check_name: 'validate',
+      required_check_app_slug: 'github-actions',
+      branch_protection_verified_at: '2030-03-10T10:30:00.000Z',
+    },
     database: {
       migrations_reviewed: true,
+      applied_migration_bodies_reconciled: true,
       backup_sha256: 'b'.repeat(64),
       restored_backup_sha256: 'b'.repeat(64),
       restore_target: 'local:inmojco-recovery-ci',
@@ -21,6 +30,7 @@ function completeEvidence() {
       restore_verified_at: '2030-03-10T10:00:00.000Z',
     },
     security: {
+      leaked_password_protection_enabled: true,
       agency_a_b_isolation: true,
       client_and_staff_permissions: true,
       platform_admin_exclusive: true,
@@ -30,6 +40,9 @@ function completeEvidence() {
       rollback_reviewed: true,
       window_confirmed: true,
       wompi_mode: 'sandbox',
+      railway_app_waits_for_ci: true,
+      railway_wompi_waits_for_ci: true,
+      railway_ci_verified_at: '2030-03-10T10:30:00.000Z',
     },
   };
 }
@@ -142,4 +155,68 @@ test('CLI with no evidence always exits nonzero and never publishes', () => {
   ],{encoding:'utf8'});
   assert.equal(run.status,1);
   assert.match(run.stderr,/BLOQUEADO/);
+});
+
+test('CI green must not permit a release while main or either Railway service can bypass it', () => {
+  for (const missing of [
+    ['ci', 'main_branch_protected'],
+    ['ci', 'required_status_check_enforced'],
+    ['deployment', 'railway_app_waits_for_ci'],
+    ['deployment', 'railway_wompi_waits_for_ci'],
+    ['database', 'applied_migration_bodies_reconciled'],
+  ]) {
+    const e=completeEvidence();
+    e[missing[0]][missing[1]]=false;
+    const result=readiness(e);
+    assert.equal(result.ready,false,missing.join('.'));
+    assert.ok(result.errors.length>=1,missing.join('.'));
+  }
+});
+
+test('evidence of branch protection and both deployment gates must be current and exact',()=>{
+  const wrongCheck=completeEvidence();
+  wrongCheck.ci.required_check_name='Verify JCO application / validate';
+  assert.match(readiness(wrongCheck).errors.join(' '),/check obligatorio de main/);
+  const wrongApp=completeEvidence();
+  wrongApp.ci.required_check_app_slug='supabase';
+  assert.match(readiness(wrongApp).errors.join(' '),/GitHub Actions/);
+  const missingApp=completeEvidence();
+  delete missingApp.ci.required_check_app_slug;
+  assert.equal(readiness(missingApp).ready,false);
+  const staleGitHub=completeEvidence();
+  staleGitHub.ci.branch_protection_verified_at='2030-03-08T09:00:00Z';
+  assert.match(readiness(staleGitHub).errors.join(' '),/24 horas/);
+  const staleRailway=completeEvidence();
+  staleRailway.deployment.railway_ci_verified_at='2030-03-08T09:00:00Z';
+  assert.equal(readiness(staleRailway).ready,false);
+  const future=completeEvidence();
+  future.deployment.railway_ci_verified_at='2030-03-11T12:00:00Z';
+  assert.equal(readiness(future).ready,false);
+  const missing=completeEvidence();
+  delete missing.ci.branch_protection_verified_at;
+  assert.equal(readiness(missing).ready,false);
+});
+
+test('commercial GO requires Supabase Auth compromised-password protection, not merely paid Wompi',()=>{
+  const commercial=completeEvidence();
+  commercial.deployment.wompi_mode='production';
+  commercial.commercial={
+    approved_environment:'production',
+    approved_order_status:'APPROVED',
+    approved_fulfillment_status:'APPLIED',
+    production_signed_payment_verified:true,
+    production_fulfillment_applied:true,
+    production_license_activated:true,
+    payment_idempotency_verified:true,
+    renewal_and_suspension_verified:true,
+    financial_flows_verified:true,
+    smtp_invitation_recovery:true,
+    wompi_sandbox_signed:true,
+    wompi_real_approved:true,
+    licensing_is_superadmin_only:true,
+  };
+  assert.equal(readiness(commercial,{phase:'commercial'}).ready,true);
+  commercial.security.leaked_password_protection_enabled=false;
+  assert.equal(readiness(commercial,{phase:'commercial'}).ready,false);
+  assert.match(readiness(commercial,{phase:'commercial'}).errors.join(' '),/contraseñas filtradas/);
 });

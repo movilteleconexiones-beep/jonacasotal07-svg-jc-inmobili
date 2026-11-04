@@ -1,6 +1,17 @@
 # Diseño de operaciones comerciales protegidas — JCO
 
-Proyecto oficial: `nqzopzhmhqdssgpljypu`. Documento de revisión; **no ejecuta cambios de producción**.
+> **ARCHIVO HISTÓRICO — NO UTILIZAR COMO CONFIGURACIÓN ACTUAL.**
+> La referencia `nqzopzhmhqdssgpljypu` corresponde al proyecto Supabase anterior.
+> El proyecto de INMOJCO actualmente verificado por el conector es
+> `cuitgyqrjibgwuniapmk` (producción). Este documento fue redactado para
+> el esquema anterior y sus observaciones sobre funciones, licencias y estados
+> **no están revalidadas para producción actual**.
+> No ejecutar sus SQL ni cambiar proyectos basándose en él. Consultar
+> `scripts/release-readiness.mjs` y la incidencia de migraciones #104
+> antes de cualquier intervención.
+
+Referencia histórica (NO oficial actual): `nqzopzhmhqdssgpljypu`.
+Documento de revisión archivado; **no ejecuta cambios de producción**.
 
 ## Estado verificado
 - `platform_list_organizations()` comprueba `is_platform_admin()` y devuelve organización, plan, facturación y métricas.
