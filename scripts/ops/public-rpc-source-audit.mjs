@@ -54,7 +54,10 @@ export function inspectPublicRpcBodies(snapshot,readMigration){
     const sourceHash=createHash('md5').update(body,'utf8').digest('hex');
     const missing=(requiredControls[r.name]??[]).filter(re=>!re.test(body)).map(re=>re.source);
     const settings=String(r.settings??'');
-    const emptySearchPath=settings.split(';').some(v=>v==='search_path=""');
+    // A later SET search_path overrides an earlier safe setting. Fail closed
+    // on duplicates or any non-empty path, including untrusted schemas.
+    const searchPaths=settings.split(';').map(v=>v.trim()).filter(v=>/^search_path\s*=/.test(v));
+    const emptySearchPath=searchPaths.length===1 && searchPaths[0]==='search_path=""';
     const intendedPublicAccess=r.security_definer===true && r.anon_execute===true && r.authenticated_execute===true;
     return {
       rpc:r.name,source_file:source,
