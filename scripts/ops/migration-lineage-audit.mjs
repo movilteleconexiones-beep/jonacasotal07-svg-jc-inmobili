@@ -14,7 +14,8 @@ export function buildMigrationLineage(sqlFiles, appliedRows) {
   const appliedNames = new Map();
   const appliedVersions = new Set();
   for (const row of appliedRows) {
-    if (!row || !VERSION.test(row.version) || !/^[A-Za-z0-9_]+$/.test(row.name ?? ''))
+    if (!row || typeof row.version !== 'string' || !VERSION.test(row.version) ||
+      typeof row.name !== 'string' || !/^[A-Za-z0-9_]+$/.test(row.name))
       throw Error('Invalid applied migration version/name');
     if (appliedVersions.has(row.version)) throw Error('Duplicate applied version: ' + row.version);
     appliedVersions.add(row.version);
@@ -23,6 +24,7 @@ export function buildMigrationLineage(sqlFiles, appliedRows) {
   const filenames = new Set();
   const localVersions = new Map();
   const results = [];
+  if (sqlFiles.some((f) => typeof f !== 'string')) throw Error('Invalid local migration filename type');
   for (const filename of sqlFiles.filter((f) => f.endsWith('.sql')).sort()) {
     if (filenames.has(filename)) throw Error('Duplicate local filename: ' + filename);
     filenames.add(filename);
