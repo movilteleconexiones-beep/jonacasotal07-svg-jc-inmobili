@@ -35,7 +35,7 @@ test('the app build, start scripts and CI do not mutate live Supabase schemas', 
 test('migration drift and Railway branch protection are not silently declared solved', () => {
   const runbook = readFileSync(join(root, 'docs/ops/main-ci-release-rollout.md'), 'utf8');
   assert.match(runbook, /#104/);
-  assert.match(runbook, /check-run.*validate/s);
+  assert.match(runbook, /contexto de API es `validate` de `github-actions`/);
   assert.match(runbook, /github-actions/);
   assert.match(runbook, /15368/);
   assert.match(runbook, /checkSuites/);
