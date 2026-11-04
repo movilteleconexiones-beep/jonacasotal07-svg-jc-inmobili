@@ -25,6 +25,9 @@ export function buildMigrationLineage(sqlFiles, appliedRows) {
   const localVersions = new Map();
   const results = [];
   if (sqlFiles.some((f) => typeof f !== 'string')) throw Error('Invalid local migration filename type');
+  // A differently cased SQL suffix must not disappear from the reconciliation report.
+  if (sqlFiles.some((f) => /\.sql$/i.test(f) && !f.endsWith('.sql')))
+    throw Error('Unexpected migration SQL extension case');
   for (const filename of sqlFiles.filter((f) => f.endsWith('.sql')).sort()) {
     if (filenames.has(filename)) throw Error('Duplicate local filename: ' + filename);
     filenames.add(filename);
