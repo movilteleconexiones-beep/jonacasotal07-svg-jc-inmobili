@@ -195,6 +195,34 @@ idempotencia y la existencia de **una sola** relación FK por padre.
 [Análisis, preflight y plan de staging](maintenance-property-tenant-integrity-2026-11-03.md).
 **No desplegada ni autorizada para producción.**
 
+### Contrato original de `0026_rental_management_core` validado (04-nov, solo lectura)
+
+Una comprobación adicional contra las **47 definiciones originales de columnas**
+del cuerpo aplicado `20261005153559` verificó
+nombre, tipo PostgreSQL y nulabilidad, y la presencia de los cuatro
+índices originales válidos, cuatro políticas iniciales `FOR ALL TO authenticated`
+y RLS activo. Resultado de Supabase: **4/4 tablas
+`BASELINE_COMPATIBLE`, 47/47 columnas originales**.
+
+| Tabla | Compatibles | Columnas añadidas por evolución |
+| --- | ---: | ---: |
+| `leases` | 15/15 | 5 |
+| `rent_payments` | 10/10 | 0 |
+| `owner_statements` | 12/12 | 2 |
+| `maintenance_requests` | 10/10 | 0 |
+
+[SELECT reproducible](../../security/checks/rental_0026_baseline_contract_live.sql),
+[prueba estática fail-closed](../../tests/rental-0026-baseline-contract.test.mjs),
+[alcance y límites](rental-0026-historic-baseline-2026-11-04.md).
+
+El esquema actual **amplía** el de 2026-10-05. Este resultado
+refuerza la capacidad de reconstrucción de las tablas históricas,
+pero no acredita equivalencia completa de checks, FKs, funciones ni
+definiciones de RLS posteriores, ni la procedencia de su SQL aplicado
+dentro de Git. El caso histórico `0026` **sigue en los cuatro
+divergentes sustantivos #104** hasta recreación íntegra y autorizada
+en staging; no ejecutar DDL ni reparar el historial productivo.
+
 ### Preflight de consignación y recursión (03-nov, solo lectura)
 
 Se consultó el SQL **auténticamente registrado** en Supabase para las
