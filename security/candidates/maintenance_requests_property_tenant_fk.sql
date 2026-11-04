@@ -1,45 +1,54 @@
 -- INMOJCO #104/#203 — review-only candidate, NOT a Supabase migration.
--- DO NOT RUN against production or add to supabase/migrations until #104,
--- backups, branch protection, staging integration and rollback are approved.
+-- DO NOT RUN in production until #104, verified backups, main protection,
+-- staging integration, PostgREST compatibility and rollback are approved.
 --
--- Existing FK(property_id)->properties(id) can validate a property from a
--- different organization despite maintenance_requests.org-scoped RLS.
--- Add a second composite FK without dropping the legacy FK in this phase.
--- The original ON DELETE CASCADE contract remains intact.
+-- The old FK(property_id)->properties(id) fails to enforce tenant ownership.
+-- REPLACE that FK IN PLACE, keeping its name and ON DELETE CASCADE:
+-- a parallel FK to the same parent risks ambiguous PostgREST embeds (PGRST201).
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
--- Lock before the preflight to prevent race between checking existing rows
--- and adding the FK. This may briefly block writes: staging only.
+-- Lock parents before children to serialize changes before validation.
+LOCK TABLE public.properties IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.maintenance_requests IN SHARE ROW EXCLUSIVE MODE;
 DO $preflight$
 DECLARE
   v_child oid := to_regclass('public.maintenance_requests');
   v_parent oid := to_regclass('public.properties');
-  v_expected_name text := 'maintenance_requests_property_same_tenant_fk';
+  v_old text := 'FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE';
+  v_new text := 'FOREIGN KEY (organization_id, property_id) REFERENCES properties(organization_id, id) ON DELETE CASCADE';
 BEGIN
   IF current_user <> 'postgres' THEN
     RAISE EXCEPTION 'maintenance tenant FK blocked: authorized postgres owner required';
   END IF;
-  IF v_child IS NULL OR v_parent IS NULL OR NOT EXISTS(
-    SELECT 1 FROM pg_class c WHERE c.oid=v_child AND c.relkind IN ('r','p')
-      AND c.relowner='postgres'::regrole AND c.relrowsecurity
-  ) OR NOT EXISTS(
-    SELECT 1 FROM pg_class c WHERE c.oid=v_parent AND c.relkind IN ('r','p')
-      AND c.relowner='postgres'::regrole AND c.relrowsecurity
-  ) THEN
+  IF v_child IS NULL OR v_parent IS NULL
+     OR EXISTS (
+       SELECT 1 FROM pg_class c
+       WHERE c.oid IN (v_child, v_parent)
+         AND (c.relkind NOT IN ('r','p') OR c.relowner <> 'postgres'::regrole
+           OR NOT c.relrowsecurity)
+     ) THEN
     RAISE EXCEPTION 'maintenance tenant FK blocked: owner/table/RLS contract changed';
   END IF;
   IF NOT EXISTS(
-    SELECT 1 FROM pg_constraint c WHERE c.conrelid=v_child AND c.contype='f'
-      AND c.confrelid=v_parent AND c.confdeltype='c'
-      AND pg_get_constraintdef(c.oid,true) =
-        'FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE'
-  ) OR NOT EXISTS(
-    SELECT 1 FROM pg_constraint c WHERE c.conrelid=v_parent AND c.contype='u'
+    SELECT 1 FROM pg_constraint c WHERE c.conrelid=v_parent
+      AND c.conname='financial_properties_tenant_id_unique'
+      AND c.contype='u' AND c.convalidated
       AND pg_get_constraintdef(c.oid,true)='UNIQUE (organization_id, id)'
   ) THEN
-    RAISE EXCEPTION 'maintenance tenant FK blocked: expected legacy FK or parent composite UNIQUE missing';
+    RAISE EXCEPTION 'maintenance tenant FK blocked: parent composite UNIQUE missing or changed';
+  END IF;
+  IF NOT EXISTS(
+    SELECT 1 FROM pg_constraint c WHERE c.conrelid=v_child
+      AND c.conname='maintenance_requests_property_id_fkey'
+      AND c.contype='f' AND c.confrelid=v_parent
+      AND NOT c.condeferrable
+      AND pg_get_constraintdef(c.oid,true) IN (v_old,v_new)
+  ) OR (
+    SELECT count(*) FROM pg_constraint c
+    WHERE c.conrelid=v_child AND c.contype='f' AND c.confrelid=v_parent
+  ) <> 1 THEN
+    RAISE EXCEPTION 'maintenance tenant FK blocked: original or single PostgREST FK contract changed';
   END IF;
   IF EXISTS (
     SELECT 1 FROM public.maintenance_requests mr
@@ -48,47 +57,44 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'maintenance tenant FK blocked: existing cross-tenant/dangling records';
   END IF;
-  IF EXISTS (
-    SELECT 1 FROM pg_constraint c WHERE c.conrelid=v_child
-      AND c.conname=v_expected_name AND (
-        c.contype<>'f' OR c.confrelid<>v_parent
-        OR c.confdeltype<>'c' OR c.condeferrable
-        OR pg_get_constraintdef(c.oid,true) NOT IN (
-          'FOREIGN KEY (organization_id, property_id) REFERENCES properties(organization_id, id) ON DELETE CASCADE',
-          'FOREIGN KEY (organization_id, property_id) REFERENCES properties(organization_id, id) ON DELETE CASCADE NOT VALID'
-        )
-      )
-  ) THEN
-    RAISE EXCEPTION 'maintenance tenant FK blocked: unexpected existing constraint';
-  END IF;
 END
 $preflight$;
-DO $add$
+DO $replace$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid='public.maintenance_requests'::regclass
-      AND conname='maintenance_requests_property_same_tenant_fk'
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint c
+    WHERE c.conrelid='public.maintenance_requests'::regclass
+      AND c.conname='maintenance_requests_property_id_fkey'
+      AND pg_get_constraintdef(c.oid,true)=
+        'FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE'
   ) THEN
     ALTER TABLE public.maintenance_requests
-      ADD CONSTRAINT maintenance_requests_property_same_tenant_fk
+      DROP CONSTRAINT maintenance_requests_property_id_fkey;
+    ALTER TABLE public.maintenance_requests
+      ADD CONSTRAINT maintenance_requests_property_id_fkey
       FOREIGN KEY (organization_id,property_id)
       REFERENCES public.properties(organization_id,id)
       ON DELETE CASCADE NOT VALID;
   END IF;
 END
-$add$;
+$replace$;
 ALTER TABLE public.maintenance_requests
-  VALIDATE CONSTRAINT maintenance_requests_property_same_tenant_fk;
+  VALIDATE CONSTRAINT maintenance_requests_property_id_fkey;
 DO $verify$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid='public.maintenance_requests'::regclass
-      AND conname='maintenance_requests_property_same_tenant_fk'
-      AND contype='f' AND convalidated
-  ) THEN
-    RAISE EXCEPTION 'maintenance tenant FK blocked: composite FK not validated';
+    SELECT 1 FROM pg_constraint c
+    WHERE c.conrelid='public.maintenance_requests'::regclass
+      AND c.conname='maintenance_requests_property_id_fkey'
+      AND c.contype='f' AND c.convalidated AND c.confdeltype='c'
+      AND pg_get_constraintdef(c.oid,true)=
+        'FOREIGN KEY (organization_id, property_id) REFERENCES properties(organization_id, id) ON DELETE CASCADE'
+  ) OR (
+    SELECT count(*) FROM pg_constraint c
+    WHERE c.conrelid='public.maintenance_requests'::regclass
+      AND c.contype='f' AND c.confrelid='public.properties'::regclass
+  ) <> 1 THEN
+    RAISE EXCEPTION 'maintenance tenant FK blocked: composite FK invalid or PostgREST relationship ambiguous';
   END IF;
   IF NOT (SELECT relrowsecurity FROM pg_class
         WHERE oid='public.maintenance_requests'::regclass)
@@ -99,4 +105,5 @@ BEGIN
   END IF;
 END
 $verify$;
+NOTIFY pgrst, 'reload schema';
 COMMIT;
