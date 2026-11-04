@@ -80,7 +80,7 @@ test('actual shell refuses preexisting database or roles before destructive oper
       '  *) echo "Unexpected or mutating psql call" >&2; exit 70 ;;',
       'esac',
       '',
-    ].join('\\n'),{mode:0o755});
+    ].join('\n'),{mode:0o755});
     for (const [name,existingDb,existingRoles] of [
       ['existing database','1','0'],
       ['existing shared role','0','1'],
@@ -98,11 +98,11 @@ test('actual shell refuses preexisting database or roles before destructive oper
         });
       assert.equal(result.status,2,name+': '+result.stderr);
       assert.match(result.stderr,/Refusing to touch a preexisting DB or/);
-      const calls=readFileSync(log,'utf8').trim().split('\\n');
+      const calls=readFileSync(log,'utf8').trim().split('\n');
       assert.equal(calls.length,2,name+' should run exactly two SELECTs');
       for(const call of calls) {
-        assert.match(call,/SELECT count\\(\\*\\) FROM pg_/);
-        assert.doesNotMatch(call,/\\b(?:CREATE|DROP|ALTER|GRANT|REVOKE)\\b/i);
+        assert.match(call,/SELECT count\(\*\) FROM pg_/);
+        assert.doesNotMatch(call,/\b(?:CREATE|DROP|ALTER|GRANT|REVOKE)\b/i);
       }
       rmSync(log);
     }
