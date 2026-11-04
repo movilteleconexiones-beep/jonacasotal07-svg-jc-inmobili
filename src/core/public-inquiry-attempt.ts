@@ -22,6 +22,8 @@ export interface AttemptStorage {
 interface Attempt { fingerprint: string; requestId: string }
 
 const attempts = new Map<string, Attempt>();
+// A confirmed submission must not be resurrected if sessionStorage removal fails.
+const completedRequestIds = new Map<string, string>();
 const prefix = 'inmojco:public-crm-attempt:';
 
 function attemptKey(slug: string) {
@@ -73,7 +75,8 @@ export async function getPublicInquiryRequestId(
       const parsed: unknown = saved ? JSON.parse(saved) : null;
       // A stale sessionStorage value must not override a newer in-memory attempt
       // when a previous storage write was rejected (privacy mode/quota).
-      if (isAttempt(parsed) && (!cached || cached.fingerprint === parsed.fingerprint)) cached = parsed;
+      if (isAttempt(parsed) && parsed.requestId !== completedRequestIds.get(key) &&
+          (!cached || cached.fingerprint === parsed.fingerprint)) cached = parsed;
     } catch {
       // Browsers may deny session storage. In-memory fallback still prevents
       // accidental retries in the current page.
@@ -86,7 +89,10 @@ export async function getPublicInquiryRequestId(
   const attempt = { fingerprint, requestId: globalThis.crypto.randomUUID() };
   attempts.set(key, attempt);
   if (storage) {
-    try { storage.setItem(key, JSON.stringify(attempt)); }
+    try {
+      storage.setItem(key, JSON.stringify(attempt));
+      completedRequestIds.delete(key);
+    }
     catch { /* Protected storage may be disabled; in-memory fallback is enough for this tab. */ }
   }
   return attempt.requestId;
@@ -95,6 +101,8 @@ export async function getPublicInquiryRequestId(
 /** Call only once the server confirmed success, not when a request timed out. */
 export function clearPublicInquiryAttempt(slug: string, storage: AttemptStorage | null = browserStorage()) {
   const key = attemptKey(slug);
+  const completed = attempts.get(key);
+  if (completed) completedRequestIds.set(key, completed.requestId);
   attempts.delete(key);
   if (storage) {
     try { storage.removeItem(key); } catch { /* Storage may be disabled. */ }
