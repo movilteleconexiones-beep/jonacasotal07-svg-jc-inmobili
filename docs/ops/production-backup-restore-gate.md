@@ -1,8 +1,32 @@
 # INMOJCO — Puerta de recuperación antes de migrar producción
 
-**Estado: NO VERIFICADO. Este documento no constituye un respaldo.**
+**Estado: RESPALDO AUTÉNTICO CREADO Y VERIFICADO LOCALMENTE; GO de
+publicación aún NO APROBADO.** Este documento no contiene el respaldo.
+Ver [evidencia consolidada del 1–2 nov](authentic-backup-evidence-2026-11-04.md):
+PostgreSQL cifrado/USB, recuperación estructural local Auth/Storage SQL,
+seis objetos Storage y 932.740 bytes con 6/6 hashes contra manifiesto,
+y ruleset GitHub `backup/**` activo. No rehacer esas operaciones.
 Proyecto Supabase de producción: `cuitgyqrjibgwuniapmk`.
 Incidencia de seguimiento: #214.
+
+## Alcance de lo ya acreditado frente a lo pendiente
+
+La documentación de #214 del 1–2 nov **sí registra un backup auténtico**
+del 01-nov, copia USB, extracción y seis hashes Storage. También registra
+una restauración **local estructural** de 27 tablas Auth, ocho Storage,
+sus FKs/RLS y dos usuarios. La presencia de esa evidencia debe impedir
+que se pida de nuevo un export o que se marque «backup inexistente».
+
+La fase 2 de copia **independiente de código fuente** en USB quedó sin
+salida final acreditada. Las pruebas de **login y servicios Auth/Storage
+aislados** deben efectuarse como requisito funcional de lanzamiento
+(#203), no confundirse con la integridad ya comprobada de la copia
+local del 01-nov.
+
+La regla GitHub `backup/**` #26351160 está **activa**, sin bypass,
+con backup histórico SHA intacto. **No protege `main`**: falta la
+configuración real de protección de publicación y
+`source.checkSuites=true` en Railway (PR #286 aún borrador).
 
 ## Condiciones obligatorias de GO
 
@@ -34,8 +58,10 @@ real, restauración en entorno aislado y cotejo de bytes con el origen.
 
 ## NO-GO
 
-- Solo existen listados de archivos o recuentos SQL, pero faltan bytes del Storage.
-- Existe una exportación que nunca se restauró.
+- Para un respaldo diferente al ya acreditado de 01-nov,
+  existen solo listados de archivos o recuentos SQL, pero faltan bytes.
+- Se pretende acreditar un RESTORE INTEGRAL de servicios Auth/Storage solo
+  por haber restaurado tablas PostgreSQL o verificado bytes de un 7z.
 - La restauración utiliza producción o servicios externos reales.
 - No están cifrados y protegidos los datos personales.
 - La historia de migraciones sigue ambigua (#104).
@@ -46,4 +72,10 @@ La API conectada permite consultar SQL y Storage según las capacidades disponib
 
 ## Criterio de salida
 
-La persona responsable adjunta evidencia verificable de (1) exportación completa, (2) copia de bytes Storage, (3) restauración fuera de producción y (4) pruebas de integridad. Solo entonces cambiar el estado de recuperación a GO.
+La evidencia (1) de exportación auténtica PostgreSQL y (2) de
+recuperabilidad local de los seis bytes Storage **ya figura en #214**.
+Falta acreditar el cierre de la fase 2 USB de **código fuente**,
+más el alcance restante de servicio integrado/aislamiento y el gate
+de publicación #203, sin duplicar la exportación o sus pruebas
+criptográficas. Nunca asumir que la ejecución CI con fixtures sustituye
+al respaldo del propietario.
