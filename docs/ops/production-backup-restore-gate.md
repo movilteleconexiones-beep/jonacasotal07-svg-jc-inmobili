@@ -14,6 +14,24 @@ Incidencia de seguimiento: #214.
 6. Ejecutar smoke tests con cuentas de prueba: aislamiento entre tenants, contratos, cobros, idempotencia, adjuntos y auditoría; comprobar que no se enviaron correos/webhooks/pagos reales.
 7. Registrar identificadores verificables del respaldo, restauración y resultados CI en #214; obtener revisión antes de `supabase db push`, `migration repair` o migraciones financieras.
 
+## Control adicional: integridad del manifiesto cifrado (04-nov-2026)
+
+Se reforzó el verificador local de respaldos con una frontera
+[`validateBackupManifest`](../../scripts/lib/inmojco-backup-manifest.mjs):
+antes de descifrar archivos o crear un destino de extracción comprueba
+que los buckets, claves de objetos, nombres numerados, sellos cifrados y
+recuentos de cobertura sean coherentes. Se prueba con material
+sintético y rutas adversariales en
+[`tests/inmojco-backup-manifest.test.mjs`](../../tests/inmojco-backup-manifest.test.mjs).
+Ver [detalles y limitaciones](backup-manifest-integrity-2026-11-04.md).
+
+**Esto no convierte un respaldo de prueba en backup auténtico.**
+Los paquetes heredados sin `storageCoverage` pueden verificarse
+criptográficamente, pero se reportan con
+`metadataCoverageRecorded: false`; no deben aprobar el GO de
+cobertura completa con ese resultado. Todavía se exige extracción
+real, restauración en entorno aislado y cotejo de bytes con el origen.
+
 ## NO-GO
 
 - Solo existen listados de archivos o recuentos SQL, pero faltan bytes del Storage.
