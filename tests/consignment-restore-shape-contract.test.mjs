@@ -44,7 +44,7 @@ test('read-only shape audit targets only the two consignment tables with missing
     assert.match(query, new RegExp("'" + part + "'"), part);
   assert.match(query, /extensions\.digest\(/);
   assert.match(query, /'sha256'/);
-  assert.match(query, /rlrowsecurity/);
+  assert.match(query, /relrowsecurity/);
   assert.match(query, /relforcerowsecurity/);
 });
 
