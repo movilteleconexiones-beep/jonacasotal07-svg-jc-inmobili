@@ -43,3 +43,26 @@ test('migration drift and Railway branch protection are not silently declared so
   assert.match(runbook, /main/);
   assert.match(runbook, /proteg/i);
 });
+
+test('Railway cannot be enabled safely before main contains push CI: freeze both autodeploys first', () => {
+  const runbook=readFileSync(join(root,'docs/ops/main-ci-release-rollout.md'),'utf8');
+  const markers=[
+    '**GitHub ADMIN — proteger `main` antes de fusionar:**',
+    '**Railway ADMIN — CONGELAR ambos autodeploys antes de fusionar:**',
+    '**Solo con pasos 2 y 3 acreditados**',
+    '**Railway ADMIN — activar `Wait for CI` en AMBOS servicios:**',
+    '**Restablecer autodeploys solo tras la verificación doble:**',
+  ];
+  const positions=markers.map(marker=>runbook.indexOf(marker));
+  assert.ok(positions.every(p=>p>0),'Missing required bootstrap gate in official runbook');
+  assert.ok(positions.every((p,i)=>i===0||p>positions[i-1]),
+    'Cannot merge #286 before disabling BOTH Railway autodeploys');
+  assert.match(runbook,/workflow en la[\s\S]+rama conectada[\s\S]+on: push: branches: \[main\]/);
+  assert.match(runbook,/source\.checkSuites=true/);
+  assert.match(runbook,/Service → Settings → Source → Disable automatic deployments/);
+  assert.match(runbook,/Wompi sandbox/);
+  assert.match(runbook,/mantener ambos autodeploys apagados/);
+  assert.match(runbook,/no introducir fallos intencionales en[\s\S]*?main/);
+  assert.match(runbook,/https:\/\/docs\.railway\.com\/deployments\/github-autodeploys/);
+  assert.match(workflow,/^  push:\s*\n    branches: \[main\]$/m);
+});
