@@ -1,0 +1,51 @@
+name: INMOJCO public HTTP smoke
+
+# An on-demand outside-in check. Pull-request trigger runs only when this
+# workflow itself is added/updated, not on every code PR or production deploy.
+# It does not take part in the Railway Wait-for-CI release gate.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-http-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify real production /readyz and public portal
+        shell: bash
+        env:
+          WEBSITE_URL: https://www.inmojco.com
+        run: |
+          set -euo pipefail
+          body="${RUNNER_TEMP}/readyz-body"
+          headers="${RUNNER_TEMP}/readyz-headers"
+          echo "Checking HTTP status, body and cache policy from GitHub-hosted runner."
+          code="$(curl --silent --show-error --location --max-time 20 \
+            --dump-header "$headers" --output "$body" \
+            --write-out '%{http_code}' "${WEBSITE_URL}/readyz")"
+          test "$code" = 200
+          test "$(cat "$body")" = ok
+          grep -Eiq '^cache-control:[[:space:]]*no-store' "$headers"
+
+          # A nested path must not impersonate the ready endpoint.
+          nested="$(curl --silent --show-error --location --max-time 20 \
+            "${WEBSITE_URL}/readyz/missing")"
+          test "$nested" != ok
+
+          # A public SPA route must still return 200; missing assets stay 404.
+          code="$(curl --silent --show-error --location --max-time 20 \
+            --output /dev/null --write-out '%{http_code}' \
+            "${WEBSITE_URL}/inmobiliaria/sistema-inmobiliario-jco")"
+          test "$code" = 200
+          code="$(curl --silent --show-error --location --max-time 20 \
+            --output /dev/null --write-out '%{http_code}' \
+            "${WEBSITE_URL}/assets/removed-version-css.css")"
+          test "$code" = 404
+          echo 'Production public HTTP smoke PASSED.'
