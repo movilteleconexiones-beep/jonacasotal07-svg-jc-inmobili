@@ -72,6 +72,7 @@ jobs:
         run: |
           node --test tests/migration-body-fingerprint-audit.test.mjs
           node --test tests/historic-consignment-portal-preflight.test.mjs
+          node --test tests/migration-format-differences-reconciliation.test.mjs
       - name: Four public SECURITY DEFINER RPC source and tenant-guard audit (#104)
         run: |
           node --test tests/public-rpc-source-audit.test.mjs
