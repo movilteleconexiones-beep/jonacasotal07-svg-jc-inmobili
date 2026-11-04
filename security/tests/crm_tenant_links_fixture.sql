@@ -52,7 +52,9 @@ INSERT INTO public.property_consignments VALUES
 -- An authenticated staff member has normal permission to insert a lead only for
 -- its own agency. Existing single-column FKs still accept a known B contact ID.
 ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.property_consignments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY contact_read_tenant ON public.contacts FOR SELECT TO authenticated
  USING(organization_id=current_setting('app.tenant_id',true)::uuid);
 CREATE POLICY lead_access_tenant ON public.leads TO authenticated
