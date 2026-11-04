@@ -24,8 +24,12 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
   const [editContact, setEditContact] = useState<ContactRow|null>(null);
   const [contactBusy, setContactBusy] = useState(false);
   const loadVersion = useRef(0);
+  // Synchronous lock: a second submit can fire before React renders busy state.
+  const createInFlight = useRef(false);
 
   const organizationId = activeMembership?.organization.id;
+  const currentOrganization = useRef(organizationId);
+  currentOrganization.current = organizationId;
   const adminMayCorrect=Boolean(activeMembership?.roles.some(r=>r.key==='ADMIN')) &&
     can(PERMISSIONS.CLIENTS_EDIT);
 
@@ -56,12 +60,14 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
   useEffect(() => {
     // Never retain another inmobiliaria's editable contact after switching tenant.
     setEditContact(null);
+    setShowCreate(false);
     void load();
     return () => { ++loadVersion.current; };
   }, [organizationId]);
 
   async function createContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createInFlight.current || contactBusy) return;
     if (!organizationId || !user || !can(PERMISSIONS.CLIENTS_CREATE)) {
       setMessage('No tienes permiso para crear contactos.');
       return;
@@ -104,18 +110,53 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       created_by: user.id,
     };
 
-    const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
+    createInFlight.current = true;
+    setContactBusy(true);
+    try {
+      if (email) {
+        // The rendered list can be stale (other staff may have registered this email).
+        // Escape SQL LIKE wildcards so a literal '_' or '%' in an email is not a wildcard.
+        const literalEmailPattern = email.replace(/[\\%_]/g, character => '\\' + character);
+        const { data: duplicates, error: duplicateError } = await supabase.from('contacts')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .ilike('email', literalEmailPattern)
+          .limit(1);
+        if (currentOrganization.current !== organizationId) return;
+        if (duplicateError) {
+          setMessage('No fue posible comprobar si el correo ya existe. Actualiza la lista antes de registrar.');
+          return;
+        }
+        if (duplicates?.length) {
+          setMessage('Ya existe una ficha con este correo. Selecciona el cliente existente para evitar duplicados.');
+          return;
+        }
+      }
 
-    if (error) {
-      setMessage(error.message);
-      return;
+      // UI preflight reduces duplicate submissions; the server must still enforce
+      // concurrency guarantees if two sessions insert simultaneously.
+      const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
+      if (currentOrganization.current !== organizationId) return;
+      if (error) {
+        setMessage('No se pudo registrar el contacto: ' + error.message);
+        return;
+      }
+      if (created?.id) onCreated?.(created.id);
+      setShowCreate(false);
+      formElement.reset();
+      await load();
+      if (currentOrganization.current === organizationId) {
+        setMessage('Cliente/contacto creado correctamente.');
+      }
+    } catch {
+      if (currentOrganization.current === organizationId) {
+        // A timeout can occur after a successful INSERT; verify before retrying.
+        setMessage('No se confirmó el registro. Actualiza y comprueba si el cliente existe antes de reintentar.');
+      }
+    } finally {
+      createInFlight.current = false;
+      setContactBusy(false);
     }
-
-    if(created?.id) onCreated?.(created.id);
-    setMessage('Cliente/contacto creado correctamente.');
-    setShowCreate(false);
-    formElement.reset();
-    await load();
   }
 
   async function correctContact(event:FormEvent<HTMLFormElement>) {
@@ -189,7 +230,7 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
             <RefreshCw className="h-4 w-4" /> Actualizar
           </button>
           {can(PERMISSIONS.CLIENTS_CREATE) && (
-            <button type="button" onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+            <button type="button" onClick={() => setShowCreate((v) => !v)} disabled={contactBusy} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
               <Plus className="h-4 w-4" /> Nuevo contacto
             </button>
           )}
@@ -222,8 +263,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
             <textarea name="notes" rows={3} className="w-full rounded-xl border border-stone-300 px-3 py-2.5" />
           </label>
           <div className="md:col-span-2 flex justify-end gap-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Guardar contacto</button>
+            <button type="button" onClick={() => setShowCreate(false)} disabled={contactBusy} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold disabled:opacity-50">Cancelar</button>
+            <button type="submit" disabled={contactBusy} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{contactBusy ? 'Guardando...' : 'Guardar contacto'}</button>
           </div>
         </form>
       )}
