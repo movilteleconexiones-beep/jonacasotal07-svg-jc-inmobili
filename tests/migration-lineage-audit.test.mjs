@@ -71,7 +71,7 @@ test('CLI is read-only, emits NO-GO and refuses mutation options',()=>{
   assert.match(normal.stdout,/unapplied-legacy-draft: 7/);
   const bad=spawnSync(process.execPath,[script,'--ledger',ledger,'--apply'],{cwd:root,encoding:'utf8'});
   assert.equal(bad.status,2);
-  assert.match(bad.stderr,/Refusing database mutation options/);
+  assert.match(bad.stderr,/Refusing unknown or mutation arguments/);
 });
 
 test('CLI fails closed for unrecognized flags, repeated ledger and positional extras',()=>{
