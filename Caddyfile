@@ -10,6 +10,13 @@
     encode zstd gzip
     header X-Content-Type-Options "nosniff"
 
+    # Only a web-server liveness check. This never claims that Supabase,
+    # Storage, or Wompi is healthy; no SPA fallback may impersonate it.
+    handle /readyz {
+        header Cache-Control "no-store"
+        respond "ok" 200
+    }
+
     # Vite uses content-hashed JS/CSS assets. Never rewrite a missing one to
     # index.html (HTML with HTTP 200 is not a valid stylesheet/script).
     @versionedAssets path /assets/*
