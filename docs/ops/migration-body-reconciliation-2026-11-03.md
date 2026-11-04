@@ -234,6 +234,25 @@ Los dos casos **siguen clasificados como diferencias sustantivas
 históricas** para #104. No ejecutar DDL, `db push` ni
 `migration repair` en producción por este resultado.
 
+### Compatibilidad CRM y PostgREST: cinco rutas FK sin duplicación (03-nov)
+
+La primera candidata `security/candidates/crm_tenant_links_composite_fk.sql`
+añadía cinco FKs compuestas **en paralelo** a las FKs simples
+existentes de prospectos y consignaciones. Aunque su prueba acreditaba
+aislamiento de filas, ello podía romper las relaciones embebidas de
+PostgREST por caminos de unión ambiguos.
+
+**Corregido antes de despliegue:** las cinco FKs se **sustituyen** en
+lugar de duplicarse, conservando sus nombres originales y el
+comportamiento `NO ACTION`. Su prueba aislada exige ahora una
+sola relación por cada par hija-padre, rechaza una ruta paralela
+inyectada y repite la ejecución para confirmar idempotencia, además
+de los rechazos de referencias cruzadas ya existentes.
+Ver [contrato y requisitos de staging](crm-single-fk-postgrest-2026-11-03.md).
+
+Como en mantenimiento, no está autorizado ejecutar esta candidata en
+producción ni inferir de sus pruebas una reparación histórica.
+
 ### Comisiones → negocios: FK sin alcance de inmobiliaria (03-nov, revisión adicional)
 
 En el catálogo productivo `commissions.deal_id` usa FK simple hacia
