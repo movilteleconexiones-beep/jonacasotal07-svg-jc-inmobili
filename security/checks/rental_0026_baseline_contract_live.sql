@@ -2,8 +2,8 @@
 -- applied 20261005153559 / 0026_rental_management_core (47 original columns).
 -- Source checked directly in live supabase_migrations.schema_migrations.
 -- PostgreSQL 17 catalogue METADATA only: no tenant rows, no DDL/DML.
--- Original indexes/policies surviving does NOT prove unchanged definition or
--- complete historical replay. Later columns/guardrails are expected.
+-- Pin current staff guards and exact original index DDL. Name-only checks do
+-- not detect weakened policies or swapped indexes. Historical replay remains NO-GO.
 WITH original_columns(table_name,column_name,original_type,original_not_null) AS (
   VALUES
     ('leases','id','uuid',true),
@@ -84,18 +84,38 @@ WITH original_columns(table_name,column_name,original_type,original_not_null) AS
        JOIN pg_class ci ON ci.oid=idx.indexrelid
        WHERE idx.indrelid=t.oid AND ci.relname=t.initial_index
            AND idx.indisvalid) AS original_index_present_valid,
+   EXISTS(SELECT 1 FROM pg_index idx JOIN pg_class ci ON ci.oid=idx.indexrelid
+       WHERE idx.indrelid=t.oid AND ci.relname=t.initial_index
+         AND idx.indisvalid AND idx.indisready
+         AND pg_get_indexdef(idx.indexrelid) = CASE t.table_name
+           WHEN 'leases' THEN 'CREATE INDEX idx_leases_org ON public.leases USING btree (organization_id)'
+           WHEN 'rent_payments' THEN 'CREATE INDEX idx_rent_payments_lease ON public.rent_payments USING btree (lease_id)'
+           WHEN 'owner_statements' THEN 'CREATE INDEX idx_owner_statements_owner ON public.owner_statements USING btree (owner_id)'
+           WHEN 'maintenance_requests' THEN 'CREATE INDEX idx_maintenance_property ON public.maintenance_requests USING btree (property_id)'
+         END) AS original_index_definition_intact,
    EXISTS(SELECT 1 FROM pg_policy pol
        WHERE pol.polrelid=t.oid AND pol.polname=t.initial_policy
          AND pol.polcmd='*'
          AND 'authenticated'::regrole::oid=ANY(pol.polroles))
-       AS original_all_authenticated_policy_present
+       AS original_all_authenticated_policy_present,
+   EXISTS(SELECT 1 FROM pg_policy pol
+       WHERE pol.polrelid=t.oid AND pol.polname=t.initial_policy
+         AND pol.polcmd='*' AND pol.polpermissive
+         AND pol.polroles=ARRAY['authenticated'::regrole::oid]
+         AND pg_get_expr(pol.polqual,pol.polrelid) =
+           '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))'
+         AND pg_get_expr(pol.polwithcheck,pol.polrelid) =
+           '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))')
+       AS current_staff_guard_intact
  FROM tables t
 )
 SELECT table_name,oid IS NOT NULL AS table_present,owner,rls_enabled,
  original_column_count,matching_original_columns,added_columns_since_original,
  original_index_present_valid,original_all_authenticated_policy_present,
+ original_index_definition_intact,current_staff_guard_intact,
  CASE WHEN oid IS NOT NULL AND rls_enabled
      AND matching_original_columns=original_column_count
      AND original_index_present_valid AND original_all_authenticated_policy_present
+     AND original_index_definition_intact AND current_staff_guard_intact
    THEN 'BASELINE_COMPATIBLE' ELSE 'DRIFT' END AS verdict
 FROM shape ORDER BY table_name;
