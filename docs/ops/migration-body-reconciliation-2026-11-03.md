@@ -68,6 +68,46 @@ lógico ni cuerpo exacto. Los 7 borradores `0026–0032` de Wompi permanecen
   pero **esos preflight no prueban cuándo ni con qué definición nacieron
   los objetos**. NO simular una conciliación cambiando versiones.
 
+### Cuatro divergencias históricas delimitadas a formato (03-nov, solo lectura)
+
+Se consultó de nuevo `(statements)[1]` de las cuatro migraciones de
+Supabase productivo, **exclusivamente mediante SELECT**, y se compararon
+con el contenido de los archivos locales. No se publicaron los cuerpos
+SQL, registros personales ni credenciales.
+
+| Versión aplicada | Archivo local | Evidencia |
+| --- | --- | --- |
+| `20261005053050` / `0022_enable_invitation_rls` | `0022_enable_invitation_rls.sql` | Diferencia de **un salto de línea inicial en el cuerpo aplicado**; texto íntegro idéntico después de recortar whitespace de borde. |
+| `20261011002448` / `independent_owner_trial_entitlements` | `20261011000300_independent_owner_trial_entitlements.sql` | Diferencia de **un salto de línea final adicional en el archivo local**; texto íntegro idéntico tras recortar whitespace de borde. |
+| `20261012071309` / `finance_approval_and_audit_timestamp_hardening` | `20261012150000_finance_approval_and_audit_timestamp_hardening.sql` | El archivo local suma **cinco comentarios de línea completa**, tres antes de `BEGIN` y dos antes de `CREATE FUNCTION`; están fuera del cuerpo `$`. Las **24 líneas SQL no vacías** resultan idénticas al aplicarlas sin comentarios ni indentación. |
+| `20261029171601` / `revoke_disabled_trial_authorization_rpc` | `20261029171601_revoke_disabled_trial_authorization_rpc.sql` | Ambos archivos ejecutan los mismos dos `REVOKE EXECUTE`. El cuerpo aplicado tiene **tres comentarios iniciales** y el local **cuatro**, sin cambiar las seis líneas SQL activas. |
+
+La verificación se inmovilizó mediante
+[`tests/migration-format-differences-reconciliation.test.mjs`](../../tests/migration-format-differences-reconciliation.test.mjs):
+contra los **SHA-256 auténticos** del snapshot se comprueban los dos
+recortes de borde, y los dos cuerpos ejecutables restantes se comparan
+con SHA-256 de SQL normalizado **calculado de los cuerpos productivos**
+(identificadores, longitudes y huellas solamente). La prueba rechaza
+comentarios no revisados y los que estén dentro de `$`, así como
+adiciones de SQL ejecutable. Se ejecuta en CI junto a la auditoría
+histórica existente.
+
+**Balance más preciso:** de las **8** migraciones sin SQL local
+byte-idéntico, **4** ya tienen evidencia de diferencia limitada a
+comentarios o whitespace exterior; permanecen **4 con divergencia
+histórica sustantiva o sin archivo local** (dos preflight aplicados
+frente a DDL local, más `0026_rental_management_core` y el
+consolidado financiero de `20261012070133`).
+
+**No cambia la clasificación SHA histórica:** siguen siendo
+**91/99** cuerpos byte a byte idénticos, y siguen existiendo **8**
+cuerpos sin copia exacta local. Aunque las cuatro variantes de
+formato no alteren las instrucciones SQL identificadas, las
+diferencias de versiones y secuencia requieren reconciliación y
+`migration repair` **no queda autorizado**. Este proceso no verifica
+en general equivalencia semántica del resto de SQL ni estado
+histórico exacto del catálogo.
+
 ### Dos filas productivas sin SQL local idéntico ni nombre lógico local
 
 1. `20261005153559 / 0026_rental_management_core` — cuerpo aplicado
