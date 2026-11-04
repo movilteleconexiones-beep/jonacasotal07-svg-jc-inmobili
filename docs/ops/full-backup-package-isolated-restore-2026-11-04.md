@@ -34,8 +34,21 @@ partir de la misma copia de datos ficticios:
    el PostgreSQL desechable de CI. Nunca sobrescribe una existente.
    Ejecuta `pg_restore --single-transaction --exit-on-error`.
 7. Comprueba en la base aislada los datos ficticios, dos
-   organizaciones, FKs, RLS, políticas e índices; confirma que
-   la base origen no fue modificada y elimina el destino de prueba.
+   organizaciones, FKs, RLS, políticas e índices. **Además, actúa
+   bajo `SET LOCAL ROLE jco_restore_fixture_reader` (rol no dueño
+   ni superusuario), y verifica que el `SELECT` restaurado conserve
+   su `GRANT`, que con `app.organization_id=org-a` vea solo DOC-A,
+   con `org-b` solo DOC-B y con un identificador ausente ningún
+   documento**. Comprueba estos resultados también en el origen.
+   Confirma que la base de origen no fue modificada y elimina el
+   destino de prueba.
+
+**Cambio con impacto de restauración:** el ensayo integral deja de
+usar `pg_restore --no-privileges` para que la copia de los privilegios
+y las políticas se pruebe, en lugar de dar por buena su existencia.
+El rol ficticio de lectura se crea de forma explícita en el clúster
+desechable de CI; esto **no** acredita que los roles de un proyecto
+Supabase real sean portables a otro entorno sin preparación previa.
 
 Todos los comandos PostgreSQL llevan explícitamente
 `--host=localhost --username=postgres` con una contraseña fija
@@ -50,9 +63,10 @@ que continúa probando la criptografía y los fixtures previos.
 
 **Una CI verde no demuestra que existe un backup auténtico restaurable
 de INMOJCO.** El paquete, los archivos y los usuarios usados por esta
-prueba son ficticios. La política RLS del fixture comprueba que RLS
-esté presente tras restaurar, **no** sustituye una prueba de aislamiento
-multi-inmobiliaria de producción.
+prueba son ficticios. La política RLS del fixture ahora prueba **acceso efectivo por
+organización** de una cuenta ficticia tras restaurar, no solo presencia
+de políticas en el catálogo; **sigue sin sustituir la validación de
+aislamiento multi-inmobiliaria con el modelo auténtico de producción**.
 
 Tampoco prueba una copia íntegra de Storage con sus permisos originales,
 coherencia temporal entre las operaciones de PostgreSQL y Storage,
