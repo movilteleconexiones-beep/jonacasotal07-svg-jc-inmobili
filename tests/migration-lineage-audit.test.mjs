@@ -111,3 +111,15 @@ test('matching ledger name cannot certify a colliding local migration version',(
   assert.equal(result.sql_equivalence_verified,false);
   assert.equal(result.migration_push_authorized,false);
 });
+
+
+test('duplicate four-digit legacy prefixes are reported without authorizing migration',()=>{
+  const result=buildMigrationLineage(['0026_first.sql','0026_second.sql'],[]);
+  assert.equal(result.summary.duplicate_local_versions,1);
+  assert.deepEqual(result.version_collisions,[{
+    version:'0026',
+    filenames:['0026_first.sql','0026_second.sql'],
+  }]);
+  assert.equal(result.sql_equivalence_verified,false);
+  assert.equal(result.migration_push_authorized,false);
+});
