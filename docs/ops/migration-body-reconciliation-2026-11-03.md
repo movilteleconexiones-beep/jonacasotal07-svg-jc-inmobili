@@ -361,6 +361,26 @@ en `supabase_migrations.schema_migrations`. Las cinco entidades
 | `public.get_public_property_intake_site` | 1: `20261021032153 / gate_public_consignment_operational_access` |
 | `public.submit_property_consignment` | 1: `20261021032153 / gate_public_consignment_operational_access` |
 
+**Cronología ampliada y verificada 04-nov (SELECT sin SQL ni filas privadas):**
+se añadieron `mention_count` y `first_mention_version` a la misma
+consulta. `property_intake_sites` aparece en **3** migraciones y
+`property_consignments` en **4**; ambas se mencionan por primera vez en
+`20261010232928`, pero siguen con **0** creaciones directas registradas.
+Las funciones `private.can_read_portal_property` (2 menciones),
+`get_public_property_intake_site` (2) y
+`submit_property_consignment` (2) sí tienen una instrucción
+`CREATE FUNCTION` directa cada una, aunque su primera mención
+puede ser anterior al primer `CREATE`.
+
+La primera mención **no equivale a la primera creación**; puede proceder
+de un comentario o un preflight. Se corrigió además una sutileza del
+patrón PostgreSQL: la frontera de palabra `\\m`/`\\M` requiere
+**una** barra invertida en el SQL. Con dos devuelve falsos ceros.
+`tests/historic-consignment-ddl-provenance.test.mjs` ahora detecta
+esa corrupción del escáner. La lectura real devolvió **5/5 objetos
+presentes**; sin migraciones, cambios de privilegios ni consulta de
+registros de clientes.
+
 **Implicación:** los dos `DO` de preflight aplicados el
 10-oct no justifican por sí mismos la creación de las dos tablas.
 El historial registrado tampoco muestra instrucciones directas
