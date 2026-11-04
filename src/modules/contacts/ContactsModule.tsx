@@ -3,6 +3,7 @@ import { ContactRound, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { sameContactIdentity } from '../../core/contact-identity';
 
 interface ContactRow {
   id: string;
@@ -24,8 +25,15 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
   const [editContact, setEditContact] = useState<ContactRow|null>(null);
   const [contactBusy, setContactBusy] = useState(false);
   const loadVersion = useRef(0);
+  // Synchronous lock: a second submit can fire before React renders busy state.
+  const createInFlight = useRef(false);
+  // One synchronous lock for CREATE, CORRECT and DELETE: React state updates
+  // are asynchronous, so a fast second click must not submit a second RPC.
+  const contactMutationInFlight = useRef(false);
 
   const organizationId = activeMembership?.organization.id;
+  const currentOrganization = useRef(organizationId);
+  currentOrganization.current = organizationId;
   const adminMayCorrect=Boolean(activeMembership?.roles.some(r=>r.key==='ADMIN')) &&
     can(PERMISSIONS.CLIENTS_EDIT);
 
@@ -56,12 +64,14 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
   useEffect(() => {
     // Never retain another inmobiliaria's editable contact after switching tenant.
     setEditContact(null);
+    setShowCreate(false);
     void load();
     return () => { ++loadVersion.current; };
   }, [organizationId]);
 
   async function createContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createInFlight.current || contactMutationInFlight.current || contactBusy) return;
     if (!organizationId || !user || !can(PERMISSIONS.CLIENTS_CREATE)) {
       setMessage('No tienes permiso para crear contactos.');
       return;
@@ -70,6 +80,9 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     const email = String(form.get('email') ?? '').trim();
+    const firstName = String(form.get('first_name') ?? '').trim();
+    const lastName = String(form.get('last_name') ?? '').trim();
+    const candidateIdentity = { email, first_name: firstName, last_name: lastName };
     const phone = String(form.get('phone') ?? '').trim();
     const whatsapp = String(form.get('whatsapp') ?? '').trim();
     if (!email && !phone && !whatsapp) {
@@ -80,8 +93,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       setMessage('Ingresa un correo electrónico válido.');
       return;
     }
-    if(email && rows.some(row=>row.email?.trim().toLowerCase()===email.toLowerCase())){
-      setMessage('Ya existe una ficha con este correo. Utiliza «Editar cliente» para corregirla en lugar de crear otra.');
+    if (email && rows.some(row => sameContactIdentity(row, candidateIdentity))) {
+      setMessage('Ya existe una ficha con este correo y nombre. Utiliza «Editar cliente» para corregirla en lugar de crear otra.');
       return;
     }
     for (const number of [phone, whatsapp]) {
@@ -93,8 +106,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     }
     const payload = {
       organization_id: organizationId,
-      first_name: String(form.get('first_name') ?? '').trim(),
-      last_name: String(form.get('last_name') ?? '').trim() || null,
+      first_name: firstName,
+      last_name: lastName || null,
       email: email || null,
       phone: phone || null,
       whatsapp: whatsapp || null,
@@ -104,23 +117,69 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       created_by: user.id,
     };
 
-    const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
+    createInFlight.current = true;
+    contactMutationInFlight.current = true;
+    setContactBusy(true);
+    try {
+      if (email) {
+        // The rendered list can be stale (other staff may have registered this email).
+        // Escape SQL LIKE wildcards so a literal '_' or '%' in an email is not a wildcard.
+        const literalEmailPattern = email.replace(/[\\%_]/g, character => '\\' + character);
+        const { data: duplicates, error: duplicateError, count } = await supabase.from('contacts')
+          .select('id,first_name,last_name,email', { count: 'exact' })
+          .eq('organization_id', organizationId)
+          .ilike('email', literalEmailPattern)
+          .limit(500);
+        if (currentOrganization.current !== organizationId) return;
+        // Fail closed on error or incomplete paginated result: unseen contacts
+        // must not be mistaken for evidence that the identity does not exist.
+        if (duplicateError || count === null || count > (duplicates?.length ?? 0)) {
+          setMessage('No fue posible comprobar todas las fichas con este correo. Actualiza la lista antes de registrar.');
+          return;
+        }
+        if (duplicates?.some(row => sameContactIdentity(row, candidateIdentity))) {
+          setMessage('Ya existe una ficha con este correo y nombre. Selecciona el cliente existente para evitar duplicados.');
+          return;
+        }
+      }
 
-    if (error) {
-      setMessage(error.message);
-      return;
+      // UI preflight reduces duplicate submissions; the server must still enforce
+      // concurrency guarantees if two sessions insert simultaneously.
+      const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
+      if (currentOrganization.current !== organizationId) return;
+      if (error) {
+        // Database-level uniqueness also arbitrates independent staff sessions.
+        // Do not blindly retry an INSERT after a 23505 identity conflict.
+        if (error.code === '23505' &&
+            error.message.includes('jco_contacts_tenant_email_name_unique')) {
+          setMessage('Otro usuario ya registró este cliente. Actualiza la lista y selecciona su ficha; no lo registres de nuevo.');
+        } else {
+          setMessage('No se pudo registrar el contacto: ' + error.message);
+        }
+        return;
+      }
+      if (created?.id) onCreated?.(created.id);
+      setShowCreate(false);
+      formElement.reset();
+      await load();
+      if (currentOrganization.current === organizationId) {
+        setMessage('Cliente/contacto creado correctamente.');
+      }
+    } catch {
+      if (currentOrganization.current === organizationId) {
+        // A timeout can occur after a successful INSERT; verify before retrying.
+        setMessage('No se confirmó el registro. Actualiza y comprueba si el cliente existe antes de reintentar.');
+      }
+    } finally {
+      createInFlight.current = false;
+      contactMutationInFlight.current = false;
+      setContactBusy(false);
     }
-
-    if(created?.id) onCreated?.(created.id);
-    setMessage('Cliente/contacto creado correctamente.');
-    setShowCreate(false);
-    formElement.reset();
-    await load();
   }
 
   async function correctContact(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if(!editContact||!organizationId||!adminMayCorrect||contactBusy)return;
+    if(!editContact||!organizationId||!adminMayCorrect||contactMutationInFlight.current||contactBusy)return;
     const data=new FormData(event.currentTarget);
     const reason=String(data.get('reason')||'').trim();
     const fields={
@@ -144,35 +203,60 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       }
     }
     if(!window.confirm('¿Guardar correcciones en esta ficha? Quedarán en auditoría con el motivo.'))return;
+    if(currentOrganization.current!==organizationId||contactMutationInFlight.current)return;
+    contactMutationInFlight.current=true;
     setContactBusy(true);
     try{
       const {error}=await supabase.rpc('admin_correct_client_contact',{
         target_org:organizationId,target_contact:editContact.id,...fields,reason,
       });
-      if(error){setMessage('No se pudo corregir: '+error.message);return;}
+      // A response from an earlier tenant must never clear or replace the
+      // active tenant's contact editor, list or success/error notices.
+      if(currentOrganization.current!==organizationId)return;
+      if(error){
+        setMessage(error.code==='23505' && error.message.includes('jco_contacts_tenant_email_name_unique')
+          ? 'La corrección duplicaría la ficha de otro cliente. Actualiza y utiliza la ficha existente.'
+          : 'No se pudo corregir: '+error.message);
+        return;
+      }
       setEditContact(null);
       await load();
-      setMessage('Ficha corregida y auditada, sin crear otro cliente.');
-    }catch{setMessage('No se confirmó la corrección. Actualiza antes de reintentar.');}
-    finally{setContactBusy(false);}
+      if(currentOrganization.current===organizationId)
+        setMessage('Ficha corregida y auditada, sin crear otro cliente.');
+    }catch{
+      if(currentOrganization.current===organizationId)
+        setMessage('No se confirmó la corrección. Actualiza antes de reintentar.');
+    }finally{
+      contactMutationInFlight.current=false;
+      setContactBusy(false);
+    }
   }
 
   async function deleteUnlinkedContact(contact:ContactRow){
-    if(!organizationId||!adminMayCorrect||contactBusy)return;
+    if(!organizationId||!adminMayCorrect||contactMutationInFlight.current||contactBusy)return;
     const reason=window.prompt('Motivo de eliminación (12-500 caracteres). Si existe cualquier contrato, negocio o vínculo, se bloqueará.')?.trim();
     if(!reason)return;
     if(reason.length<12||reason.length>500){setMessage('Motivo obligatorio de 12-500 caracteres.');return;}
     if(!window.confirm('¿Eliminar esta ficha SOLO si nunca tuvo operaciones vinculadas? No se eliminará ningún contrato, abono ni prospecto.'))return;
+    if(currentOrganization.current!==organizationId||contactMutationInFlight.current)return;
+    contactMutationInFlight.current=true;
     setContactBusy(true);
     try{
       const {error}=await supabase.rpc('admin_delete_unlinked_contact',{
         target_org:organizationId,target_contact:contact.id,reason,
       });
+      if(currentOrganization.current!==organizationId)return;
       if(error){setMessage('No se puede eliminar esta ficha: '+error.message);return;}
       setEditContact(null);await load();
-      setMessage('Ficha sin relaciones eliminada con auditoría. No se modificó ningún contrato ni pago.');
-    }catch{setMessage('No se confirmó la eliminación. Consulta los registros antes de reintentar.');}
-    finally{setContactBusy(false);}
+      if(currentOrganization.current===organizationId)
+        setMessage('Ficha sin relaciones eliminada con auditoría. No se modificó ningún contrato ni pago.');
+    }catch{
+      if(currentOrganization.current===organizationId)
+        setMessage('No se confirmó la eliminación. Consulta los registros antes de reintentar.');
+    }finally{
+      contactMutationInFlight.current=false;
+      setContactBusy(false);
+    }
   }
 
   return (
@@ -189,7 +273,7 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
             <RefreshCw className="h-4 w-4" /> Actualizar
           </button>
           {can(PERMISSIONS.CLIENTS_CREATE) && (
-            <button type="button" onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+            <button type="button" onClick={() => setShowCreate((v) => !v)} disabled={contactBusy} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
               <Plus className="h-4 w-4" /> Nuevo contacto
             </button>
           )}
@@ -222,8 +306,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
             <textarea name="notes" rows={3} className="w-full rounded-xl border border-stone-300 px-3 py-2.5" />
           </label>
           <div className="md:col-span-2 flex justify-end gap-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Guardar contacto</button>
+            <button type="button" onClick={() => setShowCreate(false)} disabled={contactBusy} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold disabled:opacity-50">Cancelar</button>
+            <button type="submit" disabled={contactBusy} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{contactBusy ? 'Guardando...' : 'Guardar contacto'}</button>
           </div>
         </form>
       )}

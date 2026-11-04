@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { etiquetaES } from '../../core/etiquetas-es';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
@@ -46,6 +46,8 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
   const [showForm,setShowForm]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
+  // Prevent an unrelated financial action racing while React re-renders.
+  const ownerMutationInFlight=useRef(false);
   const [message,setMessage]=useState('');
   const [revision,setRevision]=useState(0);
 
@@ -97,7 +99,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
 
   async function submit(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!writable||saving||!organizationId)return;
+    if(!writable||saving||ownerMutationInFlight.current||!organizationId)return;
     const target=event.currentTarget;
     const form=new FormData(target);
     const statementId=String(form.get('statement_id')??'');
@@ -124,6 +126,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       setMessage('Verifica la liquidación en borrador, responsable, concepto, importe y soporte.');
       return;
     }
+    ownerMutationInFlight.current=true;
     setSaving(true);setMessage('');
     let created=false;
     try {
@@ -162,12 +165,13 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
         :'No se confirmó la deducción. Revisa el libro antes de volver a crearla para evitar duplicados.');
       setRevision(v=>v+1);
     } finally {
+      ownerMutationInFlight.current=false;
       setSaving(false);
     }
   }
 
   async function changeStatus(line:Line,status:'APPROVED'|'VOIDED'){
-    if(!writable||saving||!organizationId)return;
+    if(!writable||saving||ownerMutationInFlight.current||!organizationId)return;
     if(!canVoid){setMessage('No tienes permiso para autorizar esta corrección. Solicita la aprobación de un administrador de tu inmobiliaria.');return;}
     if(!statements.some(s=>s.id===line.statement_id&&s.status==='DRAFT'))return;
     if(status==='APPROVED'&&line.status!=='DRAFT')return;
@@ -177,6 +181,8 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       reason=window.prompt('Describe el motivo de anulación (mínimo 6 caracteres):')?.trim()||'';
       if(reason.length<6||reason.length>500)return;
     }else if(!window.confirm('¿Confirmas aprobar el concepto y su responsable? No constituye un pago bancario.'))return;
+    if(ownerMutationInFlight.current)return;
+    ownerMutationInFlight.current=true;
     setSaving(true);setMessage('');
     try {
       const {data:changed,error}=await supabase.from('owner_statement_deductions')
@@ -189,17 +195,20 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       setMessage('No se confirmó el estado de la deducción. Consulta el movimiento antes de reintentar.');
       setRevision(v=>v+1);
     } finally {
+      ownerMutationInFlight.current=false;
       setSaving(false);
     }
   }
 
   async function restoreVoidedDeduction(line:Line) {
-    if(!canVoid||saving||!organizationId||line.status!=='VOIDED'
+    if(!canVoid||saving||ownerMutationInFlight.current||!organizationId||line.status!=='VOIDED'
       ||!statements.some(s=>s.id===line.statement_id&&s.status==='DRAFT'))return;
     const reason=window.prompt('Motivo de recuperación de la deducción (mínimo 15 caracteres):')?.trim();
     if(!reason)return;
     if(reason.length<15||reason.length>500){setMessage('El motivo debe tener de 15 a 500 caracteres.');return;}
     if(!window.confirm('Se creará una NUEVA deducción en borrador para revisión. La deducción anulada permanecerá en el historial. ¿Continuar?'))return;
+    if(ownerMutationInFlight.current)return;
+    ownerMutationInFlight.current=true;
     setSaving(true);setMessage('');
     try {
       const {data,error}=await supabase.rpc('restore_voided_owner_deduction',{
@@ -209,12 +218,14 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       setMessage('Deducción recuperada como nuevo borrador ('+String(data)+'). Apruébala y concilia la liquidación cuando corresponda.');
       setRevision(v=>v+1);
     }catch{setMessage('No se confirmó la recuperación. Actualiza antes de repetir.');}
-    finally{setSaving(false);}
+    finally{ownerMutationInFlight.current=false;setSaving(false);}
   }
 
   async function reconcileStatement(statement:Statement) {
-    if(!canReconcile||saving||!organizationId||statement.status!=='DRAFT')return;
+    if(!canReconcile||saving||ownerMutationInFlight.current||!organizationId||statement.status!=='DRAFT')return;
     if(!window.confirm('¿Actualizar la conciliación con los abonos y deducciones aprobadas actuales? Se registrará una revisión auditada. No transfiere fondos.'))return;
+    if(ownerMutationInFlight.current)return;
+    ownerMutationInFlight.current=true;
     setSaving(true);setMessage('');
     try {
       const {error}=await supabase.rpc('reconcile_owner_draft_statement_audited',{
@@ -227,18 +238,21 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
       setMessage('No se pudo confirmar la conciliación. Verifica el neto actual antes de reintentar.');
       setRevision(v=>v+1);
     } finally {
+      ownerMutationInFlight.current=false;
       setSaving(false);
     }
   }
 
   async function revertStatement(statement:Statement) {
-    if(!canRevert||saving||!organizationId||statement.status!=='DRAFT')return;
+    if(!canRevert||saving||ownerMutationInFlight.current||!organizationId||statement.status!=='DRAFT')return;
     const reason=window.prompt('Motivo de la reversión financiera (8 a 500 caracteres):')?.trim()??'';
     if(reason.length<8||reason.length>500){
       if(reason) setMessage('El motivo debe contener entre 8 y 500 caracteres.');
       return;
     }
     if(!window.confirm('¿Deshacer la última conciliación auditada y restaurar sus importes anteriores? Los pagos, deducciones y comprobantes permanecerán registrados.'))return;
+    if(ownerMutationInFlight.current)return;
+    ownerMutationInFlight.current=true;
     setSaving(true);setMessage('');
     try {
       const {error}=await supabase.rpc('revert_owner_draft_reconciliation',{
@@ -254,7 +268,7 @@ export function OwnerDeductionLedger({ organizationId }: { organizationId:string
     } catch {
       setMessage('No se confirmó la reversión. Consulta los importes actuales antes de repetir la acción.');
       setRevision(v=>v+1);
-    } finally {setSaving(false);}
+    } finally {ownerMutationInFlight.current=false;setSaving(false);}
   }
 
   const approvedOwnerOther=lines.filter(x=>x.status==='APPROVED'&&x.responsible_party==='OWNER'

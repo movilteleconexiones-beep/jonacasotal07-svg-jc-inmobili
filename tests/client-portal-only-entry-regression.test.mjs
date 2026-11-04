@@ -27,7 +27,7 @@ test('organization owner is not synonymous with property owner',()=>{
 test('client-only account opens a separate portal without internal tenant navigation',()=>{
  assert.match(dashboard,/if \(mode\.portalOnly \|\| \(mode\.clientLinkedRole&&clientPortalMode\)\)/);
  assert.match(dashboard,/const \[clientPortalMode,setClientPortalMode\]=useState\(true\)/);
- assert.match(dashboard,/<PortalHub\/>/);
+ assert.ok(dashboard.includes('<PortalHub key={portalScopeKey} />'));
  assert.match(dashboard,/No se puede gestionar facturación desde una cuenta de Cliente/);
  assert.match(dashboard,/NO reduce los privilegios de tu sesión/);
  assert.match(dashboard,/únicamente el rol CLIENT/);
@@ -64,4 +64,12 @@ test('role assignment module clarifies mixed elevated accounts',()=>{
  assert.match(users,/Portal como propietario/);
  assert.match(users,/displayTenantRole\(role\)/);
  assert.match(tenantMenu,/permissions:\s*\[P\.CLIENTS_VIEW\]/);
+});
+
+test('changing agency or authenticated account remounts the portal before displaying old tenant records',()=>{
+ assert.ok(dashboard.includes('const portalScopeKey = '));
+ assert.ok(dashboard.includes("organizationId ?? 'no-organization'"));
+ assert.ok(dashboard.includes("user?.id ?? 'no-user'"));
+ assert.equal(dashboard.split('<PortalHub key={portalScopeKey} />').length-1,2);
+ assert.ok(!dashboard.includes('<PortalHub/>'));
 });

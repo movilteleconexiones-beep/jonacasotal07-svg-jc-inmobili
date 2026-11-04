@@ -253,6 +253,9 @@ jobs:
           test -n "$css_path"
           curl -fsSI "http://127.0.0.1:18080$css_path" | grep -iq 'content-type: text/css'
           curl -fsSI http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco | grep -iq 'cache-control: no-store'
+          test "$(curl -fsS http://127.0.0.1:18080/readyz)" = "ok"
+          curl -fsSI http://127.0.0.1:18080/readyz | grep -iq 'cache-control: no-store'
+          test "$(curl -fsS http://127.0.0.1:18080/readyz/missing)" != "ok"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.css)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.js)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco)" = "200"
@@ -679,6 +682,34 @@ jobs:
 
       - name: Contact correction and linked-record deletion prevention UI
         run: node --test tests/audited-contact-edit-delete.test.mjs
+      - name: Contact registration single-flight and shared-email identity matching
+        run: node --import tsx --test tests/contact-create-single-flight.test.mjs tests/contact-identity-match.test.mjs
+
+      - name: Duplicate CRM contact identity across independent sessions (PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          db=jco_contact_identity_test
+          cleanup() {
+            status=$?
+            trap - EXIT
+            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
+            exit "$status"
+          }
+          trap cleanup EXIT
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/contacts_tenant_identity_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/contacts_tenant_identity_preflight.sql
+          # An existing duplicate must prevent any DDL, not be silently merged.
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/contacts_tenant_identity_unique.sql > "$RUNNER_TEMP/jco-contact-identity-preflight.log" 2>&1; then
+            echo 'ERROR: duplicate contact identity did not fail the preflight'; exit 1
+          fi
+          grep -q 'NO-GO: duplicate tenant/email/full-name contacts' "$RUNNER_TEMP/jco-contact-identity-preflight.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "DELETE FROM public.contacts WHERE email ILIKE 'duplicate@example.test'"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/candidates/contacts_tenant_identity_unique.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/contacts_tenant_identity_assertions.sql
+          bash security/tests/contacts_tenant_identity_concurrency.sh "$db"
 
       - name: Prevent duplicate apartment contracts and audit rental draft correction
         env:
@@ -689,6 +720,9 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f supabase/migrations/20261029090000_rental_draft_correction_and_duplicates.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f security/tests/rental_draft_duplicates_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -Atqc "SELECT count(*) FROM public.audit_log" | grep -qx 0
+          # Two concurrent PostgreSQL sessions compete for one apartment/one signed PDF.
+          # All operations use deterministic fictional data in a disposable DB.
+          bash security/tests/jco_concurrent_lease_pdf_race.sh
 
       - name: Rental draft edit and signed PDF duplicate UI regression
         run: node --test tests/rental-draft-duplicate-control.test.mjs
@@ -703,6 +737,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f security/tests/owner_payout_end_to_end_assertions.sql
           # Every test action is inside a rolled-back transaction.
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -Atqc "SELECT COUNT(*) FROM public.owner_statement_payouts" | grep -qx 0
+          # Real row-lock and UNIQUE checks under two concurrent PostgreSQL sessions.
+          bash security/tests/jco_concurrent_owner_payout_race.sh
 
       - name: Owner statement issuance authorization regression
         run: node --test tests/owner-statement-issuance.test.mjs
@@ -781,9 +817,13 @@ jobs:
         run: node --import tsx --test tests/signed-lease-pdf.test.mjs
       - name: Separate Clients from six-step rental workflow regression
         run: node --test tests/separate-clients-rental-intake-workflow.test.mjs
+      - name: Existing contract correction entry and permission alignment
+        run: node --test tests/existing-contract-correction-entry.test.mjs
 
       - name: Guided rental intake and approval regression tests
         run: node --test tests/rental-intake-guided-flow.test.mjs
+      - name: Verified owner-property and contact step navigation regression
+        run: node --test tests/rental-wizard-verified-navigation.test.mjs
       - name: Rental and owner agency lifecycle UI regression
         run: node --test tests/rental-agency-lifecycle.test.mjs
       - name: Approved lease activation and synchronized property status

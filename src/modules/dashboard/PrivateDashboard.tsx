@@ -124,12 +124,16 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     setClientPortalMode(mode.clientLinkedRole);
   },[activeMembership?.member.id,activeMembership?.organization.id,mode.clientLinkedRole]);
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
+  const [statsScope, setStatsScope] = useState<string | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
   const [termsRequired, setTermsRequired] = useState(false);
   const [licenseCheckLoading, setLicenseCheckLoading] = useState(true);
 
   const organizationId = activeMembership?.organization.id;
+  // Remount the private portal on account/tenant switches so previously loaded
+  // personal records cannot be rendered under a different agency heading.
+  const portalScopeKey = `${organizationId ?? 'no-organization'}:${user?.id ?? 'no-user'}`;
   const billingOwner = activeMembership?.billing.can_manage_billing ?? false;
   const previewAsTenant=isPlatformAdmin&&Boolean(activeMembership);
   const selectedPreviewMode=clientPortalMode&&mode.clientLinkedRole?'CLIENT':tenantPreviewRole;
@@ -228,6 +232,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   useEffect(() => {
     if (!organizationId) {
       setStats(EMPTY_STATS);
+      setStatsScope(null);
       return;
     }
     // Refresh the counters whenever a user returns from an operational panel.
@@ -267,6 +272,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           appointments: appointments.count ?? 0,
           deals: deals.count ?? 0,
         });
+        setStatsScope(portalScopeKey);
         setLoadingStats(false);
       }
     }
@@ -276,7 +282,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, can, view, clientPortalMode, mode.clientLinkedRole]);
+  }, [organizationId, portalScopeKey, can, view, clientPortalMode, mode.clientLinkedRole]);
 
   const menuItems = useMemo(
     () =>
@@ -394,7 +400,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           Para verificar la seguridad real de Cliente, utiliza otra cuenta que tenga
           únicamente el rol CLIENT y su vínculo de portal.
         </div>}
-        <PortalHub/>
+        <PortalHub key={portalScopeKey} />
       </main>
     </div>;
   }
@@ -518,7 +524,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
         </aside>
 
-        <main className="min-w-0">
+        <main key={portalScopeKey} className="min-w-0">
           {termsRequired && !licenseCheckLoading && (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
               <div className="font-bold">Aceptación de licencia requerida</div>
@@ -530,8 +536,8 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
           {view === 'DASHBOARD' && !termsRequired && (
             <DashboardHome
-              stats={stats}
-              loading={loadingStats}
+              stats={statsScope === portalScopeKey ? stats : EMPTY_STATS}
+              loading={loadingStats || statsScope !== portalScopeKey}
               organizationName={activeMembership.organization.name}
               roleNames={previewAsTenant?
                 [tenantPreviewRole==='ADMIN'?'Administrador de inmobiliaria (simulación)':'Titular de la inmobiliaria (simulación)']:
@@ -577,7 +583,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
           {view === 'DOCUMENTS' && !termsRequired && can(PERMISSIONS.DOCUMENTS_VIEW) && <DocumentsModule />}
           {view === 'COMMISSIONS' && !termsRequired && can(PERMISSIONS.COMMISSIONS_VIEW) && <CommissionsModule />}
           {view === 'REPORTS' && !termsRequired && can(PERMISSIONS.REPORTS_VIEW) && <ReportsModule />}
-          {view === 'PORTAL' && !termsRequired && <PortalHub />}
+          {view === 'PORTAL' && !termsRequired && <PortalHub key={portalScopeKey} />}
 
           {view !== 'DASHBOARD' && view !== 'PROPERTIES' && view !== 'CONSIGNMENTS' && view !== 'CONTACTS' && view !== 'RENTAL_INTAKE' && view !== 'LEADS' && view !== 'APPOINTMENTS' && view !== 'DEALS' && view !== 'USERS' && view !== 'IMPORT' && view !== 'SETTINGS' && view !== 'LICENSE' && view !== 'BILLING' && view !== 'OWNERS' && view !== 'DOCUMENTS' && view !== 'COMMISSIONS' && view !== 'REPORTS' && view !== 'PORTAL' && (
             <ModuleComingOnline

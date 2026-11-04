@@ -74,3 +74,12 @@ test('switching organizations rejects slow stale branding loads', () => {
   assert.match(hook, /setBranding\(\{ \.\.\.DEFAULTS, companyName:/);
   assert.match(hook, /\+\+loadVersion\.current;\s*window\.removeEventListener/);
 });
+
+
+test('switching agencies never serves previous tenant branding before async refresh', () => {
+  assert.match(hook, /const \[brandingScope, setBrandingScope\] = useState/);
+  assert.match(hook, /setBrandingScope\(organizationId\)/);
+  assert.match(hook, /brandingScope === \(organizationId \?\? null\)/);
+  assert.match(hook, /branding: scopedBranding/);
+  assert.match(hook, /\{ \.\.\.DEFAULTS, companyName: activeMembership\?\.organization\.name/);
+});

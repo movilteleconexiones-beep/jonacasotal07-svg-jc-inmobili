@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { parseMoneyInput } from '../../core/rent-owner-money';
@@ -23,6 +23,8 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
   const [taxes,setTaxes]=useState('0');
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
+  // A second submit can arrive before React applies busy=true.
+  const settlementInFlight=useRef(false);
   const [message,setMessage]=useState('');
   const [revision,setRevision]=useState(0);
   useEffect(()=>{
@@ -60,13 +62,15 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
   const net=Number.isFinite(totalDeduction)?gross-totalDeduction:NaN;
   async function save(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!permitted||busy||!organizationId)return;
+    if(!permitted||busy||settlementInFlight.current||!organizationId)return;
     const selected=available.find(x=>x.id===leaseId);
     if(!selected?.owner_id||!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)||
        !Number.isFinite(gross)||gross<0||!Number.isFinite(commissionPercentage)||!Number.isFinite(net)||net<0){
       setMessage('Revisa los pagos recaudados y las deducciones: el neto no puede ser negativo.');return;
     }
     if(!window.confirm('Crear liquidación en BORRADOR. Los valores no representan un giro al propietario. ¿Confirmas?'))return;
+    if(settlementInFlight.current)return;
+    settlementInFlight.current=true;
     setBusy(true);setMessage('');
     try {
       const {error}=await supabase.rpc('create_owner_draft_statement_by_percentage',{
@@ -80,6 +84,7 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
       setMessage('No se confirmó la creación de la liquidación. Consulta los registros antes de reintentar para evitar duplicados.');
       setRevision(n=>n+1);
     } finally {
+      settlementInFlight.current=false;
       setBusy(false);
     }
   }

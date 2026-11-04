@@ -37,3 +37,12 @@ test('membership is always selected by authenticated user and requires an active
   assert.match(auth, /org\.id !== row\.organization_id \|\| !roles\.length\) continue;/);
   assert.match(auth, /rolesError \|\| !memberRoles/);
 });
+
+test('switching tenant or authenticated user remounts operational modules and hides old counters', () => {
+  assert.match(dashboard, /const portalScopeKey = /);
+  assert.match(dashboard, /<main key=\{portalScopeKey\} className="min-w-0">/);
+  assert.match(dashboard, /const \[statsScope, setStatsScope\] = useState/);
+  assert.match(dashboard, /setStatsScope\(portalScopeKey\)/);
+  assert.match(dashboard, /stats=\{statsScope === portalScopeKey \? stats : EMPTY_STATS\}/);
+  assert.match(dashboard, /loading=\{loadingStats \|\| statsScope !== portalScopeKey\}/);
+});

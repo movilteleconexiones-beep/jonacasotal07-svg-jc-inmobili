@@ -50,6 +50,12 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
   const [revision,setRevision]=useState(0);
   const [draftEditor,setDraftEditor]=useState<string|null>(null);
   const [draftWorking,setDraftWorking]=useState(false);
+  // Prevent two contract drafts from passing preflight in this browser before React rerenders.
+  // The PostgreSQL unique index remains the authoritative cross-session duplicate guard.
+  const contractSubmissionInFlight=useRef(false);
+  // One synchronous lock for all six mutations; React busy state is not atomic.
+  // The database remains authoritative for duplicate contracts and receipts.
+  const rentMutationInFlight=useRef(false);
   const pendingReceiptRequest=useRef<{
     fingerprint:string; key:string; uploadedPath?:string;
   }|null>(null);
@@ -94,7 +100,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     draftProperty?.price,draftRent.trim()?Number(draftRent):null,draftProperty?.operation_type);
 
   async function createContract(event:FormEvent<HTMLFormElement>){
-    event.preventDefault();if(!contractAllowed||busy)return;
+    event.preventDefault();if(!contractAllowed||busy||contractSubmissionInFlight.current||rentMutationInFlight.current)return;
     const element=event.currentTarget;const f=new FormData(element);
     const propertyId=String(f.get('property_id')||''),tenantId=String(f.get('tenant_id')||''),ownerId=String(f.get('owner_id')||'');
     const rent=validMoney(f.get('monthly_rent')),start=String(f.get('start_date')||''),end=String(f.get('end_date')||'');
@@ -103,6 +109,8 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       !/^\d{4}-\d{2}-\d{2}$/.test(start)||(end&&end<start)) {
       setError('Verifica el inmueble, inquilino, canon y fechas.');return;
     }
+    contractSubmissionInFlight.current=true;
+    rentMutationInFlight.current=true;
     setBusy(true);setError('');
     try {
       {
@@ -140,7 +148,16 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
         monthly_rent:rent,start_date:start,end_date:end||null,
         contract_number:String(f.get('contract_number')||'').trim().slice(0,100)||null,status:'DRAFT',
       }).select('id').single();
-      if(failure||!created){setError('No se pudo guardar el contrato: '+(failure?.message??'No hubo confirmación de la fila.'));return;}
+      if(failure||!created){
+        if(failure?.code==='23505' &&
+           failure.message.includes('leases_one_open_contract_per_property')){
+          // Keep the message visible; a revision refresh would clear it immediately.
+          setError('Este inmueble ya tiene un contrato abierto. Busca y corrige el existente en lugar de crear otro.');
+        } else {
+          setError('No se pudo guardar el contrato: '+(failure?.message??'No hubo confirmación de la fila.'));
+        }
+        return;
+      }
       element.reset();setNewPropertyId('');setNewRent('');
       setNotice('Contrato creado en borrador. Debe activarse antes de generar cobros.');
       window.dispatchEvent(new Event('tenant-rent-updated'));setRevision(x=>x+1);
@@ -150,12 +167,14 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       setRevision(x=>x+1);
     } finally {
       setBusy(false);
+      contractSubmissionInFlight.current=false;
+      rentMutationInFlight.current=false;
     }
   }
 
   async function correctDraft(event:FormEvent<HTMLFormElement>,lease:Lease) {
     event.preventDefault();
-    if (!activationAllowed||busy||draftWorking||lease.status!=='DRAFT') return;
+    if (!activationAllowed||busy||draftWorking||rentMutationInFlight.current||lease.status!=='DRAFT') return;
     const f=new FormData(event.currentTarget);
     const targetProperty=String(f.get('property_id')||'');
     const targetTenant=String(f.get('tenant_id')||'');
@@ -173,6 +192,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       return;
     }
     if(!window.confirm('¿Guardar corrección del borrador? Se registrarán los datos anteriores, nuevos y el motivo en auditoría.'))return;
+    rentMutationInFlight.current=true;
     setDraftWorking(true);setError('');
     try{
       const currentProperty=await supabase.from('properties')
@@ -200,17 +220,18 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     }catch{
       setError('No se confirmó la corrección; consulta el contrato antes de reintentar.');
       setRevision(value=>value+1);
-    }finally{setDraftWorking(false);}
+    }finally{rentMutationInFlight.current=false;setDraftWorking(false);}
   }
 
   async function cancelDraft(lease:Lease){
-    if(!activationAllowed||busy||draftWorking||lease.status!=='DRAFT')return;
+    if(!activationAllowed||busy||draftWorking||rentMutationInFlight.current||lease.status!=='DRAFT')return;
     const reason=window.prompt('Motivo de anulación del borrador (12 a 500 caracteres). Los PDF se conservarán.')?.trim();
     if(!reason)return;
     if(reason.length<12||reason.length>500){
       setError('Escribe un motivo de anulación de 12 a 500 caracteres.');return;
     }
     if(!window.confirm('¿Anular el borrador? No se borrará el historial ni sus documentos y el inmueble quedará libre para un nuevo contrato.'))return;
+    rentMutationInFlight.current=true;
     setDraftWorking(true);setError('');
     try{
       const {error:failure}=await supabase.rpc('admin_cancel_lease_draft',{
@@ -223,12 +244,14 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     }catch{
       setError('No se confirmó la anulación. Actualiza la lista antes de intentar nuevamente.');
       setRevision(value=>value+1);
-    }finally{setDraftWorking(false);}
+    }finally{rentMutationInFlight.current=false;setDraftWorking(false);}
   }
 
   async function activateContract(id:string) {
-    if(!activationAllowed||busy||!organizationId||!leases.some(l=>l.id===id&&l.status==='DRAFT'))return;
+    if(!activationAllowed||busy||rentMutationInFlight.current||!organizationId||!leases.some(l=>l.id===id&&l.status==='DRAFT'))return;
     if(!window.confirm('¿Confirmas que revisaste el contrato y debe pasar a ACTIVO?'))return;
+    if(rentMutationInFlight.current)return;
+    rentMutationInFlight.current=true;
     setBusy(true);setError('');
     try {
       const {data:changed,error:failure}=await supabase.from('leases').update({status:'ACTIVE'})
@@ -245,16 +268,18 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       setError('No se confirmó la activación. Consulta el estado del contrato antes de reintentar.');
       setRevision(n=>n+1);
     } finally {
+      rentMutationInFlight.current=false;
       setBusy(false);
     }
   }
 
   async function createPeriod(event:FormEvent<HTMLFormElement>){
-    event.preventDefault();if(!paymentAllowed||busy)return;
+    event.preventDefault();if(!paymentAllowed||busy||rentMutationInFlight.current)return;
     const f=new FormData(event.currentTarget),id=String(f.get('lease_id')||''),month=String(f.get('period')||'');
     if(!leases.some(l=>l.id===id&&l.status==='ACTIVE')||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)){
       setError('Selecciona un contrato activo y un mes válido.');return;
     }
+    rentMutationInFlight.current=true;
     setBusy(true);setError('');
     try {
       const {error:failure}=await supabase.rpc('create_tenant_rent_period',{
@@ -267,12 +292,13 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
       setError('No se confirmó el cobro mensual. Revisa si ya existe para evitar duplicados.');
       setRevision(x=>x+1);
     } finally {
+      rentMutationInFlight.current=false;
       setBusy(false);
     }
   }
 
   async function recordReceipt(event:FormEvent<HTMLFormElement>){
-    event.preventDefault();if(!paymentAllowed||busy)return;
+    event.preventDefault();if(!paymentAllowed||busy||rentMutationInFlight.current)return;
     const element=event.currentTarget;
     const f=new FormData(element),id=String(f.get('period_id')||'');
     const amount=validMoney(f.get('amount')),method=String(f.get('method')||''),reference=String(f.get('reference')||'').trim();
@@ -292,6 +318,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     if(pendingReceiptRequest.current?.fingerprint!==fingerprint)
       pendingReceiptRequest.current={fingerprint,key:crypto.randomUUID()};
     const request=pendingReceiptRequest.current;
+    rentMutationInFlight.current=true;
     setBusy(true);setError('');
     try {
       let evidencePath:string|null=null;
@@ -344,6 +371,7 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     } catch {
       setError('No se confirmó el abono o su comprobante. Antes de reintentar, comprueba el historial; la clave de la operación se conservará mientras no cambies los datos.');
     } finally {
+      rentMutationInFlight.current=false;
       setBusy(false);
     }
   }
