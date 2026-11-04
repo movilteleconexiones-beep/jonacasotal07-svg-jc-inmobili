@@ -111,3 +111,13 @@ test('public RPC catalog rejects invoker downgrade and missing authenticated gra
     }
   }
 });
+
+
+test('CLI fails closed on unsupported options without performing any operation',()=>{
+  const script=join(root,'scripts/ops/public-rpc-source-audit.mjs');
+  for(const option of ['--write','--force','--db-push','--json-extra']){
+    const run=spawnSync(process.execPath,[script,'--snapshot',file,option],{cwd:root,encoding:'utf8'});
+    assert.equal(run.status,2,option);
+    assert.match(run.stderr,/Unknown option; audit is read-only/,option);
+  }
+});
