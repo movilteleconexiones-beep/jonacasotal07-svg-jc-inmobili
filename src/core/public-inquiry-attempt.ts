@@ -71,7 +71,9 @@ export async function getPublicInquiryRequestId(
     try {
       const saved = storage.getItem(key);
       const parsed: unknown = saved ? JSON.parse(saved) : null;
-      if (isAttempt(parsed)) cached = parsed;
+      // A stale sessionStorage value must not override a newer in-memory attempt
+      // when a previous storage write was rejected (privacy mode/quota).
+      if (isAttempt(parsed) && (!cached || cached.fingerprint === parsed.fingerprint)) cached = parsed;
     } catch {
       // Browsers may deny session storage. In-memory fallback still prevents
       // accidental retries in the current page.
