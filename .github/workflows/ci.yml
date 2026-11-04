@@ -75,6 +75,7 @@ jobs:
           node --test tests/migration-format-differences-reconciliation.test.mjs
           node --test tests/historic-consignment-ddl-provenance.test.mjs
           node --test tests/consignment-restore-shape-contract.test.mjs
+          node --test tests/rental-0026-baseline-contract.test.mjs
       - name: Historic local consignment table DDL replay vs pinned Supabase shapes (isolated PG17)
         env:
           PGPASSWORD: postgres
