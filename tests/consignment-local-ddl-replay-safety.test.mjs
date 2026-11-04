@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
@@ -59,5 +61,63 @@ test('replay refuses removal of either safety gate or unrestricted role deletion
   for (const variant of variants) {
     assert.notEqual(variant, src, 'Each test must mutate the actual shell source');
     assert.throws(() => verifySafeLocalReplay(variant));
+  }
+});
+
+test('actual shell refuses preexisting database or roles before destructive operations', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'jco-consignment-sandbox-'));
+  try {
+    const log = join(temp,'calls.log');
+    const fakePsql = join(temp,'psql');
+    // Intercepts ALL psql requests. This test never connects to any database.
+    // Each case must refuse before a CREATE or DROP can be issued.
+    writeFileSync(fakePsql, [
+      '#!/usr/bin/env bash',
+      'printf "%s\\n" "$*" >> "$JCO_TEST_PSQL_LOG"',
+      'case "$*" in',
+      '  *"FROM pg_database"*) printf "%s\\n" "$JCO_FAKE_EXISTING_DB"; exit 0 ;;',
+      '  *"FROM pg_roles"*) printf "%s\\n" "$JCO_FAKE_EXISTING_ROLES"; exit 0 ;;',
+      '  *) echo "Unexpected or mutating psql call" >&2; exit 70 ;;',
+      'esac',
+      '',
+    ].join('\\n'),{mode:0o755});
+    for (const [name,existingDb,existingRoles] of [
+      ['existing database','1','0'],
+      ['existing shared role','0','1'],
+    ]) {
+      const result=spawnSync('bash',
+        ['security/tests/consignment_local_ddl_replay_pg17.sh'],{
+          cwd:root,encoding:'utf8',timeout:5000,
+          env:{
+            ...process.env,
+            PATH:temp+':'+process.env.PATH,
+            CI:'true',GITHUB_ACTIONS:'true',RUNNER_TEMP:temp,
+            JCO_TEST_PSQL_LOG:log,JCO_FAKE_EXISTING_DB:existingDb,
+            JCO_FAKE_EXISTING_ROLES:existingRoles,
+          },
+        });
+      assert.equal(result.status,2,name+': '+result.stderr);
+      assert.match(result.stderr,/Refusing to touch a preexisting DB or/);
+      const calls=readFileSync(log,'utf8').trim().split('\\n');
+      assert.equal(calls.length,2,name+' should run exactly two SELECTs');
+      for(const call of calls) {
+        assert.match(call,/SELECT count\\(\\*\\) FROM pg_/);
+        assert.doesNotMatch(call,/\\b(?:CREATE|DROP|ALTER|GRANT|REVOKE)\\b/i);
+      }
+      rmSync(log);
+    }
+    // Even with no preexisting objects, this script must refuse outside CI
+    // before accessing PostgreSQL.
+    const outside=spawnSync('bash',
+      ['security/tests/consignment_local_ddl_replay_pg17.sh'],{
+        cwd:root,encoding:'utf8',timeout:5000,
+        env:{...process.env,PATH:temp+':'+process.env.PATH,CI:'false',
+          GITHUB_ACTIONS:'false',RUNNER_TEMP:temp,JCO_TEST_PSQL_LOG:log},
+      });
+    assert.equal(outside.status,2);
+    assert.match(outside.stderr,/Refusing replay outside GitHub CI/);
+    assert.equal(existsSync(log),false);
+  } finally {
+    rmSync(temp,{recursive:true,force:true});
   }
 });
