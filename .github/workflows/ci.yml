@@ -75,37 +75,11 @@ jobs:
           node --test tests/migration-format-differences-reconciliation.test.mjs
           node --test tests/historic-consignment-ddl-provenance.test.mjs
           node --test tests/consignment-restore-shape-contract.test.mjs
-      - name: Rebuild original 10-Oct consignment table DDL and compare real production fingerprints (PostgreSQL 17)
+      - name: Historic local consignment table DDL replay vs pinned Supabase shapes (isolated PG17)
         env:
           PGPASSWORD: postgres
-        run: |
-          set -eu
-          db=jco_consignment_ddl_replay_test
-          cleanup() {
-            status=$?
-            trap - EXIT
-            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS $db WITH (FORCE)" || status=1
-            psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "DROP ROLE IF EXISTS anon, authenticated, service_role" || status=1
-            exit "$status"
-          }
-          trap cleanup EXIT
-          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
-          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/consignment_local_ddl_replay_fixture.sql
-          # Replay ONLY the exact initial table/index/RLS/ACL/policy segment.
-          # Do not run public RPCs, review functions, Auth integration or tenant rows.
-          awk '/^-- This old policy exposed/{exit} {print} END{print "COMMIT;"}' \
-            supabase/migrations/20261010212630_property_consignment_intake.sql \
-            > "$RUNNER_TEMP/consignment-ddl-only.sql"
-          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" \
-            -f "$RUNNER_TEMP/consignment-ddl-only.sql"
-          psql -X -v ON_ERROR_STOP=1 -qAt -F '|' -h localhost -U postgres -d "$db" \
-            -f security/checks/consignment_restore_shape_fingerprint.sql \
-            > "$RUNNER_TEMP/consignment-ddl-shape.txt"
-          # The reference uses the *real* PG17 production fingerprints of the
-          # two tables. Later policy/ACL changes are intentionally not equated
-          # with the original table's shape or claimed historically replayable.
-          test "$(wc -l < "$RUNNER_TEMP/consignment-ddl-shape.txt")" -eq 14
-          test "$(grep -Ec '^(private\.property_intake_sites|public\.property_consignments)\|(COLUMNS|CONSTRAINTS|INDEXES)\|OK
+        run: bash security/tests/consignment_local_ddl_replay_pg17.sh
+      - name: Four public SECURITY DEFINER RPC source and tenant-guard audit (#104)
         run: |
           node --test tests/public-rpc-source-audit.test.mjs
           node scripts/ops/public-rpc-source-audit.mjs --snapshot docs/ops/snapshots/public-rpc-catalog-2026-11-02.json
