@@ -112,3 +112,29 @@ test('confirmed inquiry cannot reuse a completed UUID when sessionStorage remova
   rejectRemoval=false;
   clearPublicInquiryAttempt(base.p_slug,store);
 });
+
+
+test('two completed submissions cannot resurrect the first UUID after repeated storage failures',async()=>{
+  const values=new Map();
+  let rejectWrites=false;
+  let rejectRemoval=false;
+  const store={
+    getItem(key){return values.get(key)??null;},
+    setItem(key,value){if(rejectWrites) throw new Error('quota');values.set(key,value);},
+    removeItem(key){if(rejectRemoval) throw new Error('blocked');values.delete(key);}
+  };
+  const first=await getPublicInquiryRequestId(base,store);
+  rejectRemoval=true;
+  rejectWrites=true;
+  clearPublicInquiryAttempt(base.p_slug,store);
+  const second=await getPublicInquiryRequestId(base,store);
+  assert.notEqual(second,first);
+  clearPublicInquiryAttempt(base.p_slug,store);
+  const third=await getPublicInquiryRequestId(base,store);
+  assert.notEqual(third,first,'stale first UUID must not be resurrected after second success');
+  assert.notEqual(third,second,'third legitimate inquiry needs its own UUID');
+  assert.equal(await getPublicInquiryRequestId(base,store),third,'third inquiry retries remain stable');
+  rejectRemoval=false;
+  rejectWrites=false;
+  clearPublicInquiryAttempt(base.p_slug,store);
+});
