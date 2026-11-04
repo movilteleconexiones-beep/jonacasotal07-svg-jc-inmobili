@@ -182,6 +182,32 @@ CREATE POLICY jco_commercial_access ON public.maintenance_requests
  WITH CHECK (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)));
 SQL
 
+# A restrictive policy exposed to PUBLIC is not the authenticated-only
+# contract observed in production, even when its predicate is unchanged.
+# Reject role drift before revoking grants and preserve the original ACL.
+psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
+DROP POLICY jco_commercial_access ON public.maintenance_requests;
+CREATE POLICY jco_commercial_access ON public.maintenance_requests
+ AS RESTRICTIVE FOR ALL TO PUBLIC
+ USING (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)))
+ WITH CHECK (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)));
+SQL
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: restrictive policy PUBLIC role drift accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
+for privilege in SELECT INSERT UPDATE DELETE; do
+  [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','$privilege')")" == t ]] ||
+    { echo "ERROR: restrictive policy role denial mutated anon $privilege grant"; exit 1; }
+done
+psql -X -v ON_ERROR_STOP=1 -d "$db" <<'SQL'
+DROP POLICY jco_commercial_access ON public.maintenance_requests;
+CREATE POLICY jco_commercial_access ON public.maintenance_requests
+ AS RESTRICTIVE FOR ALL TO authenticated
+ USING (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)))
+ WITH CHECK (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)));
+SQL
+
 # RLS must remain enabled: an unexpected table-level disable must fail
 # before the candidate can revoke privileges or claim a safe deployment.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests DISABLE ROW LEVEL SECURITY"
