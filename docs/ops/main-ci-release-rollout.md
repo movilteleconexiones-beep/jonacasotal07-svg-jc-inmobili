@@ -17,6 +17,20 @@ publicación automática segura por sí solo, ni repara el historial de Supabase
   iniciaba para PR a main o `workflow_dispatch`; este PR independiente
   añade `push: branches: [main]` para validar **también** el SHA real de
   un merge o commit directo. **No confundir ejecución con obligatoriedad**.
+- **No confundir reglas GitHub:** el ruleset de respaldo histórico
+  `#26351160` está **activo**, cubre `backup/*` y `backup/**/*`,
+  impide update/deletion/force-push sin bypass y la rama
+  `backup/inmojco-2026-10-27-verificado` sigue protegida con SHA
+  `28c6b1377359852f76ea2f8c53f58b3bfac568b2`
+  (verificado por GitHub API 04-nov). **Eso no protege `main`**,
+  cuya consulta `protected=false` es independiente.
+- **Respaldo real ya existe:** #214 documenta
+  `inmojco_2026-11-01.dump`, copia cifrada a USB, restauración
+  estructural local Auth/Storage SQL y extracción de 6/6 objetos privados
+  (932.740 bytes, SHA-256 iguales al manifiesto). No repetir
+  exportación/cifrado/USB. Falta evidencia del fin de la **fase 2 de
+  copia independiente de código** en USB, y validación de servicio
+  Auth/Storage aislado como parte funcional #203.
 - La reconciliación histórica de migraciones **#104** sigue abierta, de
   modo que no ejecutar `supabase db push`, `supabase migration repair`,
   ni introducir DDL de producción por este ajuste.
@@ -32,8 +46,10 @@ publicación automática segura por sí solo, ni repara el historial de Supabase
    directo y requerir la comprobación `Verify JCO application / validate`
    para PR; exigir rama actualizada y evitar bypass de administradores.
    Confirmar el nombre real del status con un PR verde.
-3. Preparar un rollback del commit actual `main` y comprobar el backup
-   auténtico de Supabase/Storage. En Railway, revisar ambos servicios y
+3. Preparar un rollback del commit actual `main` y **usar la
+   evidencia del respaldo auténtico ya acreditada en #214**; revisar
+   únicamente la custodia/acceso del respaldo existente, sin volver a
+   exportar ni volver a cifrar. En Railway, revisar ambos servicios y
    establecer `source.checkSuites=true` mediante cambio controlado, con
    comprobación de efectos y sin desplegar migraciones. No aplicar cambios
    staged adicionales ni cambios de variables en el mismo bloque.
