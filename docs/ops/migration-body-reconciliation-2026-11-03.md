@@ -183,9 +183,15 @@ En producción hay cero solicitudes registradas y cero vínculos
 cruzados, pero las escrituras futuras quedarían expuestas a un vínculo
 incorrecto aun con RLS. Se preparó la candidata
 [`security/candidates/maintenance_requests_property_tenant_fk.sql`](../../security/candidates/maintenance_requests_property_tenant_fk.sql)
-para agregar una FK compuesta y conservar `ON DELETE CASCADE`, junto a
-un fixture PostgreSQL 17 de dos organizaciones que comprueba la
-vulnerabilidad original y su rechazo después de la candidata.
+para **sustituir en la misma transacción la FK existente** por una
+FK compuesta, manteniendo su nombre
+`maintenance_requests_property_id_fkey` y `ON DELETE CASCADE`,
+sin duplicar rutas `maintenance_requests -> properties` de PostgREST.
+La primera versión de la candidata sumaba una FK paralela que podía
+generar ambigüedad de embeds (`PGRST201`); se corrigió antes de cualquier
+despliegue. El fixture PostgreSQL 17 de dos organizaciones comprueba
+la vulnerabilidad original, el rechazo después de la candidata, la
+idempotencia y la existencia de **una sola** relación FK por padre.
 [Análisis, preflight y plan de staging](maintenance-property-tenant-integrity-2026-11-03.md).
 **No desplegada ni autorizada para producción.**
 
