@@ -36,3 +36,13 @@ test('case-variant SQL suffix cannot silently disappear from migration reconcili
   assert.equal(result.summary.local_files, 1);
   assert.equal(result.migration_push_authorized, false);
 });
+
+test('SQL suffix with trailing whitespace cannot silently disappear from reconciliation', () => {
+  for (const filename of [
+    '20261012070133_safe_migration.sql ',
+    '20261012070133_safe_migration.SQL\t',
+    '20261012070133_safe_migration.sql\n',
+  ]) {
+    assert.throws(() => buildMigrationLineage([filename], valid), /Unexpected migration SQL extension case/);
+  }
+});
