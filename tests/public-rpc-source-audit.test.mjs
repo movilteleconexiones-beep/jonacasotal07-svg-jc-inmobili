@@ -87,3 +87,14 @@ test('all four public RPCs fail the control audit when their tenant isolation gu
     assert.match(row.missing_control_patterns.join(' '),/operational_access/,rpc);
   }
 });
+
+test('reject duplicate search_path settings even when an earlier empty setting looks safe',()=>{
+  for(const settings of ['search_path="";search_path=public','search_path=public;search_path=""','search_path="";search_path=""']){
+    const poisoned={...snapshot,rpcs:snapshot.rpcs.map((r,i)=>i===0?{...r,settings}:r)};
+    const result=inspectPublicRpcBodies(poisoned,read);
+    assert.equal(result.result_ok,false,settings);
+    assert.equal(result.rows[0].search_path_is_empty,false,settings);
+  }
+  const safe={...snapshot,rpcs:snapshot.rpcs.map((r,i)=>i===0?{...r,settings:'search_path="";lock_timeout=5s'}:r)};
+  assert.equal(inspectPublicRpcBodies(safe,read).result_ok,true);
+});
