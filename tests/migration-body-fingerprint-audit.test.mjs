@@ -111,3 +111,30 @@ test('operational CLI always remains NO-GO despite good or normalized matches', 
   assert.match(result.stderr,/Do not run db push or migration repair/);
   assert.match(result.stderr,/property_consignment_intake/);
 });
+
+test('fingerprint CLI rejects all unknown, repeated and positional options before reading SQL', () => {
+  const script = join(root, 'scripts/ops/migration-body-fingerprint-audit.mjs');
+  const rejected = [
+    ['--snapshot', snapshotPath, '--db-push'],
+    ['--snapshot', snapshotPath, '--write'],
+    ['--snapshot', snapshotPath, '--force'],
+    ['--snapshot', snapshotPath, 'unexpected.sql'],
+    ['--snapshot', snapshotPath, '--snapshot', snapshotPath],
+    ['--snapshot', '--force'],
+    ['--snapshot'],
+    ['--json'],
+    ['unexpected.sql'],
+  ];
+  for (const args of rejected) {
+    const run = spawnSync(process.execPath, [script, ...args],
+      { cwd: root, encoding: 'utf8', timeout: 20_000 });
+    assert.equal(run.status, 2, JSON.stringify({args, stdout:run.stdout, stderr:run.stderr}));
+    assert.match(run.stderr, /Refusing unknown or mutation arguments/);
+    assert.equal(run.stdout, '');
+  }
+  const valid = spawnSync(process.execPath, [script],
+    { cwd: root, encoding: 'utf8', timeout: 20_000 });
+  assert.equal(valid.status, 2, valid.stdout + valid.stderr);
+  assert.match(valid.stdout, /"applied_migrations":99/);
+  assert.match(valid.stderr, /NO-GO:/);
+});
