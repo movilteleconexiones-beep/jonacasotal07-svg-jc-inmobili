@@ -98,3 +98,16 @@ test('reject duplicate search_path settings even when an earlier empty setting l
   const safe={...snapshot,rpcs:snapshot.rpcs.map((r,i)=>i===0?{...r,settings:'search_path="";lock_timeout=5s'}:r)};
   assert.equal(inspectPublicRpcBodies(safe,read).result_ok,true);
 });
+
+
+test('public RPC catalog rejects invoker downgrade and missing authenticated grants for every endpoint',()=>{
+  for(const rpc of Object.keys(PUBLIC_RPC_SOURCES)){
+    for(const mutation of [{security_definer:false},{authenticated_execute:false},{anon_execute:false}]){
+      const changed={...snapshot,rpcs:snapshot.rpcs.map(r=>r.name===rpc?{...r,...mutation}:r)};
+      const report=inspectPublicRpcBodies(changed,read);
+      assert.equal(report.result_ok,false,JSON.stringify({rpc,mutation}));
+      assert.equal(report.rows.find(r=>r.rpc===rpc).expected_anonymous_api,false,rpc);
+      assert.equal(report.safe_to_publish,false);
+    }
+  }
+});
