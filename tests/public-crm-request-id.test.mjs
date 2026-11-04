@@ -76,3 +76,21 @@ test('settings warns the tenant owner when public inquiries have no valid destin
   assert.match(settings,/id="correo-comercial"/);
   assert.match(settings,/Sin ella, solo podrá prepararse un correo manual/);
 });
+
+test('rejected storage writes cannot resurrect an older UUID after editing inquiry',async()=>{
+  const values=new Map();
+  let rejectWrites=false;
+  const store={
+    getItem(key){return values.get(key)??null;},
+    setItem(key,value){if(rejectWrites) throw new Error('storage quota');values.set(key,value);},
+    removeItem(key){values.delete(key);}
+  };
+  const original=await getPublicInquiryRequestId(base,store);
+  rejectWrites=true;
+  const changedInquiry={...base,p_message:'Mensaje corregido'};
+  const changed=await getPublicInquiryRequestId(changedInquiry,store);
+  assert.notEqual(changed,original);
+  const retry=await getPublicInquiryRequestId(changedInquiry,store);
+  assert.equal(retry,changed,'stale persisted UUID must not replace a newer in-memory attempt');
+  clearPublicInquiryAttempt(base.p_slug,store);
+});
