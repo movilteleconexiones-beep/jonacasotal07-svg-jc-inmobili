@@ -71,10 +71,17 @@ export function buildMigrationLineage(sqlFiles, appliedRows) {
 }
 
 function main(args) {
+  // Fail closed: unknown, repeated or positional arguments must not be silently ignored.
+  const usage = 'Usage: node migration-lineage-audit.mjs --ledger <read-only JSON snapshot> [--json]';
+  const ledgerFlags = args.filter((arg) => arg === '--ledger');
+  const jsonFlags = args.filter((arg) => arg === '--json');
+  if (ledgerFlags.length !== 1 || jsonFlags.length > 1) throw Error(usage);
   const ix = args.indexOf('--ledger');
-  if (ix === -1 || !args[ix + 1]) throw Error('Usage: node migration-lineage-audit.mjs --ledger <read-only JSON snapshot>');
-  if (args.some((arg) => ['--apply','--repair','--push','--execute'].includes(arg)))
-    throw Error('Refusing database mutation options; this tool is read-only');
+  if (ix + 1 >= args.length || args[ix + 1].startsWith('--')) throw Error(usage);
+  const allowedPositions = new Set([ix, ix + 1]);
+  if (jsonFlags.length) allowedPositions.add(args.indexOf('--json'));
+  if (args.some((_, index) => !allowedPositions.has(index)))
+    throw Error('Refusing unknown or mutation arguments; this tool is read-only');
   const file = resolve(args[ix + 1]);
   const payload = JSON.parse(readFileSync(file,'utf8'));
   if (!payload || !Array.isArray(payload.migrations)) throw Error('Expected {migrations:[{version,name}]}');
