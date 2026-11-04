@@ -208,6 +208,7 @@ jobs:
       - name: Six live finance function body fingerprints vs historic SQL (#104)
         run: |
           node --test tests/finance-function-equivalence-audit.test.mjs
+          node --test tests/finance-six-function-live-contract.test.mjs
           node scripts/ops/finance-function-equivalence-audit.mjs
       - name: Finance tenant FK, numeric checks and RLS catalog snapshot (#104)
         run: node --test tests/finance-integrity-catalog.test.mjs
