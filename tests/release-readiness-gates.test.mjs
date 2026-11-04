@@ -14,7 +14,8 @@ function completeEvidence() {
       commit_sha: sha,
       main_branch_protected: true,
       required_status_check_enforced: true,
-      required_check_name: 'Verify JCO application / validate',
+      required_check_name: 'validate',
+      required_check_app_slug: 'github-actions',
       branch_protection_verified_at: '2030-03-10T10:30:00.000Z',
     },
     database: {
@@ -174,8 +175,14 @@ test('CI green must not permit a release while main or either Railway service ca
 
 test('evidence of branch protection and both deployment gates must be current and exact',()=>{
   const wrongCheck=completeEvidence();
-  wrongCheck.ci.required_check_name='validate';
+  wrongCheck.ci.required_check_name='Verify JCO application / validate';
   assert.match(readiness(wrongCheck).errors.join(' '),/check obligatorio de main/);
+  const wrongApp=completeEvidence();
+  wrongApp.ci.required_check_app_slug='supabase';
+  assert.match(readiness(wrongApp).errors.join(' '),/GitHub Actions/);
+  const missingApp=completeEvidence();
+  delete missingApp.ci.required_check_app_slug;
+  assert.equal(readiness(missingApp).ready,false);
   const staleGitHub=completeEvidence();
   staleGitHub.ci.branch_protection_verified_at='2030-03-08T09:00:00Z';
   assert.match(readiness(staleGitHub).errors.join(' '),/24 horas/);
