@@ -43,6 +43,35 @@ No son errores del SQL original: son evolución deliberada y por ello
 se muestran por separado, sin exigir igualdad de cantidad total
 de columnas.
 
+### Refuerzo de definiciones efectivas (04-nov-2026)
+
+El control anterior verificaba la existencia de los cuatro índices y de
+las cuatro políticas `FOR ALL TO authenticated`, pero un cambio de
+`USING`/`WITH CHECK` a una condición permisiva podía mantener la
+misma identidad y superar la comprobación.
+
+Se reforzó **la misma consulta SELECT** para cotejar en `pg_catalog`:
+
+- **4/4** definiciones completas de índices btree y sus flags `indisvalid`/`indisready`.
+- **4/4** políticas actuales: `polcmd='*'`, `polpermissive=true`, rol
+  exclusivamente `authenticated` y condiciones exactas de lectura y
+  escritura `(is_platform_admin() OR jco_private.is_internal_staff(organization_id))`.
+- La clasificación `BASELINE_COMPATIBLE` ahora exige ambas verificaciones
+  adicionales, no solo la presencia de los nombres.
+
+**Ejecución real, producción solo lectura:** las cuatro filas devolvieron
+`original_index_definition_intact=true`,
+`current_staff_guard_intact=true` y `verdict=BASELINE_COMPATIBLE`.
+Los nuevos escenarios negativos de la prueba estática rechazan quitar
+`WITH CHECK`, debilitar el predicado, ampliar roles o sustituir índices.
+La CI del nuevo SHA debe verificarse antes de declararla aprobada.
+
+**Alcance preciso:** se fijan las **definiciones actuales posteriores**,
+no se asegura que fueran los cuerpos originales aplicados en 0026;
+la consulta no ejecuta sesiones Auth ni reconstruye migraciones.
+Si una migración autorizada cambia legítimamente la política o un índice,
+se debe revisar y actualizar deliberadamente el contrato.
+
 ## Garantía de CI y límites
 
 [`tests/rental-0026-baseline-contract.test.mjs`](../../tests/rental-0026-baseline-contract.test.mjs)
