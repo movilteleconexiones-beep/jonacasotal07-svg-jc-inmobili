@@ -35,8 +35,8 @@ export function buildMigrationLineage(sqlFiles, appliedRows) {
     if (!match) throw Error('Unexpected migration filename: ' + filename);
     const [, version, stem] = match;
     const legacy = version.length === 4;
-    if (!legacy)
-      localVersions.set(version, [...(localVersions.get(version) ?? []), filename]);
+    // Include four-digit legacy versions: duplicate draft identifiers are unsafe too.
+    localVersions.set(version, [...(localVersions.get(version) ?? []), filename]);
     const candidates = appliedNames.get(legacy ? version + '_' + stem : stem) ?? [];
     let classification;
     if (candidates.length > 1) classification = 'ambiguous-applied-name';
