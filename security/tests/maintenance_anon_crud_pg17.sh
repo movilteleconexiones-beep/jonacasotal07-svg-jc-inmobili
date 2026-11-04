@@ -208,6 +208,19 @@ CREATE POLICY jco_commercial_access ON public.maintenance_requests
  WITH CHECK (jco_private.operational_access(organization_id) AND (is_platform_admin() OR jco_private.is_internal_staff(organization_id)));
 SQL
 
+# A third permissive policy can bypass the expected two-policy contract.
+# Reject an extra policy before touching grants, even if both known policies match.
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "CREATE POLICY unexpected_public_read ON public.maintenance_requests FOR SELECT TO PUBLIC USING (true)"
+if psql -X -v ON_ERROR_STOP=1 -d "$db" -f "$candidate" > "$log" 2>&1; then
+  echo 'ERROR: unexpected permissive RLS policy accepted'; exit 1
+fi
+grep -q 'maintenance anon CRUD blocked: RLS policy contract changed' "$log"
+for privilege in SELECT INSERT UPDATE DELETE; do
+  [[ "$(psql -X -qAt -v ON_ERROR_STOP=1 -d "$db" -c "SELECT has_table_privilege('anon','public.maintenance_requests','$privilege')")" == t ]] ||
+    { echo "ERROR: extra-policy denial mutated anon $privilege grant"; exit 1; }
+done
+psql -X -v ON_ERROR_STOP=1 -d "$db" -c "DROP POLICY unexpected_public_read ON public.maintenance_requests"
+
 # RLS must remain enabled: an unexpected table-level disable must fail
 # before the candidate can revoke privileges or claim a safe deployment.
 psql -X -v ON_ERROR_STOP=1 -d "$db" -c "ALTER TABLE public.maintenance_requests DISABLE ROW LEVEL SECURITY"
