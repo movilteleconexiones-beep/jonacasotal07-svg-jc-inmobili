@@ -32,9 +32,9 @@ SELECT e.kind,e.object_ref,
  -- Mentions are a chronology clue only: comments or preflights can mention
  -- an object without creating it. This is NOT DDL provenance proof.
  count(l.version) FILTER (WHERE
-   l.sql_body ~* ('\\m'||split_part(e.object_ref,'.',2)||'\\M')) AS mention_count,
+   l.sql_body ~* ('\m'||split_part(e.object_ref,'.',2)||'\M')) AS mention_count,
  min(l.version) FILTER (WHERE
-   l.sql_body ~* ('\\m'||split_part(e.object_ref,'.',2)||'\\M')) AS first_mention_version
+   l.sql_body ~* ('\m'||split_part(e.object_ref,'.',2)||'\M')) AS first_mention_version
 FROM expected e CROSS JOIN ledger l
 GROUP BY e.kind,e.object_ref,e.signature
 ORDER BY e.kind,e.object_ref;
