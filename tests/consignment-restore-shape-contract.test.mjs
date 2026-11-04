@@ -25,7 +25,7 @@ function verifyReadOnlyCatalogSource(source) {
   assert.doesNotMatch(sql, /\b(?:FROM|JOIN)\s+(?:public|private|auth|storage|supabase_migrations)\./i);
   assert.doesNotMatch(sql, /^\s*(?:INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE|MERGE|DO|CALL|EXECUTE|COPY|GRANT|REVOKE|SET|RESET|VACUUM|ANALYZE|REFRESH)\b/im);
   assert.doesNotMatch(sql, /(?:pg_read_file|pg_ls_dir|COPY\s+.*PROGRAM|dblink|postgres_fdw)/i);
-  assert.match(sql, /\bFROM\s+pg_class\s+c\b/);
+  assert.match(sql, /\b(?:FROM|JOIN)\s+pg_class\s+c\b/);
   assert.match(sql, /\bFROM\s+pg_attribute\s+a\b/);
   assert.match(sql, /\bFROM\s+pg_constraint\s+co\b/);
   assert.match(sql, /\bFROM\s+pg_index\s+idx\b/);
