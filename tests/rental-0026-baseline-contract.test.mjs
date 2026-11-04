@@ -28,6 +28,23 @@ function verifyReadOnlyContract(raw) {
   assert.match(source, /a\.attnotnull=o\.original_not_null/);
   assert.match(source, /original_index_present_valid/);
   assert.match(source, /original_all_authenticated_policy_present/);
+  assert.match(source, /AND idx\\.indisvalid AND idx\\.indisready/);
+  assert.match(source, /original_index_definition_intact/);
+  assert.match(source, /current_staff_guard_intact/);
+  assert.match(source, /pol\\.polcmd='\\*' AND pol\\.polpermissive/);
+  assert.match(source, /pol\\.polroles=ARRAY\\['authenticated'::regrole::oid\\]/);
+  assert.match(source, /pg_get_expr\\(pol\\.polqual,pol\\.polrelid\\)/);
+  assert.match(source, /pg_get_expr\\(pol\\.polwithcheck,pol\\.polrelid\\)/);
+  assert.match(source, /AND original_index_definition_intact AND current_staff_guard_intact/);
+  const expectedGuard = '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))';
+  assert.equal(source.split(expectedGuard).length - 1, 2,
+    'Both USING and WITH CHECK must enforce the exact approved staff guard');
+  for (const def of [
+    'CREATE INDEX idx_leases_org ON public.leases USING btree (organization_id)',
+    'CREATE INDEX idx_rent_payments_lease ON public.rent_payments USING btree (lease_id)',
+    'CREATE INDEX idx_owner_statements_owner ON public.owner_statements USING btree (owner_id)',
+    'CREATE INDEX idx_maintenance_property ON public.maintenance_requests USING btree (property_id)',
+  ]) assert.ok(source.includes(def),'Pinned index definition absent: ' + def);
   return source;
 }
 
@@ -82,4 +99,20 @@ test('retains the four original index and authenticated RLS policy identities',(
   assert.match(sql,/matching_original_columns=original_column_count/);
   assert.match(sql,/'BASELINE_COMPATIBLE'/);
   assert.match(sql,/'DRIFT'/);
+});
+
+test('0026 current policy and index guards reject a relaxed predicate or substituted index',()=>{
+  const denied = [
+    sql.replace('AND pol.polpermissive', 'AND NOT pol.polpermissive'),
+    sql.replace('AND pol.polroles=ARRAY', 'AND pol.polroles<>ARRAY'),
+    sql.replace('pg_get_expr(pol.polqual,pol.polrelid)', 'TRUE'),
+    sql.replace('pg_get_expr(pol.polwithcheck,pol.polrelid)', 'TRUE'),
+    sql.replace('AND original_index_definition_intact AND current_staff_guard_intact',
+      'AND original_index_definition_intact'),
+    sql.replace('USING btree (organization_id)', 'USING btree (id)'),
+  ];
+  for (const modified of denied) {
+    assert.notEqual(modified,sql, 'Negative fixture must actually change the source');
+    assert.throws(()=>verifyReadOnlyContract(modified));
+  }
 });
