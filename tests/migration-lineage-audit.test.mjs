@@ -73,3 +73,25 @@ test('CLI is read-only, emits NO-GO and refuses mutation options',()=>{
   assert.equal(bad.status,2);
   assert.match(bad.stderr,/Refusing database mutation options/);
 });
+
+test('CLI fails closed for unrecognized flags, repeated ledger and positional extras',()=>{
+  const script=join(root,'scripts/ops/migration-lineage-audit.mjs');
+  const cases=[
+    ['--ledger',ledger,'--db-push'],
+    ['--ledger',ledger,'--write'],
+    ['--ledger',ledger,'--force'],
+    ['--ledger',ledger,'unexpected.sql'],
+    ['--ledger',ledger,'--ledger',ledger],
+    ['--ledger',ledger,'--json','--json'],
+    ['--ledger','--json'],
+  ];
+  for(const args of cases){
+    const run=spawnSync(process.execPath,[script,...args],{cwd:root,encoding:'utf8'});
+    assert.equal(run.status,2,JSON.stringify({args,stdout:run.stdout,stderr:run.stderr}));
+    assert.match(run.stderr,/Usage:|Refusing/);
+    assert.equal(run.stdout,'');
+  }
+  const valid=spawnSync(process.execPath,[script,'--json','--ledger',ledger],{cwd:root,encoding:'utf8'});
+  assert.equal(valid.status,0,valid.stderr);
+  assert.equal(JSON.parse(valid.stdout).migration_push_authorized,false);
+});
