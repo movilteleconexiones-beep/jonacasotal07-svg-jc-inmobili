@@ -13,7 +13,12 @@ from urllib.request import Request, urlopen
 
 url = os.environ["SUPABASE_URL"].rstrip("/")
 key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-root = Path(os.environ["BACKUP_OUTPUT_DIR"]).resolve()
+raw_root = Path(os.environ["BACKUP_OUTPUT_DIR"]).expanduser()
+# Reject symlinked paths before resolve() erases evidence of a symlink.
+# Disallow parent traversal so the lexical and resolved destination cannot diverge.
+if ".." in raw_root.parts or any(p.is_symlink() for p in (raw_root, *raw_root.parents)):
+    raise PermissionError("BACKUP_OUTPUT_DIR must not contain symlinks or parent traversal")
+root = raw_root.resolve()
 if not url.startswith("https://"):
     raise ValueError("SUPABASE_URL must use HTTPS")
 if not root.is_dir() or root.is_symlink() or (root.stat().st_mode & 0o077):
