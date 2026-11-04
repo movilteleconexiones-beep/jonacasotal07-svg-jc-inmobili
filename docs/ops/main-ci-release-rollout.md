@@ -28,9 +28,12 @@ publicación automática segura por sí solo, ni repara el historial de Supabase
   `inmojco_2026-11-01.dump`, copia cifrada a USB, restauración
   estructural local Auth/Storage SQL y extracción de 6/6 objetos privados
   (932.740 bytes, SHA-256 iguales al manifiesto). No repetir
-  exportación/cifrado/USB. Falta evidencia del fin de la **fase 2 de
-  copia independiente de código** en USB, y validación de servicio
-  Auth/Storage aislado como parte funcional #203.
+  exportación/cifrado/USB. La **fase 2 de copia independiente del
+  código** también quedó completada el 02-nov (ZIP `main` 532
+  archivos y ZIP histórico 438 archivos, guardados/leídos en USB).
+  GitHub registra el issue **#214 CLOSED/completed**. Las pruebas de
+  servicio Auth/Storage aislado siguen como parte funcional #203,
+  no como una nueva tarea de respaldo.
 - La reconciliación histórica de migraciones **#104** sigue abierta, de
   modo que no ejecutar `supabase db push`, `supabase migration repair`,
   ni introducir DDL de producción por este ajuste.
