@@ -94,3 +94,21 @@ test('rejected storage writes cannot resurrect an older UUID after editing inqui
   assert.equal(retry,changed,'stale persisted UUID must not replace a newer in-memory attempt');
   clearPublicInquiryAttempt(base.p_slug,store);
 });
+
+test('confirmed inquiry cannot reuse a completed UUID when sessionStorage removal fails',async()=>{
+  const values=new Map();
+  let rejectRemoval=false;
+  const store={
+    getItem(key){return values.get(key)??null;},
+    setItem(key,value){values.set(key,value);},
+    removeItem(key){if(rejectRemoval) throw new Error('storage blocked');values.delete(key);}
+  };
+  const first=await getPublicInquiryRequestId(base,store);
+  rejectRemoval=true;
+  clearPublicInquiryAttempt(base.p_slug,store);
+  const second=await getPublicInquiryRequestId(base,store);
+  assert.notEqual(second,first,'a new legitimate inquiry must not be silently treated as a completed replay');
+  assert.equal(await getPublicInquiryRequestId(base,store),second,'retry of the new inquiry remains idempotent');
+  rejectRemoval=false;
+  clearPublicInquiryAttempt(base.p_slug,store);
+});
