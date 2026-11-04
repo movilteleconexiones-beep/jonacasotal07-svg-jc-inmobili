@@ -86,6 +86,12 @@ jobs:
           node --test tests/public-definer-exposure-preflight.test.mjs
           node --test tests/public-rpc-source-audit.test.mjs
           node scripts/ops/public-rpc-source-audit.mjs --snapshot docs/ops/snapshots/public-rpc-catalog-2026-11-02.json
+      - name: Closed billing/private table RLS and ACL deny boundary (isolated PostgreSQL 17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          node --test tests/closed-privileged-table-boundary.test.mjs
+          bash security/tests/closed_privileged_table_pg17.sh
       - name: Public catalog real SQL runtime isolation (PostgreSQL 17 synthetic tenants)
         env:
           PGPASSWORD: postgres
