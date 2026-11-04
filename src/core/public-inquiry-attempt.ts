@@ -24,6 +24,8 @@ interface Attempt { fingerprint: string; requestId: string }
 const attempts = new Map<string, Attempt>();
 // A confirmed submission must not be resurrected if sessionStorage removal fails.
 const completedRequestIds = new Map<string, string>();
+// After a storage failure, its persisted value may be stale across multiple submissions.
+const unreliableStorageKeys = new Set<string>();
 const prefix = 'inmojco:public-crm-attempt:';
 
 function attemptKey(slug: string) {
@@ -69,7 +71,7 @@ export async function getPublicInquiryRequestId(
   const fingerprint = Array.from(fingerprintBytes, byte => byte.toString(16).padStart(2, '0')).join('');
   const key = attemptKey(inquiry.p_slug);
   let cached = attempts.get(key);
-  if (storage) {
+  if (storage && !unreliableStorageKeys.has(key)) {
     try {
       const saved = storage.getItem(key);
       const parsed: unknown = saved ? JSON.parse(saved) : null;
@@ -91,9 +93,10 @@ export async function getPublicInquiryRequestId(
   if (storage) {
     try {
       storage.setItem(key, JSON.stringify(attempt));
+      unreliableStorageKeys.delete(key);
       completedRequestIds.delete(key);
     }
-    catch { /* Protected storage may be disabled; in-memory fallback is enough for this tab. */ }
+    catch { unreliableStorageKeys.add(key); /* Do not trust older persisted UUIDs. */ }
   }
   return attempt.requestId;
 }
@@ -105,6 +108,7 @@ export function clearPublicInquiryAttempt(slug: string, storage: AttemptStorage 
   if (completed) completedRequestIds.set(key, completed.requestId);
   attempts.delete(key);
   if (storage) {
-    try { storage.removeItem(key); } catch { /* Storage may be disabled. */ }
+    try { storage.removeItem(key); unreliableStorageKeys.delete(key); }
+    catch { unreliableStorageKeys.add(key); /* Ignore stale persisted UUIDs. */ }
   }
 }
