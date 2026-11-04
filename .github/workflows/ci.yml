@@ -74,6 +74,7 @@ jobs:
           node --test tests/historic-consignment-portal-preflight.test.mjs
           node --test tests/migration-format-differences-reconciliation.test.mjs
           node --test tests/historic-consignment-ddl-provenance.test.mjs
+          node --test tests/consignment-restore-shape-contract.test.mjs
       - name: Four public SECURITY DEFINER RPC source and tenant-guard audit (#104)
         run: |
           node --test tests/public-rpc-source-audit.test.mjs
