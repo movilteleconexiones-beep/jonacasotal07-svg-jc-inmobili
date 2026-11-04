@@ -30,6 +30,10 @@ function verifyReadOnlyCatalogue(raw) {
     "count(*)=47 AND bool_and(enabled)",
     "FROM checks ORDER BY check_key"
   ]) assert.ok(body.includes(anchor),'Contract missing: '+anchor);
+  // The two feature-count assertions must remain separately present.
+  // Merely finding one shared substring could miss a broken Basic or Pro rule.
+  assert.match(body, /'basic_47_enabled_features',\\s*\\(SELECT count\\(\\*\\)=47 AND bool_and\\(enabled\\) FROM features WHERE code='BASIC'\\)/);
+  assert.match(body, /'professional_47_enabled_features',\\s*\\(SELECT count\\(\\*\\)=47 AND bool_and\\(enabled\\) FROM features WHERE code='PRO'\\)/);
   for (const label of [
     'two_and_only_two_monthly_plans',
     'basic_5_users_and_200_properties',
