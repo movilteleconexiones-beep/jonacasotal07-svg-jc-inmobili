@@ -38,6 +38,13 @@ test('consignment origin scan is SELECT-only and references the actual applied l
   assert.match(sql, /direct_create_migrations/);
   assert.match(sql, /currently_present/);
   assert.match(sql, /jsonb_agg/);
+  assert.match(sql, /mention_count/);
+  assert.match(sql, /first_mention_version/);
+  // PostgreSQL word-boundary regex is one backslash in the SQL source.
+  // Doubling it produces a literal backslash and silently returns 0 mentions.
+  const boundary = String.raw`l.sql_body ~* ('\m'||split_part(e.object_ref,'.',2)||'\M')`;
+  assert.equal(sql.split(boundary).length - 1, 2,
+    'Both chronology counters must preserve the PostgreSQL regex boundaries');
 });
 
 test('the scanner fails closed on appended DDL/DML and cannot be used as a repair recipe', () => {
@@ -50,6 +57,15 @@ test('the scanner fails closed on appended DDL/DML and cannot be used as a repai
   ]) {
     assert.throws(() => assertReadOnlyQuery(sql + '\n' + operation));
   }
+});
+
+test('rejects mistaken escaped boundaries that hide historical object mentions', () => {
+  const valid = String.raw`l.sql_body ~* ('\m'||split_part(e.object_ref,'.',2)||'\M')`;
+  const invalid = String.raw`l.sql_body ~* ('\\m'||split_part(e.object_ref,'.',2)||'\\M')`;
+  const broken = sql.replaceAll(valid,invalid);
+  assert.notEqual(broken,sql);
+  assert.equal(sql.split(valid).length-1,2);
+  assert.equal(broken.split(valid).length-1,0);
 });
 
 test('exposes provenance limits, never claims out-of-band DDL or SQL equivalence', () => {
