@@ -12,6 +12,12 @@ const SHA = /^[0-9a-f]{40}$/i;
 const SHA256 = /^[0-9a-f]{64}$/i;
 const checks = [
   ['ci.passed', 'CI combinada aprobada'],
+  // CI passing on a PR alone does not protect the deployable main branch.
+  ['ci.main_branch_protected', 'Rama main protegida contra cambios sin revisión'],
+  ['ci.required_status_check_enforced', 'Check obligatorio Verify JCO application / validate en main'],
+  ['deployment.railway_app_waits_for_ci', 'Railway aplicación espera CI aprobada antes de publicar'],
+  ['deployment.railway_wompi_waits_for_ci', 'Railway Wompi espera CI aprobada antes de publicar'],
+  ['database.applied_migration_bodies_reconciled', 'Diferencias históricas de SQL aplicadas y locales conciliadas'],
   ['database.migrations_reviewed', 'Migraciones y prerrequisitos revisados'],
   ['database.backup_restored_isolated', 'Respaldo restaurado y verificado en entorno aislado'],
   ['database.storage_objects_restored', 'Fotos, contratos y soportes de Storage restaurados y comprobados'],
@@ -33,6 +39,7 @@ const commercialChecks = [
   ['commercial.smtp_invitation_recovery', 'Correo de invitación y recuperación probado'],
   ['commercial.wompi_sandbox_signed', 'Firma e idempotencia de Wompi Sandbox probadas'],
   ['commercial.wompi_real_approved', 'Autorización expresa del SuperAdmin para habilitar Wompi real'],
+  ['security.leaked_password_protection_enabled', 'Protección contra contraseñas filtradas activa en Supabase Auth'],
   ['commercial.licensing_is_superadmin_only', 'Licencias y cobros restringidos al SuperAdmin'],
 ];
 
@@ -68,6 +75,14 @@ export function evaluateReleaseReadiness(evidence, {
     errors.push('La evidencia corresponde a un commit distinto del que se pretende publicar.');
   if (e.ci?.commit_sha !== e.commit_sha)
     errors.push('La CI registrada no corresponde exactamente al commit candidato.');
+  // Independent external configuration must be attested recently. A boolean
+  // from an old checklist cannot certify currently live GitHub/Railway gates.
+  if (!recentTimestamp(e.ci?.branch_protection_verified_at, now, 24))
+    errors.push('La protección y comprobación obligatoria de main deben revisarse en las últimas 24 horas.');
+  if (!recentTimestamp(e.deployment?.railway_ci_verified_at, now, 24))
+    errors.push('El bloqueo de Railway por CI debe comprobarse en ambos servicios en las últimas 24 horas.');
+  if (e.ci?.required_check_name !== 'Verify JCO application / validate')
+    errors.push('El check obligatorio de main debe coincidir con Verify JCO application / validate.');
   if (!SHA256.test(e.database?.backup_sha256 ?? ''))
     errors.push('Falta la huella SHA-256 del archivo de respaldo privado.');
   if (!recentTimestamp(e.database?.backup_created_at, now, 24))
