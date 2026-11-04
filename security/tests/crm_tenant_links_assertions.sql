@@ -2,12 +2,33 @@
 DO $checks$
 DECLARE denied boolean; num integer;
 BEGIN
+ -- All existing relationship names are maintained, now with same-agency FKs.
+ -- Adding secondary FK names here would break PostgREST embedded joins.
  IF (SELECT count(*) FROM pg_catalog.pg_constraint
      WHERE connamespace='public'::regnamespace AND convalidated
-       AND conname IN ('jco_leads_org_contact_fk','jco_leads_org_property_fk',
-                       'jco_consignment_org_contact_fk','jco_consignment_org_property_fk',
-                       'jco_consignment_org_lead_contact_fk'))<>5 THEN
-   RAISE EXCEPTION 'Composite CRM foreign key validation incomplete';
+       AND conname IN ('leads_contact_id_fkey','leads_property_id_fkey',
+           'property_consignments_contact_id_fkey',
+           'property_consignments_property_id_fkey',
+           'property_consignments_lead_id_fkey')
+       AND cardinality(conkey)>1)<>5 THEN
+   RAISE EXCEPTION 'Five same-name composite CRM FKs not validated';
+ END IF;
+ IF (SELECT count(*) FROM pg_catalog.pg_constraint c
+       WHERE c.conrelid='public.leads'::regclass AND c.contype='f'
+         AND c.confrelid='public.contacts'::regclass)<>1
+    OR (SELECT count(*) FROM pg_catalog.pg_constraint c
+       WHERE c.conrelid='public.leads'::regclass AND c.contype='f'
+         AND c.confrelid='public.properties'::regclass)<>1
+    OR (SELECT count(*) FROM pg_catalog.pg_constraint c
+       WHERE c.conrelid='public.property_consignments'::regclass AND c.contype='f'
+         AND c.confrelid='public.contacts'::regclass)<>1
+    OR (SELECT count(*) FROM pg_catalog.pg_constraint c
+       WHERE c.conrelid='public.property_consignments'::regclass AND c.contype='f'
+         AND c.confrelid='public.properties'::regclass)<>1
+    OR (SELECT count(*) FROM pg_catalog.pg_constraint c
+       WHERE c.conrelid='public.property_consignments'::regclass AND c.contype='f'
+         AND c.confrelid='public.leads'::regclass)<>1 THEN
+   RAISE EXCEPTION 'CRM PostgREST has multiple join paths to the same parent';
  END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint
      WHERE connamespace='public'::regnamespace AND convalidated
@@ -144,4 +165,4 @@ BEGIN
  IF NOT blocked THEN RAISE EXCEPTION 'Authenticated actor bypassed tenant FK'; END IF;
 END $actor$;
 ROLLBACK;
-SELECT 'PASS: five validated composite CRM FKs and lead/contact NULL guard; cross-tenant INSERT/UPDATE rejected; legitimate links accepted' AS result;
+SELECT 'PASS: five validated same-name composite CRM FKs, single PostgREST parent paths, NULL guard, and tenant isolation' AS result;
