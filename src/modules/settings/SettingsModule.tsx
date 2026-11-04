@@ -55,6 +55,7 @@ export function SettingsModule() {
   const isOwner = Boolean(activeMembership?.roles.some(role => role.key === 'ORGANIZATION_OWNER' && role.active));
   const currentSlug = activeMembership?.organization.slug || '';
   const hasPublishedPrivacyPolicy = /^https:\/\/[^\s]+$/.test(branding.publicPage.privacyPolicyUrl || '');
+  const hasPublishedContactEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email || '');
 
   useEffect(() => { setPublicSlug(currentSlug); }, [organizationId, currentSlug]);
 
@@ -286,8 +287,13 @@ export function SettingsModule() {
 
       {!hasPublishedPrivacyPolicy && publicPage.showContact && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-          <p>Para recibir consultas directamente en el CRM, publica la política de tratamiento de datos de esta inmobiliaria.</p>
-          <a href="#politica-datos" className="shrink-0 font-semibold underline underline-offset-2">Configurar política de datos</a>
+          <p>{hasPublishedContactEmail
+            ? 'Para recibir consultas directamente en el CRM, publica la política de tratamiento de datos de esta inmobiliaria.'
+            : 'El formulario público no puede recibir consultas: configura una política de tratamiento de datos y un correo comercial válido.'}</p>
+          <div className="flex flex-wrap gap-3">
+            <a href="#politica-datos" className="shrink-0 font-semibold underline underline-offset-2">Configurar política de datos</a>
+            {!hasPublishedContactEmail && <a href="#correo-comercial" className="shrink-0 font-semibold underline underline-offset-2">Configurar correo comercial</a>}
+          </div>
         </div>
       )}
 
@@ -402,7 +408,7 @@ export function SettingsModule() {
           </div>
           <div id="politica-datos" className="rounded-xl border border-stone-200 bg-white p-4 space-y-2">
             <h3 className="font-semibold">Política de datos personales</h3>
-            <p className="text-xs text-slate-600">Publica la dirección HTTPS de tu política de tratamiento de datos. Es necesaria para que el formulario público registre consultas automáticamente en tu CRM; sin ella, los visitantes solo podrán preparar un correo manual.</p>
+            <p className="text-xs text-slate-600">Publica la dirección HTTPS de tu política de tratamiento de datos. Es necesaria para que el formulario público registre consultas automáticamente en tu CRM; sin ella, solo podrá prepararse un correo manual cuando haya un correo comercial válido; de lo contrario el formulario no pedirá datos personales.</p>
             <Field label="Enlace HTTPS a tu política de privacidad" type="url"
               value={publicPage.privacyPolicyUrl}
               onChange={value => setPublicPage(current => ({ ...current, privacyPolicyUrl: value }))}
@@ -463,7 +469,7 @@ export function SettingsModule() {
           <a href={tenantPublicPath(activeMembership?.organization.slug || '')} target="_blank" rel="noopener noreferrer"
             className="inline-block text-sm font-semibold underline">Ver mi portada pública</a>
         </div>
-        <Field label="Correo comercial" value={email} onChange={setEmail} type="email" />
+        <div id="correo-comercial"><Field label="Correo comercial" value={email} onChange={setEmail} type="email" /></div>
         <Field label="Teléfono" value={phone} onChange={setPhone} />
         <Field label="WhatsApp" value={whatsapp} onChange={setWhatsapp} />
 
