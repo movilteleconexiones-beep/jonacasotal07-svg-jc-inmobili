@@ -124,6 +124,27 @@ histórico exacto del catálogo.
    financieras** en las auditorías del PR #285, pero la equivalencia
    histórica global sigue sin probarse.
 
+### Identidades originales del consolidado financiero del 12-oct (04-nov, solo lectura)
+
+Se leyó exclusivamente por `SELECT` el cuerpo aplicado
+`20261012070133 / audited_rent_receipts_owner_deductions_finance_permissions`
+(**28.005 caracteres**) y se extrajeron **solo los nombres** de sus
+`CREATE TABLE`, `FUNCTION`, `POLICY`, `TRIGGER` e `INDEX`.
+Se construyó un [inventario reproducible sin cuerpos de SQL productivo](../../security/checks/finance_20261012_original_object_manifest_live.sql).
+
+La consulta `pg_catalog` en la base activa reportó **19/19 objetos presentes
+y activos cuando procede**: **2 tablas, 5 funciones, 9 políticas, 1 trigger
+habilitado y 2 índices válidos**. No accedió a datos de contratos, pagos,
+propietarios, usuarios o documentos. Un
+[test inmutable de CI](../../tests/finance-20261012-object-manifest.test.mjs)
+verifica las 19 identidades y rechaza lecturas de datos o SQL mutador.
+
+**Límite:** confirmar 19 identidades **no acredita** que las definiciones
+actuales sean byte-idénticas a las históricas, que las funciones
+mantengan la misma lógica o que la migración pueda ejecutarse en la
+secuencia correcta desde cero. Este consolidado sigue en el grupo
+de cuatro casos históricos #104 pendientes, sin `migration repair`.
+
 ### Verificación puntual de `0026_rental_management_core` (03-nov, solo lectura)
 
 Se contrastó la sentencia SQL histórica auténtica de la versión
