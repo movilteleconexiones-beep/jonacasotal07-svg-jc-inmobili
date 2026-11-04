@@ -45,7 +45,7 @@ function runPg(program, extra, input) {
 
 function query(db, expression) {
   const run = runPg('psql', [
-    '--dbname=' + db, '--tuples-only', '--no-align',
+    '--dbname=' + db, '--quiet', '--tuples-only', '--no-align',
     '--set=ON_ERROR_STOP=1', '--command=' + expression,
   ]);
   assert.equal(run.status, 0, 'Synthetic SQL query failed');
