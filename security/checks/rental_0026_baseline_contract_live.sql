@@ -106,16 +106,21 @@ WITH original_columns(table_name,column_name,original_type,original_not_null) AS
            '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))'
          AND pg_get_expr(pol.polwithcheck,pol.polrelid) =
            '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))')
-       AS current_staff_guard_intact
+       AS current_staff_guard_intact,
+   EXISTS(SELECT 1 FROM pg_policy extra
+       WHERE extra.polrelid=t.oid AND extra.polpermissive
+         AND extra.polname<>t.initial_policy) AS unexpected_permissive_policy_present
  FROM tables t
 )
 SELECT table_name,oid IS NOT NULL AS table_present,owner,rls_enabled,
  original_column_count,matching_original_columns,added_columns_since_original,
  original_index_present_valid,original_all_authenticated_policy_present,
  original_index_definition_intact,current_staff_guard_intact,
+ unexpected_permissive_policy_present,
  CASE WHEN oid IS NOT NULL AND rls_enabled
      AND matching_original_columns=original_column_count
      AND original_index_present_valid AND original_all_authenticated_policy_present
      AND original_index_definition_intact AND current_staff_guard_intact
+     AND NOT unexpected_permissive_policy_present
    THEN 'BASELINE_COMPATIBLE' ELSE 'DRIFT' END AS verdict
 FROM shape ORDER BY table_name;
