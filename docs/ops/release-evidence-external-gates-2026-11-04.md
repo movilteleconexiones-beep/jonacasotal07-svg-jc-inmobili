@@ -19,13 +19,13 @@ Se agregó una exigencia de seis acreditaciones explícitas:
 | Clave de evidencia privada | Obligación real |
 | --- | --- |
 | `ci.main_branch_protected` | `main` protegida ante cambios sin revisión |
-| `ci.required_status_check_enforced` | GitHub requiere `Verify JCO application / validate` |
+| `ci.required_status_check_enforced` | GitHub requiere el job real `validate` del emisor GitHub Actions |
 | `deployment.railway_app_waits_for_ci` | Servicio de portal exige CI aprobada |
 | `deployment.railway_wompi_waits_for_ci` | Servicio Wompi sandbox exige CI aprobada |
 | `database.applied_migration_bodies_reconciled` | #104: diferencias reales de cuerpos SQL resueltas |
 | `security.leaked_password_protection_enabled` | Supabase Auth rechaza contraseñas filtradas (fase comercial) |
 
-También se exigen `ci.required_check_name='Verify JCO application / validate'`,
+También se exigen `ci.required_check_name='validate'` y `ci.required_check_app_slug='github-actions'`,
 `ci.branch_protection_verified_at` y
 `deployment.railway_ci_verified_at` con fecha/zona horaria y
 antigüedad máxima de 24 horas al momento del chequeo.
