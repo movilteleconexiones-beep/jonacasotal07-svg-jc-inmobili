@@ -28,7 +28,13 @@ SELECT e.kind,e.object_ref,
  count(l.version) FILTER (WHERE l.sql_body ~* e.sql_pattern) AS direct_create_matches,
  coalesce(jsonb_agg(jsonb_build_object('version',l.version,'migration',l.name)
    ORDER BY l.version)
-   FILTER (WHERE l.sql_body ~* e.sql_pattern),'[]'::jsonb) AS direct_create_migrations
+   FILTER (WHERE l.sql_body ~* e.sql_pattern),'[]'::jsonb) AS direct_create_migrations,
+ -- Mentions are a chronology clue only: comments or preflights can mention
+ -- an object without creating it. This is NOT DDL provenance proof.
+ count(l.version) FILTER (WHERE
+   l.sql_body ~* ('\\m'||split_part(e.object_ref,'.',2)||'\\M')) AS mention_count,
+ min(l.version) FILTER (WHERE
+   l.sql_body ~* ('\\m'||split_part(e.object_ref,'.',2)||'\\M')) AS first_mention_version
 FROM expected e CROSS JOIN ledger l
 GROUP BY e.kind,e.object_ref,e.signature
 ORDER BY e.kind,e.object_ref;
