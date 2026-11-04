@@ -46,9 +46,15 @@ publicación automática segura por sí solo, ni repara el historial de Supabase
    nuevo trigger. No mezclar en él migrations, propuestas financieras ni
    cambios a `src`. Mantener separado del PR de seguridad #285.
 2. Antes de mezclar a main, **proteger la rama** en GitHub: impedir push
-   directo y requerir la comprobación `Verify JCO application / validate`
-   para PR; exigir rama actualizada y evitar bypass de administradores.
-   Confirmar el nombre real del status con un PR verde.
+   directo y exigir el **job de check-run** `validate` emitido por la
+   aplicación `github-actions` (GitHub App ID `15368`), no un estado con
+   el mismo nombre emitido por terceros. La interfaz muestra el conjunto
+   `Verify JCO application / validate`, pero la API
+   `commits/{sha}/check-runs` confirma `name="validate"` y
+   `app.slug="github-actions"` en los SHA de PR #285 y #286.
+   Exigir rama actualizada y evitar bypass de administradores.
+   Confirmar la fuente y el contexto activos en la protección de `main`. 
+
 3. Preparar un rollback del commit actual `main` y **usar la
    evidencia del respaldo auténtico ya acreditada en #214**; revisar
    únicamente la custodia/acceso del respaldo existente, sin volver a
