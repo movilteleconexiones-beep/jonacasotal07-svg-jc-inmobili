@@ -17,11 +17,13 @@ una restauración **local estructural** de 27 tablas Auth, ocho Storage,
 sus FKs/RLS y dos usuarios. La presencia de esa evidencia debe impedir
 que se pida de nuevo un export o que se marque «backup inexistente».
 
-La fase 2 de copia **independiente de código fuente** en USB quedó sin
-salida final acreditada. Las pruebas de **login y servicios Auth/Storage
-aislados** deben efectuarse como requisito funcional de lanzamiento
-(#203), no confundirse con la integridad ya comprobada de la copia
-local del 01-nov.
+La fase 2 de copia **independiente de código fuente** en USB se
+completó posteriormente el 02-nov: ZIP `main` (532 archivos) y ZIP
+histórico (438 archivos), ambos descargados/leídos en USB E:. El usuario
+confirmó el cierre y retiro de la memoria. GitHub API confirma
+`#214 CLOSED/completed` desde el 02-nov-2026.
+Las pruebas de **login y servicios Auth/Storage aislados** corresponden
+al lanzamiento funcional #203 y no reabren el respaldo ya completado.
 
 La regla GitHub `backup/**` #26351160 está **activa**, sin bypass,
 con backup histórico SHA intacto. **No protege `main`**: falta la
@@ -74,8 +76,9 @@ La API conectada permite consultar SQL y Storage según las capacidades disponib
 
 La evidencia (1) de exportación auténtica PostgreSQL y (2) de
 recuperabilidad local de los seis bytes Storage **ya figura en #214**.
-Falta acreditar el cierre de la fase 2 USB de **código fuente**,
-más el alcance restante de servicio integrado/aislamiento y el gate
-de publicación #203, sin duplicar la exportación o sus pruebas
-criptográficas. Nunca asumir que la ejecución CI con fixtures sustituye
+También se acreditó la fase 2 USB de **código fuente** (dos ZIP
+verificados). El respaldo #214 está **CLOSED**. Restan únicamente
+pruebas funcionales de servicios aislados/aislamiento y el gate
+de publicación #203, sin repetir exportación, código USB, cifrado ni
+restauración local ya realizada. Nunca asumir que la ejecución CI con fixtures sustituye
 al respaldo del propietario.
