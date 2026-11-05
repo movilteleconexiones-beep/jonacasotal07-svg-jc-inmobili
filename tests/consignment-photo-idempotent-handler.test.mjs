@@ -4,14 +4,14 @@ import { File } from 'node:buffer';
 import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 import vm from 'node:vm';
-import ts from 'typescript';
+import { transformSync } from 'esbuild';
 
 // Execute the actual Deno Edge handler in an isolated Node VM with a
 // disposable in-memory database and private Storage. No network or secrets.
 const source=readFileSync(new URL('../supabase/functions/consignment-photo-upload/index.ts',import.meta.url),'utf8');
-const js=ts.transpileModule(source.replace(/^import\s+\{\s*createClient\s*\}[^;]+;\s*/m,''),{
- compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None},
-}).outputText;
+const js=transformSync(source.replace(/^import\s+\{\s*createClient\s*\}[^;]+;\s*/m,''),{
+ loader:'ts',target:'es2022',format:'iife',
+}).code;
 const org='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const consignmentId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const requestId='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
