@@ -74,7 +74,7 @@ test('settings warns the tenant owner when public inquiries have no valid destin
   assert.match(settings,/El formulario público no puede recibir consultas/);
   assert.match(settings,/Configurar correo comercial/);
   assert.match(settings,/id="correo-comercial"/);
-  assert.match(settings,/Sin ella, solo podrá prepararse un correo manual/);
+  assert.match(settings,/sin ella, solo podrá prepararse un correo manual cuando haya un correo comercial válido/);
 });
 
 test('rejected storage writes cannot resurrect an older UUID after editing inquiry',async()=>{
