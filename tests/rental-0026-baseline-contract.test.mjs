@@ -54,7 +54,7 @@ function verifyReadOnlyContract(raw) {
     "           '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))'",
     "         AND pg_get_expr(pol.polwithcheck,pol.polrelid) =",
     "           '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))'",
-  ].join('\\n');
+  ].join('\n');
   assert.ok(source.includes(exactStaffPolicy),
     'Original authenticated staff policy USING/WITH CHECK must remain exact');
   assert.match(source, /current_staff_guard_intact/);
