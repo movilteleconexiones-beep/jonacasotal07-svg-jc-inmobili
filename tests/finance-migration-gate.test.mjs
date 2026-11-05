@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { HARDENING_SOURCE, stripDocumentationOnly, verifyAppliedHardeningSource } from '../scripts/ops/finance-hardening-provenance.mjs';
+import { HARDENING_SOURCE, FINANCE_CONSOLIDATION, stripDocumentationOnly, verifyAppliedHardeningSource, reconstructAppliedConsolidation, verifyAppliedConsolidation } from '../scripts/ops/finance-hardening-provenance.mjs';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -78,4 +78,33 @@ test('finance hardening provenance fails closed on altered policy, grants and tr
     assert.equal(result.releaseAllowed,false);
   }
   assert.throws(()=>stripDocumentationOnly(null),/SQL source/);
+});
+
+test('20261012070133 SQL has exactly the four original finance migration bodies in order', () => {
+  const sources=FINANCE_CONSOLIDATION.localFiles.map((name)=>
+    readFileSync(join(migrations,name),'utf8'));
+  const sql=reconstructAppliedConsolidation(sources);
+  const result=verifyAppliedConsolidation(sources);
+  assert.equal(result.matchesRecordedSql,true,JSON.stringify(result));
+  assert.equal(result.bytes,24924);
+  assert.equal(result.lines,484);
+  assert.equal(result.sha256,FINANCE_CONSOLIDATION.normalizedSha256);
+  assert.equal(result.releaseAllowed,false);
+  assert.ok(sql.startsWith("BEGIN;\nSET LOCAL lock_timeout='5s';\nSET LOCAL statement_timeout='120s';\n"));
+  assert.ok(sql.endsWith("\nNOTIFY pgrst, 'reload schema';\nCOMMIT;"));
+  assert.equal(verifyAppliedConsolidation(sources.map(x=>'-- evidence annotation\n'+x)).matchesRecordedSql,true);
+});
+
+test('four finance originals must not drift, reorder, or change transaction boundaries', () => {
+  const sources=FINANCE_CONSOLIDATION.localFiles.map((name)=>
+    readFileSync(join(migrations,name),'utf8'));
+  assert.equal(verifyAppliedConsolidation([...sources].reverse()).matchesRecordedSql,false);
+  const extra=[...sources];
+  extra[0]=extra[0].replace('COMMIT;',"SELECT 1;\nCOMMIT;");
+  assert.notEqual(extra[0],sources[0]);
+  assert.equal(verifyAppliedConsolidation(extra).matchesRecordedSql,false);
+  const missingBoundary=[...sources];
+  missingBoundary[1]=missingBoundary[1].replace('BEGIN;','-- transaction missing');
+  assert.throws(()=>reconstructAppliedConsolidation(missingBoundary),/transaction boundary/);
+  assert.throws(()=>reconstructAppliedConsolidation(sources.slice(1)),/Exactly four/);
 });
