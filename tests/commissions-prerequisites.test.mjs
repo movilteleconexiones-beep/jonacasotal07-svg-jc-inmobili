@@ -6,16 +6,17 @@ const source = readFileSync(new URL('../src/modules/commissions/CommissionsModul
 
 test('commission form requires a deal and validates tenant-scoped references', () => {
   assert.match(source, /!can\(PERMISSIONS\.COMMISSIONS_CREATE\)/);
-  assert.match(source, /loadingOptions \|\| deals\.length === 0/);
+  assert.match(source, /loadingOptions \|\| dealsLoadError \|\| deals\.length === 0/);
   assert.match(source, /deals\.some\(\(deal\) => deal\.id === selectedDealId\)/);
   assert.match(source, /members\.some\(\(member\) => member\.user_id === beneficiaryId\)/);
-  assert.match(source, /disabled=\{loadingOptions \|\| deals\.length === 0\}/);
+  assert.match(source, /disabled=\{loadingOptions \|\| dealsLoadError \|\| deals\.length === 0\}/);
   assert.match(source, /Primero crea un negocio en la sección Negocios/);
 });
 
 test('tenant switch and query failures clear old commission choices', () => {
-  assert.match(source, /setRows\(\[\]\); setDeals\(\[\]\); setMembers\(\[\]\)/);
+  assert.match(source, /setRows\(\[\]\); setDeals\(\[\]\); setDealsLoadError\(false\); setMembers\(\[\]\)/);
   assert.match(source, /setDeals\(dealsResult\.error \? \[\]/);
+  assert.match(source, /setDealsLoadError\(Boolean\(dealsResult\.error\)\)/);
   assert.match(source, /if \(membersResult\.error\) \{ setMembers\(\[\]\);/);
 });
 
@@ -33,4 +34,16 @@ test('stale requests cannot replace rows when switching organizations', () => {
   assert.match(source, /const version = \+\+loadVersion\.current/);
   assert.match(source, /if \(version !== loadVersion\.current\) return/);
   assert.match(source, /return \(\) => \{ \+\+loadVersion\.current; \}/);
+});
+
+test('commission creation distinguishes failed deal lookup from genuinely empty businesses', () => {
+  assert.match(source, /const \[dealsLoadError, setDealsLoadError\] = useState\(false\)/);
+  assert.match(source, /setLoadingOptions\(true\);\s*setDealsLoadError\(false\)/);
+  assert.match(source, /if \(dealsResult\.error\) setMessage\('No fue posible consultar los negocios/);
+  assert.match(source, /!loadingOptions && dealsLoadError && <p role="alert"/);
+  assert.match(source, /No crees otro negocio hasta confirmar los existentes/);
+  assert.match(source, /!loadingOptions && !dealsLoadError && deals\.length === 0/);
+  assert.match(source, /Error al consultar negocios/);
+  assert.match(source, /dealsLoadError\s*\? 'No se pudo comprobar el listado de negocios/);
+  assert.match(source, /disabled=\{loadingOptions \|\| dealsLoadError \|\| deals\.length === 0\}/);
 });
