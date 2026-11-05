@@ -361,6 +361,8 @@ jobs:
         run: node --import tsx --test tests/public-private-tenant-routing.test.mjs
       - name: Public website CRM contact and consent regression
         run: node --import tsx --test tests/public-contact-crm-intake.test.mjs
+      - name: CRM browser request UUID and disabled-by-default cutover contract
+        run: node --import tsx --test tests/public-crm-request-id.test.mjs
       - name: Public CRM website intake SQL tenant and anti-spam enforcement
         env:
           PGPASSWORD: postgres
