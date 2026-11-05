@@ -5,6 +5,7 @@ import { validatePropertyConsignment, type PropertyConsignmentInput } from '../c
 import { submitPropertyConsignment, usePublicPropertyIntakeSite } from '../lib/property-consignments';
 import { X, CheckCircle2 } from 'lucide-react';
 import { uploadConsignmentPhoto } from '../lib/consignment-photos';
+import { getConsignmentRequestId, clearConsignmentAttempt } from '../core/consignment-submit-attempt';
 import type { TenantBrandingState } from '../core/use-tenant-branding';
 import { getCountryOption } from '../core/countries';
 import { administrativeLabels, loadAdministrativeCatalog, type AdministrativeCatalog } from '../core/location-catalog';
@@ -38,7 +39,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [contactConsent, setContactConsent] = useState(false);
   const submitLock = useRef(false);
-  const request = useRef<{ signature: string; id: string } | null>(null);
+  const request = useRef<{ id: string } | null>(null);
   const [title, setTitle] = useState('');
   const configuredCountry = getCountryOption(branding.country || 'CO');
   const [locationCatalog, setLocationCatalog] = useState<AdministrativeCatalog | null>(null);
@@ -147,15 +148,14 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
     };
     const validationError = validatePropertyConsignment(input);
     if (validationError) { setError(validationError); return; }
-    const signature = JSON.stringify([site.slug, input]);
-    if (!request.current || request.current.signature !== signature) {
-      request.current = { signature, id: crypto.randomUUID() };
-    }
+    // Lock before async hashing so rapid double-clicks cannot start two submissions.
     submitLock.current = true;
     setSubmitting(true);
     setError('');
     try {
-      const reference = await submitPropertyConsignment(site.slug, request.current.id, input);
+      const requestId = await getConsignmentRequestId(site.slug, input);
+      request.current = { id: requestId };
+      const reference = await submitPropertyConsignment(site.slug, requestId, input);
       setCreatedCode(reference);
       await attemptPhotoUploads(reference, 0);
       setOwnerName('');
@@ -170,6 +170,8 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
   const resetAndClose = () => {
     if (submitLock.current) return;
+    // An uncertain server response must remain retriable even after closing.
+    if (createdCode) clearConsignmentAttempt(site?.slug || publicSiteSlug);
     request.current = null;
     setContactConsent(false);
     setPriceCOP('');
