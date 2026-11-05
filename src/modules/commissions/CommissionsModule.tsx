@@ -61,6 +61,7 @@ export function CommissionsModule() {
 
   const [rows, setRows] = useState<CommissionRow[]>([]);
   const [deals, setDeals] = useState<DealOption[]>([]);
+  const [dealsLoadError, setDealsLoadError] = useState(false);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId,setEditingId] = useState<string | null>(null);
@@ -86,10 +87,11 @@ export function CommissionsModule() {
   async function load() {
     const version = ++loadVersion.current;
     if (!organizationId) {
-      setRows([]); setDeals([]); setMembers([]); setReviews([]); setCorrections({}); setProfileNames({}); setLoadingOptions(false);
+      setRows([]); setDeals([]); setDealsLoadError(false); setMembers([]); setReviews([]); setCorrections({}); setProfileNames({}); setLoadingOptions(false);
       return;
     }
     setLoadingOptions(true);
+    setDealsLoadError(false);
     // Keep the current table visible during refresh to avoid a false impression of lost records.
 
     const [commissionsResult, dealsResult, membersResult, reviewResult, correctionResult] = await Promise.all([
@@ -120,8 +122,11 @@ export function CommissionsModule() {
     if (commissionsResult.error) setMessage(commissionsResult.error.message);
     else setRows((commissionsResult.data ?? []) as unknown as CommissionRow[]);
 
+    // A query failure is not an empty portfolio: never guide staff to create
+    // duplicate businesses when access/network prevented the lookup.
+    setDealsLoadError(Boolean(dealsResult.error));
     setDeals(dealsResult.error ? [] : ((dealsResult.data ?? []) as unknown as DealOption[]));
-    if (dealsResult.error) setMessage('No fue posible cargar los negocios. Comprueba permisos y actualiza.');
+    if (dealsResult.error) setMessage('No fue posible consultar los negocios. Revisa permisos y pulsa Actualizar.');
     if (membersResult.error) { setMembers([]); setProfileNames({}); }
     if (!membersResult.error) {
       const memberRows = (membersResult.data ?? []) as unknown as MemberOption[];
@@ -168,8 +173,10 @@ export function CommissionsModule() {
   async function createCommission(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!organizationId || !user || !can(PERMISSIONS.COMMISSIONS_CREATE)) return;
-    if (loadingOptions || deals.length === 0) {
-      setMessage('Registra primero un negocio o actualiza la lista para crear una comisión.');
+    if (loadingOptions || dealsLoadError || deals.length === 0) {
+      setMessage(dealsLoadError
+        ? 'No se pudo comprobar el listado de negocios. Revisa los permisos y vuelve a actualizar.'
+        : 'Registra primero un negocio o actualiza la lista para crear una comisión.');
       return;
     }
 
@@ -516,11 +523,12 @@ export function CommissionsModule() {
       {showCreate && (
         <form onSubmit={createCommission} className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 md:grid-cols-2">
           {loadingOptions && <p role="status" className="md:col-span-2 text-sm text-slate-600">Cargando negocios disponibles…</p>}
-          {!loadingOptions && deals.length === 0 && <p role="alert" className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Todavía no hay negocios disponibles. Primero crea un negocio en la sección Negocios; después podrás registrar sus comisiones.</p>}
+          {!loadingOptions && dealsLoadError && <p role="alert" className="md:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">No se pudieron consultar los negocios. Verifica los permisos y pulsa Actualizar para reintentar. No crees otro negocio hasta confirmar los existentes.</p>}
+          {!loadingOptions && !dealsLoadError && deals.length === 0 && <p role="status" className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Todavía no hay negocios disponibles. Primero crea un negocio en la sección Negocios; después podrás registrar sus comisiones.</p>}
           <label>
             <span className="mb-1 block text-sm font-medium">Negocio *</span>
-            <select name="deal_id" required className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
-              <option value="">Selecciona…</option>
+            <select name="deal_id" required disabled={loadingOptions || dealsLoadError || deals.length === 0} className="w-full rounded-xl border border-stone-300 px-3 py-2.5 disabled:bg-stone-100">
+              <option value="">{loadingOptions ? 'Cargando negocios…' : dealsLoadError ? 'Error al consultar negocios' : deals.length === 0 ? 'No hay negocios registrados' : 'Selecciona…'}</option>
               {deals.map((deal) => (
                 <option key={deal.id} value={deal.id}>
                   {(deal.properties?.code || 'Sin código') + ' · ' + (deal.contacts?.first_name || 'Cliente')}
@@ -588,7 +596,7 @@ export function CommissionsModule() {
             >
               Cancelar
             </button>
-            <button type="submit" disabled={loadingOptions || deals.length === 0} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
+            <button type="submit" disabled={loadingOptions || dealsLoadError || deals.length === 0} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
               Guardar comisión
             </button>
           </div>
