@@ -94,5 +94,9 @@ test('CRM submit refuses rapid duplicate clicks and warns on uncertain response'
  assert.match(handler,/finally \{\s*contactSubmitInFlight\.current = false;/);
  assert.match(handler,/Comprueba si llegó al CRM antes de volver a enviarla/);
  assert.match(handler,/supabase\.rpc\('submit_public_website_lead'/);
- assert.doesNotMatch(handler,/submit_public_website_lead_once/);
+ // The optional new RPC is present but gated OFF until the DB-first rollout.
+ assert.match(handler,/const useReplaySafeCrm = import\.meta\.env\.VITE_PUBLIC_CRM_IDEMPOTENT === 'true'/);
+ assert.match(handler,/useReplaySafeCrm\s*\? await supabase\.rpc\('submit_public_website_lead_once'/);
+ assert.match(handler,/: await supabase\.rpc\('submit_public_website_lead', inquiry\)/);
+ assert.match(handler,/if \(useReplaySafeCrm\) clearPublicInquiryAttempt\(tenantSlug\)/);
 });
