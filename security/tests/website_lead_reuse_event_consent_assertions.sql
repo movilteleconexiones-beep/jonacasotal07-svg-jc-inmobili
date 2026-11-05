@@ -148,4 +148,36 @@ END $rollback_test$;
 ALTER TABLE private.website_lead_consents
   DROP CONSTRAINT website_lead_consents_test_reject;
 
+-- Accepted evidence cannot be edited or deleted, even via the table owner.
+-- Use fictional rows in the throwaway PG17 CI database only.
+DO $immutable$
+DECLARE
+  target_lead uuid;
+  original_url text;
+  original_count bigint;
+  update_rejected boolean := false;
+  delete_rejected boolean := false;
+BEGIN
+  SELECT lead_id, policy_url INTO target_lead, original_url
+    FROM private.website_lead_consents ORDER BY consented_at, lead_id LIMIT 1;
+  IF target_lead IS NULL THEN RAISE EXCEPTION 'Missing synthetic consent for immutable check'; END IF;
+  SELECT count(*) INTO original_count FROM private.website_lead_consents;
+  BEGIN
+    UPDATE private.website_lead_consents SET policy_url='https://example.test/rewritten'
+      WHERE lead_id=target_lead;
+  EXCEPTION WHEN SQLSTATE 'P0001' THEN update_rejected:=true;
+  END;
+  BEGIN
+    DELETE FROM private.website_lead_consents WHERE lead_id=target_lead;
+  EXCEPTION WHEN SQLSTATE 'P0001' THEN delete_rejected:=true;
+  END;
+  IF NOT update_rejected OR NOT delete_rejected OR
+     (SELECT count(*) FROM private.website_lead_consents)<>original_count OR
+     (SELECT policy_url FROM private.website_lead_consents WHERE lead_id=target_lead)
+        IS DISTINCT FROM original_url
+  THEN
+    RAISE EXCEPTION 'Accepted per-inquiry consent is not immutable';
+  END IF;
+END $immutable$;
+
 SELECT 'PASS: tenant-scoped contact reuse, per-inquiry private consent, spam bounds and rollback' AS result;
