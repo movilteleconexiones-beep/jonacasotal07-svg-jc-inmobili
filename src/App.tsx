@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getPublicInquiryRequestId, clearPublicInquiryAttempt } from './core/public-inquiry-attempt';
 import React, { useState, useMemo } from 'react';
 import {
   CASE_STUDIES,
@@ -301,20 +302,30 @@ export default function App() {
     }
     contactSubmitInFlight.current = true;
     setContactBusy(true);
+    const inquiry = {
+      p_slug: tenantSlug,
+      p_name: contactName.trim(),
+      p_email: contactEmail.trim(),
+      p_phone: contactPhone.trim(),
+      p_service: contactService,
+      p_message: contactNotes.trim(),
+      p_consent: contactConsent,
+      p_trap: contactTrap,
+    };
+    // NEVER set this to true until the corresponding RPC exists and its
+    // SQL, legacy compatibility and rollback have passed isolated QA.
+    // Both Railway services currently omit this environment variable.
+    const useReplaySafeCrm = import.meta.env.VITE_PUBLIC_CRM_IDEMPOTENT === 'true';
     try {
-      const { data, error } = await supabase.rpc('submit_public_website_lead', {
-        p_slug: tenantSlug,
-        p_name: contactName.trim(),
-        p_email: contactEmail.trim(),
-        p_phone: contactPhone.trim(),
-        p_service: contactService,
-        p_message: contactNotes.trim(),
-        p_consent: contactConsent,
-        p_trap: contactTrap,
-      });
+      const { data, error } = useReplaySafeCrm
+        ? await supabase.rpc('submit_public_website_lead_once', {
+            ...inquiry, p_request_id: await getPublicInquiryRequestId(inquiry),
+          })
+        : await supabase.rpc('submit_public_website_lead', inquiry);
       if (error || data !== true) {
         throw new Error('No fue posible registrar la consulta. Comprueba si llegó al CRM antes de volver a enviarla.');
       }
+      if (useReplaySafeCrm) clearPublicInquiryAttempt(tenantSlug);
       setContactSubmitted(true);
       setContactConsent(false);
     } catch (error) {
