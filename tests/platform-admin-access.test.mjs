@@ -37,3 +37,16 @@ test('failed membership queries must not be displayed as an empty account', () =
   assert.match(access, /\{accessError && \(/);
   assert.match(access, /!accessError && \(/);
 });
+
+test('superadmin distinguishes uncontracted agencies from active contract types', () => {
+  const admin = read('../src/modules/platform/SuperAdminModule.tsx');
+  // The option is available even when there are no assigned contract modes.
+  assert.match(admin, /<option value="NONE">Sin contrato<\/option>/);
+  assert.match(admin, /billingFilter === 'NONE' \? !org\.billing_mode : org\.billing_mode === billingFilter/);
+  assert.match(admin, /organizations\.some\(org => !org\.billing_mode\)/);
+  assert.match(admin, /billingModes\.length === 0/);
+  assert.match(admin, /Todavía no hay modalidades de contrato asignadas/);
+  assert.match(admin, /Hay inmobiliarias sin contrato/);
+  assert.match(admin, /billingModes\.map\(mode => <option key=\{mode\} value=\{mode\}>\{etiquetaES\(mode\)\}/);
+  assert.match(admin, /if \(!user \|\| !isPlatformAdmin\)/);
+});

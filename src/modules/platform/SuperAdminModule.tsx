@@ -54,12 +54,13 @@ export function SuperAdminModule() {
   const organizations = overview?.organizations ?? [];
   const statuses = [...new Set(organizations.map(org => org.access_status))].sort();
   const billingModes = [...new Set(organizations.map(org => org.billing_mode).filter((mode): mode is string => Boolean(mode)))].sort();
+  const hasOrganizationsWithoutContract = organizations.some(org => !org.billing_mode);
   const months = [...new Set(organizations.map(org => org.registration_month))].sort().reverse();
   const filteredOrganizations = organizations.filter(org => {
     const query = search.trim().toLocaleLowerCase('es');
     return (!query || [org.organization_name,org.organization_slug,org.plan_name ?? ''].some(value => value.toLocaleLowerCase('es').includes(query)))
       && (statusFilter === 'ALL' || org.access_status === statusFilter)
-      && (billingFilter === 'ALL' || org.billing_mode === billingFilter)
+      && (billingFilter === 'ALL' || (billingFilter === 'NONE' ? !org.billing_mode : org.billing_mode === billingFilter))
       && (monthFilter === 'ALL' || org.registration_month === monthFilter)
       && (testFilter === 'ALL' || org.is_test === (testFilter === 'TEST'));
   });
@@ -111,10 +112,15 @@ export function SuperAdminModule() {
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Filtros de inmobiliarias">
         <label className="text-sm font-medium">Buscar<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Nombre, identificador o plan" className="mt-1 w-full rounded-lg border bg-white p-3" /></label>
         <label className="text-sm font-medium">Estado<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="mt-1 w-full rounded-lg border bg-white p-3"><option value="ALL">Todos los estados</option>{statuses.map(status => <option key={status} value={status}>{organizationStatusLabel(status)}</option>)}</select></label>
-        <label className="text-sm font-medium">Contrato<select value={billingFilter} onChange={e => setBillingFilter(e.target.value)} className="mt-1 w-full rounded-lg border bg-white p-3"><option value="ALL">Todos los contratos</option>{billingModes.map(mode => <option key={mode} value={mode}>{mode}</option>)}</select></label>
+        <label className="text-sm font-medium">Contrato<select value={billingFilter} onChange={e => setBillingFilter(e.target.value)} className="mt-1 w-full rounded-lg border bg-white p-3"><option value="ALL">Todos los contratos</option><option value="NONE">Sin contrato</option>{billingModes.map(mode => <option key={mode} value={mode}>{etiquetaES(mode)}</option>)}</select></label>
         <label className="text-sm font-medium">Mes de registro<select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="mt-1 w-full rounded-lg border bg-white p-3"><option value="ALL">Todos los meses</option>{months.map(month => <option key={month} value={month}>{monthLabel(month)}</option>)}</select></label>
         <label className="text-sm font-medium">Tipo de cuenta<select value={testFilter} onChange={e => setTestFilter(e.target.value)} className="mt-1 w-full rounded-lg border bg-white p-3"><option value="ALL">Todas las cuentas</option><option value="COMMERCIAL">Comerciales</option><option value="TEST">Pruebas</option></select></label>
-      </div><p className="mt-3 text-sm text-slate-600" aria-live="polite">Mostrando {filteredOrganizations.length} de {organizations.length} inmobiliarias</p>
+      </div>
+      {!loading && !error && organizations.length > 0 && billingModes.length === 0 &&
+        <p role="status" className="mt-2 text-sm text-slate-600">Todavía no hay modalidades de contrato asignadas. Puedes utilizar «Sin contrato» para revisar estas inmobiliarias.</p>}
+      {!loading && !error && hasOrganizationsWithoutContract && billingModes.length > 0 && billingFilter === 'ALL' &&
+        <p role="status" className="mt-2 text-xs text-slate-600">Hay inmobiliarias sin contrato: selecciónalas desde el filtro «Sin contrato».</p>}
+      <p className="mt-3 text-sm text-slate-600" aria-live="polite">Mostrando {filteredOrganizations.length} de {organizations.length} inmobiliarias</p>
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white"><table className="w-full min-w-[1080px] text-left text-sm"><thead className="bg-slate-100"><tr>
         {['Inmobiliaria','Estado','Plan','Contrato','Vigencia','Miembros','Inmuebles','Registro'].map(label => <th key={label} className="p-4">{label}</th>)}
       </tr></thead><tbody>{filteredOrganizations.map(org => <tr key={org.organization_id} className="border-t">
