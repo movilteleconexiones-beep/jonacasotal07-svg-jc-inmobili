@@ -50,6 +50,8 @@ jobs:
           set -euo pipefail
           # Fail if historical financial SQL changed or an unreviewed version duplicated.
           node --test tests/finance-migration-gate.test.mjs
+          # 0026 historical rental baseline + current strictly-pinned portal SELECTs.
+          node --test tests/rental-0026-baseline-contract.test.mjs
           # Every release must still explicitly refuse migration replay while
           # snapshot and repository are divergent. Do not invert exit 2 into GO.
           set +e
