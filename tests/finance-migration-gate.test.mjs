@@ -47,3 +47,35 @@ test('whole repository ledger must match before any migration apply',()=>{
   assert.throws(()=>inspectFullMigrationLedger(['invalid'],files),/Invalid migration ledger version/);
   assert.throws(()=>inspectAppliedFinanceVersions({}),/JSON array/);
 });
+
+import { HARDENING_SOURCE, stripDocumentationOnly, verifyAppliedHardeningSource } from '../scripts/ops/finance-hardening-provenance.mjs';
+
+test('20261012071309 applied SQL equals the 20261012150000 local hardening body', () => {
+  const sql=readFileSync(join(migrations, '20261012150000_finance_approval_and_audit_timestamp_hardening.sql'),'utf8');
+  const report=verifyAppliedHardeningSource(sql);
+  assert.equal(report.matchesRecordedSql,true,JSON.stringify(report));
+  assert.equal(report.releaseAllowed,false);
+  assert.equal(report.bytes,889);
+  assert.equal(report.lines,24);
+  assert.equal(report.sha256,HARDENING_SOURCE.sha256);
+  // Comments and blank lines are non-executable and must not affect provenance.
+  assert.equal(verifyAppliedHardeningSource('-- audit annotation\\n\\n'+sql).matchesRecordedSql,true);
+  assert.equal(stripDocumentationOnly(sql).includes('CREATE TRIGGER aaa_owner_deductions_server_timestamps'),true);
+});
+
+test('finance hardening provenance fails closed on altered policy, grants and trigger', () => {
+  const sql=readFileSync(join(migrations, '20261012150000_finance_approval_and_audit_timestamp_hardening.sql'),'utf8');
+  const alterations=[
+    sql.replace("status = 'DRAFT'","status = 'ACTIVE'"),
+    sql.replace('REVOKE ALL ON FUNCTION','GRANT ALL ON FUNCTION'),
+    sql.replace('CREATE TRIGGER aaa_owner_deductions_server_timestamps','-- removed trigger'),
+    sql+'\\nSELECT 1;',
+  ];
+  for(const changed of alterations) {
+    assert.notEqual(changed,sql);
+    const result=verifyAppliedHardeningSource(changed);
+    assert.equal(result.matchesRecordedSql,false,'Mutated original SQL must not match production ledger');
+    assert.equal(result.releaseAllowed,false);
+  }
+  assert.throws(()=>stripDocumentationOnly(null),/SQL source/);
+});
