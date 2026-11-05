@@ -535,6 +535,8 @@ jobs:
 
       - name: Property consignment validation tests
         run: node --import tsx --test tests/property-consignment.test.mjs
+      - name: Consignment request survives tab refresh without persisting PII
+        run: node --import tsx --test tests/consignment-submit-refresh-idempotency.test.mjs
       - name: Verified checkout and webhook tests
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
       - name: Sandbox payment labels cannot imply real sales
