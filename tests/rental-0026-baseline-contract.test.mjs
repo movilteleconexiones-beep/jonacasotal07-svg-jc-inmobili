@@ -47,6 +47,16 @@ function verifyReadOnlyContract(raw) {
   assert.match(source, /encode\(sha256\(convert_to\(pg_get_expr\(pol\.polqual,pol\.polrelid\),'UTF8'\)\),'hex'\)=a\.using_sha256/);
   assert.match(source, /encode\(sha256\(convert_to\(pg_get_expr\(extra\.polqual,extra\.polrelid\),'UTF8'\)\),'hex'\)=a\.using_sha256/);
 
+  const exactStaffPolicy = [
+    "AND pol.polcmd='*' AND pol.polpermissive",
+    "         AND pol.polroles=ARRAY['authenticated'::regrole::oid]",
+    "         AND pg_get_expr(pol.polqual,pol.polrelid) =",
+    "           '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))'",
+    "         AND pg_get_expr(pol.polwithcheck,pol.polrelid) =",
+    "           '(is_platform_admin() OR jco_private.is_internal_staff(organization_id))'",
+  ].join('\\n');
+  assert.ok(source.includes(exactStaffPolicy),
+    'Original authenticated staff policy USING/WITH CHECK must remain exact');
   assert.match(source, /current_staff_guard_intact/);
   assert.match(source, /pol\.polcmd='\*' AND pol\.polpermissive/);
   assert.match(source, /pol\.polroles=ARRAY\['authenticated'::regrole::oid\]/);
