@@ -45,6 +45,24 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Production CI source contract regression
         run: node --test tests/main-ci-deploy-contract.test.mjs
+      - name: Finance history guard and intentional migration NO-GO (#104)
+        run: |
+          set -euo pipefail
+          # Fail if historical financial SQL changed or an unreviewed version duplicated.
+          node --test tests/finance-migration-gate.test.mjs
+          # Every release must still explicitly refuse migration replay while
+          # snapshot and repository are divergent. Do not invert exit 2 into GO.
+          set +e
+          node scripts/ops/finance-migration-gate.mjs --ledger docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json > "$RUNNER_TEMP/migration-no-go.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/migration-no-go.log"
+          if [[ "$status" -ne 2 ]]; then
+            echo "Unexpected migration gate status ($status); investigate before releasing"
+            exit 1
+          fi
+          grep -q '^NO-GO:' "$RUNNER_TEMP/migration-no-go.log"
+          grep -q 'Do not run db push' "$RUNNER_TEMP/migration-no-go.log"
       - name: Contact registration single-flight and uncertain retry prevention
         run: node --test tests/contact-create-single-flight.test.mjs
       - name: npm audit security gate (reject any published vulnerability)
