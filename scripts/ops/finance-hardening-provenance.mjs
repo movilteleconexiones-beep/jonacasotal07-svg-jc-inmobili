@@ -40,14 +40,67 @@ export function verifyAppliedHardeningSource(source) {
   };
 }
 
+// First applied consolidated finance migration: the four local SQL files have
+// exactly the same executable DDL lines in order. The registered transaction
+// envelope also includes two SET LOCAL statements and one NOTIFY, absent from
+// the four individually wrapped local files. Keep those explicit, never infer.
+export const FINANCE_CONSOLIDATION = Object.freeze({
+  appliedVersion: '20261012070133',
+  appliedName: 'audited_rent_receipts_owner_deductions_finance_permissions',
+  localFiles: Object.freeze([
+    '20261012120000_owner_statement_deduction_lines.sql',
+    '20261012130000_rent_receipts_and_owner_drafts.sql',
+    '20261012140000_reconcile_owner_deductions.sql',
+    '20261012143000_finance_rls_and_tenant_links.sql',
+  ]),
+  normalizedSha256: '6953822bed1cd6b52a84afa5a2f97c7a2fa7dc5b28f34efbce51daf0c597d5b9',
+  sourceBytes: 24924,
+  sourceLines: 484,
+});
+
+export function reconstructAppliedConsolidation(sources) {
+  if (!Array.isArray(sources) || sources.length !== FINANCE_CONSOLIDATION.localFiles.length)
+    throw new TypeError('Exactly four SQL sources in historic order are required');
+  const bodyLines = sources.flatMap((sql) => {
+    const lines = stripDocumentationOnly(sql).split('\n');
+    if (lines.length < 3 || lines[0] !== 'BEGIN;' || lines.at(-1) !== 'COMMIT;')
+      throw new Error('Historic SQL transaction boundary changed');
+    return lines.slice(1,-1);
+  });
+  return [
+    'BEGIN;',
+    "SET LOCAL lock_timeout='5s';",
+    "SET LOCAL statement_timeout='120s';",
+    ...bodyLines,
+    "NOTIFY pgrst, 'reload schema';",
+    'COMMIT;',
+  ].join('\n');
+}
+
+export function verifyAppliedConsolidation(sources) {
+  const sql = reconstructAppliedConsolidation(sources);
+  const bytes = Buffer.byteLength(sql,'utf8');
+  const lines = sql.split('\n').length;
+  const sha256 = createHash('sha256').update(sql,'utf8').digest('hex');
+  return {
+    matchesRecordedSql: bytes===FINANCE_CONSOLIDATION.sourceBytes &&
+      lines===FINANCE_CONSOLIDATION.sourceLines &&
+      sha256===FINANCE_CONSOLIDATION.normalizedSha256,
+    bytes, lines, sha256, appliedVersion: FINANCE_CONSOLIDATION.appliedVersion,
+    releaseAllowed: false,
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const source = readFileSync(resolve(HARDENING_SOURCE.localFile), 'utf8');
   const report = verifyAppliedHardeningSource(source);
-  console.log(JSON.stringify(report, null, 2));
-  if (!report.matchesRecordedSql) {
-    console.error('DRIFT: original hardening SQL differs from applied production history');
+  const consolidation = verifyAppliedConsolidation(FINANCE_CONSOLIDATION.localFiles.map((file) =>
+    readFileSync(resolve('supabase/migrations',file),'utf8')));
+  console.log(JSON.stringify({ hardening: report, consolidation }, null, 2));
+  if (!report.matchesRecordedSql || !consolidation.matchesRecordedSql) {
+    console.error('DRIFT: historic finance SQL differs from applied production history');
     process.exitCode = 1;
   } else {
-    console.log('SOURCE MATCH; migration repair and db push remain NO-GO (#104).');
+    console.log('BOTH SOURCE BODIES MATCH; migration repair and db push remain NO-GO (#104).');
   }
 }
