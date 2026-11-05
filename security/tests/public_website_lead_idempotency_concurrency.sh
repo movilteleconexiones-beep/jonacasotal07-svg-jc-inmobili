@@ -2,6 +2,13 @@
 # Only the throwaway GitHub CI database is accepted. Never target production.
 set -euo pipefail
 
+# Fail before connecting if somebody invokes this synthetic-data writer outside
+# the disposable GitHub CI job. Never write fixtures on a developer's database.
+if [[ "${CI:-}" != "true" || "${GITHUB_ACTIONS:-}" != "true" || -z "${RUNNER_TEMP:-}" ]]; then
+  echo "This concurrent CRM fixture is restricted to isolated GitHub Actions CI" >&2
+  exit 2
+fi
+
 db="${1:-}"
 if [[ "${db}" != "jco_public_lead_intake_test" ]]; then
   echo "This concurrency test only runs against jco_public_lead_intake_test" >&2
