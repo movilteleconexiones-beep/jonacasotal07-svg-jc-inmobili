@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { createHash } from 'node:crypto';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sql = readFileSync(join(root,
@@ -197,4 +198,26 @@ test('portal policy audit fails closed on unknown or weakened permissive policie
     assert.throws(()=>verifyReadOnlyContract(modified),
       /AssertionError|Error/, 'Policy contract must reject mutation');
   }
+});
+
+test('applied 0026 original SQL is an immutable exact-byte recovery snapshot (#104)',()=>{
+  const path=join(root,'docs/ops/snapshots/0026_rental_management_core.applied-20261005153559.sql');
+  const bytes=readFileSync(path);
+  const source=bytes.toString('utf8');
+  assert.equal(bytes.length,4878,'Authentic PostgreSQL ledger uses 4878 UTF-8 bytes');
+  assert.equal(source.length,4876,'Original accented comments/permission descriptions must not be recoded');
+  assert.equal(createHash('sha256').update(bytes).digest('hex'),
+    '9c2777306c2e44673d69cf5138afafab01d5eaca72284df11df72c6b6f825eb2',
+    'The snapshot must match the original 20261005153559 SQL body exactly');
+  const tableNames=[...source.matchAll(/^create table if not exists public\.([a-z_]+)\s*\(/gmi)]
+    .map(match=>match[1]);
+  assert.deepEqual(tableNames,['leases','rent_payments','owner_statements','maintenance_requests']);
+  assert.equal((source.match(/^create index if not exists /gmi)??[]).length,4);
+  assert.equal((source.match(/^alter table public\.[a-z_]+ enable row level security;/gmi)??[]).length,4);
+  assert.equal((source.match(/^create policy /gmi)??[]).length,4);
+  assert.equal((source.match(/^\('(?:leases|rent_payments|owner_statements|maintenance)\.[a-z_]+','/gmi)??[]).length,10);
+  assert.match(source,/create policy leases_org_access/);
+  assert.match(source,/using \(public\.is_org_member\(organization_id\)\)/);
+  // Historical SQL is preserved as evidence, not as a new runnable migration.
+  assert.doesNotMatch(path,/supabase[\\/]migrations/);
 });
