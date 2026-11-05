@@ -1,0 +1,403 @@
+{
+  "captured_on": "2026-11-02",
+  "source": "Supabase list_migrations read-only; historical metadata, not DDL evidence",
+  "project_ref": "cuitgyqrjibgwuniapmk",
+  "migrations": [
+    {
+      "version": "20261005051941",
+      "name": "0001_multi_tenant_core"
+    },
+    {
+      "version": "20261005051944",
+      "name": "0002_organization_bootstrap"
+    },
+    {
+      "version": "20261005051947",
+      "name": "0003_real_estate_crm_core"
+    },
+    {
+      "version": "20261005051955",
+      "name": "0004_data_import_onboarding"
+    },
+    {
+      "version": "20261005051958",
+      "name": "0005_security_hardening_and_indexes"
+    },
+    {
+      "version": "20261005052000",
+      "name": "0006_colombia_branding_defaults"
+    },
+    {
+      "version": "20261005052014",
+      "name": "0007_organization_identity_update_policy"
+    },
+    {
+      "version": "20261005052017",
+      "name": "0008_latam_country_profiles_and_compliance"
+    },
+    {
+      "version": "20261005052020",
+      "name": "0009_country_switching"
+    },
+    {
+      "version": "20261005052023",
+      "name": "0010_user_invitations_roles_permissions"
+    },
+    {
+      "version": "20261005052038",
+      "name": "0011_invitation_performance_hardening"
+    },
+    {
+      "version": "20261005052041",
+      "name": "0012_default_software_name_jco"
+    },
+    {
+      "version": "20261005052044",
+      "name": "0013_license_terms_and_no_resale"
+    },
+    {
+      "version": "20261005052047",
+      "name": "0014_owners_documents_commissions"
+    },
+    {
+      "version": "20261005052050",
+      "name": "0015_software_name_display_casing"
+    },
+    {
+      "version": "20261005052053",
+      "name": "0016_default_role_permission_trigger"
+    },
+    {
+      "version": "20261005052056",
+      "name": "0017_portal_access_links_and_rls"
+    },
+    {
+      "version": "20261005052059",
+      "name": "0018_portal_storage_and_client_role_hardening"
+    },
+    {
+      "version": "20261005052102",
+      "name": "0019_saas_plans_subscriptions_super_admin"
+    },
+    {
+      "version": "20261005052732",
+      "name": "0020_security_and_index_cleanup"
+    },
+    {
+      "version": "20261005052735",
+      "name": "0021_missing_features_repair"
+    },
+    {
+      "version": "20261005053050",
+      "name": "0022_enable_invitation_rls"
+    },
+    {
+      "version": "20261005053711",
+      "name": "0023_harden_client_portal_access"
+    },
+    {
+      "version": "20261005053749",
+      "name": "0024_fix_portal_link_tenant_check"
+    },
+    {
+      "version": "20261005095428",
+      "name": "0025_licensing_branding_responsibility_v2"
+    },
+    {
+      "version": "20261005153559",
+      "name": "0026_rental_management_core"
+    },
+    {
+      "version": "20261010232900",
+      "name": "compatible_licensing_records"
+    },
+    {
+      "version": "20261010232928",
+      "name": "property_consignment_intake"
+    },
+    {
+      "version": "20261010232930",
+      "name": "fix_property_portal_rls_recursion"
+    },
+    {
+      "version": "20261011001955",
+      "name": "verified_tenant_billing"
+    },
+    {
+      "version": "20261011002021",
+      "name": "owner_trials_and_platform_overview"
+    },
+    {
+      "version": "20261011002448",
+      "name": "independent_owner_trial_entitlements"
+    },
+    {
+      "version": "20261011091611",
+      "name": "private_consignment_photos"
+    },
+    {
+      "version": "20261011091614",
+      "name": "private_inventory_property_photos"
+    },
+    {
+      "version": "20261011100200",
+      "name": "basic_pro_explicit_entitlements"
+    },
+    {
+      "version": "20261012070133",
+      "name": "audited_rent_receipts_owner_deductions_finance_permissions"
+    },
+    {
+      "version": "20261012071309",
+      "name": "finance_approval_and_audit_timestamp_hardening"
+    },
+    {
+      "version": "20261012174610",
+      "name": "guided_rental_intake_admin_approval"
+    },
+    {
+      "version": "20261012191634",
+      "name": "deals_safe_admin_deletion"
+    },
+    {
+      "version": "20261012232901",
+      "name": "owner_reconciliation_audit_and_safe_undo"
+    },
+    {
+      "version": "20261012235553",
+      "name": "restrict_excessive_api_role_table_grants"
+    },
+    {
+      "version": "20261013001626",
+      "name": "safe_future_rent_amendments_and_unpaid_corrections"
+    },
+    {
+      "version": "20261013003214",
+      "name": "owner_statement_percentage_commission"
+    },
+    {
+      "version": "20261013012448",
+      "name": "commission_safe_edit_and_paid_review"
+    },
+    {
+      "version": "20261013012930",
+      "name": "commission_tenant_insert_validation"
+    },
+    {
+      "version": "20261013034808",
+      "name": "commission_admin_void_only"
+    },
+    {
+      "version": "20261013040202",
+      "name": "commission_recording_corrections"
+    },
+    {
+      "version": "20261013040916",
+      "name": "owner_deduction_admin_only_void"
+    },
+    {
+      "version": "20261013042724",
+      "name": "paid_commission_admin_accept_no_disbursement"
+    },
+    {
+      "version": "20261013043618",
+      "name": "archive_rectified_commissions"
+    },
+    {
+      "version": "20261013045818",
+      "name": "fix_commission_archive_reason_ambiguity"
+    },
+    {
+      "version": "20261013045906",
+      "name": "restore_cancelled_commissions"
+    },
+    {
+      "version": "20261013053938",
+      "name": "admin_direct_commission_payment_status"
+    },
+    {
+      "version": "20261013055708",
+      "name": "archived_commission_replacement"
+    },
+    {
+      "version": "20261013062339",
+      "name": "restore_voided_owner_deduction"
+    },
+    {
+      "version": "20261013163914",
+      "name": "correct_owner_draft_commission_percentage"
+    },
+    {
+      "version": "20261013165553",
+      "name": "prevent_duplicate_active_commissions"
+    },
+    {
+      "version": "20261013173011",
+      "name": "finance_fk_lookup_indexes"
+    },
+    {
+      "version": "20261014001304",
+      "name": "owner_deduction_admin_approval"
+    },
+    {
+      "version": "20261014005233",
+      "name": "admin_archive_commission_reviews"
+    },
+    {
+      "version": "20261014013656",
+      "name": "admin_issue_owner_statement"
+    },
+    {
+      "version": "20261014015052",
+      "name": "owner_payout_ledger"
+    },
+    {
+      "version": "20261014022955",
+      "name": "owner_payout_review_requests"
+    },
+    {
+      "version": "20261014025531",
+      "name": "owner_payout_admin_review"
+    },
+    {
+      "version": "20261014042102",
+      "name": "audited_rental_end_owner_retirement"
+    },
+    {
+      "version": "20261014044203",
+      "name": "sync_rented_property_on_lease_activation"
+    },
+    {
+      "version": "20261014050327",
+      "name": "private_rent_receipt_supports"
+    },
+    {
+      "version": "20261014052310",
+      "name": "audited_role_permission_editor"
+    },
+    {
+      "version": "20261014174632",
+      "name": "isolate_client_portal_role_grants"
+    },
+    {
+      "version": "20261015073530",
+      "name": "approved_monthly_prices_preserve_lifetime"
+    },
+    {
+      "version": "20261015074727",
+      "name": "basic_pro_equal_functionality_20261015"
+    },
+    {
+      "version": "20261015085227",
+      "name": "isolate_external_accounts_and_staff_seats"
+    },
+    {
+      "version": "20261015085250",
+      "name": "scope_external_owner_and_tenant_data"
+    },
+    {
+      "version": "20261015100034",
+      "name": "reconcile_restrictive_portal_read_with_staff_write"
+    },
+    {
+      "version": "20261018065139",
+      "name": "public_tenant_catalog_readonly_20261018"
+    },
+    {
+      "version": "20261018065837",
+      "name": "direct_paid_onboarding_explicit_20261018"
+    },
+    {
+      "version": "20261018073033",
+      "name": "strict_private_property_read_boundary_20261018"
+    },
+    {
+      "version": "20261020014525",
+      "name": "tenant_public_brand_services_20261019"
+    },
+    {
+      "version": "20261020070236",
+      "name": "editable_public_portal_sections_20261020"
+    },
+    {
+      "version": "20261020233104",
+      "name": "owner_organization_public_slug_20261020"
+    },
+    {
+      "version": "20261020233218",
+      "name": "owner_slug_strict_execute_acl_20261020"
+    },
+    {
+      "version": "20261021024321",
+      "name": "public_website_leads_20261020"
+    },
+    {
+      "version": "20261021024734",
+      "name": "revoke_anonymous_crm_access_20261020"
+    },
+    {
+      "version": "20261021032153",
+      "name": "gate_public_consignment_operational_access"
+    },
+    {
+      "version": "20261021033218",
+      "name": "optimize_owner_deduction_rls_initplan"
+    },
+    {
+      "version": "20261021033609",
+      "name": "public_website_contact_consent_receipts"
+    },
+    {
+      "version": "20261021162358",
+      "name": "block_incompatible_checkout_contracts"
+    },
+    {
+      "version": "20261021195335",
+      "name": "index_critical_tenant_relationships"
+    },
+    {
+      "version": "20261029034349",
+      "name": "allow_trial_to_paid_wompi_activation"
+    },
+    {
+      "version": "20261029034410",
+      "name": "reconcile_verified_sandbox_trial_payment"
+    },
+    {
+      "version": "20261029050050",
+      "name": "repair_financial_portal_select_rls"
+    },
+    {
+      "version": "20261029053907",
+      "name": "linked_person_signed_lease_private_pdf"
+    },
+    {
+      "version": "20261029065403",
+      "name": "rental_draft_correction_and_duplicates"
+    },
+    {
+      "version": "20261029070436",
+      "name": "audited_contact_correction_and_unlinked_removal"
+    },
+    {
+      "version": "20261029073612",
+      "name": "active_lease_rectification_with_signed_evidence"
+    },
+    {
+      "version": "20261029171601",
+      "name": "revoke_disabled_trial_authorization_rpc"
+    },
+    {
+      "version": "20261029212907",
+      "name": "remaining_foreign_key_covering_indexes"
+    },
+    {
+      "version": "20261031013710",
+      "name": "verified_email_invitation_claims"
+    },
+    {
+      "version": "20261031032350",
+      "name": "restrict_organization_commercial_updates"
+    }
+  ]
+}
