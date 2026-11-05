@@ -40,6 +40,21 @@ CREATE INDEX website_lead_consents_org_contact_idx
 
 ALTER TABLE private.website_lead_consents ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE private.website_lead_consents FROM PUBLIC, anon, authenticated, service_role;
+-- Evidence is append-only: even the table owner must not silently rewrite or
+-- delete an accepted per-inquiry privacy notice. Any exceptional restoration
+-- requires a separately audited migration, not a client/worker UPDATE.
+CREATE OR REPLACE FUNCTION private.reject_website_lead_consent_mutation()
+RETURNS trigger LANGUAGE plpgsql SET search_path TO '' AS $reject$
+BEGIN
+  RAISE EXCEPTION 'El consentimiento registrado es inmutable.'
+    USING ERRCODE='P0001';
+END;
+$reject$;
+REVOKE ALL ON FUNCTION private.reject_website_lead_consent_mutation()
+  FROM PUBLIC, anon, authenticated, service_role;
+CREATE TRIGGER website_lead_consent_immutable
+  BEFORE UPDATE OR DELETE ON private.website_lead_consents
+  FOR EACH ROW EXECUTE FUNCTION private.reject_website_lead_consent_mutation();
 COMMENT ON TABLE private.website_lead_consents IS
   'Each new CRM public inquiry has independent consent proof, not exposed in the Data API. Legacy receipts remain separately preserved.';
 
