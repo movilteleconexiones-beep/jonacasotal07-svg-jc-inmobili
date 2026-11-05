@@ -170,7 +170,8 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
   const resetAndClose = () => {
     if (submitLock.current) return;
-    clearConsignmentAttempt(site?.slug || publicSiteSlug);
+    // An uncertain server response must remain retriable even after closing.
+    if (createdCode) clearConsignmentAttempt(site?.slug || publicSiteSlug);
     request.current = null;
     setContactConsent(false);
     setPriceCOP('');
