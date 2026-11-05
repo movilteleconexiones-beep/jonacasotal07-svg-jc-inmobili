@@ -36,7 +36,7 @@ function verifyReadOnlyContract(raw) {
   assert.match(source, /expected_portal_policy_count=verified_portal_policy_count/);
   // A mutation of any allowlisted predicate or the NOT EXISTS rejection path
   // must invalidate this static source contract even before querying Postgres.
-  assert.ok(source.includes('AND NOT EXISTS (\\n           SELECT 1 FROM approved_portal_policies a'));
+  assert.ok(source.includes('AND NOT EXISTS (\n           SELECT 1 FROM approved_portal_policies a'));
   for(const [table,policy,sha] of [["leases","leases_owner_portal_select","8edc2a7a4a9fe194979395b5fda9012a62d778604ee87553abbb7e2f0a5f876d"],["leases","leases_tenant_portal_select","1c83a68d500060fa11e84286173c954e3fdf606ac088d423efd262d3a72f99b6"],["owner_statements","owner_statements_external_issued","6f9fa81441bd18f3e1cff94e1eadcd888cfb6810504f66bc0300058ede6cac84"],["rent_payments","rent_payments_external_personal","3cbbecfd27ecc63fc035c57d390f3a6fd446f01150ad9845d09d892cc925ef12"]])
     assert.ok(source.includes("('"+table+"','"+policy+"','"+sha+"')"),
       'Pinned portal policy predicate missing: '+policy);
