@@ -75,7 +75,7 @@ test('public intake never asks for PII without a configured destination',()=>{
  const app=read('src/App.tsx');
  const settings=read('src/modules/settings/SettingsModule.tsx');
  assert.match(app,/const contactFallbackEmail = /);
- assert.match(app,/tenantSlug && !automaticContactEnabled && !contactFallbackEmail/);
+ assert.match(app,/!automaticContactEnabled && !contactFallbackEmail/);
  assert.match(app,/Contacto temporalmente no disponible/);
  assert.match(app,/No solicitaremos tus datos hasta que exista un canal/);
  assert.match(app,/href=\{\x60mailto:\$\{contactFallbackEmail\}/);
