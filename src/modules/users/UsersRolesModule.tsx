@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   Check,
   Plus,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
+import { mensajeErrorGestionUsuarios } from '../../core/usuario-error-es';
 import { supabase } from '../../lib/supabase';
 import { RolePermissionEditor } from './RolePermissionEditor';
 import { MemberPermissionOverview } from './MemberPermissionOverview';
@@ -82,6 +83,8 @@ export function UsersRolesModule() {
   const [message, setMessage] = useState('');
   const [profilesById, setProfilesById] = useState<Record<string, { full_name: string | null; phone: string | null; avatar_url: string | null }>>({});
   const [showInvite, setShowInvite] = useState(false);
+  const invitationInFlight = useRef(false);
+  const [inviting, setInviting] = useState(false);
   const [showRoleCreator, setShowRoleCreator] = useState(false);
   const [workingOn, setWorkingOn] = useState<string | null>(null);
   const [selectedRoleId,setSelectedRoleId]=useState<string|null>(null);
@@ -134,9 +137,9 @@ export function UsersRolesModule() {
         .eq('organization_id', organizationId),
     ]);
 
-    if (membersResult.error) setMessage(membersResult.error.message);
-    if (rolesResult.error) setMessage((current) => current || rolesResult.error!.message);
-    if (permissionsResult.error) setMessage((current) => current || permissionsResult.error!.message);
+    if (membersResult.error) setMessage(mensajeErrorGestionUsuarios(membersResult.error, 'consultar los miembros'));
+    if (rolesResult.error) setMessage((current) => current || mensajeErrorGestionUsuarios(rolesResult.error, 'consultar los roles'));
+    if (permissionsResult.error) setMessage((current) => current || mensajeErrorGestionUsuarios(permissionsResult.error, 'consultar los permisos'));
     if (invitationsResult.error || invitationsResult.count==null ||
        invitationsResult.count>500 || (invitationsResult.data??[]).length!==invitationsResult.count){
       setInvitationLoadError('No fue posible consultar el historial completo de invitaciones. Actualiza o contacta al administrador.');
@@ -176,6 +179,10 @@ export function UsersRolesModule() {
     setOwners((ownersResult.data ?? []) as OwnerOption[]);
     setPortalLinks((portalLinksResult.data ?? []) as PortalLinkRow[]);
     setLoading(false);
+    return !membersResult.error && !rolesResult.error && !permissionsResult.error &&
+      !invitationsResult.error && invitationsResult.count != null &&
+      invitationsResult.count <= 500 &&
+      (invitationsResult.data ?? []).length === invitationsResult.count;
   }
 
   useEffect(() => {
@@ -184,9 +191,13 @@ export function UsersRolesModule() {
 
   async function inviteUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !user || !can(PERMISSIONS.USERS_CREATE)) return;
-
-    const form = new FormData(event.currentTarget);
+    if (!organizationId || !user || !can(PERMISSIONS.USERS_CREATE) || invitationInFlight.current) return;
+    invitationInFlight.current = true;
+    setInviting(true);
+    // Capture currentTarget synchronously: React can clear it after dispatch.
+    const formElement = event.currentTarget;
+    try {
+    const form = new FormData(formElement);
     const email = String(form.get('email') ?? '').trim().toLowerCase();
     const fullName = String(form.get('full_name') ?? '').trim();
     const selectedRoleIds = roles
@@ -203,12 +214,16 @@ export function UsersRolesModule() {
       return;
     }
 
-    const { data: existing } = await supabase
+    const { data: existing, error: lookupError } = await supabase
       .from('organization_invitations')
       .select('id,status')
       .eq('organization_id', organizationId)
       .eq('email', email)
       .maybeSingle();
+    if (lookupError) {
+      setMessage(mensajeErrorGestionUsuarios(lookupError, 'consultar la invitación existente'));
+      return;
+    }
 
     let invitationId = existing?.id as string | undefined;
 
@@ -226,11 +241,16 @@ export function UsersRolesModule() {
         .eq('id', invitationId);
 
       if (error) {
-        setMessage(error.message);
+        setMessage(mensajeErrorGestionUsuarios(error));
         return;
       }
 
-      await supabase.from('invitation_roles').delete().eq('invitation_id', invitationId);
+      const { error: deleteRolesError } = await supabase.from('invitation_roles')
+        .delete().eq('invitation_id', invitationId);
+      if (deleteRolesError) {
+        setMessage(mensajeErrorGestionUsuarios(deleteRolesError, 'actualizar los roles de la invitación'));
+        return;
+      }
     } else {
       const { data, error } = await supabase
         .from('organization_invitations')
@@ -244,7 +264,7 @@ export function UsersRolesModule() {
         .single();
 
       if (error) {
-        setMessage(error.message);
+        setMessage(mensajeErrorGestionUsuarios(error));
         return;
       }
 
@@ -259,16 +279,20 @@ export function UsersRolesModule() {
       })));
 
     if (rolesError) {
-      setMessage(rolesError.message);
+      setMessage('No se pudieron asignar los roles. La invitación puede estar pendiente; actualiza la lista y vuelve a intentarlo.');
       return;
     }
 
-    setMessage(
-      'Invitación preparada. La persona debe crear o iniciar sesión con ese mismo correo; el sistema asignará automáticamente sus roles.',
-    );
+    const refreshed = await load();
+    setMessage(refreshed
+      ? 'Invitación preparada. La persona debe crear o iniciar sesión con ese mismo correo; el sistema asignará automáticamente sus roles.'
+      : 'Invitación preparada, pero no se pudo verificar el historial actualizado. Pulsa Actualizar antes de reintentar.');
     setShowInvite(false);
-    event.currentTarget.reset();
-    await load();
+    formElement.reset();
+    } finally {
+      invitationInFlight.current = false;
+      setInviting(false);
+    }
   }
 
   async function toggleMemberRole(member: MemberRow, roleId: string, enabled: boolean) {
@@ -279,7 +303,7 @@ export function UsersRolesModule() {
         .from('member_roles')
         .insert({ organization_member_id: member.id, role_id: roleId });
       if (error && !error.message.toLowerCase().includes('duplicate')) {
-        setMessage(error.message);
+        setMessage(mensajeErrorGestionUsuarios(error));
         return;
       }
     } else {
@@ -289,7 +313,7 @@ export function UsersRolesModule() {
         .eq('organization_member_id', member.id)
         .eq('role_id', roleId);
       if (error) {
-        setMessage(error.message);
+        setMessage(mensajeErrorGestionUsuarios(error));
         return;
       }
     }
@@ -370,7 +394,7 @@ export function UsersRolesModule() {
       .eq('id', member.id)
       .eq('organization_id', organizationId);
 
-    if (error) setMessage(error.message);
+    if (error) setMessage(mensajeErrorGestionUsuarios(error));
     else await load();
   }
 
@@ -386,7 +410,7 @@ export function UsersRolesModule() {
       .gt('expires_at',new Date().toISOString())
       .select('id')
       .maybeSingle();
-    if(error){setMessage('No se pudo cancelar la invitación: '+error.message);return;}
+    if(error){setMessage(mensajeErrorGestionUsuarios(error, 'cancelar la invitación'));return;}
     if(!data){setMessage('La invitación ya no está pendiente o está vencida. Pulsa Actualizar.');return;}
     await load();
     setMessage('Invitación cancelada; permanece en el historial.');
@@ -411,7 +435,7 @@ export function UsersRolesModule() {
         .eq('id', existing.id);
 
       if (error) {
-        setMessage(error.message);
+        setMessage(mensajeErrorGestionUsuarios(error));
         return;
       }
     }
@@ -426,7 +450,7 @@ export function UsersRolesModule() {
       });
 
       if (error) {
-        setMessage(error.message);
+        setMessage(mensajeErrorGestionUsuarios(error));
         return;
       }
     }
@@ -459,7 +483,7 @@ export function UsersRolesModule() {
     });
 
     if (error) {
-      setMessage(error.message);
+      setMessage(mensajeErrorGestionUsuarios(error));
       return;
     }
 
@@ -505,6 +529,7 @@ export function UsersRolesModule() {
             <button
               type="button"
               onClick={() => setShowInvite((value) => !value)}
+              disabled={inviting}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
             >
               <UserPlus className="h-4 w-4" />
@@ -542,11 +567,11 @@ export function UsersRolesModule() {
           </div>
 
           <div className="mt-4 flex justify-end gap-2">
-            <button type="button" onClick={() => setShowInvite(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">
+            <button type="button" disabled={inviting} onClick={() => setShowInvite(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold disabled:opacity-50">
               Cancelar
             </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
-              Crear invitación
+            <button type="submit" disabled={inviting} aria-busy={inviting} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+              {inviting ? 'Preparando invitación…' : 'Crear invitación'}
             </button>
           </div>
         </form>
@@ -826,7 +851,7 @@ export function UsersRolesModule() {
               role={roles.find(role=>role.id===selectedRoleId)!}
               permissions={permissions}
               onClose={()=>setSelectedRoleId(null)}
-              onSaved={load}
+              onSaved={async () => { await load(); }}
             />
           </div>}
       </div>

@@ -442,6 +442,8 @@ jobs:
         run: node --test tests/primary-account-tenant-preview.test.mjs
       - name: Organization invitation visibility and history regression
         run: node --import tsx --test tests/organization-invitation-history.test.mjs
+      - name: User invitation Spanish feedback and single-flight safety
+        run: node --import tsx --test tests/user-invitation-feedback.test.mjs
       - name: Private rent receipt evidence SQL tenant isolation and atomicity
         env:
           PGPASSWORD: postgres
