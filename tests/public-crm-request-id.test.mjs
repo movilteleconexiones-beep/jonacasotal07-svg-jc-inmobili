@@ -60,7 +60,7 @@ test('portal rollout is OFF by default and guarded by the matching DB deployment
 test('tenant inquiry is unavailable without policy and a verified email fallback', () => {
   const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
   assert.match(app,/const contactFallbackEmail = /);
-  assert.match(app,/tenantSlug && !automaticContactEnabled && !contactFallbackEmail/);
+  assert.match(app,/!automaticContactEnabled && !contactFallbackEmail/);
   assert.match(app,/Contacto temporalmente no disponible/);
   assert.match(app,/No solicitaremos tus datos hasta que exista un canal/);
   assert.match(app,/contactSubmitted \? \(/);
@@ -137,4 +137,17 @@ test('two completed submissions cannot resurrect the first UUID after repeated s
   rejectRemoval=false;
   rejectWrites=false;
   clearPublicInquiryAttempt(base.p_slug,store);
+});
+
+test('platform landing does not collect contacts without a real receiving mailbox', () => {
+  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+  const auth=readFileSync(new URL('../src/components/AuthAccessButton.tsx',import.meta.url),'utf8');
+  assert.match(app, /if \(!automaticContactEnabled && !contactFallbackEmail\)/);
+  assert.match(app, /\{!automaticContactEnabled && !contactFallbackEmail \? \(/);
+  assert.match(app, /INMOJCO todavía no tiene un correo comercial configurado para recibir consultas/);
+  assert.match(app, /No solicitaremos tus datos hasta que exista un canal de atención verificable/);
+  assert.match(app, /<AuthAccessButton showIdentity=\{false\} initialMode="SIGN_UP" \/>/);
+  assert.match(auth, /initialMode = 'SIGN_IN'/);
+  assert.match(auth, /setMode\(initialMode\);/);
+  assert.match(auth, /initialMode === 'SIGN_UP' \? 'Crear cuenta' : 'Acceso'/);
 });
