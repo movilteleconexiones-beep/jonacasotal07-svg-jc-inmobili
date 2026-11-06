@@ -103,6 +103,15 @@ END $foreign_checkout$;
 SELECT pg_temp.assert(NOT EXISTS(SELECT 1 FROM public.payment_orders),
   'cross-tenant attempt creates no order');
 
+-- Only the platform SuperAdmin may flag this synthetic account for sandbox.
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003',false);
+SELECT public.billing_admin_action(
+ (SELECT id FROM public.organizations WHERE slug='empresa-integracion-a'),
+ 'MARK_TEST','Synthetic onboarding payment rehearsal');
+UPDATE public.billing_activation_settings
+ SET sandbox_enabled=true,production_enabled=false,activation_mode='VERIFIED_PAYMENT';
+
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 -- Owner A accepts terms after registration; purchase is disabled until then.
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 DO $missing_terms$ BEGIN
@@ -113,8 +122,7 @@ DO $missing_terms$ BEGIN
       'sandbox',gen_random_uuid());
     RAISE EXCEPTION 'E2E FAILED: checkout without terms';
   EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM NOT LIKE '%Accept current terms first%'
-       AND SQLERRM NOT LIKE '%Payments unavailable%' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%Accept current terms first%' THEN RAISE; END IF;
   END;
 END $missing_terms$;
 
@@ -122,15 +130,6 @@ SELECT public.billing_accept_terms(
   (SELECT id FROM public.organizations WHERE slug='empresa-integracion-a'),
   '40000000-0000-0000-0000-000000000006','Synthetic acceptance - CI only');
 
--- Only the platform SuperAdmin may flag this synthetic account for sandbox.
-SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003',false);
-SELECT public.billing_admin_action(
- (SELECT id FROM public.organizations WHERE slug='empresa-integracion-a'),
- 'MARK_TEST','Synthetic onboarding payment rehearsal');
-UPDATE public.billing_activation_settings
- SET sandbox_enabled=true,production_enabled=false,activation_mode='VERIFIED_PAYMENT';
-
-SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 SELECT public.billing_create_order(
  (SELECT id FROM public.organizations WHERE slug='empresa-integracion-a'),
  (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',
