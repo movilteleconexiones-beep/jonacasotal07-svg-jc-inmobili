@@ -1,9 +1,4 @@
 -- PostgreSQL 17 CI fixture ONLY: synthetic accounts, no customer PII or Wompi secrets.
-ALTER TABLE auth.users ADD COLUMN email_confirmed_at timestamptz;
-ALTER TABLE public.subscriptions ADD COLUMN started_at timestamptz DEFAULT now();
-ALTER TABLE public.subscriptions ADD COLUMN trial_ends_at timestamptz;
-ALTER TABLE public.license_acceptances ADD COLUMN accepted_at timestamptz NOT NULL DEFAULT now();
-
 CREATE OR REPLACE FUNCTION jco_private.pending_organization() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN NEW.status='INACTIVE'; RETURN NEW; END; $$;
