@@ -851,7 +851,7 @@ export function UsersRolesModule() {
               role={roles.find(role=>role.id===selectedRoleId)!}
               permissions={permissions}
               onClose={()=>setSelectedRoleId(null)}
-              onSaved={load}
+              onSaved={async () => { await load(); }}
             />
           </div>}
       </div>
