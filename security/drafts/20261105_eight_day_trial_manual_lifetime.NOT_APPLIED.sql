@@ -115,7 +115,7 @@ CREATE OR REPLACE FUNCTION public.billing_admin_action(target_org uuid, action t
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-DECLARE plan public.plans%ROWTYPE; end_at timestamptz; keys text[];
+DECLARE plan public.plans%ROWTYPE; end_at timestamptz; keys text[]; terms_id uuid;
 BEGIN
   IF NOT public.is_platform_admin() THEN RAISE EXCEPTION 'Permission denied' USING ERRCODE='42501'; END IF;
   IF reason IS NULL OR length(trim(reason))<10 OR length(reason)>1000 THEN RAISE EXCEPTION 'A reason is required'; END IF;
@@ -161,9 +161,26 @@ BEGIN
         AND enabled AND feature_key LIKE 'permission:%';
     IF coalesce(cardinality(keys),0)=0 THEN
       RAISE EXCEPTION 'Perpetual plan permissions not configured'; END IF;
-    IF EXISTS(SELECT 1 FROM public.license_acceptances a
-      WHERE a.organization_id=target_org) IS FALSE THEN
-      RAISE EXCEPTION 'Customer must accept software license terms before activation'; END IF;
+    -- Perpetuity requires the CURRENT terms, accepted by an active owner
+    -- of this exact agency. A historical receipt or another member's consent
+    -- cannot authorize a non-expiring software entitlement.
+    SELECT id INTO terms_id FROM public.license_terms_versions WHERE active
+      ORDER BY effective_date DESC,created_at DESC LIMIT 1;
+    IF terms_id IS NULL OR NOT EXISTS(
+      SELECT 1 FROM public.license_acceptances a
+      JOIN public.organization_members m ON m.organization_id=a.organization_id
+        AND m.user_id=a.accepted_by AND m.status='ACTIVE'
+      JOIN public.member_roles mr ON mr.organization_member_id=m.id
+      JOIN public.roles r ON r.id=mr.role_id AND r.organization_id=m.organization_id
+        AND r.key='ORGANIZATION_OWNER' AND r.active
+      WHERE a.organization_id=target_org AND a.terms_version_id=terms_id
+    ) THEN
+      RAISE EXCEPTION 'Current terms must be accepted by an active organization owner'; END IF;
+    IF (SELECT count(*) FROM public.organization_members
+          WHERE organization_id=target_org AND status='ACTIVE') > plan.max_users
+       OR (SELECT count(*) FROM public.properties
+          WHERE organization_id=target_org) > plan.max_properties THEN
+      RAISE EXCEPTION 'Perpetual plan capacity exceeded'; END IF;
     UPDATE public.organization_billing_access SET requires_payment=true, is_test=false,
       manual_access_until=NULL,allowed_permissions=keys,updated_at=now()
       WHERE organization_id=target_org;
