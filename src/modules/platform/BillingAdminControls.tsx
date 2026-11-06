@@ -15,7 +15,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   useEffect(() => {
     void Promise.all([
       supabase.from('billing_activation_settings').select('activation_mode').single(),
-      supabase.from('plans').select('id,name,code,billing_cycle,currency').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL']).order('price'),
+      supabase.from('plans').select('id,name,code,billing_cycle,currency').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL','ONE_TIME']).order('price'),
       supabase.from('plan_features').select('plan_id').eq('enabled',true).like('feature_key','permission:%'),
     ]).then(([config,catalog,features]) => { if (config.error || catalog.error || features.error) { setMessage('No se pudo consultar la configuración comercial y los permisos de los planes.'); return; }
       setMode(config.data.activation_mode); setPlans(catalog.data ?? []); setConfiguredPlanIds([...new Set((features.data ?? []).map(f => f.plan_id))]); });
@@ -30,7 +30,11 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   }
   async function apply() {
     if (!tenant || busy) return;
-    if (action==='APPROVE' && !configuredPlanIds.includes(plan)) {
+    if (action==='GRANT_LIFETIME' && plans.find(p=>p.id===plan)?.code!=='LIFETIME') {
+      setMessage('Selecciona la licencia perpetua configurada antes de continuar.');
+      return;
+    }
+    if ((action==='APPROVE' || action==='GRANT_LIFETIME') && !configuredPlanIds.includes(plan)) {
       setMessage('Este plan no tiene permisos comerciales configurados. Debe revisarse el catálogo antes de autorizar acceso.');
       return;
     }
@@ -39,7 +43,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
       target_org: tenant.organization_id,
       action,
       reason: reason.trim(),
-      target_plan: action === 'APPROVE' ? plan : null,
+      target_plan: (action === 'APPROVE' || action === 'GRANT_LIFETIME') ? plan : null,
     });
     if (error) setMessage('No se pudo aplicar el cambio. Verifica los requisitos del contrato, los permisos configurados y la elegibilidad de la cuenta.');
     else { setMessage('Cambio aplicado y registrado en auditoría.'); onDone(); }
@@ -55,15 +59,15 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
     {tenant && <div className="mt-5 border-t pt-5"><h3 className="font-semibold">Gestionar {tenant.organization_name}</h3>
       <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm">Acción
         <select aria-label="Acción administrativa" value={action} onChange={e=>{setAction(e.target.value);setPlan('');}} className="mt-1 w-full rounded-lg border p-3">
-          <option value="APPROVE">Autorizar acceso por un período del plan</option><option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para entorno de pruebas</option>
+          <option value="APPROVE">Autorizar acceso por un período del plan</option><option value="GRANT_LIFETIME">Conceder licencia perpetua · sin vencimiento</option><option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para entorno de pruebas</option>
         </select></label>
-        {action==='APPROVE' && <label className="text-sm">Plan
+        {(action==='APPROVE' || action==='GRANT_LIFETIME') && <label className="text-sm">Plan
           <select aria-label="Plan para autorización" value={plan} onChange={e=>setPlan(e.target.value)} className="mt-1 w-full rounded-lg border p-3">
-            <option value="">Selecciona un plan</option>{plans.map(p=><option key={p.id} value={p.id}>{p.name} · {p.currency}{configuredPlanIds.includes(p.id) ? '' : ' · pendiente de configurar'}</option>)}
+            <option value="">Selecciona un plan</option>{plans.filter(p=>action==='GRANT_LIFETIME' ? p.code==='LIFETIME' : p.billing_cycle!=='ONE_TIME').map(p=><option key={p.id} value={p.id}>{p.name} · {p.currency}{configuredPlanIds.includes(p.id) ? '' : ' · pendiente de configurar'}</option>)}
           </select></label>}
-      </div>{action==='APPROVE' && plans.length>0 && configuredPlanIds.length===0 && <p role="status" className="mt-3 text-sm text-amber-800">Los planes existen, pero todavía no tienen permisos habilitados en el catálogo comercial. No se puede autorizar un período nuevo hasta completar esa configuración.</p>}<label className="mt-3 block text-sm">Motivo (queda en auditoría)
+      </div>{action==='GRANT_LIFETIME' && <p role="status" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">La licencia perpetua es solo de duración ilimitada, no de usuarios ni inmuebles: mantiene cupos definidos, registra el motivo y no cobra por Wompi. Requiere términos aceptados y permisos configurados.</p>}{(action==='APPROVE' || action==='GRANT_LIFETIME') && plans.length>0 && configuredPlanIds.length===0 && <p role="status" className="mt-3 text-sm text-amber-800">Los planes existen, pero todavía no tienen permisos habilitados en el catálogo comercial. No se puede autorizar un período nuevo hasta completar esa configuración.</p>}<label className="mt-3 block text-sm">Motivo (queda en auditoría)
         <textarea aria-label="Motivo del cambio" value={reason} minLength={10} maxLength={1000} onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <button type="button" disabled={busy || reason.trim().length<10 || (action==='APPROVE' && (!plan || !configuredPlanIds.includes(plan)))} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
+      <button type="button" disabled={busy || reason.trim().length<10 || ((action==='APPROVE' || action==='GRANT_LIFETIME') && (!plan || !configuredPlanIds.includes(plan)))} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
     </div>}
     {message && <p role="status" className="mt-3 text-sm">{message}</p>}
   </section>;
