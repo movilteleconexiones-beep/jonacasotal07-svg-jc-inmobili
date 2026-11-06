@@ -33,6 +33,8 @@ test('verified purchase supersedes trial without adding unused free days',()=>{
   assert.match(draft,/manual_access_until=NULL,updated_at=now\(\)/);
   assert.match(assertions,/paid plan replaces trial now without adding 8 days/);
   assert.match(assertions,/redelivery cannot lengthen paid plan/);
+  assert.match(assertions,/direct paid plan starts immediately and never adds 8 trial days/);
+  assert.match(assertions,/direct checkout does not create or consume a free trial/);
   assert.match(billing,/activateEightDayTrial/);
   assert.match(billing,/Probar gratis 8 días/);
   assert.match(billing,/termina la prueba y comienza la vigencia comercial/);
@@ -63,7 +65,7 @@ test('no automated DDL or personal data is ever sent to production',()=>{
   assert.match(workflow,/jco_trial_perpetual_draft_test/);
   assert.match(workflow,/security\/drafts\/20261105_eight_day_trial_manual_lifetime\.NOT_APPLIED\.sql/);
   assert.match(workflow,/security\/tests\/eight_day_trial_perpetual_assertions\.sql/);
-  assert.match(fixture,/Synthetic accounts/);
+  assert.match(fixture,/synthetic accounts/i);
   assert.doesNotMatch(fixture,/@gmail\.com|@outlook\.com|inmojco\.com/i);
   assert.doesNotMatch(draft,/\b(?:db push|migration repair)\b/i);
   assert.doesNotMatch(workflow,/supabase db push/);
