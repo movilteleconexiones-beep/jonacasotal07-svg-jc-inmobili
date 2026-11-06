@@ -290,8 +290,10 @@ export default function App() {
       return;
     }
     setContactError('');
-    if (tenantSlug && !automaticContactEnabled && !contactFallbackEmail) {
-      setContactError('La inmobiliaria todavía no tiene un canal de contacto configurado.');
+    if (!automaticContactEnabled && !contactFallbackEmail) {
+      setContactError(tenantSlug
+        ? 'La inmobiliaria todavía no tiene un canal de contacto configurado.'
+        : 'INMOJCO todavía no tiene un correo comercial configurado.');
       return;
     }
     if (!automaticContactEnabled) {
@@ -1273,11 +1275,23 @@ export default function App() {
 
               {/* Right 7 Cols: Validated Lead Form */}
               <div className="lg:col-span-7 bg-[#F9F9F7] border border-stone-200/90 rounded-xl p-6 md:p-8">
-                {tenantSlug && !automaticContactEnabled && !contactFallbackEmail ? (
+                {!automaticContactEnabled && !contactFallbackEmail ? (
                   <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
                     <h3 className="font-semibold">Contacto temporalmente no disponible</h3>
-                    <p className="mt-2">Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido. No solicitaremos tus datos hasta que exista un canal de atención verificable.</p>
-                    <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>
+                    <p className="mt-2">
+                      {tenantSlug
+                        ? 'Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido.'
+                        : 'INMOJCO todavía no tiene un correo comercial configurado para recibir consultas.'}
+                      {' '}No solicitaremos tus datos hasta que exista un canal de atención verificable.
+                    </p>
+                    {tenantSlug ? (
+                      <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>
+                    ) : (
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <p className="w-full">¿Quieres utilizar INMOJCO para tu inmobiliaria? Puedes crear tu cuenta desde aquí.</p>
+                        <AuthAccessButton showIdentity={false} initialMode="SIGN_UP" />
+                      </div>
+                    )}
                   </div>
                 ) : contactSubmitted ? (
                   <div className="py-8 text-center space-y-4">
