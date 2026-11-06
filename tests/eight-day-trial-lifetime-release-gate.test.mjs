@@ -47,6 +47,15 @@ test('SuperAdmin can grant perpetual term, not unlimited seats, with explicit au
   assert.match(draft,/code='LIFETIME' AND billing_cycle='ONE_TIME'/);
   assert.match(draft,/max_users=25,max_properties=2000/);
   assert.match(draft,/plan\.max_users IS NULL OR plan\.max_properties IS NULL/);
+  assert.match(draft,/a\.terms_version_id=terms_id/);
+  assert.match(draft,/r\.key='ORGANIZATION_OWNER' AND r\.active/);
+  assert.match(draft,/m\.user_id=a\.accepted_by AND m\.status='ACTIVE'/);
+  assert.match(draft,/count\(\*\) FROM public\.organization_members[\s\S]*?status='ACTIVE'\) > plan\.max_users/);
+  assert.match(draft,/count\(\*\) FROM public\.properties[\s\S]*?organization_id=target_org\) > plan\.max_properties/);
+  assert.match(assertions,/old\/non-owner terms accepted/);
+  assert.match(assertions,/over-seat perpetual grant accepted/);
+  assert.match(assertions,/over-property perpetual grant accepted/);
+  assert.match(assertions,/rejected grants do not create lifetime subscriptions/);
   assert.match(draft,/license_type='LIFETIME',status='ACTIVE'/);
   assert.match(draft,/status='LIFETIME',billing_mode='LIFETIME'/);
   assert.match(draft,/ends_at=NULL,updated_at=now\(\)/);
