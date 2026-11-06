@@ -34,8 +34,3 @@ VALUES('CO','ACTIVE',current_date);
 INSERT INTO public.license_terms_versions(id,version,title,terms_markdown)
 VALUES('40000000-0000-0000-0000-000000000006','2','Contrato sintético',
   'INTEGRATION FIXTURE ONLY. NO COMMERCIAL AGREEMENT.');
--- Source SQL from Supabase is read-only historical evidence, not migrations.
--- Mirror production ACL for the TEST function so anon cannot register tenants.
-REVOKE ALL ON FUNCTION public.create_organization_with_owner(text,text,text)
-  FROM PUBLIC,anon,service_role;
-GRANT EXECUTE ON FUNCTION public.create_organization_with_owner(text,text,text) TO authenticated;
