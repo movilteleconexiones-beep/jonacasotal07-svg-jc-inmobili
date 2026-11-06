@@ -121,6 +121,88 @@ DO $denied$ BEGIN
     RAISE EXCEPTION 'FAIL: tenant owner granted perpetual license';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $denied$;
+-- Negative gate: do NOT accept an unrelated person's signature or an old
+-- policy version when granting an irrevocable lifetime entitlement.
+INSERT INTO public.license_terms_versions
+ (id,version,title,terms_markdown,active,effective_date,created_at)
+VALUES ('50000000-0000-0000-0000-000000000011','8day-v2','Current fixture terms',
+ 'CURRENT FIXTURE TERMS',true,current_date,now()+interval '1 minute');
+INSERT INTO public.license_acceptances
+ (organization_id,organization_license_id,terms_version_id,accepted_by,terms_snapshot,acceptance_user_agent)
+SELECT l.organization_id,l.id,'50000000-0000-0000-0000-000000000011'::uuid,
+ '10000000-0000-0000-0000-000000000003'::uuid,'WRONG SIGNER','CI ONLY'
+FROM public.organization_licenses l
+WHERE l.organization_id='20000000-0000-0000-0000-000000000012';
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003',false);
+DO $terms_block$ BEGIN
+  BEGIN
+    PERFORM public.billing_admin_action(
+     '20000000-0000-0000-0000-000000000012','GRANT_LIFETIME',
+     'Reject outdated owner acceptance and unrelated actor',
+     (SELECT id FROM public.plans WHERE code='LIFETIME'));
+    RAISE EXCEPTION 'FAIL: old/non-owner terms accepted';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'Current terms must be accepted by an active organization owner' THEN RAISE; END IF;
+  END;
+END $terms_block$;
+INSERT INTO public.license_acceptances
+ (organization_id,organization_license_id,terms_version_id,accepted_by,terms_snapshot,acceptance_user_agent)
+SELECT l.organization_id,l.id,'50000000-0000-0000-0000-000000000011'::uuid,
+ '10000000-0000-0000-0000-000000000002'::uuid,'CURRENT FIXTURE TERMS','CI ONLY'
+FROM public.organization_licenses l
+WHERE l.organization_id='20000000-0000-0000-0000-000000000012';
+
+-- Exceed the real seat count, even though the catalog itself is configured.
+INSERT INTO public.organization_members(id,organization_id,user_id,status)
+VALUES ('30000000-0000-0000-0000-000000000013',
+ '20000000-0000-0000-0000-000000000012',
+ '10000000-0000-0000-0000-000000000001','ACTIVE');
+UPDATE public.plans SET max_users=1 WHERE code='LIFETIME';
+DO $seats_block$ BEGIN
+  BEGIN
+    PERFORM public.billing_admin_action(
+     '20000000-0000-0000-0000-000000000012','GRANT_LIFETIME',
+     'Reject two active members with one licensed seat',
+     (SELECT id FROM public.plans WHERE code='LIFETIME'));
+    RAISE EXCEPTION 'FAIL: over-seat perpetual grant accepted';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'Perpetual plan capacity exceeded' THEN RAISE; END IF;
+  END;
+END $seats_block$;
+UPDATE public.plans SET max_users=25 WHERE code='LIFETIME';
+DELETE FROM public.organization_members
+ WHERE id='30000000-0000-0000-0000-000000000013';
+
+-- The real property count must be checked independently of staff quota.
+INSERT INTO public.properties(id,organization_id,title) VALUES
+ ('60000000-0000-0000-0000-000000000011','20000000-0000-0000-0000-000000000012','Synthetic property A'),
+ ('60000000-0000-0000-0000-000000000012','20000000-0000-0000-0000-000000000012','Synthetic property B');
+UPDATE public.plans SET max_properties=1 WHERE code='LIFETIME';
+DO $properties_block$ BEGIN
+  BEGIN
+    PERFORM public.billing_admin_action(
+     '20000000-0000-0000-0000-000000000012','GRANT_LIFETIME',
+     'Reject two existing properties with one licensed property',
+     (SELECT id FROM public.plans WHERE code='LIFETIME'));
+    RAISE EXCEPTION 'FAIL: over-property perpetual grant accepted';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'Perpetual plan capacity exceeded' THEN RAISE; END IF;
+  END;
+END $properties_block$;
+UPDATE public.plans SET max_properties=2000 WHERE code='LIFETIME';
+DELETE FROM public.properties WHERE id IN (
+ '60000000-0000-0000-0000-000000000011',
+ '60000000-0000-0000-0000-000000000012');
+SELECT pg_temp.assert_true(
+ (SELECT count(*)=0 FROM public.audit_log
+  WHERE organization_id='20000000-0000-0000-0000-000000000012'
+    AND action='billing.admin_grant_lifetime'),
+ 'rejected grants do not issue audit success records');
+SELECT pg_temp.assert_true(
+ NOT EXISTS(SELECT 1 FROM public.subscriptions
+  WHERE organization_id='20000000-0000-0000-0000-000000000012'),
+ 'rejected grants do not create lifetime subscriptions');
+
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003',false);
 SELECT public.billing_admin_action(
   '20000000-0000-0000-0000-000000000012','GRANT_LIFETIME',
