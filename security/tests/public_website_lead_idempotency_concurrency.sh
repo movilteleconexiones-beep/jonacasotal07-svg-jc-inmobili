@@ -44,3 +44,61 @@ if [[ "$stats" != "1,1,1" ]]; then
   exit 1
 fi
 echo "PASS: four parallel clients replay one UUID without duplicate CRM rows"
+
+# Separate legitimate requests must not be collapsed by the contact-reuse lock.
+# Two independent UUIDs, each retried concurrently, must leave ONE tenant
+# contact but TWO opportunities with their own immutable consent receipts.
+distinct_email='parallel-distinct@example.test'
+first_id='99999999-0000-4000-8000-000000000020'
+second_id='99999999-0000-4000-8000-000000000021'
+pids=()
+for n in 1 2 3 4; do
+  if [[ "$n" -le 2 ]]; then
+    this_id="$first_id"
+    this_message='Primera consulta legitima'
+  else
+    this_id="$second_id"
+    this_message='Segunda consulta legitima'
+  fi
+  sql="SET ROLE anon; SELECT public.submit_public_website_lead_once(
+'alpha-agency','Cliente Simultaneo','${distinct_email}',
+'+57 300 123 4567','Ventas','${this_message}',true,'',
+'${this_id}'::uuid);"
+  psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "$sql" >"$logs_dir/distinct-$n.out" 2>"$logs_dir/distinct-$n.err" &
+  pids+=("$!")
+done
+for pid in "${pids[@]}"; do
+  if ! wait "$pid"; then
+    echo "Distinct simultaneous public CRM requests failed" >&2
+    cat "$logs_dir"/distinct-*.err >&2
+    exit 1
+  fi
+done
+
+distinct_stats="$(psql -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "
+SELECT
+  (SELECT COUNT(*) FROM public.contacts
+    WHERE organization_id='00000000-0000-4000-8000-000000000001'::uuid
+      AND email='${distinct_email}') || ',' ||
+  (SELECT COUNT(*) FROM public.leads l JOIN public.contacts c ON c.id=l.contact_id
+    WHERE l.organization_id='00000000-0000-4000-8000-000000000001'::uuid
+      AND c.email='${distinct_email}') || ',' ||
+  (SELECT COUNT(*) FROM private.website_lead_consents r
+    JOIN public.contacts c ON c.id=r.contact_id
+    WHERE r.organization_id='00000000-0000-4000-8000-000000000001'::uuid
+      AND c.email='${distinct_email}'
+      AND r.request_id IN ('${first_id}'::uuid,'${second_id}'::uuid)) || ',' ||
+  (SELECT COUNT(DISTINCT r.request_id) FROM private.website_lead_consents r
+    JOIN public.contacts c ON c.id=r.contact_id
+    WHERE r.organization_id='00000000-0000-4000-8000-000000000001'::uuid
+      AND c.email='${distinct_email}') || ',' ||
+  (SELECT COUNT(*) FROM public.leads l JOIN public.contacts c ON c.id=l.contact_id
+    WHERE c.email='${distinct_email}'
+      AND (l.notes LIKE '%Primera consulta legitima%'
+           OR l.notes LIKE '%Segunda consulta legitima%'));
+")"
+if [[ "$distinct_stats" != "1,2,2,2,2" ]]; then
+  echo "Two distinct concurrent inquiries must preserve one contact, two leads and two consents (got $distinct_stats)" >&2
+  exit 1
+fi
+echo "PASS: parallel distinct UUIDs preserve both inquiries and consent events without duplicating the contact"

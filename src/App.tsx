@@ -85,9 +85,11 @@ export default function App() {
   const viewingAnotherAgency = Boolean(activeMembership?.organization.slug && tenantSlug && tenantSlug !== activeMembership.organization.slug);
   // Public branding must NEVER be inherited from a different signed-in tenant.
   // Only the server-scoped public catalog may supply public tenant identity.
+  // A missing tenant must not inherit the JCO test agency identity.
+  const fallbackCompanyName = tenantSlug ? 'Portal inmobiliario' : 'INMOJCO';
   const branding: TenantBrandingState = {
-    companyName: publicCatalog.brand?.companyName || 'Sistema Inmobiliario JCO',
-    softwareName: 'Sistema Inmobiliario JCO',
+    companyName: publicCatalog.brand?.companyName || fallbackCompanyName,
+    softwareName: 'INMOJCO',
     publicServices: publicCatalog.brand?.publicServices || [],
     publicPage: publicCatalog.brand?.publicPage || DEFAULT_PUBLIC_PAGE,
     logoUrl: publicCatalog.brand?.logoUrl,
@@ -103,8 +105,8 @@ export default function App() {
     timezone: 'America/Bogota',
   };
   const countryProfile = getCountryOption(branding.country);
-  const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
-  const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
+  const organizationBrand = branding.companyName || fallbackCompanyName;
+  const softwareBrand = branding.softwareName || 'INMOJCO';
   const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
@@ -290,8 +292,10 @@ export default function App() {
       return;
     }
     setContactError('');
-    if (tenantSlug && !automaticContactEnabled && !contactFallbackEmail) {
-      setContactError('La inmobiliaria todavía no tiene un canal de contacto configurado.');
+    if (!automaticContactEnabled && !contactFallbackEmail) {
+      setContactError(tenantSlug
+        ? 'La inmobiliaria todavía no tiene un canal de contacto configurado.'
+        : 'INMOJCO todavía no tiene un correo comercial configurado.');
       return;
     }
     if (!automaticContactEnabled) {
@@ -1273,11 +1277,23 @@ export default function App() {
 
               {/* Right 7 Cols: Validated Lead Form */}
               <div className="lg:col-span-7 bg-[#F9F9F7] border border-stone-200/90 rounded-xl p-6 md:p-8">
-                {tenantSlug && !automaticContactEnabled && !contactFallbackEmail ? (
+                {!automaticContactEnabled && !contactFallbackEmail ? (
                   <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
                     <h3 className="font-semibold">Contacto temporalmente no disponible</h3>
-                    <p className="mt-2">Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido. No solicitaremos tus datos hasta que exista un canal de atención verificable.</p>
-                    <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>
+                    <p className="mt-2">
+                      {tenantSlug
+                        ? 'Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido.'
+                        : 'INMOJCO todavía no tiene un correo comercial configurado para recibir consultas.'}
+                      {' '}No solicitaremos tus datos hasta que exista un canal de atención verificable.
+                    </p>
+                    {tenantSlug ? (
+                      <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>
+                    ) : (
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <p className="w-full">¿Quieres utilizar INMOJCO para tu inmobiliaria? Puedes crear tu cuenta desde aquí.</p>
+                        <AuthAccessButton showIdentity={false} initialMode="SIGN_UP" />
+                      </div>
+                    )}
                   </div>
                 ) : contactSubmitted ? (
                   <div className="py-8 text-center space-y-4">

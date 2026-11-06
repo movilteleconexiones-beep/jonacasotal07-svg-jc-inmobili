@@ -7,7 +7,10 @@ import { OrganizationRegistration } from './OrganizationRegistration';
 type AuthMode = 'SIGN_IN' | 'SIGN_UP';
 
 /** Anonymous-facing headers never display the signed-in account's private identity. */
-export function AuthAccessButton({ showIdentity = true }: { showIdentity?: boolean } = {}) {
+export function AuthAccessButton({
+  showIdentity = true,
+  initialMode = 'SIGN_IN',
+}: { showIdentity?: boolean; initialMode?: AuthMode } = {}) {
   const {
     configured,
     loading,
@@ -152,14 +155,14 @@ export function AuthAccessButton({ showIdentity = true }: { showIdentity?: boole
       <button
         type="button"
         onClick={() => {
-          setMode('SIGN_IN');
+          setMode(initialMode);
           setOpen(true);
           setMessage('');
         }}
         className="inline-flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-white"
       >
-        <LogIn className="h-4 w-4" />
-        Acceso
+        {initialMode === 'SIGN_UP' ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+        {initialMode === 'SIGN_UP' ? 'Crear cuenta' : 'Acceso'}
       </button>
 
       {open && createPortal(

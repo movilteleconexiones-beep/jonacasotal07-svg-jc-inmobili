@@ -54,6 +54,9 @@ jobs:
           node --test tests/rental-0026-baseline-contract.test.mjs
           # Exact original CREATE-less SQL bodies; do not replay preflight DDL in prod.
           node --test tests/consignment-applied-preflight-provenance.test.mjs
+          # 99 applied SQL bodies: 94 exact blobs, 2 whitespace, 2 comments, 1 consolidated.
+          node --test tests/migration-source-parity-gate.test.mjs
+          node scripts/ops/migration-source-parity-gate.mjs
           # Every release must still explicitly refuse migration replay while
           # snapshot and repository are divergent. Do not invert exit 2 into GO.
           set +e
@@ -628,6 +631,25 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f supabase/migrations/20261029034500_reconcile_verified_sandbox_trial_payment.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_trial_to_paid_test -f security/tests/billing_trial_to_paid_assertions.sql
+      - name: Full founding-owner registration to sandbox paid activation (PG17 only)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          db=jco_full_owner_checkout_e2e
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/onboarding-to-license-pg17.fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261018130000_direct_paid_onboarding.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/snapshots/apply_default_role_permissions.read-only-applied-20261106.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "CREATE TRIGGER apply_default_role_permissions_trigger AFTER INSERT ON public.roles FOR EACH ROW EXECUTE FUNCTION public.apply_default_role_permissions()"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/snapshots/create_organization_with_owner.read-only-applied-20261106.sql
+          node --test tests/onboarding-production-rpc-snapshots.test.mjs
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/onboarding-to-license-pg17.assertions.sql
       - name: Eight-day trial and manual perpetual license (isolated PG17 draft, #104 NO-GO)
         env:
           PGPASSWORD: postgres

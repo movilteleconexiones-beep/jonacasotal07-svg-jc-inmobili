@@ -68,3 +68,12 @@ test('public catalogue function exposes only public marketing keys and scoped da
   assert.match(sql, /ADD CONSTRAINT jco_public_hero_url_safe/);
 
 });
+
+test('central software identity is INMOJCO, never the JCO test-agency name', () => {
+  const app = source('src/App.tsx');
+  assert.match(app, /const fallbackCompanyName = tenantSlug \? 'Portal inmobiliario' : 'INMOJCO'/);
+  assert.match(app, /companyName: publicCatalog\.brand\?\.companyName \|\| fallbackCompanyName/);
+  assert.match(app, /softwareName: 'INMOJCO'/);
+  assert.match(app, /const softwareBrand = branding\.softwareName \|\| 'INMOJCO'/);
+  assert.doesNotMatch(app, /companyName: publicCatalog\.brand\?\.companyName \|\| 'Sistema Inmobiliario JCO'/);
+});
