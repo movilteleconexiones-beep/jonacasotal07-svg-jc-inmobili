@@ -187,7 +187,7 @@ BEGIN
     VALUES(target_org,auth.uid(),'billing.admin_'||lower(action),'organization',target_org,
       jsonb_build_object('reason',trim(reason),'plan_id',target_plan));
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION jco_private.operational_access(target_org uuid)
@@ -214,7 +214,7 @@ AS $function$
           AND l.license_type='LIFETIME' AND l.status='ACTIVE'
           AND l.starts_at <= now() AND l.ends_at IS NULL
       ));
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.process_verified_payment_event(p_reference text, p_transaction_id text, p_amount_in_cents bigint, p_currency text, p_status text, p_environment text, p_event_id text, p_payload_sha256 text)
@@ -297,7 +297,7 @@ BEGIN
   END IF;
   RETURN 'processed';
 END;
-$function$
+$function$;
 
 
 -- Existing trial authorization was revoked: keep it denied to anon/authenticated.
