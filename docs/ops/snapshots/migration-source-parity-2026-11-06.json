@@ -1,0 +1,1014 @@
+{
+  "purpose": "Read-only historical SQL source provenance. NOT a migration approval, schema equivalence certification or authorization for migration repair.",
+  "capturedDate": "2026-11-06",
+  "productionProject": "cuitgyqrjibgwuniapmk",
+  "repository": "movilteleconexiones-beep/jonacasotal07-svg-jc-inmobili",
+  "repositoryMainSha": "9a8de6a4e1587bd31477c50a58e0d9892b95c01d",
+  "databaseMigrationCount": 99,
+  "localMigrationFileCount": 109,
+  "safeToPush": false,
+  "originalBodiesMapped": 99,
+  "categories": {
+    "EXACT": 86,
+    "LEADING_NEWLINE_ONLY": 1,
+    "EXACT_HISTORIC_ALIAS": 8,
+    "TRAILING_NEWLINE_ONLY": 1,
+    "RECONSTRUCTED_FINANCE_4_FILES": 1,
+    "REVIEWED_NONEXECUTABLE_DIFFERENCE": 2
+  },
+  "records": [
+    {
+      "version": "20261005051941",
+      "appliedName": "0001_multi_tenant_core",
+      "appliedSqlBytes": 15724,
+      "appliedSqlGitBlob": "a55ae066b1d6cc38b7ee9ca7d81087508ea17c96",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0001_multi_tenant_core.sql",
+      "localGitBlob": "a55ae066b1d6cc38b7ee9ca7d81087508ea17c96",
+      "localBytes": 15724
+    },
+    {
+      "version": "20261005051944",
+      "appliedName": "0002_organization_bootstrap",
+      "appliedSqlBytes": 5135,
+      "appliedSqlGitBlob": "a586f016e7f620032877fe8251acdb39dcd1fd64",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0002_organization_bootstrap.sql",
+      "localGitBlob": "a586f016e7f620032877fe8251acdb39dcd1fd64",
+      "localBytes": 5135
+    },
+    {
+      "version": "20261005051947",
+      "appliedName": "0003_real_estate_crm_core",
+      "appliedSqlBytes": 10802,
+      "appliedSqlGitBlob": "68daaefc7ec7b2869df15b3539ec401e51f19074",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0003_real_estate_crm_core.sql",
+      "localGitBlob": "68daaefc7ec7b2869df15b3539ec401e51f19074",
+      "localBytes": 10802
+    },
+    {
+      "version": "20261005051955",
+      "appliedName": "0004_data_import_onboarding",
+      "appliedSqlBytes": 5315,
+      "appliedSqlGitBlob": "af525c8f3163b67838bf5ed4e33352b538d24a1b",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0004_data_import_onboarding.sql",
+      "localGitBlob": "af525c8f3163b67838bf5ed4e33352b538d24a1b",
+      "localBytes": 5315
+    },
+    {
+      "version": "20261005051958",
+      "appliedName": "0005_security_hardening_and_indexes",
+      "appliedSqlBytes": 3849,
+      "appliedSqlGitBlob": "ed2ff47f5e886d0245907f8f35a1b08d0bc94f9a",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0005_security_hardening_and_indexes.sql",
+      "localGitBlob": "ed2ff47f5e886d0245907f8f35a1b08d0bc94f9a",
+      "localBytes": 3849
+    },
+    {
+      "version": "20261005052000",
+      "appliedName": "0006_colombia_branding_defaults",
+      "appliedSqlBytes": 876,
+      "appliedSqlGitBlob": "2440a99fc494f47764d2fbf2cc86436d9882f62a",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0006_colombia_branding_defaults.sql",
+      "localGitBlob": "2440a99fc494f47764d2fbf2cc86436d9882f62a",
+      "localBytes": 876
+    },
+    {
+      "version": "20261005052014",
+      "appliedName": "0007_organization_identity_update_policy",
+      "appliedSqlBytes": 390,
+      "appliedSqlGitBlob": "cccc0097e89715a462079ecdf00e4b5f1a5ffa9d",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0007_organization_identity_update_policy.sql",
+      "localGitBlob": "cccc0097e89715a462079ecdf00e4b5f1a5ffa9d",
+      "localBytes": 390
+    },
+    {
+      "version": "20261005052017",
+      "appliedName": "0008_latam_country_profiles_and_compliance",
+      "appliedSqlBytes": 13638,
+      "appliedSqlGitBlob": "61558d6b13f32547490ce80a5721cb70c5c46029",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0008_latam_country_profiles_and_compliance.sql",
+      "localGitBlob": "61558d6b13f32547490ce80a5721cb70c5c46029",
+      "localBytes": 13638
+    },
+    {
+      "version": "20261005052020",
+      "appliedName": "0009_country_switching",
+      "appliedSqlBytes": 2070,
+      "appliedSqlGitBlob": "e1809fa82b90bb7b979362a7e949a7f331d9e6b3",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0009_country_switching.sql",
+      "localGitBlob": "e1809fa82b90bb7b979362a7e949a7f331d9e6b3",
+      "localBytes": 2070
+    },
+    {
+      "version": "20261005052023",
+      "appliedName": "0010_user_invitations_roles_permissions",
+      "appliedSqlBytes": 1195,
+      "appliedSqlGitBlob": "458819e19f8c66e15863600276fd296d1d8d7916",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0010_user_invitations_roles_permissions.sql",
+      "localGitBlob": "458819e19f8c66e15863600276fd296d1d8d7916",
+      "localBytes": 1195
+    },
+    {
+      "version": "20261005052038",
+      "appliedName": "0011_invitation_performance_hardening",
+      "appliedSqlBytes": 811,
+      "appliedSqlGitBlob": "0cf6d15cf04dcbd8d137cd1bb877f2f65aaf5083",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0011_invitation_performance_hardening.sql",
+      "localGitBlob": "0cf6d15cf04dcbd8d137cd1bb877f2f65aaf5083",
+      "localBytes": 811
+    },
+    {
+      "version": "20261005052041",
+      "appliedName": "0012_default_software_name_jco",
+      "appliedSqlBytes": 377,
+      "appliedSqlGitBlob": "a1c546a9e1f126c90742eb30f848503a498142e3",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0012_default_software_name_jco.sql",
+      "localGitBlob": "a1c546a9e1f126c90742eb30f848503a498142e3",
+      "localBytes": 377
+    },
+    {
+      "version": "20261005052044",
+      "appliedName": "0013_license_terms_and_no_resale",
+      "appliedSqlBytes": 189,
+      "appliedSqlGitBlob": "fc120f802e7ba31b60a1c7369a0c0b8ef419a415",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0013_license_terms_and_no_resale.sql",
+      "localGitBlob": "fc120f802e7ba31b60a1c7369a0c0b8ef419a415",
+      "localBytes": 189
+    },
+    {
+      "version": "20261005052047",
+      "appliedName": "0014_owners_documents_commissions",
+      "appliedSqlBytes": 8792,
+      "appliedSqlGitBlob": "9b7e48d70af71892124ef78b93ed9616f9ccd441",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0014_owners_documents_commissions.sql",
+      "localGitBlob": "9b7e48d70af71892124ef78b93ed9616f9ccd441",
+      "localBytes": 8792
+    },
+    {
+      "version": "20261005052050",
+      "appliedName": "0015_software_name_display_casing",
+      "appliedSqlBytes": 944,
+      "appliedSqlGitBlob": "c06cfe2e58b3863a873c704614df9b839eadb286",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0015_software_name_display_casing.sql",
+      "localGitBlob": "c06cfe2e58b3863a873c704614df9b839eadb286",
+      "localBytes": 944
+    },
+    {
+      "version": "20261005052053",
+      "appliedName": "0016_default_role_permission_trigger",
+      "appliedSqlBytes": 2154,
+      "appliedSqlGitBlob": "19b2ed3a4dc7c9c37c011626e8015051f6116b57",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0016_default_role_permission_trigger.sql",
+      "localGitBlob": "19b2ed3a4dc7c9c37c011626e8015051f6116b57",
+      "localBytes": 2154
+    },
+    {
+      "version": "20261005052056",
+      "appliedName": "0017_portal_access_links_and_rls",
+      "appliedSqlBytes": 294,
+      "appliedSqlGitBlob": "bda55e5d6fcd8b1492df43b5c1957fbfdbb85d5c",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0017_portal_access_links_and_rls.sql",
+      "localGitBlob": "bda55e5d6fcd8b1492df43b5c1957fbfdbb85d5c",
+      "localBytes": 294
+    },
+    {
+      "version": "20261005052059",
+      "appliedName": "0018_portal_storage_and_client_role_hardening",
+      "appliedSqlBytes": 296,
+      "appliedSqlGitBlob": "1dd857c01ca73520a35126d2b1b86ead8c685891",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0018_portal_storage_and_client_role_hardening.sql",
+      "localGitBlob": "1dd857c01ca73520a35126d2b1b86ead8c685891",
+      "localBytes": 296
+    },
+    {
+      "version": "20261005052102",
+      "appliedName": "0019_saas_plans_subscriptions_super_admin",
+      "appliedSqlBytes": 7771,
+      "appliedSqlGitBlob": "25761b0a44ad1c03b6c735c82d354b468abfaa8d",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0019_saas_plans_subscriptions_super_admin.sql",
+      "localGitBlob": "25761b0a44ad1c03b6c735c82d354b468abfaa8d",
+      "localBytes": 7771
+    },
+    {
+      "version": "20261005052732",
+      "appliedName": "0020_security_and_index_cleanup",
+      "appliedSqlBytes": 839,
+      "appliedSqlGitBlob": "f339ea2e6de20706e900f4573f1ca5e50544530a",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0020_security_and_index_cleanup.sql",
+      "localGitBlob": "f339ea2e6de20706e900f4573f1ca5e50544530a",
+      "localBytes": 839
+    },
+    {
+      "version": "20261005052735",
+      "appliedName": "0021_missing_features_repair",
+      "appliedSqlBytes": 17318,
+      "appliedSqlGitBlob": "542c4edb12fe05861cdffe62b43f664b495a75e1",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0021_missing_features_repair.sql",
+      "localGitBlob": "542c4edb12fe05861cdffe62b43f664b495a75e1",
+      "localBytes": 17318
+    },
+    {
+      "version": "20261005053050",
+      "appliedName": "0022_enable_invitation_rls",
+      "appliedSqlBytes": 135,
+      "appliedSqlGitBlob": "1c6bb3998397e53dbb05adbd210786c4d60bae5f",
+      "category": "LEADING_NEWLINE_ONLY",
+      "localPath": "supabase/migrations/0022_enable_invitation_rls.sql",
+      "localGitBlob": "e7f56481bb54c237dc36493bcefeba8a9ec7299e",
+      "localBytes": 134
+    },
+    {
+      "version": "20261005053711",
+      "appliedName": "0023_harden_client_portal_access",
+      "appliedSqlBytes": 7143,
+      "appliedSqlGitBlob": "28c7c198140327114f11a4629c9d17d3cc37ce2a",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0023_harden_client_portal_access.sql",
+      "localGitBlob": "28c7c198140327114f11a4629c9d17d3cc37ce2a",
+      "localBytes": 7143
+    },
+    {
+      "version": "20261005053749",
+      "appliedName": "0024_fix_portal_link_tenant_check",
+      "appliedSqlBytes": 864,
+      "appliedSqlGitBlob": "21a2506201cf9aa4544fb4cbc2e10252212dc631",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0024_fix_portal_link_tenant_check.sql",
+      "localGitBlob": "21a2506201cf9aa4544fb4cbc2e10252212dc631",
+      "localBytes": 864
+    },
+    {
+      "version": "20261005095428",
+      "appliedName": "0025_licensing_branding_responsibility_v2",
+      "appliedSqlBytes": 15730,
+      "appliedSqlGitBlob": "57cc951adb1037a1019c70b34d2eb9eb5b3c7fde",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/0025_licensing_branding_responsibility_v2.sql",
+      "localGitBlob": "57cc951adb1037a1019c70b34d2eb9eb5b3c7fde",
+      "localBytes": 15730
+    },
+    {
+      "version": "20261005153559",
+      "appliedName": "0026_rental_management_core",
+      "appliedSqlBytes": 4878,
+      "appliedSqlGitBlob": "9adae5331dee21fd0d3a97f4543b7e22c771a5cf",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "docs/ops/snapshots/0026_rental_management_core.applied-20261005153559.sql",
+      "localGitBlob": "9adae5331dee21fd0d3a97f4543b7e22c771a5cf",
+      "localBytes": 4878
+    },
+    {
+      "version": "20261010232900",
+      "appliedName": "compatible_licensing_records",
+      "appliedSqlBytes": 4792,
+      "appliedSqlGitBlob": "4fb3c28cf21d333c41f2e65e4abff23839545ec4",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261010231042_compatible_licensing_records.sql",
+      "localGitBlob": "4fb3c28cf21d333c41f2e65e4abff23839545ec4",
+      "localBytes": 4792
+    },
+    {
+      "version": "20261010232928",
+      "appliedName": "property_consignment_intake",
+      "appliedSqlBytes": 1530,
+      "appliedSqlGitBlob": "865df141f0e78daf472dac5c42021a063caed6d4",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "docs/ops/snapshots/20261010232928_property_consignment_intake.applied-preflight.sql",
+      "localGitBlob": "865df141f0e78daf472dac5c42021a063caed6d4",
+      "localBytes": 1530
+    },
+    {
+      "version": "20261010232930",
+      "appliedName": "fix_property_portal_rls_recursion",
+      "appliedSqlBytes": 630,
+      "appliedSqlGitBlob": "9f5f0b41b79bebdbe70bf15b4f190da31e725a60",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "docs/ops/snapshots/20261010232930_fix_property_portal_rls_recursion.applied-preflight.sql",
+      "localGitBlob": "9f5f0b41b79bebdbe70bf15b4f190da31e725a60",
+      "localBytes": 630
+    },
+    {
+      "version": "20261011001955",
+      "appliedName": "verified_tenant_billing",
+      "appliedSqlBytes": 33036,
+      "appliedSqlGitBlob": "00b05a4aac0984e495bf1006e58a7617c8f464d1",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261010222342_verified_tenant_billing.sql",
+      "localGitBlob": "00b05a4aac0984e495bf1006e58a7617c8f464d1",
+      "localBytes": 33036
+    },
+    {
+      "version": "20261011002021",
+      "appliedName": "owner_trials_and_platform_overview",
+      "appliedSqlBytes": 9584,
+      "appliedSqlGitBlob": "52411f4ff05babab4520b99e8f79bb55915183b8",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261010231048_owner_trials_and_platform_overview.sql",
+      "localGitBlob": "52411f4ff05babab4520b99e8f79bb55915183b8",
+      "localBytes": 9584
+    },
+    {
+      "version": "20261011002448",
+      "appliedName": "independent_owner_trial_entitlements",
+      "appliedSqlBytes": 4557,
+      "appliedSqlGitBlob": "0cb55f6853983d6ad4aa7fc8b34b69a1db57a8e7",
+      "category": "TRAILING_NEWLINE_ONLY",
+      "localPath": "supabase/migrations/20261011000300_independent_owner_trial_entitlements.sql",
+      "localGitBlob": "ddf5da8703b83b68179fb2b96c8302c26df6d8b2",
+      "localBytes": 4558
+    },
+    {
+      "version": "20261011091611",
+      "appliedName": "private_consignment_photos",
+      "appliedSqlBytes": 2914,
+      "appliedSqlGitBlob": "ee4c5a97b3114b9112659dbdcff182632e1f9e67",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261011090000_private_consignment_photos.sql",
+      "localGitBlob": "ee4c5a97b3114b9112659dbdcff182632e1f9e67",
+      "localBytes": 2914
+    },
+    {
+      "version": "20261011091614",
+      "appliedName": "private_inventory_property_photos",
+      "appliedSqlBytes": 3898,
+      "appliedSqlGitBlob": "3d471ac388e89ec0fb77973028d51f17203897aa",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261011095000_private_inventory_property_photos.sql",
+      "localGitBlob": "3d471ac388e89ec0fb77973028d51f17203897aa",
+      "localBytes": 3898
+    },
+    {
+      "version": "20261011100200",
+      "appliedName": "basic_pro_explicit_entitlements",
+      "appliedSqlBytes": 1802,
+      "appliedSqlGitBlob": "d85ae857d84111d27ca71dcaba4703785eaf2d80",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261011101500_basic_pro_explicit_entitlements.sql",
+      "localGitBlob": "d85ae857d84111d27ca71dcaba4703785eaf2d80",
+      "localBytes": 1802
+    },
+    {
+      "version": "20261012070133",
+      "appliedName": "audited_rent_receipts_owner_deductions_finance_permissions",
+      "appliedSqlBytes": 28005,
+      "appliedSqlGitBlob": "839678456b37ee5b2d4336e7f2c6e5155235421d",
+      "category": "RECONSTRUCTED_FINANCE_4_FILES",
+      "localSources": [
+        "supabase/migrations/20261012120000_owner_statement_deduction_lines.sql",
+        "supabase/migrations/20261012130000_rent_receipts_and_owner_drafts.sql",
+        "supabase/migrations/20261012140000_reconcile_owner_deductions.sql",
+        "supabase/migrations/20261012143000_finance_rls_and_tenant_links.sql"
+      ]
+    },
+    {
+      "version": "20261012071309",
+      "appliedName": "finance_approval_and_audit_timestamp_hardening",
+      "appliedSqlBytes": 889,
+      "appliedSqlGitBlob": "6192fe3dd3b38ed100b9eec778c79db2231c6c74",
+      "category": "REVIEWED_NONEXECUTABLE_DIFFERENCE",
+      "localPath": "supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql",
+      "localGitBlob": "44ca68e11894485ee160f673117b2d008c38c1d3",
+      "localBytes": 1282
+    },
+    {
+      "version": "20261012174610",
+      "appliedName": "guided_rental_intake_admin_approval",
+      "appliedSqlBytes": 3768,
+      "appliedSqlGitBlob": "e6f7b6b62fcee5e2b42659ec1f319d0623563f87",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261012180000_guided_rental_intake_admin_approval.sql",
+      "localGitBlob": "e6f7b6b62fcee5e2b42659ec1f319d0623563f87",
+      "localBytes": 3768
+    },
+    {
+      "version": "20261012191634",
+      "appliedName": "deals_safe_admin_deletion",
+      "appliedSqlBytes": 3389,
+      "appliedSqlGitBlob": "0f475d0d819f2abe9130c2ef6e34addf1cde4956",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261012193000_deals_safe_admin_deletion.sql",
+      "localGitBlob": "0f475d0d819f2abe9130c2ef6e34addf1cde4956",
+      "localBytes": 3389
+    },
+    {
+      "version": "20261012232901",
+      "appliedName": "owner_reconciliation_audit_and_safe_undo",
+      "appliedSqlBytes": 8436,
+      "appliedSqlGitBlob": "c8092a9ac239a3f97f54b84183596521c291705d",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261012203000_owner_reconciliation_audit_and_safe_undo.sql",
+      "localGitBlob": "c8092a9ac239a3f97f54b84183596521c291705d",
+      "localBytes": 8436
+    },
+    {
+      "version": "20261012235553",
+      "appliedName": "restrict_excessive_api_role_table_grants",
+      "appliedSqlBytes": 753,
+      "appliedSqlGitBlob": "ec3e513b753d728e8999352438bd95776120bc61",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261012235500_restrict_excessive_api_role_table_grants.sql",
+      "localGitBlob": "ec3e513b753d728e8999352438bd95776120bc61",
+      "localBytes": 753
+    },
+    {
+      "version": "20261013001626",
+      "appliedName": "safe_future_rent_amendments_and_unpaid_corrections",
+      "appliedSqlBytes": 13432,
+      "appliedSqlGitBlob": "e4271e9197055cc5b4b3eb8eaf0ce2922a32ff8b",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql",
+      "localGitBlob": "e4271e9197055cc5b4b3eb8eaf0ce2922a32ff8b",
+      "localBytes": 13432
+    },
+    {
+      "version": "20261013003214",
+      "appliedName": "owner_statement_percentage_commission",
+      "appliedSqlBytes": 2803,
+      "appliedSqlGitBlob": "c4aa3f78e61dca5424d976364102f95efc4d15c1",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013020000_owner_statement_percentage_commission.sql",
+      "localGitBlob": "c4aa3f78e61dca5424d976364102f95efc4d15c1",
+      "localBytes": 2803
+    },
+    {
+      "version": "20261013012448",
+      "appliedName": "commission_safe_edit_and_paid_review",
+      "appliedSqlBytes": 17967,
+      "appliedSqlGitBlob": "d7586d99a98aed408c9962ecb43a4cacb570bd08",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013040000_commission_safe_edit_and_paid_review.sql",
+      "localGitBlob": "d7586d99a98aed408c9962ecb43a4cacb570bd08",
+      "localBytes": 17967
+    },
+    {
+      "version": "20261013012930",
+      "appliedName": "commission_tenant_insert_validation",
+      "appliedSqlBytes": 1545,
+      "appliedSqlGitBlob": "e72ce5c330a4fe9c9418cff4ef884b4dd411ccc7",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013044000_commission_tenant_insert_validation.sql",
+      "localGitBlob": "e72ce5c330a4fe9c9418cff4ef884b4dd411ccc7",
+      "localBytes": 1545
+    },
+    {
+      "version": "20261013034808",
+      "appliedName": "commission_admin_void_only",
+      "appliedSqlBytes": 4413,
+      "appliedSqlGitBlob": "fa239eee6e09a466fab56b1ab29c8fd54c4b90fd",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013034500_commission_admin_void_only.sql",
+      "localGitBlob": "fa239eee6e09a466fab56b1ab29c8fd54c4b90fd",
+      "localBytes": 4413
+    },
+    {
+      "version": "20261013040202",
+      "appliedName": "commission_recording_corrections",
+      "appliedSqlBytes": 1821,
+      "appliedSqlGitBlob": "ae8fe4418637e0478fd804ccd07f6c77f244132a",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013040000_commission_recording_corrections.sql",
+      "localGitBlob": "ae8fe4418637e0478fd804ccd07f6c77f244132a",
+      "localBytes": 1821
+    },
+    {
+      "version": "20261013040916",
+      "appliedName": "owner_deduction_admin_only_void",
+      "appliedSqlBytes": 1087,
+      "appliedSqlGitBlob": "ab76e15e7179739b49ff7b7a909e0133a4250624",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013043000_owner_deduction_admin_only_void.sql",
+      "localGitBlob": "ab76e15e7179739b49ff7b7a909e0133a4250624",
+      "localBytes": 1087
+    },
+    {
+      "version": "20261013042724",
+      "appliedName": "paid_commission_admin_accept_no_disbursement",
+      "appliedSqlBytes": 3908,
+      "appliedSqlGitBlob": "7e637baa768285f46d130f41e35e2493f7e3077e",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013044500_paid_commission_admin_accept_no_disbursement.sql",
+      "localGitBlob": "7e637baa768285f46d130f41e35e2493f7e3077e",
+      "localBytes": 3908
+    },
+    {
+      "version": "20261013043618",
+      "appliedName": "archive_rectified_commissions",
+      "appliedSqlBytes": 2377,
+      "appliedSqlGitBlob": "42054be114c803f904f5db6e64726b33ddcccb36",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013050000_archive_rectified_commissions.sql",
+      "localGitBlob": "42054be114c803f904f5db6e64726b33ddcccb36",
+      "localBytes": 2377
+    },
+    {
+      "version": "20261013045818",
+      "appliedName": "fix_commission_archive_reason_ambiguity",
+      "appliedSqlBytes": 1861,
+      "appliedSqlGitBlob": "b059125bfcdc8f8749e9d0ce4a882b22227fa94c",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "supabase/migrations/20261013051500_fix_archive_reason.sql",
+      "localGitBlob": "b059125bfcdc8f8749e9d0ce4a882b22227fa94c",
+      "localBytes": 1861
+    },
+    {
+      "version": "20261013045906",
+      "appliedName": "restore_cancelled_commissions",
+      "appliedSqlBytes": 1556,
+      "appliedSqlGitBlob": "6518768ef989df49ee9ff901b9a49ba1a97e8b70",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013052000_restore_cancelled_commissions.sql",
+      "localGitBlob": "6518768ef989df49ee9ff901b9a49ba1a97e8b70",
+      "localBytes": 1556
+    },
+    {
+      "version": "20261013053938",
+      "appliedName": "admin_direct_commission_payment_status",
+      "appliedSqlBytes": 1685,
+      "appliedSqlGitBlob": "e2b1d2d789ced5630c62c0448fc708cd7f3944d1",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013054000_admin_direct_commission_payment_status.sql",
+      "localGitBlob": "e2b1d2d789ced5630c62c0448fc708cd7f3944d1",
+      "localBytes": 1685
+    },
+    {
+      "version": "20261013055708",
+      "appliedName": "archived_commission_replacement",
+      "appliedSqlBytes": 3581,
+      "appliedSqlGitBlob": "7d771ab657c930e30f3f189163c276e7ca80b897",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013061500_archived_commission_replacement.sql",
+      "localGitBlob": "7d771ab657c930e30f3f189163c276e7ca80b897",
+      "localBytes": 3581
+    },
+    {
+      "version": "20261013062339",
+      "appliedName": "restore_voided_owner_deduction",
+      "appliedSqlBytes": 3436,
+      "appliedSqlGitBlob": "b37d02cb95bbe0b781b05bc65356928040ee7a51",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013063000_restore_voided_owner_deduction.sql",
+      "localGitBlob": "b37d02cb95bbe0b781b05bc65356928040ee7a51",
+      "localBytes": 3436
+    },
+    {
+      "version": "20261013163914",
+      "appliedName": "correct_owner_draft_commission_percentage",
+      "appliedSqlBytes": 2995,
+      "appliedSqlGitBlob": "f8ab6417cdb4f15825eeafd132062e864341ea83",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013070000_correct_owner_draft_commission_percentage.sql",
+      "localGitBlob": "f8ab6417cdb4f15825eeafd132062e864341ea83",
+      "localBytes": 2995
+    },
+    {
+      "version": "20261013165553",
+      "appliedName": "prevent_duplicate_active_commissions",
+      "appliedSqlBytes": 1728,
+      "appliedSqlGitBlob": "ffc8ec6dd0ab0459a8c57655bbb800517702ccd8",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013073000_prevent_duplicate_active_commissions.sql",
+      "localGitBlob": "ffc8ec6dd0ab0459a8c57655bbb800517702ccd8",
+      "localBytes": 1728
+    },
+    {
+      "version": "20261013173011",
+      "appliedName": "finance_fk_lookup_indexes",
+      "appliedSqlBytes": 590,
+      "appliedSqlGitBlob": "e28f1ebe62fe17301081327690e47c98e3205276",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013081500_finance_fk_lookup_indexes.sql",
+      "localGitBlob": "e28f1ebe62fe17301081327690e47c98e3205276",
+      "localBytes": 590
+    },
+    {
+      "version": "20261014001304",
+      "appliedName": "owner_deduction_admin_approval",
+      "appliedSqlBytes": 792,
+      "appliedSqlGitBlob": "102afcf6cc68c4f9d8d5b5b665fce95bdf4a9a04",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261013190000_owner_deduction_admin_approval.sql",
+      "localGitBlob": "102afcf6cc68c4f9d8d5b5b665fce95bdf4a9a04",
+      "localBytes": 792
+    },
+    {
+      "version": "20261014005233",
+      "appliedName": "admin_archive_commission_reviews",
+      "appliedSqlBytes": 1412,
+      "appliedSqlGitBlob": "b34998595cb49c28bbc6e5d7f76f7e0d1a72ee11",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014010000_admin_archive_commission_reviews.sql",
+      "localGitBlob": "b34998595cb49c28bbc6e5d7f76f7e0d1a72ee11",
+      "localBytes": 1412
+    },
+    {
+      "version": "20261014013656",
+      "appliedName": "admin_issue_owner_statement",
+      "appliedSqlBytes": 2308,
+      "appliedSqlGitBlob": "e1ff250a23d47a8cb4e7303b549f30956d3025b8",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014020000_admin_issue_owner_statement.sql",
+      "localGitBlob": "e1ff250a23d47a8cb4e7303b549f30956d3025b8",
+      "localBytes": 2308
+    },
+    {
+      "version": "20261014015052",
+      "appliedName": "owner_payout_ledger",
+      "appliedSqlBytes": 4238,
+      "appliedSqlGitBlob": "97e1a678082f7ff86d8a6a7498d411b25d6109c0",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014030000_owner_payout_ledger.sql",
+      "localGitBlob": "97e1a678082f7ff86d8a6a7498d411b25d6109c0",
+      "localBytes": 4238
+    },
+    {
+      "version": "20261014022955",
+      "appliedName": "owner_payout_review_requests",
+      "appliedSqlBytes": 2610,
+      "appliedSqlGitBlob": "1a1ed0cb788a182d66b0f43bda571f33ebdb94ee",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014040000_owner_payout_review_requests.sql",
+      "localGitBlob": "1a1ed0cb788a182d66b0f43bda571f33ebdb94ee",
+      "localBytes": 2610
+    },
+    {
+      "version": "20261014025531",
+      "appliedName": "owner_payout_admin_review",
+      "appliedSqlBytes": 1633,
+      "appliedSqlGitBlob": "a3b9a74994c4651ac2b59418e4f67ac699944183",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014050000_owner_payout_admin_review.sql",
+      "localGitBlob": "a3b9a74994c4651ac2b59418e4f67ac699944183",
+      "localBytes": 1633
+    },
+    {
+      "version": "20261014042102",
+      "appliedName": "audited_rental_end_owner_retirement",
+      "appliedSqlBytes": 13573,
+      "appliedSqlGitBlob": "1a5148501741b57db38f9775d3424e6f97fcf597",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014061000_audited_rental_end_owner_retirement.sql",
+      "localGitBlob": "1a5148501741b57db38f9775d3424e6f97fcf597",
+      "localBytes": 13573
+    },
+    {
+      "version": "20261014044203",
+      "appliedName": "sync_rented_property_on_lease_activation",
+      "appliedSqlBytes": 5805,
+      "appliedSqlGitBlob": "b5c5708d63895c28ad3f21fa15d8fd95e88dac23",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014071000_sync_rented_property_on_lease_activation.sql",
+      "localGitBlob": "b5c5708d63895c28ad3f21fa15d8fd95e88dac23",
+      "localBytes": 5805
+    },
+    {
+      "version": "20261014050327",
+      "appliedName": "private_rent_receipt_supports",
+      "appliedSqlBytes": 8100,
+      "appliedSqlGitBlob": "de9908222d21619bd83a598e07a7f5c59c96ed0a",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014082000_private_rent_receipt_supports.sql",
+      "localGitBlob": "de9908222d21619bd83a598e07a7f5c59c96ed0a",
+      "localBytes": 8100
+    },
+    {
+      "version": "20261014052310",
+      "appliedName": "audited_role_permission_editor",
+      "appliedSqlBytes": 9984,
+      "appliedSqlGitBlob": "a8d2627efe04925bf645d8c0e5d28a45616487ca",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014093000_audited_role_permission_editor.sql",
+      "localGitBlob": "a8d2627efe04925bf645d8c0e5d28a45616487ca",
+      "localBytes": 9984
+    },
+    {
+      "version": "20261014174632",
+      "appliedName": "isolate_client_portal_role_grants",
+      "appliedSqlBytes": 1250,
+      "appliedSqlGitBlob": "497d6685191628a6fe37e8d1db22716fd1aae14b",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261014123500_isolate_client_portal_role_grants.sql",
+      "localGitBlob": "497d6685191628a6fe37e8d1db22716fd1aae14b",
+      "localBytes": 1250
+    },
+    {
+      "version": "20261015073530",
+      "appliedName": "approved_monthly_prices_preserve_lifetime",
+      "appliedSqlBytes": 2537,
+      "appliedSqlGitBlob": "d8ac0b937850c175d3754311c2d77b22923e788f",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261015074000_approved_monthly_prices_preserve_lifetime.sql",
+      "localGitBlob": "d8ac0b937850c175d3754311c2d77b22923e788f",
+      "localBytes": 2537
+    },
+    {
+      "version": "20261015074727",
+      "appliedName": "basic_pro_equal_functionality_20261015",
+      "appliedSqlBytes": 3937,
+      "appliedSqlGitBlob": "88e75c7e0858c29784b1a3b053aa8401907d7f09",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "supabase/migrations/20261015081500_basic_pro_functional_parity.sql",
+      "localGitBlob": "88e75c7e0858c29784b1a3b053aa8401907d7f09",
+      "localBytes": 3937
+    },
+    {
+      "version": "20261015085227",
+      "appliedName": "isolate_external_accounts_and_staff_seats",
+      "appliedSqlBytes": 12913,
+      "appliedSqlGitBlob": "5ca0b657b1ec0b39ecf40db7452302bce5074121",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261015092500_isolate_external_accounts_and_staff_seats.sql",
+      "localGitBlob": "5ca0b657b1ec0b39ecf40db7452302bce5074121",
+      "localBytes": 12913
+    },
+    {
+      "version": "20261015085250",
+      "appliedName": "scope_external_owner_and_tenant_data",
+      "appliedSqlBytes": 4670,
+      "appliedSqlGitBlob": "02b04f0f9002a3068d62c954cc27a5c524c420b9",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261015093000_scope_external_owner_and_tenant_data.sql",
+      "localGitBlob": "02b04f0f9002a3068d62c954cc27a5c524c420b9",
+      "localBytes": 4670
+    },
+    {
+      "version": "20261015100034",
+      "appliedName": "reconcile_restrictive_portal_read_with_staff_write",
+      "appliedSqlBytes": 4527,
+      "appliedSqlGitBlob": "3b2521faf91aa3aee77c760eb2e2252965d0edb6",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql",
+      "localGitBlob": "3b2521faf91aa3aee77c760eb2e2252965d0edb6",
+      "localBytes": 4527
+    },
+    {
+      "version": "20261018065139",
+      "appliedName": "public_tenant_catalog_readonly_20261018",
+      "appliedSqlBytes": 2175,
+      "appliedSqlGitBlob": "5e5808548c1b775d9a932e71000cfa786b68f357",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "supabase/migrations/20261018140000_tenant_public_catalog.sql",
+      "localGitBlob": "5e5808548c1b775d9a932e71000cfa786b68f357",
+      "localBytes": 2175
+    },
+    {
+      "version": "20261018065837",
+      "appliedName": "direct_paid_onboarding_explicit_20261018",
+      "appliedSqlBytes": 10858,
+      "appliedSqlGitBlob": "4542e133eec6575737eff22b85f7f3a7cf961ded",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "supabase/migrations/20261018130000_direct_paid_onboarding.sql",
+      "localGitBlob": "4542e133eec6575737eff22b85f7f3a7cf961ded",
+      "localBytes": 10858
+    },
+    {
+      "version": "20261018073033",
+      "appliedName": "strict_private_property_read_boundary_20261018",
+      "appliedSqlBytes": 4704,
+      "appliedSqlGitBlob": "ef2a275ff0bf269db75cef31a5157c920199d8a4",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261018162000_strict_private_property_read_boundary.sql",
+      "localGitBlob": "ef2a275ff0bf269db75cef31a5157c920199d8a4",
+      "localBytes": 4704
+    },
+    {
+      "version": "20261020014525",
+      "appliedName": "tenant_public_brand_services_20261019",
+      "appliedSqlBytes": 3579,
+      "appliedSqlGitBlob": "10b164746e54a3e3811972055b8fd8f3f5250864",
+      "category": "EXACT_HISTORIC_ALIAS",
+      "localPath": "supabase/migrations/20261019205000_tenant_public_website_brand_and_services.sql",
+      "localGitBlob": "10b164746e54a3e3811972055b8fd8f3f5250864",
+      "localBytes": 3579
+    },
+    {
+      "version": "20261020070236",
+      "appliedName": "editable_public_portal_sections_20261020",
+      "appliedSqlBytes": 2747,
+      "appliedSqlGitBlob": "afbd56dedcfced8fb9ec78cb5133e6d94b62656c",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261020070000_editable_public_portal_sections.sql",
+      "localGitBlob": "afbd56dedcfced8fb9ec78cb5133e6d94b62656c",
+      "localBytes": 2747
+    },
+    {
+      "version": "20261020233104",
+      "appliedName": "owner_organization_public_slug_20261020",
+      "appliedSqlBytes": 2666,
+      "appliedSqlGitBlob": "ba78e3d3c1d40389b31c23a68d0a4dbf7d9ca8fc",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261020183000_owner_organization_public_slug.sql",
+      "localGitBlob": "ba78e3d3c1d40389b31c23a68d0a4dbf7d9ca8fc",
+      "localBytes": 2666
+    },
+    {
+      "version": "20261020233218",
+      "appliedName": "owner_slug_strict_execute_acl_20261020",
+      "appliedSqlBytes": 516,
+      "appliedSqlGitBlob": "b85ef90257d8b4e2a792ada79c78a4045d42674e",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261020183500_owner_slug_strict_execute_acl.sql",
+      "localGitBlob": "b85ef90257d8b4e2a792ada79c78a4045d42674e",
+      "localBytes": 516
+    },
+    {
+      "version": "20261021024321",
+      "appliedName": "public_website_leads_20261020",
+      "appliedSqlBytes": 4323,
+      "appliedSqlGitBlob": "faff9a8567a417e264d7bb5521247fca21b6f7c5",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261020221500_public_website_leads.sql",
+      "localGitBlob": "faff9a8567a417e264d7bb5521247fca21b6f7c5",
+      "localBytes": 4323
+    },
+    {
+      "version": "20261021024734",
+      "appliedName": "revoke_anonymous_crm_access_20261020",
+      "appliedSqlBytes": 314,
+      "appliedSqlGitBlob": "cf9ccc2034947b879189aaae603bb3cfd9b8e001",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261020222000_revoke_anonymous_crm_access.sql",
+      "localGitBlob": "cf9ccc2034947b879189aaae603bb3cfd9b8e001",
+      "localBytes": 314
+    },
+    {
+      "version": "20261021032153",
+      "appliedName": "gate_public_consignment_operational_access",
+      "appliedSqlBytes": 7668,
+      "appliedSqlGitBlob": "9af251abf443787d0dc7a1d4caae8911651a826a",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261021033500_gate_public_consignment_operational_access.sql",
+      "localGitBlob": "9af251abf443787d0dc7a1d4caae8911651a826a",
+      "localBytes": 7668
+    },
+    {
+      "version": "20261021033218",
+      "appliedName": "optimize_owner_deduction_rls_initplan",
+      "appliedSqlBytes": 411,
+      "appliedSqlGitBlob": "5c4726413e42dd609ed6feacb1943c0fb47ffd9b",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261021040000_optimize_owner_deduction_rls_initplan.sql",
+      "localGitBlob": "5c4726413e42dd609ed6feacb1943c0fb47ffd9b",
+      "localBytes": 411
+    },
+    {
+      "version": "20261021033609",
+      "appliedName": "public_website_contact_consent_receipts",
+      "appliedSqlBytes": 5434,
+      "appliedSqlGitBlob": "8ddd19fbfbda62b02624a31615898896ffecf3ea",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261021041500_public_website_contact_consent_receipts.sql",
+      "localGitBlob": "8ddd19fbfbda62b02624a31615898896ffecf3ea",
+      "localBytes": 5434
+    },
+    {
+      "version": "20261021162358",
+      "appliedName": "block_incompatible_checkout_contracts",
+      "appliedSqlBytes": 4231,
+      "appliedSqlGitBlob": "44a9d7e25ef2eb924d95d3f497da90f5b2d073ab",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql",
+      "localGitBlob": "44a9d7e25ef2eb924d95d3f497da90f5b2d073ab",
+      "localBytes": 4231
+    },
+    {
+      "version": "20261021195335",
+      "appliedName": "index_critical_tenant_relationships",
+      "appliedSqlBytes": 803,
+      "appliedSqlGitBlob": "a9a442b2c0976ef46df9190e4d4663048c78ca4f",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261021152000_index_critical_tenant_relationships.sql",
+      "localGitBlob": "a9a442b2c0976ef46df9190e4d4663048c78ca4f",
+      "localBytes": 803
+    },
+    {
+      "version": "20261029034349",
+      "appliedName": "allow_trial_to_paid_wompi_activation",
+      "appliedSqlBytes": 12032,
+      "appliedSqlGitBlob": "15d4aa1618376686b77b3228a2d05bd0887e7fe2",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql",
+      "localGitBlob": "15d4aa1618376686b77b3228a2d05bd0887e7fe2",
+      "localBytes": 12032
+    },
+    {
+      "version": "20261029034410",
+      "appliedName": "reconcile_verified_sandbox_trial_payment",
+      "appliedSqlBytes": 7227,
+      "appliedSqlGitBlob": "405193ac5610aa4bb8c9a155cff516742c8fb5c9",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029034500_reconcile_verified_sandbox_trial_payment.sql",
+      "localGitBlob": "405193ac5610aa4bb8c9a155cff516742c8fb5c9",
+      "localBytes": 7227
+    },
+    {
+      "version": "20261029050050",
+      "appliedName": "repair_financial_portal_select_rls",
+      "appliedSqlBytes": 3010,
+      "appliedSqlGitBlob": "ee09d19d30429423b972d45bcf32d8a21d682ef5",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029070000_repair_financial_portal_select_rls.sql",
+      "localGitBlob": "ee09d19d30429423b972d45bcf32d8a21d682ef5",
+      "localBytes": 3010
+    },
+    {
+      "version": "20261029053907",
+      "appliedName": "linked_person_signed_lease_private_pdf",
+      "appliedSqlBytes": 2519,
+      "appliedSqlGitBlob": "6bd4582f45fe90f191c8a58869b5eea9cfd47e6f",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029120000_linked_person_signed_lease_private_pdf.sql",
+      "localGitBlob": "6bd4582f45fe90f191c8a58869b5eea9cfd47e6f",
+      "localBytes": 2519
+    },
+    {
+      "version": "20261029065403",
+      "appliedName": "rental_draft_correction_and_duplicates",
+      "appliedSqlBytes": 9828,
+      "appliedSqlGitBlob": "f72ebff1098ac1a1ef8ec33b9000a33bd2da84a1",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029090000_rental_draft_correction_and_duplicates.sql",
+      "localGitBlob": "f72ebff1098ac1a1ef8ec33b9000a33bd2da84a1",
+      "localBytes": 9828
+    },
+    {
+      "version": "20261029070436",
+      "appliedName": "audited_contact_correction_and_unlinked_removal",
+      "appliedSqlBytes": 6831,
+      "appliedSqlGitBlob": "f48a092df0903c334fc32c8e1d47d1cf0811d98c",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029100000_audited_contact_correction_and_unlinked_removal.sql",
+      "localGitBlob": "f48a092df0903c334fc32c8e1d47d1cf0811d98c",
+      "localBytes": 6831
+    },
+    {
+      "version": "20261029073612",
+      "appliedName": "active_lease_rectification_with_signed_evidence",
+      "appliedSqlBytes": 11087,
+      "appliedSqlGitBlob": "b75495e43fde0cfd304e01f7327850fa4618470b",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029081500_active_lease_rectification_with_signed_evidence.sql",
+      "localGitBlob": "b75495e43fde0cfd304e01f7327850fa4618470b",
+      "localBytes": 11087
+    },
+    {
+      "version": "20261029171601",
+      "appliedName": "revoke_disabled_trial_authorization_rpc",
+      "appliedSqlBytes": 491,
+      "appliedSqlGitBlob": "444d52f7bbbad6db43d90c790f60dd627a582ae6",
+      "category": "REVIEWED_NONEXECUTABLE_DIFFERENCE",
+      "localPath": "supabase/migrations/20261029171601_revoke_disabled_trial_authorization_rpc.sql",
+      "localGitBlob": "dc23823984351eb674ddd243bae1ff906941c091",
+      "localBytes": 543
+    },
+    {
+      "version": "20261029212907",
+      "appliedName": "remaining_foreign_key_covering_indexes",
+      "appliedSqlBytes": 2177,
+      "appliedSqlGitBlob": "71785872624bcaea579fd42e71a0a4d46cb920d7",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261029212500_remaining_foreign_key_covering_indexes.sql",
+      "localGitBlob": "71785872624bcaea579fd42e71a0a4d46cb920d7",
+      "localBytes": 2177
+    },
+    {
+      "version": "20261031013710",
+      "appliedName": "verified_email_invitation_claims",
+      "appliedSqlBytes": 2900,
+      "appliedSqlGitBlob": "a8b97bec6024f2daf5b51816266c431cd43f8708",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261030203000_verified_email_invitation_claims.sql",
+      "localGitBlob": "a8b97bec6024f2daf5b51816266c431cd43f8708",
+      "localBytes": 2900
+    },
+    {
+      "version": "20261031032350",
+      "appliedName": "restrict_organization_commercial_updates",
+      "appliedSqlBytes": 2882,
+      "appliedSqlGitBlob": "dbbf1539036c30322b6d7005832ce5b27249dfac",
+      "category": "EXACT",
+      "localPath": "supabase/migrations/20261030222000_restrict_organization_commercial_updates.sql",
+      "localGitBlob": "dbbf1539036c30322b6d7005832ce5b27249dfac",
+      "localBytes": 2882
+    }
+  ]
+}
