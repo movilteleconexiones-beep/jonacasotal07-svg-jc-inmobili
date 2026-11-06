@@ -213,7 +213,7 @@ AS $function$
           AND s.billing_mode='LIFETIME' AND s.current_period_end IS NULL
           AND l.license_type='LIFETIME' AND l.status='ACTIVE'
           AND l.starts_at <= now() AND l.ends_at IS NULL
-      ));
+      )));
 $function$;
 
 
