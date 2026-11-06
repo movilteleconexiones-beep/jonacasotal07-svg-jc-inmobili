@@ -85,9 +85,11 @@ export default function App() {
   const viewingAnotherAgency = Boolean(activeMembership?.organization.slug && tenantSlug && tenantSlug !== activeMembership.organization.slug);
   // Public branding must NEVER be inherited from a different signed-in tenant.
   // Only the server-scoped public catalog may supply public tenant identity.
+  // A missing tenant must not inherit the JCO test agency identity.
+  const fallbackCompanyName = tenantSlug ? 'Portal inmobiliario' : 'INMOJCO';
   const branding: TenantBrandingState = {
-    companyName: publicCatalog.brand?.companyName || 'Sistema Inmobiliario JCO',
-    softwareName: 'Sistema Inmobiliario JCO',
+    companyName: publicCatalog.brand?.companyName || fallbackCompanyName,
+    softwareName: 'INMOJCO',
     publicServices: publicCatalog.brand?.publicServices || [],
     publicPage: publicCatalog.brand?.publicPage || DEFAULT_PUBLIC_PAGE,
     logoUrl: publicCatalog.brand?.logoUrl,
@@ -103,8 +105,8 @@ export default function App() {
     timezone: 'America/Bogota',
   };
   const countryProfile = getCountryOption(branding.country);
-  const organizationBrand = branding.companyName || 'Sistema Inmobiliario JCO';
-  const softwareBrand = branding.softwareName || 'Sistema Inmobiliario JCO';
+  const organizationBrand = branding.companyName || fallbackCompanyName;
+  const softwareBrand = branding.softwareName || 'INMOJCO';
   const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
