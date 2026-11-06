@@ -33,16 +33,17 @@ DO $no_retrial$ BEGIN
       '20000000-0000-0000-0000-000000000010',
       (SELECT id FROM public.plans WHERE code='BASIC'));
     RAISE EXCEPTION 'FAIL: repeated trial accepted';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM='FAIL: repeated trial accepted' THEN RAISE; END IF;
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'Only an unactivated customer organization can start a trial'
+      OR SQLSTATE <> '42501' THEN RAISE; END IF;
   END;
   BEGIN
     PERFORM public.billing_start_eight_day_trial(
       '20000000-0000-0000-0000-000000000011',
       (SELECT id FROM public.plans WHERE code='BASIC'));
     RAISE EXCEPTION 'FAIL: one person received second trial on another org';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM='FAIL: one person received second trial on another org' THEN RAISE; END IF;
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'Trial already used or commercial account exists' THEN RAISE; END IF;
   END;
 END $no_retrial$;
 -- Only temporary grant expires, never wipes the prospect's rows.
