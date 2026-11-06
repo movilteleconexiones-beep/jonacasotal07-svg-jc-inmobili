@@ -57,6 +57,8 @@ jobs:
           # 99 applied SQL bodies: 94 exact blobs, 2 whitespace, 2 comments, 1 consolidated.
           node --test tests/migration-source-parity-gate.test.mjs
           node scripts/ops/migration-source-parity-gate.mjs
+          node --test tests/migration-version-risk-map.test.mjs
+          node scripts/ops/migration-version-risk-map.mjs
           # Every release must still explicitly refuse migration replay while
           # snapshot and repository are divergent. Do not invert exit 2 into GO.
           set +e
