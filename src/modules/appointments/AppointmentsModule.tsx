@@ -5,6 +5,7 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
 import { useTenantBranding } from '../../core/use-tenant-branding';
+import { isAppointmentStatus, validateAppointmentDraft } from '../../core/appointment-validation';
 
 interface AppointmentRow {
   id: string;
@@ -20,7 +21,6 @@ interface AppointmentRow {
 
 interface ContactOption { id: string; first_name: string; last_name: string | null }
 interface PropertyOption { id: string; code: string; title: string }
-const APPOINTMENT_STATUSES = new Set(['SCHEDULED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']);
 
 export function AppointmentsModule() {
   const { user, activeMembership, can } = useAuth();
@@ -77,7 +77,7 @@ export function AppointmentsModule() {
       setRows(rowsOk ? ((appointmentResult.data ?? []) as unknown as AppointmentRow[]) : []);
       setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
       setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
-      setLookupsReady(optionsOk);
+      setLookupsReady(rowsOk && optionsOk);
       setLoadedOrganization(organizationId);
       return rowsOk && optionsOk;
     } catch {
@@ -112,23 +112,18 @@ export function AppointmentsModule() {
     const form = new FormData(formElement);
     const contactId = String(form.get('contact_id') ?? '').trim();
     const propertyId = String(form.get('property_id') ?? '').trim();
-    // A previous tenant's option or a manually forged form must fail before write.
-    if (contactId && !visibleContacts.some(contact => contact.id === contactId)) {
-      setMessage('Selecciona un cliente válido de esta inmobiliaria.');
-      return;
-    }
-    if (propertyId && !visibleProperties.some(property => property.id === propertyId)) {
-      setMessage('Selecciona un inmueble válido de esta inmobiliaria.');
-      return;
-    }
+    // A stale tenant option or manually forged form fails before any database write.
+    const startsAt = String(form.get('starts_at') ?? '');
     const endsAt = String(form.get('ends_at') ?? '').trim();
-    const startsAtDate = new Date(String(form.get('starts_at') ?? ''));
-    const endsAtDate = endsAt ? new Date(endsAt) : null;
-    if (!Number.isFinite(startsAtDate.getTime()) || startsAtDate.getTime() < Date.now() ||
-       (endsAtDate && (!Number.isFinite(endsAtDate.getTime()) || endsAtDate <= startsAtDate))) {
-      setMessage('Verifica las fechas: el inicio no puede estar en el pasado y el fin debe ser posterior al inicio.');
+    const validationError = validateAppointmentDraft(
+      { contactId, propertyId, startsAt, endsAt }, visibleContacts, visibleProperties,
+    );
+    if (validationError) {
+      setMessage(validationError);
       return;
     }
+    const startsAtDate = new Date(startsAt);
+    const endsAtDate = endsAt ? new Date(endsAt) : null;
     saveInFlight.current = true;
     setSaving(true);
     try {
@@ -171,7 +166,7 @@ export function AppointmentsModule() {
       setMessage('No tienes permiso para modificar citas.');
       return;
     }
-    if (!APPOINTMENT_STATUSES.has(status) || !visibleRows.some(row => row.id === id)) {
+    if (!isAppointmentStatus(status) || !visibleRows.some(row => row.id === id)) {
       setMessage('Selecciona una cita y un estado válidos de esta inmobiliaria.');
       return;
     }
