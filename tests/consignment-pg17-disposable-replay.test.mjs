@@ -19,7 +19,8 @@ test('only the first two historical consignment CREATE TABLE definitions are rep
   assert.match(replay,/src=supabase\/migrations\/20261010212630_property_consignment_intake\.sql/);
   assert.match(replay,/awk '\/\^-- This old policy exposed\/\{exit\} \{print\} END\{print "COMMIT;"\}'/);
   assert.doesNotMatch(replay,/psql[^\n]+-f\s+"?\$src"?/);
-  assert.doesNotMatch(replay,/migration repair|db push/i);
+  const commandsOnly = replay.split(/\r?\n/).filter(line => !line.trimStart().startsWith('#')).join('\n');
+  assert.doesNotMatch(commandsOnly,/migration repair|db push/i);
 });
 
 test('the replay is confined to an isolated disposable PostgreSQL 17 CI environment',()=>{
