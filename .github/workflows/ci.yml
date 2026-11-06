@@ -54,6 +54,9 @@ jobs:
           node --test tests/rental-0026-baseline-contract.test.mjs
           # Exact original CREATE-less SQL bodies; do not replay preflight DDL in prod.
           node --test tests/consignment-applied-preflight-provenance.test.mjs
+          # 99 applied SQL bodies: 94 exact blobs, 2 whitespace, 2 comments, 1 consolidated.
+          node --test tests/migration-source-parity-gate.test.mjs
+          node scripts/ops/migration-source-parity-gate.mjs
           # Every release must still explicitly refuse migration replay while
           # snapshot and repository are divergent. Do not invert exit 2 into GO.
           set +e
