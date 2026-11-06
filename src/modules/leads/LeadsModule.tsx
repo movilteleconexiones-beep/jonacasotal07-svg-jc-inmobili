@@ -3,6 +3,7 @@ import { etiquetaES } from '../../core/etiquetas-es';
 import { Plus, RefreshCw, UsersRound } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
+import { isLeadStatus, validateLeadDraft } from '../../core/lead-validation';
 import { supabase } from '../../lib/supabase';
 
 const STATUSES = [
@@ -43,43 +44,60 @@ export function LeadsModule() {
   const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState('');
   const loadVersion = useRef(0);
+  const currentOrganization = useRef(organizationId);
+  currentOrganization.current = organizationId;
+  const [loadedOrganization, setLoadedOrganization] = useState<string | null>(null);
+  const [lookupsReady, setLookupsReady] = useState(false);
+  const createInFlight = useRef(false);
+  const [creating, setCreating] = useState(false);
+  const updateInFlight = useRef(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const visibleRows = loadedOrganization === organizationId ? rows : [];
+  const visibleContacts = loadedOrganization === organizationId ? contacts : [];
+  const visibleProperties = loadedOrganization === organizationId ? properties : [];
+  const ready = !loading && loadedOrganization === organizationId && lookupsReady;
 
-  async function load() {
+  async function load(): Promise<boolean> {
     const version = ++loadVersion.current;
     setRows([]); setContacts([]); setProperties([]);
-    if (!organizationId) { setLoading(false); return; }
+    setLoadedOrganization(null);
+    setLookupsReady(false);
+    if (!organizationId) { setLoading(false); return false; }
     setLoading(true);
-
-    const [leadResult, contactResult, propertyResult] = await Promise.all([
-      supabase
-        .from('leads')
-        .select('id, contact_id, property_id, status, priority, budget_min, budget_max, desired_operation, notes, created_at, contacts(first_name,last_name), properties(code,title)')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('contacts')
-        .select('id, first_name, last_name')
-        .eq('organization_id', organizationId)
-        .order('first_name'),
-      supabase
-        .from('properties')
-        .select('id, code, title')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false }),
-    ]);
-
-    if (version !== loadVersion.current) return;
-    if (leadResult.error) setMessage('No se pudieron consultar las oportunidades comerciales. Comprueba tus permisos.');
-    else setRows((leadResult.data ?? []) as unknown as LeadRow[]);
-
-    setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
-    setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
-    if (contactResult.error || propertyResult.error) setMessage('Error al consultar clientes o propiedades. Actualiza antes de continuar.');
-
-    setLoading(false);
+    try {
+      const [leadResult, contactResult, propertyResult] = await Promise.all([
+        supabase.from('leads')
+          .select('id, contact_id, property_id, status, priority, budget_min, budget_max, desired_operation, notes, created_at, contacts(first_name,last_name), properties(code,title)')
+          .eq('organization_id', organizationId).order('created_at', { ascending: false }),
+        supabase.from('contacts').select('id, first_name, last_name')
+          .eq('organization_id', organizationId).order('first_name'),
+        supabase.from('properties').select('id, code, title')
+          .eq('organization_id', organizationId).order('created_at', { ascending: false }),
+      ]);
+      if (version !== loadVersion.current || currentOrganization.current !== organizationId) return false;
+      const rowsOk = !leadResult.error;
+      const lookupsOk = !contactResult.error && !propertyResult.error;
+      if (!rowsOk) setMessage('No se pudieron consultar las oportunidades comerciales. Comprueba tus permisos.');
+      if (!lookupsOk) setMessage('No se pudieron verificar los clientes o inmuebles de esta inmobiliaria. Actualiza antes de continuar.');
+      setRows(rowsOk ? ((leadResult.data ?? []) as unknown as LeadRow[]) : []);
+      setContacts(contactResult.error ? [] : ((contactResult.data ?? []) as ContactOption[]));
+      setProperties(propertyResult.error ? [] : ((propertyResult.data ?? []) as PropertyOption[]));
+      setLookupsReady(rowsOk && lookupsOk);
+      setLoadedOrganization(organizationId);
+      return rowsOk && lookupsOk;
+    } catch {
+      if (version !== loadVersion.current || currentOrganization.current !== organizationId) return false;
+      setMessage('No se pudo consultar el CRM. Actualiza antes de continuar.');
+      return false;
+    } finally {
+      if (version === loadVersion.current && currentOrganization.current === organizationId)
+        setLoading(false);
+    }
   }
 
   useEffect(() => {
+    setMessage('');
+    setShowCreate(false);
     void load();
     return () => { ++loadVersion.current; };
   }, [organizationId]);
@@ -87,14 +105,19 @@ export function LeadsModule() {
   const grouped = useMemo(() => {
     const groups = new Map<string, LeadRow[]>();
     for (const [status] of STATUSES) groups.set(status, []);
-    for (const row of rows) groups.get(row.status)?.push(row);
+    for (const row of visibleRows) groups.get(row.status)?.push(row);
     return groups;
-  }, [rows]);
+  }, [visibleRows]);
 
   async function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createInFlight.current) return;
     if (!organizationId || !user || !can(PERMISSIONS.LEADS_EDIT)) {
       setMessage('No tienes permiso para crear oportunidades comerciales.');
+      return;
+    }
+    if (!ready) {
+      setMessage('Verifica primero los clientes y propiedades de esta inmobiliaria.');
       return;
     }
 
@@ -106,54 +129,84 @@ export function LeadsModule() {
     const contactId = String(form.get('contact_id') ?? '').trim();
     const minValue = budgetMin ? Number(budgetMin) : null;
     const maxValue = budgetMax ? Number(budgetMax) : null;
-    if (!contactId || !contacts.some((contact) => contact.id === contactId)) {
-      setMessage('Selecciona un contacto válido de esta inmobiliaria.');
-      return;
-    }
-    if (propertyId && !properties.some((property) => property.id === propertyId)) {
-      setMessage('Selecciona una propiedad válida de esta inmobiliaria.');
-      return;
-    }
-    if ([minValue, maxValue].some((value) => value !== null && (!Number.isFinite(value) || value < 0)) ||
-        (minValue !== null && maxValue !== null && minValue > maxValue)) {
-      setMessage('El presupuesto debe ser válido, no negativo y el mínimo no puede superar al máximo.');
+    const validationError = validateLeadDraft(
+      { contactId, propertyId, minBudget: minValue, maxBudget: maxValue },
+      visibleContacts, visibleProperties,
+    );
+    if (validationError) {
+      setMessage(validationError);
       return;
     }
 
-    const { error } = await supabase.from('leads').insert({
-      organization_id: organizationId,
-      contact_id: contactId,
-      property_id: propertyId || null,
-      assigned_agent_id: user.id,
-      status: 'NEW',
-      priority: String(form.get('priority') ?? 'MEDIUM'),
-      budget_min: minValue,
-      budget_max: maxValue,
-      desired_operation: String(form.get('desired_operation') ?? '').trim() || null,
-      notes: String(form.get('notes') ?? '').trim() || null,
-      created_by: user.id,
-    });
-
-    if (error) {
-      setMessage(error.message);
-      return;
+    createInFlight.current = true;
+    setCreating(true);
+    try {
+      const { data, error } = await supabase.from('leads').insert({
+        organization_id: organizationId,
+        contact_id: contactId,
+        property_id: propertyId || null,
+        assigned_agent_id: user.id,
+        status: 'NEW',
+        priority: String(form.get('priority') ?? 'MEDIUM'),
+        budget_min: minValue,
+        budget_max: maxValue,
+        desired_operation: String(form.get('desired_operation') ?? '').trim() || null,
+        notes: String(form.get('notes') ?? '').trim() || null,
+        created_by: user.id,
+      }).select('id').single();
+      if (currentOrganization.current !== organizationId) return;
+      if (error || !data?.id) {
+        setMessage('No se pudo confirmar el prospecto. Actualiza el CRM y revisa si ya existe antes de reintentar.');
+        return;
+      }
+      setShowCreate(false);
+      formElement.reset();
+      const refreshed = await load();
+      if (currentOrganization.current === organizationId)
+        setMessage(refreshed ? 'Prospecto creado correctamente.' :
+          'Prospecto registrado, pero no se pudo actualizar la lista. Pulsa Actualizar.');
+    } catch {
+      if (currentOrganization.current === organizationId)
+        setMessage('No se confirmó el nuevo prospecto. Actualiza el CRM antes de volver a crearlo.');
+    } finally {
+      createInFlight.current = false;
+      setCreating(false);
     }
-
-    setMessage('Prospecto creado correctamente.');
-    setShowCreate(false);
-    formElement.reset();
-    await load();
   }
 
   async function updateStatus(id: string, status: string) {
+    if (updateInFlight.current) return;
     if (!organizationId || !can(PERMISSIONS.LEADS_EDIT)) {
       setMessage('No tienes permiso para actualizar oportunidades comerciales.');
       return;
     }
-    if (!STATUSES.some(([value]) => value === status)) return;
-    const { error } = await supabase.from('leads').update({ status }).eq('id', id).eq('organization_id', organizationId);
-    if (error) setMessage(error.message);
-    else await load();
+    if (!isLeadStatus(status) || !visibleRows.some(row => row.id === id)) {
+      setMessage('Selecciona un prospecto y un estado válidos de esta inmobiliaria.');
+      return;
+    }
+    updateInFlight.current = true;
+    setUpdatingId(id);
+    try {
+      const { data, error } = await supabase.from('leads')
+        .update({ status }).eq('id', id).eq('organization_id', organizationId)
+        .select('id,status').maybeSingle();
+      if (currentOrganization.current !== organizationId) return;
+      const refreshed = await load();
+      if (currentOrganization.current !== organizationId) return;
+      if (error || !data || data.status !== status)
+        setMessage('No se pudo confirmar el estado del prospecto. Actualiza y comprueba tus permisos.');
+      else
+        setMessage(refreshed ? 'Estado del prospecto actualizado correctamente.' :
+          'Cambio guardado, pero no se pudo verificar el CRM. Pulsa Actualizar.');
+    } catch {
+      if (currentOrganization.current === organizationId) {
+        await load();
+        setMessage('No se confirmó el cambio de estado. Comprueba el prospecto antes de reintentar.');
+      }
+    } finally {
+      updateInFlight.current = false;
+      setUpdatingId(null);
+    }
   }
 
   return (
@@ -164,11 +217,11 @@ export function LeadsModule() {
           <p className="mt-1 text-sm text-slate-600">Seguimiento comercial desde el primer contacto hasta el cierre.</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
+          <button type="button" onClick={() => void load()} disabled={creating || updatingId !== null} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
             <RefreshCw className="h-4 w-4" /> Actualizar
           </button>
           {can(PERMISSIONS.LEADS_EDIT) && (
-            <button type="button" onClick={() => setShowCreate((v) => !v)} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+            <button type="button" onClick={() => setShowCreate((v) => !v)} disabled={creating} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
               <Plus className="h-4 w-4" /> Nuevo lead
             </button>
           )}
@@ -183,7 +236,7 @@ export function LeadsModule() {
             <span className="mb-1 block text-sm font-medium">Cliente / contacto *</span>
             <select name="contact_id" required className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
               <option value="">Selecciona…</option>
-              {contacts.map((contact) => (
+              {visibleContacts.map((contact) => (
                 <option key={contact.id} value={contact.id}>
                   {[contact.first_name, contact.last_name].filter(Boolean).join(' ')}
                 </option>
@@ -194,7 +247,7 @@ export function LeadsModule() {
             <span className="mb-1 block text-sm font-medium">Propiedad de interés</span>
             <select name="property_id" className="w-full rounded-xl border border-stone-300 px-3 py-2.5">
               <option value="">Sin propiedad específica</option>
-              {properties.map((property) => (
+              {visibleProperties.map((property) => (
                 <option key={property.id} value={property.id}>{property.code} · {property.title}</option>
               ))}
             </select>
@@ -224,8 +277,8 @@ export function LeadsModule() {
             <textarea name="notes" rows={3} className="w-full rounded-xl border border-stone-300 px-3 py-2.5" />
           </label>
           <div className="md:col-span-2 flex justify-end gap-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
-            <button type="submit" disabled={loading || contacts.length === 0} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Guardar lead</button>
+            <button type="button" disabled={creating} onClick={() => setShowCreate(false)} className="rounded-xl border border-stone-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button>
+            <button type="submit" disabled={!ready || creating || visibleContacts.length === 0} aria-busy={creating} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{creating ? 'Guardando prospecto…' : 'Guardar lead'}</button>
           </div>
         </form>
       )}
@@ -255,6 +308,7 @@ export function LeadsModule() {
                       {can(PERMISSIONS.LEADS_EDIT) && (
                         <select
                           value={lead.status}
+                          disabled={updatingId !== null}
                           onChange={(event) => void updateStatus(lead.id, event.target.value)}
                           className="mt-3 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs"
                         >
@@ -275,7 +329,7 @@ export function LeadsModule() {
         </div>
       </div>
 
-      {!loading && rows.length === 0 && (
+      {!loading && loadedOrganization === organizationId && visibleRows.length === 0 && (
         <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-slate-500">
           <UsersRound className="mx-auto mb-2 h-6 w-6" />
           Crea tu primer lead o recibe uno desde el portal público.
