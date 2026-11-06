@@ -84,6 +84,31 @@ SELECT pg_temp.assert_true(public.process_verified_payment_event(
   'COP','APPROVED','sandbox',repeat('a',64),repeat('c',64))='duplicate',
   'redelivery cannot lengthen paid plan');
 
+-- A new customer that purchases directly NEVER receives or consumes trial days.
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+SELECT set_config('request.jwt.claim.role','authenticated',false);
+UPDATE public.organization_billing_access SET is_test=true
+  WHERE organization_id='20000000-0000-0000-0000-000000000011';
+SELECT public.billing_create_order(
+  '20000000-0000-0000-0000-000000000011',
+  (SELECT id FROM public.plans WHERE code='BASIC'),'sandbox',
+  '70000000-0000-0000-0000-000000000011');
+SELECT set_config('request.jwt.claim.role','service_role',false);
+SELECT pg_temp.assert_true(public.process_verified_payment_event(
+  (SELECT reference FROM public.payment_orders WHERE organization_id='20000000-0000-0000-0000-000000000011'),
+  'signed-fixture-tx-direct-002',
+  (SELECT amount_in_cents FROM public.payment_orders WHERE organization_id='20000000-0000-0000-0000-000000000011'),
+  'COP','APPROVED','sandbox',repeat('d',64),repeat('e',64))='processed',
+  'direct payment is verified and processed without activating any trial');
+SELECT pg_temp.assert_true((SELECT status='ACTIVE' AND trial_ends_at IS NULL
+    AND current_period_start > now()-interval '3 minutes'
+    AND current_period_end > current_period_start+interval '27 days'
+    FROM public.subscriptions WHERE organization_id='20000000-0000-0000-0000-000000000011'),
+    'direct paid plan starts immediately and never adds 8 trial days');
+SELECT pg_temp.assert_true(NOT EXISTS(SELECT 1 FROM private.jco_trial_redemptions
+    WHERE organization_id='20000000-0000-0000-0000-000000000011'),
+    'direct checkout does not create or consume a free trial');
+
 -- Manual perpetuity must be unavailable to an unrelated ordinary owner.
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',false);
 SELECT set_config('request.jwt.claim.role','authenticated',false);
