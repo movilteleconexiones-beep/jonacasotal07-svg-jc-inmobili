@@ -179,6 +179,10 @@ export function UsersRolesModule() {
     setOwners((ownersResult.data ?? []) as OwnerOption[]);
     setPortalLinks((portalLinksResult.data ?? []) as PortalLinkRow[]);
     setLoading(false);
+    return !membersResult.error && !rolesResult.error && !permissionsResult.error &&
+      !invitationsResult.error && invitationsResult.count != null &&
+      invitationsResult.count <= 500 &&
+      (invitationsResult.data ?? []).length === invitationsResult.count;
   }
 
   useEffect(() => {
@@ -279,10 +283,10 @@ export function UsersRolesModule() {
       return;
     }
 
-    await load();
-    setMessage(
-      'Invitación preparada. La persona debe crear o iniciar sesión con ese mismo correo; el sistema asignará automáticamente sus roles.',
-    );
+    const refreshed = await load();
+    setMessage(refreshed
+      ? 'Invitación preparada. La persona debe crear o iniciar sesión con ese mismo correo; el sistema asignará automáticamente sus roles.'
+      : 'Invitación preparada, pero no se pudo verificar el historial actualizado. Pulsa Actualizar antes de reintentar.');
     setShowInvite(false);
     formElement.reset();
     } finally {
