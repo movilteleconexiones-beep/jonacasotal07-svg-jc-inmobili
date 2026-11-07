@@ -1,0 +1,56 @@
+name: INMOJCO #205 new Data API table grants and RLS
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'security/tests/205-data-api-default-grants-pg17.sql'
+      - 'tests/security/205-new-tables-grants.test.mjs'
+      - '.github/workflows/data-api-205-grants.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'security/tests/205-data-api-default-grants-pg17.sql'
+      - 'tests/security/205-new-tables-grants.test.mjs'
+      - '.github/workflows/data-api-205-grants.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: inmojco-205-grants-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  data-api-grants:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject future public tables without deliberate RLS and grants
+        run: node --test tests/security/205-new-tables-grants.test.mjs
+      - name: New-table Data API deny-by-default PostgreSQL 17 check
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_205_only'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_205_only -f security/tests/205-data-api-default-grants-pg17.sql
+      - name: Never link to Supabase or deploy schemas from this workflow
+        run: |
+          set -euo pipefail
+          ! grep -E 'supabase (db push|migration repair)|SUPABASE_SERVICE_ROLE_KEY' .github/workflows/data-api-205-grants.yml
