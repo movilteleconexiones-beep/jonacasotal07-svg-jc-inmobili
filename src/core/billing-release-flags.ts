@@ -8,3 +8,10 @@
  */
 export const trialAndLifetimeActionsEnabled =
   import.meta.env.VITE_BILLING_TRIAL_LIFETIME_ENABLED === 'true';
+
+/**
+ * #254: Lifetime is a separate SuperAdmin-only action. The backend RPC
+ * validates the designated platform owner, active owner acceptance, capacity,
+ * and immutable audit. This does NOT enable the customer eight-day trial.
+ */
+export const manualLifetimeAdminEnabled = true;
