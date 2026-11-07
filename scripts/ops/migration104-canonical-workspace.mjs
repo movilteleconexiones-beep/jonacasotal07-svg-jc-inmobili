@@ -12,6 +12,8 @@ import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildPinnedHistoricalArchive} from './reconstruct-applied-99.mjs';
 import {gitBlobSha} from './finance-migration-gate.mjs';
+import {historicSourceRoot} from './historic-sql-source.mjs';
+import {inspectCutover} from './migration104-cutover-gate.mjs';
 
 const ROOT=realpathSync(fileURLToPath(new URL('../../',import.meta.url)));
 const MIGRATIONS=join(ROOT,'supabase','migrations');
@@ -51,7 +53,16 @@ function getPinned() {
       gitBlobSha(body.sql)!==body.sha || Buffer.byteLength(body.sql)!==body.bytes)
       throw Error('Production history source mismatch');
   }
-  const inventory=inventoryLegacyFiles(readdirSync(MIGRATIONS),ledger);
+  const legacyInventoryRoot=historicSourceRoot(ROOT);
+  const inventory=inventoryLegacyFiles(readdirSync(legacyInventoryRoot),ledger);
+  const activeCount=readdirSync(MIGRATIONS).filter(f=>f.endsWith('.sql')).length;
+  // The 99-file canonical directory needs exactly the original 109 SQL
+  // archived AND the immutable 99-blob contract. The CI-only fixture overlay
+  // remains intentionally 109 files until the workflow exits.
+  if(activeCount===99) {
+    const canonical=inspectCutover();
+    if(!canonical.ok)throw Error('99-file canonical directory corrupted: '+canonical.errors.join('; '));
+  } else if(activeCount!==109)throw Error('Unreviewed active migration file count');
   // Baseline is pinned as of 2026-11-06. Stop if the repository moves.
   if(inventory.localSqlFiles!==109 || inventory.appliedVersions!==99 ||
     inventory.exactVersionMatches!==1 || inventory.localOnly!==108 ||
