@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * #325: Build an isolated 102-step SQL bootstrap candidate from 99 authentic
- * production migration bodies + 3 staging-only historical prerequisites.
+ * #325: Build an isolated 103-step SQL bootstrap candidate from 99 authentic
+ * production migration bodies + 3 staging-only historical prerequisites and 1
+ * separately applied forward CRM migration (100th hosted production version).
  *
  * NEVER writes to supabase/migrations, talks to Supabase, or updates production.
  * An isolated PG17/Supabase preview MUST still validate this candidate before
@@ -87,9 +88,23 @@ export function buildCandidate325() {
     return {version:c.version,name:c.name,sql,kind:'STAGING_ONLY',
       sha:gitBlobSha(sql),bytes:Buffer.byteLength(sql,'utf8'),before:c.before};
   });
-  const all = [...original,...staging].sort((a,b) => a.version.localeCompare(b.version));
+  // The 100th production migration is not part of the frozen 99-body archive.
+  // Pin its exact SQL blob and version separately; never rebaseline the 99.
+  const forwardVersion='20261107072304';
+  const forwardName='website_lead_reuse_event_consent';
+  const forwardFile=realpathSync(resolve(ROOT,'supabase/migrations/'+forwardVersion+'_'+forwardName+'.sql'));
+  const forwardRelative=relative(ROOT,forwardFile);
+  if (!forwardRelative || forwardRelative==='..' || forwardRelative.startsWith('..'+sep))
+    throw Error('Forward CRM migration escapes repository');
+  const forwardSql=readFileSync(forwardFile,'utf8');
+  const forwardSha='c9fdfccf55c2fd8d70da709dd50d1d56de3361d5';
+  if (gitBlobSha(forwardSql)!==forwardSha)
+    throw Error('Applied CRM migration source no longer matches pinned blob');
+  const forward={version:forwardVersion,name:forwardName,sql:forwardSql,kind:'FORWARD_APPLIED',
+    sha:forwardSha,bytes:Buffer.byteLength(forwardSql,'utf8')};
+  const all = [...original,...staging,forward].sort((a,b) => a.version.localeCompare(b.version));
   const ids = new Set(all.map(x=>x.version));
-  if (all.length !== 102 || ids.size !== 102 ||
+  if (all.length !== 103 || ids.size !== 103 ||
       original.some((x,i)=>x.version !== historic.bodies[i].version))
     throw Error('Candidate 102 does not preserve canonical 99 migration identities');
   for (const candidate of staging) {
@@ -101,13 +116,13 @@ export function buildCandidate325() {
   if (all.some(x=>x.version==='20261010222700' || /commercial_plan_permissions/.test(x.name)))
     throw Error('Obsolete commercial price/permission draft must never execute');
   return {ok:true,safeForProduction:false,productionLedgerUntouched:true,
-    authenticOriginals:99,stagingOnly:3,total:102,all};
+    authenticOriginals:99,forwardApplied:1,stagingOnly:3,total:103,all};
 }
 
 export function writeDisposableCandidate325(bundle) {
   if (!bundle?.ok || bundle.safeForProduction !== false ||
-      bundle.authenticOriginals !== 99 || bundle.stagingOnly !== 3 ||
-      bundle.total !== 102 || bundle.all.length !== 102)
+      bundle.authenticOriginals !== 99 || bundle.forwardApplied !== 1 ||
+      bundle.stagingOnly !== 3 || bundle.total !== 103 || bundle.all.length !== 103)
     throw Error('Unreviewed staging bootstrap candidate');
   const dir = mkdtempSync(join(tmpdir(),'inmojco-staging325-NO-PROD-'));
   const migrations = join(dir,'supabase','migrations');
@@ -123,9 +138,9 @@ export function writeDisposableCandidate325(bundle) {
   }
   writeFileSync(join(dir,'STAGING-ONLY-MANIFEST.json'),
     JSON.stringify({safeForProduction:false,doNotMergeWithProduction:true,
-      originalVersions:99,stagingPrerequisites:3,total:102,files},null,2)+'\n',
+      originalVersions:99,forwardApplied:1,stagingPrerequisites:3,total:103,files},null,2)+'\n',
     {flag:'wx',mode:0o600});
-  return {dir,files:102,safeForProduction:false};
+  return {dir,files:103,safeForProduction:false};
 }
 
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
@@ -134,7 +149,7 @@ if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)
     throw Error('Usage: node scripts/ops/staging325-build-bootstrap.mjs [--temporary-staging-only]');
   const candidate=buildCandidate325();
   const result=args.length?writeDisposableCandidate325(candidate):null;
-  console.log(JSON.stringify({ok:true,canonical:99,stagingOnly:3,
-    total:102,safeForProduction:false,
+  console.log(JSON.stringify({ok:true,canonical:99,forwardApplied:1,stagingOnly:3,
+    total:103,safeForProduction:false,
     temporaryDirectory:result?.dir??null},null,2));
 }
