@@ -99,7 +99,7 @@ fi
 CREATE TABLE supabase_migrations.schema_migrations(version text PRIMARY KEY);
 CREATE SCHEMA staging_candidate;
 CREATE TABLE staging_candidate.replayed_versions(version text PRIMARY KEY,
-  kind text NOT NULL CHECK (kind IN (''CANONICAL'',''STAGING_ONLY'')))' >/dev/null
+  kind text NOT NULL)' >/dev/null
 
 success=0
 for row in "${candidates[@]}"; do
