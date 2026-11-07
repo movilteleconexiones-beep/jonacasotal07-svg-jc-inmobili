@@ -1,0 +1,72 @@
+name: G08 PostgREST 14 composite FK join compatibility (isolated)
+on:
+  pull_request:
+    paths:
+      - 'tests/g08-postgrest-embedding.test.mjs'
+      - '.github/workflows/g08-postgrest-embedding.yml'
+      - 'security/tests/g08_scoped_16_relationships_pg17.sql'
+      - 'security/candidates/g08_scoped_16_relationships_REVIEW_ONLY.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgrest-embedding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - name: Checkout precise reviewed SQL candidate
+        uses: actions/checkout@v4
+      - name: Install psql and Node
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 || sudo apt-get install -y -qq postgresql-client
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Materialize tenant constraints in disposable PostgreSQL17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE jco_g08_postgrest'
+          # Only in throwaway CI database; production remains UNMODIFIED.
+          sed 's/^ROLLBACK;$/COMMIT;/' security/tests/g08_scoped_16_relationships_pg17.sql > security/tests/g08_scoped_16_relationships_pg17_ci_only.sql
+          psql -h localhost -U postgres -d jco_g08_postgrest -v ON_ERROR_STOP=1 -f security/tests/g08_scoped_16_relationships_pg17_ci_only.sql
+          psql -h localhost -U postgres -d jco_g08_postgrest -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE web_anon NOLOGIN;
+          GRANT USAGE ON SCHEMA public TO web_anon;
+          GRANT SELECT ON ALL TABLES IN SCHEMA public TO web_anon;
+          SQL
+      - name: Start PostgREST with current composite relationships
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name jco-g08-postgrest --network host \
+            -e PGRST_DB_URI='postgres://postgres:postgres@127.0.0.1:5432/jco_g08_postgrest' \
+            -e PGRST_DB_SCHEMAS=public \
+            -e PGRST_DB_ANON_ROLE=web_anon \
+            -e PGRST_SERVER_PORT=3100 \
+            postgrest/postgrest:v14.18
+          for n in $(seq 1 50); do
+            if curl --fail -sS 'http://127.0.0.1:3100/' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          docker logs jco-g08-postgrest
+          exit 1
+      - name: Query embedding via real PostgREST HTTP (12 cases)
+        run: node --test tests/g08-postgrest-embedding.test.mjs
+      - name: Stop test server
+        if: always()
+        run: docker rm -f jco-g08-postgrest || true
