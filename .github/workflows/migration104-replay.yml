@@ -8,6 +8,8 @@ on:
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
       - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'scripts/ops/staging325-build-bootstrap.mjs'
+      - 'tests/staging325-build-bootstrap.test.mjs'
       - 'tests/migration104-cutover-gate.test.mjs'
       - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
@@ -23,6 +25,8 @@ on:
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
       - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'scripts/ops/staging325-build-bootstrap.mjs'
+      - 'tests/staging325-build-bootstrap.test.mjs'
       - 'tests/migration104-cutover-gate.test.mjs'
       - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
@@ -98,6 +102,11 @@ jobs:
           test "$replay_status" -eq 1
           grep -F 'FAIL: isolated chronological SQL replay at version 20261010232928, after 27 successful original bodies' "$RUNNER_TEMP/pure-replay.log"
           grep -F 'Incomplete consignment migration' "$RUNNER_TEMP/pure-replay.log"
+      - name: Validate exact 102 SQL staging-only bundle without linking Supabase
+        run: |
+          set -euo pipefail
+          node --test tests/staging325-build-bootstrap.test.mjs
+          node scripts/ops/staging325-build-bootstrap.mjs
       - name: Bridge only pinned missing consignment and portal DDL in disposable PG17
         env:
           PGPASSWORD: postgres
