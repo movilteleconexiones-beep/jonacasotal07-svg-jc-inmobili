@@ -64,7 +64,12 @@ archive_dir="$(node -e 'const f=require("node:fs");const x=JSON.parse(f.readFile
 
 # Materialize exactly 102 ordered SQL files in a fresh temporary directory.
 # Every canonical source and the three staging candidates is SHA-verified.
-node scripts/ops/staging325-build-bootstrap.mjs --temporary-staging-only > "$workdir/staging-candidate.json"
+if [[ -f "$RUNNER_TEMP/staging325-candidate.json" ]]; then
+  cp -- "$RUNNER_TEMP/staging325-candidate.json" "$workdir/staging-candidate.json"
+else
+  # Direct execution is allowed only with the canonical 99 migration directory.
+  node scripts/ops/staging325-build-bootstrap.mjs --temporary-staging-only > "$workdir/staging-candidate.json"
+fi
 candidate_dir="$(node - "$workdir/staging-candidate.json" <<'JS'
 const fs=require('node:fs');
 const x=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
