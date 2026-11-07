@@ -15,6 +15,30 @@ SELECT pg_temp.assert_true((SELECT max_users=25 AND max_properties=2000 FROM pub
 SELECT pg_temp.assert_true((SELECT count(*)>0 FROM public.plan_features f
  JOIN public.plans p ON p.id=f.plan_id WHERE p.code='LIFETIME' AND f.enabled AND feature_key LIKE 'permission:%'),
  'lifetime must have entitlement keys');
+-- The draft MUST repair deliberately corrupted pre-existing lifetime catalog.
+-- Check enabled permission and numeric feature_limit parity in BOTH directions.
+SELECT pg_temp.assert_true(NOT EXISTS (
+  (SELECT f.feature_key,f.feature_limit FROM public.plan_features f
+   JOIN public.plans p ON p.id=f.plan_id
+   WHERE p.code='PRO' AND f.enabled AND f.feature_key LIKE 'permission:%'
+   EXCEPT
+   SELECT f.feature_key,f.feature_limit FROM public.plan_features f
+   JOIN public.plans p ON p.id=f.plan_id
+   WHERE p.code='LIFETIME' AND f.enabled AND f.feature_key LIKE 'permission:%')
+  UNION ALL
+  (SELECT f.feature_key,f.feature_limit FROM public.plan_features f
+   JOIN public.plans p ON p.id=f.plan_id
+   WHERE p.code='LIFETIME' AND f.enabled AND f.feature_key LIKE 'permission:%'
+   EXCEPT
+   SELECT f.feature_key,f.feature_limit FROM public.plan_features f
+   JOIN public.plans p ON p.id=f.plan_id
+   WHERE p.code='PRO' AND f.enabled AND f.feature_key LIKE 'permission:%')
+), 'perpetual plan must have exact PRO enabled permission and limit parity');
+SELECT pg_temp.assert_true(NOT EXISTS (
+  SELECT 1 FROM public.plan_features f JOIN public.plans p ON p.id=f.plan_id
+  WHERE p.code='LIFETIME' AND f.feature_key='permission:unapproved_perpetual_export'
+    AND f.enabled
+), 'extra lifetime-only permission cannot survive catalog synchronization');
 -- Verified non-admin owner starts an eight-day trial, not a sandbox purchase.
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
 SELECT set_config('request.jwt.claim.role','authenticated',false);
