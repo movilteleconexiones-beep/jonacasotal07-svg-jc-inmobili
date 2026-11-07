@@ -183,7 +183,8 @@ export default function App() {
   // a second visit to A). A token changes on every tenant navigation.
   const publicInquiryView = React.useRef({ slug: tenantSlug, epoch: 0 });
   publicInquiryView.current = updatePublicInquiryView(publicInquiryView.current, tenantSlug);
-  React.useEffect(() => {
+  // Clear contact and visit PII BEFORE the next public tenant is painted.
+  React.useLayoutEffect(() => {
     // Never carry personally identifying form fields into another agency's
     // public portal, even when a request from the previous portal is in flight.
     setContactName('');
@@ -192,6 +193,7 @@ export default function App() {
     setContactService('Consulta general');
     setContactNotes('');
     setContactTrap('');
+    setScheduledVisitsLog([]);
     setContactSubmitted(false);
     setContactConsent(false);
     setContactError('');
