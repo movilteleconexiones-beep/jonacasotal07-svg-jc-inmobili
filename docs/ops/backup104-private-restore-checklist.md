@@ -12,6 +12,12 @@ Referencias oficiales:
 
 Un backup de base de datos contiene metadatos de Storage, pero **no** los bytes de imágenes/PDF; éstos requieren el respaldo separado. No colocar copias, credenciales, datos de clientes o claves en GitHub, CI, Railway o comentarios.
 
+## Puerta previa: procedencia del respaldo durante la exportación
+
+El exportador local `scripts/inmojco-backup.mjs backup` ahora aplica **la misma comprobación de destino** que `preflight` antes de consultar Storage, usar PostgreSQL o crear el archivo: URL exacta del Supabase activo, pareja válida de `PGHOST` y `PGUSER` (directo o pooler), base `postgres` y TLS obligatorio. Se rechaza expresamente una conexión a otro proyecto cuyo usuario contenga el identificador de INMOJCO; una coincidencia parcial ya no es prueba de procedencia. También se rechazan `PGHOSTADDR` y perfiles `PGSERVICE`/`PGSERVICEFILE` que podrían redirigir libpq, así como puertos distintos de `5432` y `6543`.
+
+Esta comprobación evita una selección accidental de proyecto, **pero no demuestra** la identidad criptográfica del servidor de Supabase ni la integridad del backup auténtico. No desactivar TLS ni introducir credenciales en GitHub, logs o capturas.
+
 ## Paso 1. Inventariar un dump privado sin restaurarlo
 
 Con pg_restore instalado en una estación local de confianza y el archivo **fuera del checkout Git**:

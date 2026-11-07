@@ -17,7 +17,9 @@ import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
-import { preflightOfflineBackup, assertPathOutsideRepository } from './lib/inmojco-backup-preflight.mjs';
+import { preflightOfflineBackup, assertPathOutsideRepository,
+  validateOfflineTarget, validatePostgresConnectionIdentity }
+  from './lib/inmojco-backup-preflight.mjs';
 import { readStorageInventory, verifyStorageCoverage } from './lib/inmojco-storage-inventory.mjs';
 import { FORMAT, deriveBackupKey, sealStream, sealBuffer, openEncrypted,
   openEncryptedBuffer } from './lib/inmojco-encrypted-backup.mjs';
@@ -67,11 +69,12 @@ export async function listStorageObjects(storage, bucket, prefix = '', seen = ne
 }
 
 function assertActivePostgresTarget() {
-  const host = mustHave('PGHOST').toLowerCase();
-  const user = mustHave('PGUSER').toLowerCase();
-  // Refuse to probe or dump any other database, especially the legacy project.
-  if (!host.includes(PROJECT) && !user.includes(PROJECT))
-    throw new Error('Database target does not identify the active INMOJCO Supabase project');
+  // Match the offline preflight's exact host/user/database/SSL gate. The prior
+  // "host OR username contains project ref" check could accept a legacy or
+  // unrelated server with a spoofed username. Fail before any network call.
+  validatePostgresConnectionIdentity({
+    ...process.env, PGSSLMODE: process.env.PGSSLMODE ?? 'require',
+  });
 }
 
 async function encryptedDump(destination, key) {
@@ -219,6 +222,11 @@ async function backup() {
   const passphrase = mustHave('INMOJCO_BACKUP_PASSPHRASE');
   const root = await realpath(localPath('INMOJCO_BACKUP_DIR'));
   outsideRepository(root);
+  // Enforce the same identity rules as `preflight` even when operators run
+  // `backup` directly without first performing the zero-credential check.
+  validateOfflineTarget({
+    ...process.env, PGSSLMODE: process.env.PGSSLMODE ?? 'require',
+  }, root, projectRoot);
   const url = mustHave('SUPABASE_URL').replace(/\/$/, '');
   if (url !== PROJECT_URL) throw new Error('SUPABASE_URL is not the active INMOJCO project');
   const serviceKey = mustHave('SUPABASE_SERVICE_ROLE_KEY');

@@ -16,7 +16,12 @@ const MIN_SPACE_BYTES = 512n * 1024n * 1024n;
 
 function rejection(reason) { return new Error('Backup preflight failed: ' + reason); }
 
-export function validateOfflineTarget(env, directory, repository) {
+/**
+ * Run this same strict identity gate before EVERY real psql/pg_dump call.
+ * PGHOST and PGUSER are a bound pair; seeing the project ref in only one
+ * field is insufficient and could silently export a different database.
+ */
+export function validatePostgresConnectionIdentity(env) {
   if (env.SUPABASE_URL?.replace(/\/$/, '') !== URL)
     throw rejection('wrong Supabase project URL');
   if (env.PGDATABASE !== 'postgres')
@@ -28,12 +33,23 @@ export function validateOfflineTarget(env, directory, repository) {
     && user === 'postgres.' + PROJECT;
   if (!direct && !pooler)
     throw rejection('PostgreSQL host and username must identify the active INMOJCO project');
+  // libpq's PGHOSTADDR can silently redirect the socket to another server
+  // while PGHOST still contains the expected Supabase domain. A service
+  // profile can also introduce hidden connection settings.
+  if (env.PGHOSTADDR || env.PGSERVICE || env.PGSERVICEFILE)
+    throw rejection('implicit PostgreSQL host address or service profile is not allowed');
+  const port = String(env.PGPORT ?? '5432');
+  if (!['5432', '6543'].includes(port))
+    throw rejection('unsupported PostgreSQL port for Supabase');
   if (!['require', 'verify-ca', 'verify-full'].includes(env.PGSSLMODE))
     throw rejection('a secure PostgreSQL SSL mode is required');
+}
+
+export function validateOfflineTarget(env, directory, repository) {
+  validatePostgresConnectionIdentity(env);
   if (!env.INMOJCO_BACKUP_DIR || !directory)
     throw rejection('an existing absolute private backup folder is required');
   assertPathOutsideRepository(repository, directory);
-
 }
 
 /**
