@@ -120,9 +120,8 @@ for row in "${candidates[@]}"; do
   echo "PG17 bridge-assisted chronological probe PASS $success/99 version $version"
 done
 
-# Compare historical reconstructed catalog shape with the live baseline.
-# This diagnostic reports differences; matching is NOT a full-data restoration
-# and drift does not rewrite or repair any production object.
+# Compare current physical metadata against the pinned live production
+# reference. This is a diagnostic, NOT a certification of API, Auth or tenant data.
 for query_kind in consignment portal; do
   if [[ "$query_kind" == consignment ]]; then
     check_sql=security/checks/consignment_restore_shape_fingerprint.sql
@@ -141,32 +140,7 @@ for query_kind in consignment portal; do
   ok="$(awk -F '|' '$3=="OK"{n++} END{print n+0}' "$output_file")"
   echo "CATALOG COMPARISON, NOT GO: $query_kind $ok/$expected_count match production reference"
   if [[ "$ok" != "$expected_count" ]]; then
-    grep -v '|OK
-found="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c
-WHERE c.oid IN (
-  to_regclass('public.organizations'),to_regclass('public.organization_members'),
-  to_regclass('public.profiles'),to_regclass('public.properties'),
-  to_regclass('public.contacts'),to_regclass('public.leads'),
-  to_regclass('public.deals'),to_regclass('public.audit_log')
-) AND c.relkind='r'")"
-if [[ "$found" != "8" ]]; then
-  echo "FAIL: only $found/8 expected physical tables after historical replay" >&2
-  exit 1
-fi
-rls="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c WHERE c.oid IN (
- to_regclass('public.properties'),to_regclass('public.contacts'),
- to_regclass('public.leads'),to_regclass('public.deals'))
- AND c.relrowsecurity")"
-if [[ "$rls" != "4" ]]; then
-  echo "FAIL: only $rls/4 expected tenant RLS tables enabled" >&2
-  exit 1
-fi
-account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
-[[ "$account_count" == "0" ]]
-echo 'PASS: 99/99 SQL sources applied with two synthetic prerequisites on disposable PG17, 8 tables and 4 RLS guards verified; physical checks do not certify Supabase Auth/Storage; #104 still NO-GO; #104 NO-GO'
- "$output_file" || true
+    grep -v '|OK$' "$output_file" || true
   fi
 done
 
