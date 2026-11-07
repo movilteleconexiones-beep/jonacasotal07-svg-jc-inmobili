@@ -21,9 +21,10 @@ const inputs={
 test('#104 DRAFT cutover pins all 99 original applied SQL bodies and preserves 109 sources',()=>{
   const result=inspectCutover();
   assert.equal(result.ok,true,JSON.stringify(result.errors));
-  assert.equal(result.canonicalCount,99);
+  assert.equal(result.canonicalCount,100);
   assert.equal(result.archivedSources,109);
   assert.equal(result.matchedRecordedSql,99);
+  assert.equal(result.verifiedForward,1);
   assert.deepEqual([result.safeToPush,result.safeToRepair,result.readyToMerge],[false,false,false]);
 });
 
