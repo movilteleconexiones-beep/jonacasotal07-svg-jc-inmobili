@@ -133,6 +133,21 @@ for row in "${candidates[@]}"; do
     grep -Fq 'Trusted billing service lost commercial update access' \
       "$workdir/expected-commercial-failure.log" || { echo 'FAIL: wrong ACL denial' >&2; exit 1; }
   fi
+  # Hosted Supabase defaults already grant these business SELECT privileges
+  # and service_role maintenance; the plain PG17 fixture does not. Reproduce
+  # only these known current ACLs, only in disposable PG17, immediately before
+  # checking the exact new MAINTAIN revocation migration. Never alter the SQL.
+  if [[ "$version" == '20261107115138' && "$kind" == 'FORWARD_APPLIED' ]]; then
+    "${psql_cmd[@]}" -q -d "$db" -c \
+      'GRANT SELECT ON TABLE public.contacts,public.leases,public.rent_payments,public.owner_statements TO authenticated;
+       GRANT MAINTAIN ON ALL TABLES IN SCHEMA public TO service_role' > "$workdir/g08-hosted-acl-fixture.log" 2>&1
+    acl_ok="$("${psql_cmd[@]}" -qAt -d "$db" -c \
+      "SELECT has_table_privilege('authenticated','public.contacts','SELECT')
+        AND has_table_privilege('authenticated','public.leases','SELECT')
+        AND has_table_privilege('authenticated','public.rent_payments','SELECT')
+        AND has_table_privilege('authenticated','public.owner_statements','SELECT')")"
+    [[ "$acl_ok" == 't' ]] || { echo 'FAIL: missing hosted SQL SELECT fixture' >&2; exit 1; }
+  fi
   # Fail at the exact version and stop. No production SQL has been invoked.
   if ! "${psql_cmd[@]}" -q -d "$db" -f "$candidate_dir/supabase/migrations/$filename" > "$workdir/step-$version.log" 2>&1; then
     echo "FAIL: isolated chronological SQL replay at version $version, after $success successful original bodies" >&2
