@@ -183,13 +183,15 @@ for query_kind in consignment portal; do
     # version-proof above requires 101 in current production, so only the
     # ledger comparison may differ; every other catalog fingerprint MUST match.
     drift_count="$(awk -F '|' '$3=="DRIFT"{n++} END{print n+0}' "$output_file")"
-    if [[ "$ok" != '9' || "$drift_count" != '1' ]] ||
-       ! grep -Fxq 'MIGRATION_LEDGER|three-unmatched-versions-absent|DRIFT' "$output_file"; then
+    if [[ "$ok" != '8' || "$drift_count" != '2' ]] ||
+       ! grep -Fxq 'COMMERCIAL_PLAN|LIFETIME|DRIFT' "$output_file" ||
+       ! grep -Fxq 'MIGRATION_LEDGER|three-unmatched-versions-absent|DRIFT' "$output_file" ||
+       [[ "$("${psql_cmd[@]}" -qAt -d "$db" -c "SELECT max_users=25 AND max_properties=2000 FROM public.plans WHERE code='LIFETIME'")" != 't' ]]; then
       echo 'FAIL: a physical portal/plan fingerprint changed, not only the obsolete 99-ledger expectation' >&2
       grep -v '|OK$' "$output_file" >&2 || true
       exit 1
     fi
-    echo 'CATALOG COMPARISON: portal 9/9 physical matches; 102 production versions verified independently'
+    echo 'CATALOG COMPARISON: portal 8/10 immutable matches; expected LIFETIME 25/2000 + stale 99-ledger drift explicitly validated'
   elif [[ "$ok" != "$expected_count" ]]; then
     grep -v '|OK$' "$output_file" >&2 || true
     echo "FAIL: isolated $query_kind catalog differs from pinned production reference" >&2
