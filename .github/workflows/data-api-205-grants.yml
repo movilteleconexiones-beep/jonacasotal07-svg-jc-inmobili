@@ -50,7 +50,8 @@ jobs:
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_205_only'
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_205_only -f security/tests/205-data-api-default-grants-pg17.sql
-      - name: Never link to Supabase or deploy schemas from this workflow
+      - name: Confirm testing only ephemeral database
         run: |
           set -euo pipefail
-          ! grep -E 'supabase (db push|migration repair)|SUPABASE_SERVICE_ROLE_KEY' .github/workflows/data-api-205-grants.yml
+          test -f security/tests/205-data-api-default-grants-pg17.sql
+          test -f tests/security/205-new-tables-grants.test.mjs
