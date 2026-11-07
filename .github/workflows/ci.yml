@@ -45,7 +45,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Production CI source contract regression
         run: node --test tests/main-ci-deploy-contract.test.mjs
-      - name: Build and verify 102-file staging-only candidate before legacy fixture overlay
+      - name: Build and verify 103-file staging-only candidate before legacy fixture overlay
         run: |
           set -euo pipefail
           node --test tests/staging325-build-bootstrap.test.mjs
