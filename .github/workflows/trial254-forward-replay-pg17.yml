@@ -1,0 +1,52 @@
+name: INMOJCO #254 trial lifetime candidate full PG17 replay
+on:
+  pull_request:
+    paths:
+      - 'security/candidates/20261107_trial_lifetime_capacity_forward.NOT_APPLIED.sql'
+      - 'security/tests/chronological_pg17_capacity_258.sh'
+      - '.github/workflows/trial254-forward-replay-pg17.yml'
+      - 'tests/trial254-forward-capacity-contract.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'security/candidates/20261107_trial_lifetime_capacity_forward.NOT_APPLIED.sql'
+      - 'security/tests/chronological_pg17_capacity_258.sh'
+      - '.github/workflows/trial254-forward-replay-pg17.yml'
+      - 'tests/trial254-forward-capacity-contract.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  trial-lifetime-105:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      JCO_STAGE_TRIAL254: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Trial candidate static contract
+        run: node --test tests/trial254-forward-capacity-contract.test.mjs
+      - name: Replay full 104 migrations then stage candidate 105 on disposable PG17
+        run: bash security/tests/chronological_pg17_capacity_258.sh
+      - name: Confirm NOT deployed to the canonical production migration folder
+        run: |
+          set -euo pipefail
+          test ! -f supabase/migrations/20261107_trial_lifetime_capacity_forward.sql
+          test -f security/candidates/20261107_trial_lifetime_capacity_forward.NOT_APPLIED.sql
