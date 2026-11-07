@@ -59,7 +59,7 @@ BEGIN
   END IF;
   -- A tenant lock serializes initial trial, checkout state, and owner acceptance.
   PERFORM 1 FROM public.organizations
-   WHERE id=target_org AND status='ACTIVE' FOR UPDATE;
+   WHERE id=target_org AND status IN ('ACTIVE','INACTIVE') FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Organization is not eligible' USING ERRCODE='23514';
   END IF;
