@@ -54,3 +54,18 @@ test('#104: all 24 production-catalog fingerprints are strict CI assertions afte
  assert.match(bridge,/if \[\[ "\$ok" != "\$expected_count" \]\]; then\n[\s\S]*?exit 1/);
  assert.match(bridge,/\[\[ "\$account_count" == "0" \]\]/);
 });
+
+test('#325: third Supabase branch dependency must fail before local-only ACL repair',()=>{
+ assert.match(bridge,/version" == '20261031032350'/);
+ assert.match(bridge,/REVOKE UPDATE ON TABLE public\.organizations FROM service_role/);
+ assert.match(bridge,/has_column_privilege\('service_role','public\.organizations','plan_id','UPDATE'\)/);
+ assert.match(bridge,/service_update" != 'f'/);
+ assert.match(bridge,/canonical migration incorrectly passed without service_role UPDATE/);
+ assert.match(bridge,/Trusted billing service lost commercial update access/);
+ assert.match(bridge,/GRANT UPDATE ON TABLE public\.organizations TO service_role/);
+ assert.match(bridge,/service_update" != 't'/);
+ assert.match(bridge,/BRIDGE: verified third missing staging ACL and repaired ONLY disposable PG17/);
+ assert.ok(bridge.indexOf('REVOKE UPDATE ON TABLE public.organizations FROM service_role') <
+           bridge.indexOf('GRANT UPDATE ON TABLE public.organizations TO service_role'));
+ assert.doesNotMatch(bridge,/supabase migration repair|supabase db push|SUPABASE_DB_URL|DATABASE_URL/);
+});
