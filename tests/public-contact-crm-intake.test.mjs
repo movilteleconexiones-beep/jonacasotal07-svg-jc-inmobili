@@ -100,5 +100,5 @@ test('CRM submit refuses rapid duplicate clicks and warns on uncertain response'
  assert.match(handler,/const useReplaySafeCrm = import\.meta\.env\.VITE_PUBLIC_CRM_IDEMPOTENT === 'true'/);
  assert.match(handler,/useReplaySafeCrm\s*\? await supabase\.rpc\('submit_public_website_lead_once'/);
  assert.match(handler,/: await supabase\.rpc\('submit_public_website_lead', inquiry\)/);
- assert.match(handler,/if \(useReplaySafeCrm\) clearPublicInquiryAttempt\(tenantSlug\)/);
+ assert.match(handler,/if \(useReplaySafeCrm\) clearPublicInquiryAttempt\(submittedTenantSlug\)/);
 });
