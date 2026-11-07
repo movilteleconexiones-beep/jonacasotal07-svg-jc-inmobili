@@ -107,9 +107,9 @@ test('new trial and lifetime UI must fail closed until SQL + release are authori
   const flag=read('src/core/billing-release-flags.ts');
   assert.match(flag,/import\.meta\.env\.VITE_BILLING_TRIAL_LIFETIME_ENABLED === 'true'/);
   assert.match(billing,/canStartTrial = trialAndLifetimeActionsEnabled &&/);
-  assert.match(billing,/if \(!trialAndLifetimeActionsEnabled\)/);
+  assert.match(billing,/if \(!trialAndLifetimeActionsEnabled \|\| settings\?\.production_enabled !== true\)/);
   // Manual lifetime has a separate, server-authorized release switch.
-  // The customer's eight-day trial is still OFF until its own SQL is deployed.
+  // The customer's eight-day trial is still OFF until Wompi LIVE and the UI release gate are approved.
   assert.match(flag,/export const manualLifetimeAdminEnabled = true/);
   assert.match(admin,/manualLifetimeAdminEnabled && <option value="GRANT_LIFETIME">/);
   assert.match(admin,/action === 'GRANT_LIFETIME' && !manualLifetimeAdminEnabled/);
