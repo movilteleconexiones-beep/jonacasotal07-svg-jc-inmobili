@@ -87,6 +87,11 @@ jobs:
           fi
           grep -q '^NO-GO:' "$RUNNER_TEMP/migration-no-go.log"
           grep -q 'Do not run db push' "$RUNNER_TEMP/migration-no-go.log"
+      - name: Finance #96 reversible end-to-end tenant contract regression
+        run: |
+          # The hosted SQL rehearsal runs only on the designated isolated test
+          # agency, explicitly inside BEGIN/ROLLBACK, never from CI against prod.
+          node --test tests/finance-test-tenant-e2e-96.test.mjs
       - name: Contact identity, shared mailbox and single-flight regressions
         run: node --import tsx --test tests/contact-create-single-flight.test.mjs tests/contact-identity-match.test.mjs
       - name: npm audit security gate (reject any published vulnerability)
