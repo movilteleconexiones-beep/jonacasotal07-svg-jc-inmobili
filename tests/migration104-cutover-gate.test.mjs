@@ -5,7 +5,7 @@ import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {checkCutover,inspectCutover} from '../scripts/ops/migration104-cutover-gate.mjs';
 
-const root=fileURLToPath(new URL('../..',import.meta.url));
+const root=fileURLToPath(new URL('..',import.meta.url));
 const archiveDir=resolve(root,'docs/ops/archive/legacy-sql-20261107');
 const canonicalDir=resolve(root,'supabase/migrations');
 const json=path=>JSON.parse(readFileSync(resolve(root,path),'utf8'));
