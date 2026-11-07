@@ -52,6 +52,8 @@ jobs:
           node scripts/ops/staging325-build-bootstrap.mjs
       - name: G08 production MAINTAIN privilege migration immutability
         run: node --test tests/g08-public-api-maintain-revocation.test.mjs
+      - name: G08 tenant FK applied SQL immutability and scope
+        run: node --test tests/g08-maintenance-tenant-fk-release-gate.test.mjs
       - name: G08 maintenance/property tenant FK and cascade regression (isolated PG17)
         env:
           PGPASSWORD: postgres
