@@ -130,7 +130,7 @@ BEGIN
     SET allowed_permissions=permissions, updated_at=now()
     WHERE organization_id=target_org;
   UPDATE public.organizations
-    SET plan_id=target_plan,updated_at=now()
+    SET status='ACTIVE',plan_id=target_plan,updated_at=now()
     WHERE id=target_org;
   INSERT INTO public.audit_log(organization_id,actor_user_id,action,entity_type,entity_id,metadata)
     VALUES(target_org,actor,'billing.trial_started','organization',target_org,
