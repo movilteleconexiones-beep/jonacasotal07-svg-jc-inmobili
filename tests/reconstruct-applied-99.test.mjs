@@ -40,7 +40,9 @@ test('#104: 5 previously non-byte-exact sources are archived, not silently norma
  const leading=mapped.get('20261005053050').sql;
  assert.ok(leading.startsWith('\n'));
  const trailing=mapped.get('20261011002448').sql;
- assert.ok(!trailing.endsWith('\n'));
+ const localTrailing=readFileSync(new URL('../supabase/migrations/20261011000300_independent_owner_trial_entitlements.sql',import.meta.url),'utf8');
+ assert.ok(localTrailing.endsWith('\n'));
+ assert.equal(trailing,localTrailing.slice(0,-1));
  const consolidated=mapped.get('20261012070133');
  assert.equal(consolidated.bytes,28005);
 });
