@@ -28,6 +28,9 @@ test('G08 full browser login: 5 separated authenticated identities/tenants/role 
    const password='G08qa-'+md5(user.uid+'g08-stage-20261107').slice(0,24);
    await page.locator('input[type=password]').fill(password);
    await page.locator('form').getByRole('button',{name:'Iniciar sesión'}).click();
+   // Wait for AuthProvider to commit the real Supabase session; navigating before
+   // signIn resolves aborts the auth request and leaves the user anonymous.
+   await page.getByRole('button',{name:'Salir',exact:true}).first().waitFor({state:'visible',timeout:15000});
    // Public root is intentionally never replaced by backoffice on login.
    await page.goto(origin+'/app',{waitUntil:'domcontentloaded',timeout:20000});
    if(user.portalOnly){
