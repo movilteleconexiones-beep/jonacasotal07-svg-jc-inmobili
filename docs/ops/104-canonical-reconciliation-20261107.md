@@ -42,6 +42,18 @@ El usuario ya realizó en su equipo una recuperación del dump de PostgreSQL del
 
 Se debe usar esa evidencia existente **en el equipo del propietario**, sin subir archivos, contraseñas ni documentos privados a GitHub/CI. El control del PR #316 puede inspeccionar un dump aparte y consultar una restauración, siempre con base de pruebas identificada y sin redirecciones a producción.
 
+## Verificación de la restauración ya hecha (solo en el PC del propietario)
+
+No repetir el respaldo ni modificar la restauración: el issue #214 certifica una restauración auténtica local de noviembre de 2026. Tras descargar el repositorio del PR, en PowerShell de Windows y **con el servidor local PG17 ya encendido**, ejecutar:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\ops\inmojco104-verify-existing-restore.ps1
+```
+
+El verificador apunta exclusivamente a `127.0.0.1:5433/inmojco_restore_test_3`, solicita la contraseña **local** (no la de Supabase), fija transacciones de solo lectura, compara las 99 parejas versión/nombre contra el ledger archivado y cuenta únicamente tablas/Auth/Storage/FK. Se niega a continuar si el servidor/versión/base/dirección no son los esperados. No lee emails, nombres, inmuebles, rutas de Storage o contenidos, ni usa `pg_restore`.
+
+Solo guarda `%USERPROFILE%\INMOJCO-RESPALDOS\RESULTADO-104-CATALOGO-LOCAL.json`. **Ese JSON resumido, no los .dump/.7z ni contraseñas, es el resultado que se puede aportar para finalizar esta comprobación.** El ensayo de login real, Storage API y aislamiento operativo corresponde al issue #203 y no se simula con este script.
+
 ## Puertas de cierre verificables
 
 1. Correlacionar la copia auténtica existente y restauración local con la base actual mediante pruebas read-only, incluyendo inventario de Auth/Storage y rollback. No exigir duplicar copias innecesarias.
