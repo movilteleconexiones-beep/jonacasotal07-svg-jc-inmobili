@@ -1,0 +1,29 @@
+name: INMOJCO G07 hosted Edge HTTP safety smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g07-consignment-photo-edge-http.test.mjs'
+      - '.github/workflows/g07-edge-runtime-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inmojco-g07-http-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  negative-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout commit under test
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm live Edge API rejects invalid uploads and denied origins
+        run: node --test tests/g07-consignment-photo-edge-http.test.mjs
