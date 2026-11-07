@@ -18,7 +18,21 @@ permissions:
 jobs:
   offline-negative-controls:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 6
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,3 +49,28 @@ jobs:
           set -e
           test "$status" -eq 2
           grep -q '^Usage:' "$RUNNER_TEMP/backup-refusal.log"
+
+      - name: Verify a real PostgreSQL 17 custom-format archive with only synthetic rows
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE backup104_toc_fixture"
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d backup104_toc_fixture <<'SQL'
+          CREATE SCHEMA auth;
+          CREATE SCHEMA storage;
+          CREATE SCHEMA supabase_migrations;
+          CREATE TABLE auth.users(id integer PRIMARY KEY);
+          CREATE TABLE storage.objects(id integer PRIMARY KEY);
+          CREATE TABLE supabase_migrations.schema_migrations(version text PRIMARY KEY);
+          CREATE TABLE public.properties(id integer PRIMARY KEY);
+          INSERT INTO auth.users VALUES (1);
+          INSERT INTO storage.objects VALUES (1);
+          INSERT INTO supabase_migrations.schema_migrations VALUES ('fixture-only');
+          INSERT INTO public.properties VALUES (1);
+          SQL
+          pg_dump -h 127.0.0.1 -U postgres -d backup104_toc_fixture \
+            --no-password --format=custom --file="$RUNNER_TEMP/backup104-synthetic.dump"
+          node scripts/ops/backup104-restore-gate.mjs \
+            --archive "$RUNNER_TEMP/backup104-synthetic.dump" > "$RUNNER_TEMP/backup104-result.json"
+          node -e "const f=require('fs');const r=JSON.parse(f.readFileSync(process.env.RUNNER_TEMP+'/backup104-result.json','utf8'));if(!r.complete||r.checks.length!==4||r.restorationVerified||r.provenanceVerified||r.productionMigrationAuthorized)process.exit(2)"
