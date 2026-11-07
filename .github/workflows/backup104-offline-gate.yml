@@ -69,8 +69,18 @@ jobs:
           INSERT INTO supabase_migrations.schema_migrations VALUES ('fixture-only');
           INSERT INTO public.properties VALUES (1);
           SQL
-          pg_dump -h 127.0.0.1 -U postgres -d backup104_toc_fixture \
-            --no-password --format=custom --file="$RUNNER_TEMP/backup104-synthetic.dump"
-          node scripts/ops/backup104-restore-gate.mjs \
+          # The runner defaults to a v16 client; PG17 server must use PG17
+          # pg_dump AND pg_restore. Reuse the disposable service container.
+          db_container="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n 1)"
+          test -n "$db_container"
+          docker exec -i "$db_container" pg_dump -U postgres \
+            -d backup104_toc_fixture --no-password --format=custom \
+            > "$RUNNER_TEMP/backup104-synthetic.dump"
+          mkdir -p "$RUNNER_TEMP/backup104-pg17-client"
+          printf '#!/bin/sh\\nexec docker exec -i %s pg_restore --list < "$2"\\n' \
+            "$db_container" > "$RUNNER_TEMP/backup104-pg17-client/pg_restore"
+          chmod 700 "$RUNNER_TEMP/backup104-pg17-client/pg_restore"
+          PATH="$RUNNER_TEMP/backup104-pg17-client:$PATH" \
+            node scripts/ops/backup104-restore-gate.mjs \
             --archive "$RUNNER_TEMP/backup104-synthetic.dump" > "$RUNNER_TEMP/backup104-result.json"
           node -e "const f=require('fs');const r=JSON.parse(f.readFileSync(process.env.RUNNER_TEMP+'/backup104-result.json','utf8'));if(!r.complete||r.checks.length!==4||r.restorationVerified||r.provenanceVerified||r.productionMigrationAuthorized)process.exit(2)"
