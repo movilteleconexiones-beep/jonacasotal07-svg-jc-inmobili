@@ -38,6 +38,9 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
       setMessage('Este plan no tiene permisos comerciales configurados. Debe revisarse el catálogo antes de autorizar acceso.');
       return;
     }
+    if (action === 'GRANT_LIFETIME' && !window.confirm(
+      `¿Confirmas conceder la licencia perpetua a ${tenant.organization_name}?\n\nEsta autorización no tiene vencimiento ni realiza un cobro por Wompi. Conserva los límites de usuarios e inmuebles y quedará registrada en auditoría. Para suspender el acceso deberá utilizarse una acción administrativa independiente.`
+    )) return;
     setBusy(true); setMessage('');
     const { error } = await supabase.rpc('billing_admin_action', {
       target_org: tenant.organization_id,
