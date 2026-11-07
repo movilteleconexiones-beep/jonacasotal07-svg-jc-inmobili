@@ -108,8 +108,13 @@ test('new trial and lifetime UI must fail closed until SQL + release are authori
   assert.match(flag,/import\.meta\.env\.VITE_BILLING_TRIAL_LIFETIME_ENABLED === 'true'/);
   assert.match(billing,/canStartTrial = trialAndLifetimeActionsEnabled &&/);
   assert.match(billing,/if \(!trialAndLifetimeActionsEnabled\)/);
-  assert.match(admin,/trialAndLifetimeActionsEnabled && <option value="GRANT_LIFETIME">/);
-  assert.match(admin,/action === 'GRANT_LIFETIME' && !trialAndLifetimeActionsEnabled/);
+  // Manual lifetime has a separate, server-authorized release switch.
+  // The customer's eight-day trial is still OFF until its own SQL is deployed.
+  assert.match(flag,/export const manualLifetimeAdminEnabled = true/);
+  assert.match(admin,/manualLifetimeAdminEnabled && <option value="GRANT_LIFETIME">/);
+  assert.match(admin,/action === 'GRANT_LIFETIME' && !manualLifetimeAdminEnabled/);
+  assert.match(read('security/candidates/20261107_personal_lifetime_admin_ONLY.NOT_APPLIED.sql'),
+    /auth\\.uid\\(\\) IS DISTINCT FROM 'f738897b-46df-4c38-9887-5b20c0ff8946'/);
   // A browser release switch is defense-in-depth, NEVER a substitute for
   // the owner/SuperAdmin checks performed by SECURITY DEFINER RPCs.
   assert.match(flag,/NOT a security/);
