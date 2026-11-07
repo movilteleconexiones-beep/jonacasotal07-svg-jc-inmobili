@@ -57,6 +57,12 @@ BEGIN
   IF actor IS NULL OR NOT jco_private.billing_owner(target_org) THEN
     RAISE EXCEPTION 'Permission denied' USING ERRCODE='42501';
   END IF;
+  -- Never launch an eight-day trial before the customer can purchase a real plan.
+  -- VITE_* browser feature flags cannot protect this privileged RPC.
+  IF NOT EXISTS (SELECT 1 FROM public.billing_activation_settings
+                 WHERE id=true AND production_enabled IS TRUE) THEN
+    RAISE EXCEPTION 'Eight-day trial not released yet' USING ERRCODE='42501';
+  END IF;
   -- A tenant lock serializes initial trial, checkout state, and owner acceptance.
   PERFORM 1 FROM public.organizations
    WHERE id=target_org AND status IN ('ACTIVE','INACTIVE') FOR UPDATE;
