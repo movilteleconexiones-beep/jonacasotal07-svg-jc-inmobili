@@ -195,3 +195,46 @@ SELECT pg_temp.assert(NOT public.has_org_permission(
  'unpaid second agency stays gated');
 SELECT pg_temp.assert((SELECT NOT production_enabled FROM public.billing_activation_settings),
  'Wompi LIVE always disabled in rehearsal');
+
+-- #68: suspend the first agency's OWNER role AFTER a valid sandbox activation.
+-- A paid subscription must not bypass current owner authorization.
+-- All rows and requests below are synthetic inside disposable PostgreSQL 17.
+UPDATE public.roles
+SET active=false
+WHERE key='ORGANIZATION_OWNER'
+  AND organization_id=(SELECT id FROM public.organizations WHERE slug='empresa-integracion-a');
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+SELECT pg_temp.assert(NOT jco_private.billing_owner(
+  (SELECT id FROM public.organizations WHERE slug='empresa-integracion-a')),
+  'revoked owner cannot manage billing despite an active paid subscription');
+DO $revoke_checkout$
+DECLARE denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.billing_create_order(
+      (SELECT id FROM public.organizations WHERE slug='empresa-integracion-a'),
+      (SELECT id FROM public.plans WHERE code='BASIC'),
+      'sandbox','70000000-0000-0000-0000-000000000098'::uuid);
+  EXCEPTION WHEN insufficient_privilege THEN denied:=true;
+  END;
+  IF NOT denied THEN RAISE EXCEPTION
+    'E2E FAILED: revoked owner was allowed to create a new payment order';
+  END IF;
+END $revoke_checkout$;
+SELECT pg_temp.assert((SELECT count(*)=1 FROM public.payment_orders),
+  'revoked owner cannot create duplicate checkout or change the approved order');
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',false);
+SELECT pg_temp.assert(jco_private.billing_owner(
+  (SELECT id FROM public.organizations WHERE slug='empresa-integracion-b')),
+  'revoking A owner cannot strip B owner in another tenant');
+UPDATE public.roles
+SET active=true
+WHERE key='ORGANIZATION_OWNER'
+  AND organization_id=(SELECT id FROM public.organizations WHERE slug='empresa-integracion-a');
+SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+SELECT pg_temp.assert(jco_private.billing_owner(
+  (SELECT id FROM public.organizations WHERE slug='empresa-integracion-a')),
+  'independently authorized owner role recovers after explicit restoration');
+SELECT pg_temp.assert((SELECT NOT production_enabled FROM public.billing_activation_settings),
+  'revocation rehearsal never enables Wompi production');
+
