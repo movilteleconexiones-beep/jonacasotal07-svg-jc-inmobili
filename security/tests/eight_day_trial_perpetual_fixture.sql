@@ -12,6 +12,24 @@ UPDATE auth.users SET email_confirmed_at=now() WHERE id IN (
  '10000000-0000-0000-0000-000000000001',
  '10000000-0000-0000-0000-000000000002',
  '10000000-0000-0000-0000-000000000003');
+-- Deliberately corrupted LIFETIME preconfiguration to prove the draft repairs
+-- partial quotas, stale feature limits, disabled PRO rights and foreign rights.
+UPDATE public.plans SET max_users=2,max_properties=NULL WHERE code='LIFETIME';
+INSERT INTO public.plan_features(plan_id,feature_key,enabled,feature_limit)
+SELECT l.id,p.feature_key,false,999
+FROM public.plans l CROSS JOIN LATERAL (
+  SELECT feature_key FROM public.plan_features
+  WHERE plan_id=(SELECT id FROM public.plans WHERE code='PRO')
+    AND enabled=true AND feature_key LIKE 'permission:%'
+  ORDER BY feature_key LIMIT 1
+) p
+WHERE l.code='LIFETIME'
+ON CONFLICT(plan_id,feature_key) DO UPDATE SET
+  enabled=false,feature_limit=999;
+INSERT INTO public.plan_features(plan_id,feature_key,enabled,feature_limit)
+SELECT id,'permission:unapproved_perpetual_export',true,NULL
+FROM public.plans WHERE code='LIFETIME'
+ON CONFLICT(plan_id,feature_key) DO UPDATE SET enabled=true;
 -- fixture plans already have IDs and permissions from commercial migration.
 INSERT INTO public.organizations(id,name,slug) VALUES
  ('20000000-0000-0000-0000-000000000010','Trial A','trial-2026-10'),
