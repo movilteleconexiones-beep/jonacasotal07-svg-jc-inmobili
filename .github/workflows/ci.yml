@@ -61,6 +61,13 @@ jobs:
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g08_scoped_16'
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_scoped_16 -f security/tests/g08_scoped_16_relationships_pg17.sql
+      - name: G08 ownership tenant link trigger and parent reassignment guard (isolated PG17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g08_ownership_guard'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_ownership_guard -f security/tests/g08_ownership_tenant_guard_pg17.sql
       - name: G08 maintenance/property tenant FK and cascade regression (isolated PG17)
         env:
           PGPASSWORD: postgres
