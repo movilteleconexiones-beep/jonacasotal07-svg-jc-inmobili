@@ -35,7 +35,7 @@ test('#254 lifetime is non-expiring only with approved terms and capacity checks
 
 test('#254 stays out of canonical production migrations and replays 104 baseline first',()=>{
   const names=readdirSync(new URL('../supabase/migrations/',import.meta.url));
-  assert.equal(names.filter(n=>n.endsWith('.sql')).length,101);
+  assert.equal(names.filter(n=>n.endsWith('.sql')).length,102);
   assert.ok(!names.some(n=>/trial_lifetime_capacity_forward|eight_day_trial_manual_lifetime/.test(n)));
   assert.match(runner,/JCO_STAGE_TRIAL254/);
   assert.match(runner,/PASS: pinned #258 forward migration/);

@@ -45,7 +45,7 @@ jobs:
           node-version: '22'
       - name: Prove UI and RPC scope
         run: node --test tests/manual-lifetime-owner-only-254.test.mjs
-      - name: Replay 104 SQL then verify lifetime-only v102 in disposable PG17
+      - name: Replay 105 SQL then verify lifetime-only v102 in disposable PG17
         run: bash security/tests/chronological_pg17_capacity_258.sh
       - name: Ensure candidate not in canonical production migrations
         run: |

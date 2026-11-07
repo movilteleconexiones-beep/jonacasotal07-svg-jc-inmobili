@@ -73,7 +73,7 @@ fi
 candidate_dir="$(node - "$workdir/staging-candidate.json" <<'JS'
 const fs=require('node:fs');
 const x=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-if(!x.ok || x.canonical!==99 || x.forwardApplied!==2 || x.stagingOnly!==3 || x.total!==104 ||
+if(!x.ok || x.canonical!==99 || x.forwardApplied!==3 || x.stagingOnly!==3 || x.total!==105 ||
    x.safeForProduction!==false ||
    !x.temporaryDirectory?.startsWith('/tmp/inmojco-staging325-NO-PROD-'))
   process.exit(5);
@@ -84,8 +84,8 @@ mapfile -t candidates < <(node - "$candidate_dir/STAGING-ONLY-MANIFEST.json" <<'
 const fs=require('node:fs');
 const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
 if(m.safeForProduction!==false||m.doNotMergeWithProduction!==true||
-   m.originalVersions!==99||m.forwardApplied!==2||m.stagingPrerequisites!==3||m.total!==104||
-   m.files.length!==104)process.exit(6);
+   m.originalVersions!==99||m.forwardApplied!==3||m.stagingPrerequisites!==3||m.total!==105||
+   m.files.length!==105)process.exit(6);
 for(const row of m.files) {
  if(!/^[0-9]{14}_[a-z0-9_]+\.sql$/.test(row.name)||
     !['CANONICAL','STAGING_ONLY','FORWARD_APPLIED'].includes(row.kind))process.exit(7);
@@ -93,8 +93,8 @@ for(const row of m.files) {
 }
 JS
 )
-if [[ "${#candidates[@]}" != 104 ]]; then
-  echo 'ERROR: staging bootstrap must contain precisely 104 pinned files' >&2
+if [[ "${#candidates[@]}" != 105 ]]; then
+  echo 'ERROR: staging bootstrap must contain precisely 105 pinned files' >&2
   exit 1
 fi
 
@@ -146,7 +146,7 @@ for row in "${candidates[@]}"; do
     "${psql_cmd[@]}" -q -d "$db" -c \
       "INSERT INTO supabase_migrations.schema_migrations(version) VALUES ('$version')" >/dev/null
   fi
-  echo "PG17 104-step staging-only candidate replay PASS $success/104 version $version $kind"
+  echo "PG17 105-step staging-only candidate replay PASS $success/105 version $version $kind"
 done
 
 # Confirm the staging proposal contains 104 successful steps while the
@@ -155,8 +155,8 @@ counts="$("${psql_cmd[@]}" -qAt -d "$db" -c "
 SELECT (SELECT count(*) FROM staging_candidate.replayed_versions),
        (SELECT count(*) FROM staging_candidate.replayed_versions WHERE kind='STAGING_ONLY'),
        (SELECT count(*) FROM supabase_migrations.schema_migrations)")"
-if [[ "$counts" != '104|3|101' ]]; then
-  echo "FAIL: 104/3/101 candidate/reference migration proof mismatch: $counts" >&2
+if [[ "$counts" != '105|3|102' ]]; then
+  echo "FAIL: 105/3/102 candidate/reference migration proof mismatch: $counts" >&2
   exit 1
 fi
 
@@ -203,13 +203,15 @@ for query_kind in consignment portal; do
     # version-proof above requires 101 in current production, so only the
     # ledger comparison may differ; every other catalog fingerprint MUST match.
     drift_count="$(awk -F '|' '$3=="DRIFT"{n++} END{print n+0}' "$output_file")"
-    if [[ "$ok" != '9' || "$drift_count" != '1' ]] ||
-       ! grep -Fxq 'MIGRATION_LEDGER|three-unmatched-versions-absent|DRIFT' "$output_file"; then
+    if [[ "$ok" != '8' || "$drift_count" != '2' ]] ||
+       ! grep -Fxq 'COMMERCIAL_PLAN|LIFETIME|DRIFT' "$output_file" ||
+       ! grep -Fxq 'MIGRATION_LEDGER|three-unmatched-versions-absent|DRIFT' "$output_file" ||
+       [[ "$("${psql_cmd[@]}" -qAt -d "$db" -c "SELECT max_users=25 AND max_properties=2000 FROM public.plans WHERE code='LIFETIME'")" != 't' ]]; then
       echo 'FAIL: a physical portal/plan fingerprint changed, not only the obsolete 99-ledger expectation' >&2
       grep -v '|OK$' "$output_file" >&2 || true
       exit 1
     fi
-    echo 'CATALOG COMPARISON: portal 9/9 physical matches; 101 production versions verified independently'
+    echo 'CATALOG COMPARISON: portal 8/10 immutable matches; expected LIFETIME 25/2000 + stale 99-ledger drift explicitly validated'
   elif [[ "$ok" != "$expected_count" ]]; then
     grep -v '|OK$' "$output_file" >&2 || true
     echo "FAIL: isolated $query_kind catalog differs from pinned production reference" >&2
@@ -243,14 +245,14 @@ if [[ "$rls" != "4" ]]; then
 fi
 account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
 [[ "$account_count" == "0" ]]
-echo 'PASS: all 104 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 2 forward SQL); catalog 14/14 consignment + 9/9 portal + 101 ledger; hosted Supabase bootstrap still NOT certified'
+echo 'PASS: all 105 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 3 forward SQL); catalog 14/14 consignment + 9/9 portal + 102 ledger; hosted Supabase bootstrap still NOT certified'
 # #254: optional isolated forward-only candidate AFTER the fully verified
-# 104-step historical replay. NEVER writes a production migration ledger.
+# 105-step historical replay. NEVER writes a production migration ledger.
 if [[ "${JCO_STAGE_TRIAL254:-}" == "true" ]]; then
   candidate=security/candidates/20261107_trial_lifetime_capacity_forward.NOT_APPLIED.sql
   test -f "$candidate" || { echo 'FAIL: missing trial candidate'; exit 1; }
   if ! "${psql_cmd[@]}" -q -d "$db" -f "$candidate" > "$workdir/trial-forward.log" 2>&1; then
-    echo 'FAIL: #254 8-day/lifetime forward candidate incompatible with authentic 104-step schema' >&2
+    echo 'FAIL: #254 8-day/lifetime forward candidate incompatible with authentic 105-step schema' >&2
     tail -n 40 "$workdir/trial-forward.log" >&2
     exit 1
   fi
@@ -266,7 +268,7 @@ SELECT
   pg_get_functiondef('public.process_verified_payment_event(text,text,bigint,text,text,text,text,text)'::regprocedure))>0,
  position('jco_private.plan_capacity_fits(target_org,target_plan_id)' in
   pg_get_functiondef('public.platform_set_subscription(uuid,text,text,text)'::regprocedure))>0,
- (SELECT count(*) FROM supabase_migrations.schema_migrations)=101
+ (SELECT count(*) FROM supabase_migrations.schema_migrations)=102
   ")"
   [[ "$proof" == 't|t|t|t|t|t|t|t' ]] || { echo "FAIL: capacity/trial/ACL regression: $proof"; exit 1; }
   echo 'PASS: #254 8-day/lifetime forward SQL + preserved 3 capacity guards; disposable PG17 ONLY'
@@ -293,7 +295,7 @@ SELECT
  NOT has_function_privilege('anon','public.billing_admin_action(uuid,text,text,uuid)','EXECUTE'),
  has_function_privilege('authenticated','public.billing_admin_action(uuid,text,text,uuid)','EXECUTE'),
  to_regprocedure('public.billing_start_eight_day_trial(uuid,uuid)') IS NULL,
- (SELECT count(*) FROM supabase_migrations.schema_migrations)=101
+ (SELECT count(*) FROM supabase_migrations.schema_migrations)=102
   ")"
   [[ "$manual_proof" == 't|t|t|t|t|t|t|t|t|t' ]] || { echo "FAIL: lifetime v102 regression $manual_proof" >&2; exit 1; }
   echo 'PASS: isolated SuperAdmin-only perpetual plan; trial and Wompi unchanged, 3 v101 capacity guards held'
