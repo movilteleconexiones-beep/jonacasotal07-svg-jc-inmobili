@@ -92,15 +92,124 @@ test('financial network failures release buttons and retain receipt retry identi
   for(const method of ['createContract','activateContract','createPeriod']) {
     const section=main.slice(main.indexOf('async function '+method), main.indexOf('async function '+({createContract:'activateContract',activateContract:'createPeriod',createPeriod:'recordReceipt'}[method])));
     assert.match(section,/catch\s*\{/);
-    assert.match(section,/finally\s*\{\s*setBusy\(false\)/);
+    assert.match(section,/finally\s*\{\s*(?:rentMutationInFlight\.current=false;\s*)?setBusy\(false\)/);
   }
   assert.match(owner,/Falló la conexión al consultar contratos y pagos/);
   assert.match(owner,/finally\s*\{\s*if\(!cancelled\) setLoading\(false\)/);
   assert.match(owner,/No se confirmó la creación de la liquidación/);
-  assert.match(owner,/finally\s*\{\s*setBusy\(false\)/);
+  assert.match(owner,/finally\s*\{\s*settlementInFlight\.current=false;\s*setBusy\(false\)/);
   for(const operation of ['submit','changeStatus','reconcileStatement']) {
     const section=deductions.slice(deductions.indexOf('async function '+operation));
     assert.match(section,/catch\s*\{/);
-    assert.match(section,/finally\s*\{\s*setSaving\(false\)/);
+    assert.match(section,/finally\s*\{\s*ownerMutationInFlight\.current=false;\s*setSaving\(false\)/);
+  }
+});
+
+
+test('contract draft double-submit lock and database duplicate message',()=>{
+  const section=main.slice(main.indexOf('async function createContract('),main.indexOf('async function correctDraft('));
+  assert.match(main,/const contractSubmissionInFlight=useRef\(false\)/);
+  assert.match(section,/if\(!contractAllowed\|\|busy\|\|contractSubmissionInFlight\.current\|\|rentMutationInFlight\.current\)return/);
+  const locked=section.indexOf('contractSubmissionInFlight.current=true');
+  const preflight=section.indexOf("await Promise.all(");
+  const insert=section.indexOf(".from('leases').insert(");
+  assert.ok(locked>0 && locked<preflight && preflight<insert,
+    'synchronous lock must precede preflight and insert');
+  assert.match(section,/failure\?\.code==='23505'/);
+  assert.match(section,/failure\.message\.includes\('leases_one_open_contract_per_property'\)/);
+  assert.match(section,/Busca y corrige el existente en lugar de crear otro/);
+  const duplicateMessage=section.slice(section.indexOf("failure?.code==='23505'"),section.indexOf('} else {',section.indexOf("failure?.code==='23505'")));
+  assert.doesNotMatch(duplicateMessage,/setRevision\(/,'duplicate message must not disappear on a refresh');
+  assert.match(section,/finally\s*\{\s*setBusy\(false\);\s*contractSubmissionInFlight\.current=false;\s*rentMutationInFlight\.current=false/);
+});
+
+test('all six rent and contract mutations acquire the SAME synchronous lock before awaiting', () => {
+  assert.match(main, /const rentMutationInFlight=useRef\(false\)/);
+
+  const boundaries = [
+    ['createContract','correctDraft'],
+    ['correctDraft','cancelDraft'],
+    ['cancelDraft','activateContract'],
+    ['activateContract','createPeriod'],
+    ['createPeriod','recordReceipt'],
+    ['recordReceipt',null],
+  ];
+  for (const [handler,next] of boundaries) {
+    const start=main.indexOf('async function '+handler+'(');
+    const stop=next
+      ? main.indexOf('async function '+next+'(',start)
+      : main.indexOf('const active=leases.filter',start);
+    assert.ok(start>=0 && stop>start,'Missing function boundary '+handler);
+    const body=main.slice(start,stop);
+    const guard=body.indexOf('rentMutationInFlight.current');
+    const acquired=body.indexOf('rentMutationInFlight.current=true;',guard);
+    const awaited=body.indexOf('await ',acquired);
+    const released=body.indexOf('rentMutationInFlight.current=false;',awaited);
+    assert.ok(guard>=0 && acquired>guard && awaited>acquired,
+      handler+' must guard and acquire before starting the first async operation');
+    assert.ok(released>awaited,handler+' must release after the awaited operation');
+    assert.match(body,/finally\s*\{[\s\S]*?rentMutationInFlight\.current=false;/,
+      handler+' must release the shared lock on all paths, including failure and return');
+  }
+});
+
+test('fast repeated financial submits are rejected without generating a second receipt request', () => {
+  const start=main.indexOf('async function recordReceipt(');
+  const end=main.indexOf('const active=leases.filter',start);
+  const receipt=main.slice(start,end);
+  const earlyGuard=receipt.indexOf('if(!paymentAllowed||busy||rentMutationInFlight.current)return;');
+  const requestKey=receipt.indexOf('pendingReceiptRequest.current={fingerprint,key:crypto.randomUUID()}');
+  const acquired=receipt.indexOf('rentMutationInFlight.current=true;');
+  const upload=receipt.indexOf('await validateRentReceiptEvidence(file)');
+  const ledger=receipt.indexOf("await supabase.rpc('record_tenant_rent_receipt'");
+  assert.ok(earlyGuard>=0 && earlyGuard<requestKey && requestKey<acquired &&
+    acquired<upload && acquired<ledger,
+  'second fast event must be rejected BEFORE generating/uploading a receipt');
+  assert.match(receipt,/request_key:request\.key/);
+  assert.match(receipt,/pendingReceiptRequest\.current=null;/);
+  assert.match(receipt,/finally\s*\{\s*rentMutationInFlight\.current=false;\s*setBusy\(false\);/);
+});
+
+test('creating a draft owner settlement holds a synchronous lock across its RPC',()=>{
+  assert.match(owner,/const settlementInFlight=useRef\(false\)/);
+  const start=owner.indexOf('async function save(');
+  const end=owner.indexOf('return <section',start);
+  assert.ok(start>0&&end>start);
+  const body=owner.slice(start,end);
+  const guard=body.indexOf('if(!permitted||busy||settlementInFlight.current||!organizationId)return;');
+  const confirm=body.indexOf('window.confirm(',guard);
+  const checkAgain=body.indexOf('if(settlementInFlight.current)return;',confirm);
+  const locked=body.indexOf('settlementInFlight.current=true;',checkAgain);
+  const write=body.indexOf("await supabase.rpc('create_owner_draft_statement_by_percentage'",locked);
+  const release=body.indexOf('settlementInFlight.current=false;',write);
+  assert.ok(guard>=0&&confirm>guard&&checkAgain>confirm&&locked>checkAgain&&
+    write>locked&&release>write,'duplicate draft should be rejected before RPC');
+  assert.match(body,/finally\s*\{\s*settlementInFlight\.current=false;\s*setBusy\(false\)/);
+  assert.match(body,/Consulta los registros antes de reintentar para evitar duplicados/);
+});
+
+test('all owner deductions, approvals and reconciliation mutations share one synchronous lock',()=>{
+  assert.match(deductions,/const ownerMutationInFlight=useRef\(false\)/);
+  const handlers=[
+    ['submit','changeStatus',"await supabase.from('owner_statement_deductions').insert("],
+    ['changeStatus','restoreVoidedDeduction',"await supabase.from('owner_statement_deductions')"],
+    ['restoreVoidedDeduction','reconcileStatement',"await supabase.rpc('restore_voided_owner_deduction'"],
+    ['reconcileStatement','revertStatement',"await supabase.rpc('reconcile_owner_draft_statement_audited'"],
+    ['revertStatement',null,"await supabase.rpc('revert_owner_draft_reconciliation'"],
+  ];
+  for(const [name,next,writePattern] of handlers){
+    const start=deductions.indexOf('async function '+name+'(');
+    const end=next?deductions.indexOf('async function '+next+'(',start)
+      :deductions.indexOf('const approvedOwnerOther=',start);
+    assert.ok(start>=0&&end>start,'handler boundaries: '+name);
+    const body=deductions.slice(start,end);
+    const entryGuard=body.indexOf('ownerMutationInFlight.current');
+    const locked=body.indexOf('ownerMutationInFlight.current=true;',entryGuard);
+    const write=body.indexOf(writePattern,locked);
+    const last=body.lastIndexOf('ownerMutationInFlight.current=false;');
+    assert.ok(entryGuard>=0&&locked>entryGuard&&write>locked&&last>write,
+      'lock must serialize async write in '+name);
+    assert.match(body,/finally\s*\{\s*ownerMutationInFlight\.current=false;\s*setSaving\(false\)/,
+      'lock must release on success or error in '+name);
   }
 });

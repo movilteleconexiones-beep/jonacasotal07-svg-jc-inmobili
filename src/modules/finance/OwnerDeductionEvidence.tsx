@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { FileText, Paperclip, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { validateSignedLeasePdf } from '../../core/signed-lease-pdf';
+import { isExistingStorageObjectError } from '../../core/storage-existing-object';
 import {
   DEDUCTION_PROOF_BUCKET, deductionProofKind, deductionProofPrefix,
   type DeductionProofDocument, type DeductionProofKind,
@@ -29,12 +30,16 @@ export async function uploadDeductionEvidence(args: {
   category: string;
   kind: DeductionProofKind;
   file: File;
+  // UUID retained for exact retries of a previously uncertain upload.
+  uploadId?: string;
 }): Promise<string | null> {
   const validation = await validateSignedLeasePdf(args.file);
   if (validation) return validation;
 
+  if (args.uploadId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(args.uploadId))
+    return 'Identificador de carga inválido. No se guardó ningún documento.';
   const path = deductionProofPrefix(args.organizationId, args.deductionId, args.kind)
-    + crypto.randomUUID() + '.pdf';
+    + (args.uploadId ?? crypto.randomUUID()) + '.pdf';
   try {
     const { error: uploadError } = await supabase.storage.from(DEDUCTION_PROOF_BUCKET)
       .upload(path, args.file, {
@@ -42,7 +47,32 @@ export async function uploadDeductionEvidence(args: {
         contentType: 'application/pdf',
         cacheControl: '0',
       });
-    if (uploadError) return 'No se pudo subir ' + LABELS[args.kind] + ': ' + uploadError.message;
+    if (uploadError) {
+      if (args.uploadId && isExistingStorageObjectError(uploadError)) {
+        // A timeout can occur AFTER both the object and its documents row
+        // committed. On an exact retry, a 409 is expected. Recover only when
+        // the private metadata row exists in this tenant for this deduction
+        // and the identical storage path; never fabricate a successful upload.
+        const {data:existing,error:checkError} = await supabase.from('documents')
+          .select('id')
+          .eq('organization_id', args.organizationId)
+          .eq('entity_type', 'GENERAL')
+          .eq('entity_id', args.deductionId)
+          .eq('document_type', 'INVOICE')
+          .eq('storage_bucket', DEDUCTION_PROOF_BUCKET)
+          .eq('storage_path', path)
+          .eq('uploaded_by', args.userId)
+          .maybeSingle();
+        if (!checkError && existing?.id) return null;
+        // If the file exists but no matching document is readable, fail
+        // closed: it may be orphaned or the lookup may lack permission.
+        // Do NOT delete, overwrite or insert a second metadata row here.
+        return 'El archivo privado ya existe, pero no se confirmó su vínculo con esta deducción. ' +
+          'Actualiza la lista de soportes y solicita revisión al administrador; no vuelvas a cargarlo.';
+      }
+      return 'No se pudo confirmar la carga de ' + LABELS[args.kind] + ': ' + uploadError.message +
+        '. Si el archivo ya existe, consulta los soportes antes de intentar una nueva carga.';
+    }
 
     const { error: metadataError } = await supabase.from('documents').insert({
       organization_id: args.organizationId,
@@ -58,10 +88,12 @@ export async function uploadDeductionEvidence(args: {
       uploaded_by: args.userId,
     });
     if (metadataError) {
-      const { error: cleanupError } = await supabase.storage.from(DEDUCTION_PROOF_BUCKET)
-        .remove([path]);
-      return 'No se pudo vincular ' + LABELS[args.kind] + ': ' + metadataError.message +
-        (cleanupError ? '. Revisa con el administrador el archivo privado pendiente.' : '');
+      // The metadata insert may have committed even when the response reports
+      // a network failure. Deleting Storage here would destroy a valid link.
+      // Keep the scoped object for exact-path recovery or admin reconciliation.
+      return 'No se pudo confirmar el vínculo de ' + LABELS[args.kind] + ': ' +
+        metadataError.message + '. Actualiza los soportes antes de reintentar; ' +
+        'si no aparece, solicita revisión al administrador.';
     }
     return null;
   } catch {
@@ -85,8 +117,21 @@ export function OwnerDeductionEvidence({
   const [documents, setDocuments] = useState<DeductionProofDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  // React state updates do not synchronously block a second submit event.
+  const uploadInFlight = useRef(false);
+  // Preserve UUIDs for an identical selection if Storage/metadata returned an
+  // uncertain result: upsert:false then blocks a second physical PDF object.
+  const pendingUpload = useRef<{
+    fingerprint: string;
+    ids: Partial<Record<DeductionProofKind,string>>;
+    confirmed: Partial<Record<DeductionProofKind,true>>;
+  } | null>(null);
   const [revision, setRevision] = useState(0);
   const [message, setMessage] = useState('');
+  // Invalidate pending signed-URL responses immediately on tenant/document switch.
+  const evidenceScope = organizationId + ':' + deductionId + ':' + userId + ':' + canRead;
+  const currentEvidenceScope = useRef(evidenceScope);
+  currentEvidenceScope.current = evidenceScope;
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +169,7 @@ export function OwnerDeductionEvidence({
 
   async function submitEvidence(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canUpload || !userId || busy) return;
+    if (!canUpload || !userId || busy || uploadInFlight.current) return;
     const form = event.currentTarget;
     const invoice = (form.elements.namedItem('invoice_pdf') as HTMLInputElement | null)?.files?.[0];
     const payment = (form.elements.namedItem('payment_pdf') as HTMLInputElement | null)?.files?.[0];
@@ -133,6 +178,12 @@ export function OwnerDeductionEvidence({
     if (payment) selected.push({ kind: 'payment', file: payment });
     if (!selected.length) { setMessage('Selecciona una factura o un comprobante de pago en PDF.'); return; }
 
+    uploadInFlight.current = true;
+    const fingerprint = JSON.stringify([organizationId, deductionId, category, userId,
+      ...selected.map(({kind,file}) => [kind,file.name,file.size,file.lastModified,file.type])]);
+    if (pendingUpload.current?.fingerprint !== fingerprint)
+      pendingUpload.current = {fingerprint, ids:{}, confirmed:{}};
+    const attempt = pendingUpload.current;
     setBusy(true);
     setMessage('');
     try {
@@ -142,35 +193,48 @@ export function OwnerDeductionEvidence({
       }
       const failures: string[] = [];
       for (const item of selected) {
+        // On a partial success, do not try to upload an already-linked PDF again.
+        if (attempt.confirmed[item.kind]) continue;
+        const uploadId = attempt.ids[item.kind] ?? crypto.randomUUID();
+        attempt.ids[item.kind] = uploadId;
         const error = await uploadDeductionEvidence({
           organizationId, deductionId, category, userId,
-          kind: item.kind, file: item.file,
+          kind: item.kind, file: item.file, uploadId,
         });
         if (error) failures.push(error);
+        else attempt.confirmed[item.kind] = true;
       }
       if (failures.length) setMessage(failures.join(' ') +
         ' Si algún archivo ya figura en la lista, no vuelvas a subirlo.');
-      else { form.reset(); setMessage('PDF guardados como soportes privados de esta deducción.'); }
+      else {
+        pendingUpload.current = null;
+        form.reset();
+        setMessage('PDF guardados como soportes privados de esta deducción.');
+      }
       setRevision(previous => previous + 1);
     } catch {
       setMessage('No se confirmó el resultado de la carga. Revisa los archivos antes de reintentar.');
       setRevision(previous => previous + 1);
     } finally {
+      uploadInFlight.current = false;
       setBusy(false);
     }
   }
 
   async function openEvidence(document: DeductionProofDocument) {
+    const requestedScope = currentEvidenceScope.current;
     if (!canRead || !deductionProofKind(document, organizationId, deductionId)) return;
     try {
       const { data, error } = await supabase.storage.from(DEDUCTION_PROOF_BUCKET)
         .createSignedUrl(document.storage_path, 60);
+      if (currentEvidenceScope.current !== requestedScope) return;
       if (error || !data?.signedUrl) {
         setMessage('No fue posible abrir el soporte. Revisa tus permisos de documentos.');
         return;
       }
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
     } catch {
+      if (currentEvidenceScope.current !== requestedScope) return;
       setMessage('No se pudo generar el enlace privado del PDF.');
     }
   }

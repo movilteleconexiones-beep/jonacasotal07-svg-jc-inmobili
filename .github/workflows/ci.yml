@@ -806,6 +806,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f supabase/migrations/20261029090000_rental_draft_correction_and_duplicates.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -f security/tests/rental_draft_duplicates_assertions.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_rental_draft_safety_test -Atqc "SELECT count(*) FROM public.audit_log" | grep -qx 0
+          bash security/tests/jco_concurrent_lease_pdf_race.sh
 
       - name: Rental draft edit and signed PDF duplicate UI regression
         run: node --test tests/rental-draft-duplicate-control.test.mjs
@@ -820,6 +821,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -f security/tests/owner_payout_end_to_end_assertions.sql
           # Every test action is inside a rolled-back transaction.
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_owner_payout_e2e_test -Atqc "SELECT COUNT(*) FROM public.owner_statement_payouts" | grep -qx 0
+          bash security/tests/jco_concurrent_owner_payout_race.sh
 
       - name: Owner statement issuance authorization regression
         run: node --test tests/owner-statement-issuance.test.mjs
