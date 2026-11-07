@@ -272,3 +272,29 @@ SELECT
   echo 'PASS: #254 8-day/lifetime forward SQL + preserved 3 capacity guards; disposable PG17 ONLY'
 fi
 
+
+# #254: isolated manual-only lifetime grant with strict designated SuperAdmin.
+if [[ "${JCO_STAGE_MANUAL_LIFETIME254:-}" == 'true' ]]; then
+  lifetime_candidate=security/candidates/20261107_personal_lifetime_admin_ONLY.NOT_APPLIED.sql
+  test -f "$lifetime_candidate" || { echo 'Missing manual lifetime source' >&2; exit 1; }
+  if ! "${psql_cmd[@]}" -q -d "$db" -f "$lifetime_candidate" > "$workdir/manual-lifetime.log" 2>&1; then
+    echo 'FAIL: SuperAdmin lifetime candidate failed full historical PostgreSQL 17 replay' >&2
+    tail -n 50 "$workdir/manual-lifetime.log" >&2
+    exit 1
+  fi
+  manual_proof="$("${psql_cmd[@]}" -qAt -d "$db" -c "
+SELECT
+ (SELECT max_users=25 AND max_properties=2000 FROM public.plans WHERE code='LIFETIME'),
+ (SELECT count(*)>0 FROM public.plan_features f JOIN public.plans p ON f.plan_id=p.id WHERE p.code='LIFETIME' AND f.enabled AND f.feature_key LIKE 'permission:%'),
+ position('GRANT_LIFETIME' in pg_get_functiondef('public.billing_admin_action(uuid,text,text,uuid)'::regprocedure))>0,
+ position('f738897b-46df-4c38-9887-5b20c0ff8946' in pg_get_functiondef('public.billing_admin_action(uuid,text,text,uuid)'::regprocedure))>0,
+ position('jco_private.plan_capacity_fits(target_org,target_plan)' in pg_get_functiondef('public.billing_admin_action(uuid,text,text,uuid)'::regprocedure))>0,
+ position('jco_private.plan_capacity_fits(org.id,payment.plan_id)' in pg_get_functiondef('public.process_verified_payment_event(text,text,bigint,text,text,text,text,text)'::regprocedure))>0,
+ NOT has_function_privilege('anon','public.billing_admin_action(uuid,text,text,uuid)','EXECUTE'),
+ has_function_privilege('authenticated','public.billing_admin_action(uuid,text,text,uuid)','EXECUTE'),
+ to_regprocedure('public.billing_start_eight_day_trial(uuid,uuid)') IS NULL,
+ (SELECT count(*) FROM supabase_migrations.schema_migrations)=101
+  ")"
+  [[ "$manual_proof" == 't|t|t|t|t|t|t|t|t|t' ]] || { echo "FAIL: lifetime v102 regression $manual_proof" >&2; exit 1; }
+  echo 'PASS: isolated SuperAdmin-only perpetual plan; trial and Wompi unchanged, 3 v101 capacity guards held'
+fi
