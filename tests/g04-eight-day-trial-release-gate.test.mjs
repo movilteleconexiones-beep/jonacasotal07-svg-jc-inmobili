@@ -63,7 +63,7 @@ test('G04: hostile SQL replay test is self-contained and always rolls back', () 
 test('G04: user-facing trial button is disabled until server opens live checkout', () => {
   assert.match(billingUI, /trialAndLifetimeActionsEnabled && settings\?\.production_enabled === true/);
   assert.match(billingUI, /if \(!trialAndLifetimeActionsEnabled \|\| settings\?\.production_enabled !== true\)/);
-  assert.match(billingUI, /if \(isTrial\)/);
+  assert.match(billingUI, /\{isTrial &&/);
   assert.match(billingUI, /Probar gratis 8 días/);
   assert.match(billingUI, /checkout\(plan.id\)/);
 });
