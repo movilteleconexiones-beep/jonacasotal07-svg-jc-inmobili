@@ -54,6 +54,13 @@ jobs:
         run: node --test tests/g08-public-api-maintain-revocation.test.mjs
       - name: G08 tenant FK applied SQL immutability and scope
         run: node --test tests/g08-maintenance-tenant-fk-release-gate.test.mjs
+      - name: G08 Agenda CRM consignments commissions tenant boundaries (16 relationships, isolated PG17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g08_scoped_16'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_scoped_16 -f security/tests/g08_scoped_16_relationships_pg17.sql
       - name: G08 maintenance/property tenant FK and cascade regression (isolated PG17)
         env:
           PGPASSWORD: postgres
