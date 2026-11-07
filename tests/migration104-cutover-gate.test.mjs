@@ -21,10 +21,10 @@ const inputs={
 test('#104 DRAFT cutover pins all 99 original applied SQL bodies and preserves 109 sources',()=>{
   const result=inspectCutover();
   assert.equal(result.ok,true,JSON.stringify(result.errors));
-  assert.equal(result.canonicalCount,100);
+  assert.equal(result.canonicalCount,101);
   assert.equal(result.archivedSources,109);
   assert.equal(result.matchedRecordedSql,99);
-  assert.equal(result.verifiedForward,1);
+  assert.equal(result.verifiedForward,2);
   assert.deepEqual([result.safeToPush,result.safeToRepair,result.readyToMerge],[false,false,false]);
 });
 
@@ -36,7 +36,11 @@ test('#104 DRAFT cutover rejects altered canonical SQL and lost historical sourc
   const forward='20261107072304_website_lead_reuse_event_consent.sql';
   const tamperedForward=checkCutover({...inputs,getCanonical:n=>n===forward?Buffer.from('SELECT 1;'):inputs.getCanonical(n)});
   assert.equal(tamperedForward.ok,false);
-  assert.match(tamperedForward.errors.join(';'),/forward CRM migration differs/);
+  assert.match(tamperedForward.errors.join(';'),/forward migration differs/);
+  const capacity='20261107082410_guard_plan_capacity_verified_review.sql';
+  const badCapacity=checkCutover({...inputs,getCanonical:n=>n===capacity?Buffer.from('SELECT 1;'):inputs.getCanonical(n)});
+  assert.equal(badCapacity.ok,false);
+  assert.match(badCapacity.errors.join(';'),/forward migration differs/);
   const missing=checkCutover({...inputs,legacyFiles:inputs.legacyFiles.filter(n=>!n.endsWith('.sql'))});
   assert.equal(missing.ok,false);
   assert.match(missing.errors.join(';'),/archive incomplete/);
