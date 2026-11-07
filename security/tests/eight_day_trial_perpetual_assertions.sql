@@ -221,10 +221,54 @@ SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.audit_log
  WHERE organization_id='20000000-0000-0000-0000-000000000012'
  AND action='billing.admin_grant_lifetime' AND actor_user_id='10000000-0000-0000-0000-000000000003'),
  'manual perpetual operation has SuperAdmin audit actor');
+-- Repeating a successful grant must not reset the historic license start,
+-- create an additional audit success or silently alter an irreversible term.
+DO $duplicate_lifetime$
+BEGIN
+  BEGIN
+    PERFORM public.billing_admin_action(
+      '20000000-0000-0000-0000-000000000012','GRANT_LIFETIME',
+      'Accidental duplicate perpetual action must be rejected',
+      (SELECT id FROM public.plans WHERE code='LIFETIME'));
+    RAISE EXCEPTION 'FAIL: duplicate lifetime grant accepted';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'Perpetual license already active' THEN RAISE; END IF;
+  END;
+END $duplicate_lifetime$;
+SELECT pg_temp.assert_true(
+  (SELECT count(*)=1 FROM public.audit_log
+   WHERE organization_id='20000000-0000-0000-0000-000000000012'
+     AND action='billing.admin_grant_lifetime'),
+  'duplicate grant must not generate a second success audit');
 SELECT public.billing_admin_action(
   '20000000-0000-0000-0000-000000000012','SUSPEND',
   'Synthetic revoke of active infinite license',NULL);
 SELECT pg_temp.assert_true(NOT jco_private.operational_access('20000000-0000-0000-0000-000000000012'),
  'suspension supersedes perpetual duration');
+-- A perpetual grant cannot be used to unsuspend an organization; a
+-- separate explicit and audited reactivation procedure must authorize it.
+DO $blocked_unsuspend$
+BEGIN
+  BEGIN
+    PERFORM public.billing_admin_action(
+      '20000000-0000-0000-0000-000000000012','GRANT_LIFETIME',
+      'Unauthorised attempt to reverse manual suspension with perpetual grant',
+      (SELECT id FROM public.plans WHERE code='LIFETIME'));
+    RAISE EXCEPTION 'FAIL: perpetual grant reversed a suspension';
+  EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'Suspended organization requires separate reactivation' THEN RAISE; END IF;
+  END;
+END $blocked_unsuspend$;
+SELECT pg_temp.assert_true(
+  (SELECT status='SUSPENDED' FROM public.organizations
+   WHERE id='20000000-0000-0000-0000-000000000012')
+  AND NOT jco_private.operational_access('20000000-0000-0000-0000-000000000012'),
+  'suspended tenant remains blocked after rejected lifetime regrant');
+SELECT pg_temp.assert_true(
+  (SELECT count(*)=1 FROM public.audit_log
+   WHERE organization_id='20000000-0000-0000-0000-000000000012'
+     AND action='billing.admin_grant_lifetime'),
+  'rejected unsuspension must not add successful lifetime audit');
+
 SELECT pg_temp.assert_true((SELECT NOT production_enabled FROM public.billing_activation_settings),
  'no Wompi production activation');
