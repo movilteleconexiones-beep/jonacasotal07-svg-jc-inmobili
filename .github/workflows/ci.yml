@@ -63,6 +63,10 @@ jobs:
           # CI is offline, not a claim of live-schema replay or migration approval.
           node --test tests/unmatched-three-live-baseline.test.mjs
           node scripts/ops/unmatched-three-live-baseline-gate.mjs
+          # Rebuild all 99 *original* applied SQL bodies, in exact ledger order.
+          # Never execute the archive or copy it into supabase/migrations.
+          node --test tests/reconstruct-applied-99.test.mjs
+          node scripts/ops/reconstruct-applied-99.mjs
           # Every release must still explicitly refuse migration replay while
           # snapshot and repository are divergent. Do not invert exit 2 into GO.
           set +e
