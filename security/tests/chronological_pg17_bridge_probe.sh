@@ -115,6 +115,43 @@ for row in "${candidates[@]}"; do
     fi
     echo "BRIDGE: added locally pinned SQL outside the 99-ledger before $version (NOT proof of production origin)"
   fi
+  # #325: Supabase preview branches do NOT inherit default public grants.
+  # The older disposable Auth stub grants ALL to service_role, which masked
+  # the third real staging failure on the final commercial ACL migration.
+  # Prove the unprivileged replay fails first; then apply the missing grant
+  # ONLY inside this disposable PG17 database and replay the same original SQL.
+  if [[ "$version" == '20261031032350' ]]; then
+    "${psql_cmd[@]}" -q -d "$db" -c \
+      'REVOKE UPDATE ON TABLE public.organizations FROM service_role' \
+      > "$workdir/service-role-revoke.log" 2>&1
+    service_update="$("${psql_cmd[@]}" -qAt -d "$db" -c \
+      "SELECT has_column_privilege('service_role','public.organizations','plan_id','UPDATE')")"
+    if [[ "$service_update" != 'f' ]]; then
+      echo 'FAIL: synthetic branch cannot reproduce restricted service_role UPDATE' >&2
+      exit 1
+    fi
+    if "${psql_cmd[@]}" -q -d "$db" -f "$archive_dir/readonly-sql/$filename" \
+       > "$workdir/expected-service-role-denial.log" 2>&1; then
+      echo 'FAIL: canonical migration incorrectly passed without service_role UPDATE' >&2
+      exit 1
+    fi
+    if ! grep -Fq 'Trusted billing service lost commercial update access' \
+       "$workdir/expected-service-role-denial.log"; then
+      echo 'FAIL: third staging dependency produced an unexpected error' >&2
+      tail -n 15 "$workdir/expected-service-role-denial.log" >&2
+      exit 1
+    fi
+    "${psql_cmd[@]}" -q -d "$db" -c \
+      'GRANT UPDATE ON TABLE public.organizations TO service_role' \
+      > "$workdir/service-role-bridge.log" 2>&1
+    service_update="$("${psql_cmd[@]}" -qAt -d "$db" -c \
+      "SELECT has_column_privilege('service_role','public.organizations','plan_id','UPDATE')")"
+    if [[ "$service_update" != 't' ]]; then
+      echo 'FAIL: isolated bridge did not restore trusted commercial UPDATE' >&2
+      exit 1
+    fi
+    echo 'BRIDGE: verified third missing staging ACL and repaired ONLY disposable PG17'
+  fi
   # Fail at the exact version and stop. No production SQL has been invoked.
   if ! "${psql_cmd[@]}" -q -d "$db" -f "$archive_dir/readonly-sql/$filename"         > "$workdir/step-$version.log" 2>&1; then
     echo "FAIL: isolated chronological SQL replay at version $version, after $success successful original bodies" >&2
