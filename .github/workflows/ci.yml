@@ -95,6 +95,8 @@ jobs:
           node --test tests/finance-owner-payout-hosted-96.test.mjs
       - name: Contact identity, shared mailbox and single-flight regressions
         run: node --import tsx --test tests/contact-create-single-flight.test.mjs tests/contact-identity-match.test.mjs
+      - name: CRM public lead irreversible-write safety guard (#281)
+        run: node --test tests/crm-public-lead-e2e-281.test.mjs
       - name: npm audit security gate (reject any published vulnerability)
         run: |
           npm audit --json > "$RUNNER_TEMP/inmojco-audit.json" || true
