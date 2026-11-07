@@ -6,6 +6,7 @@ import { resolve, relative, sep, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { gitBlobSha } from './finance-migration-gate.mjs';
+import { historicSqlFile } from './historic-sql-source.mjs';
 import { verifyPinnedMigrationSources } from './migration-source-parity-gate.mjs';
 
 const root = realpathSync(fileURLToPath(new URL('../..', import.meta.url)));
@@ -24,7 +25,9 @@ function readPinnedSource(path) {
   if (typeof path !== 'string' ||
       !/^(?:supabase\/migrations|docs\/ops\/snapshots)\/[A-Za-z0-9_.-]+$/.test(path))
     throw new Error('Unreviewed historical SQL path');
-  const absolute = realpathSync(resolve(root, path));
+  const absolute = realpathSync(path.startsWith('supabase/migrations/')
+    ? historicSqlFile(root,path.slice('supabase/migrations/'.length))
+    : resolve(root,path));
   const rel = relative(root, absolute);
   if (!rel || rel === '..' || rel.startsWith('..' + sep))
     throw new Error('Historical SQL source escapes repository');
