@@ -59,7 +59,7 @@ test('#104: query is strictly read-only, checks privileges, live portal definiti
  assert.match(q,/c\.relrowsecurity/);
  assert.match(q,/p\.current_sha=p\.predicate_sha/);
  assert.match(q,/20261010212630.*20261010214633.*20261010222700/s);
- assert.match(c,/security/i);
+ assert.match(c,/relrowsecurity/);
  assert.match(q,/99/);
  assert.match(q,/ORDER BY component,identifier;/);
 });
