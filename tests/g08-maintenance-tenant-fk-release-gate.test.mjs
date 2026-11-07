@@ -25,6 +25,6 @@ test('G08: local PG17 fixture rejects cross-tenant INSERT/UPDATE and preserves c
  assert.match(pg17,/Foreign-tenant INSERT was accepted/);
  assert.match(pg17,/Foreign-tenant UPDATE was accepted/);
  assert.match(pg17,/ON DELETE CASCADE behavior changed/);
- assert.match(pg17,/^BEGIN;/);
+ assert.match(pg17,/^(?:--[^\n]*\n|\s)*BEGIN;/);
  assert.match(pg17,/ROLLBACK;\s*$/);
 });
