@@ -69,6 +69,9 @@ jobs:
           # Never execute the archive or copy it into supabase/migrations.
           node --test tests/reconstruct-applied-99.test.mjs
           node scripts/ops/reconstruct-applied-99.mjs
+          # #325: 99 historic migrations + 3 staged prerequisites, NO production SQL.
+          node --test tests/staging325-build-bootstrap.test.mjs
+          node scripts/ops/staging325-build-bootstrap.mjs
           # Every release must still explicitly refuse migration replay while
           # snapshot and repository are divergent. Do not invert exit 2 into GO.
           set +e
