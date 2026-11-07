@@ -28,6 +28,17 @@ const merchantConfigured =
   publicKey.startsWith('pub_prod_') &&
   eventsSecret.startsWith('prod_events_') &&
   integritySecret.startsWith('prod_integrity_');
+ 
+// Safe runtime diagnosis: log VARIABLE NAMES ONLY, never their values or prefixes.
+// This helps identify misnamed secrets without weakening fail-closed behavior.
+if (!merchantConfigured) {
+  const missingNames: string[] = [];
+  if (!privateKey.startsWith('prv_prod_')) missingNames.push('WOMPI_PROD_PRIVATE_KEY');
+  if (!publicKey.startsWith('pub_prod_')) missingNames.push('WOMPI_PROD_PUBLIC_KEY');
+  if (!eventsSecret.startsWith('prod_events_')) missingNames.push('WOMPI_PROD_EVENTS_SECRET');
+  if (!integritySecret.startsWith('prod_integrity_')) missingNames.push('WOMPI_PROD_INTEGRITY_SECRET');
+  console.warn('G12_LIVE_MERCHANT_SECRETS_INVALID: ' + missingNames.join(','));
+}
 
 const config = {
   environment: 'production' as const,
