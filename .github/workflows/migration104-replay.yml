@@ -52,3 +52,9 @@ jobs:
           set -euo pipefail
           node --test tests/chronological-pg17-first-26.test.mjs
           bash security/tests/chronological_pg17_first_26.sh
+      - name: Probe complete original 99-SQL history and fail at earliest missing dependency
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          bash security/tests/chronological_pg17_probe_99.sh
