@@ -1,0 +1,54 @@
+name: INMOJCO owner-only lifetime manual v102 candidate PG17
+on:
+  pull_request:
+    paths:
+      - 'security/candidates/20261107_personal_lifetime_admin_ONLY.NOT_APPLIED.sql'
+      - 'security/tests/chronological_pg17_capacity_258.sh'
+      - '.github/workflows/manual-lifetime-254-full-pg17.yml'
+      - 'tests/manual-lifetime-owner-only-254.test.mjs'
+      - 'src/modules/platform/BillingAdminControls.tsx'
+      - 'src/core/billing-release-flags.ts'
+  push:
+    branches: [main]
+    paths:
+      - 'security/candidates/20261107_personal_lifetime_admin_ONLY.NOT_APPLIED.sql'
+      - 'security/tests/chronological_pg17_capacity_258.sh'
+      - '.github/workflows/manual-lifetime-254-full-pg17.yml'
+      - 'tests/manual-lifetime-owner-only-254.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  manual-lifetime-105:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      JCO_STAGE_MANUAL_LIFETIME254: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prove UI and RPC scope
+        run: node --test tests/manual-lifetime-owner-only-254.test.mjs
+      - name: Replay 104 SQL then verify lifetime-only v102 in disposable PG17
+        run: bash security/tests/chronological_pg17_capacity_258.sh
+      - name: Ensure candidate not in canonical production migrations
+        run: |
+          set -euo pipefail
+          test -f security/candidates/20261107_personal_lifetime_admin_ONLY.NOT_APPLIED.sql
+          test ! -f supabase/migrations/20261107110000_personal_lifetime_admin.sql
