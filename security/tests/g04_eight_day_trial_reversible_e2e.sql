@@ -1,6 +1,8 @@
 -- #203 G04: reversible hosted E2E against production schema, NO persistent writes.
 -- Run ONLY as BEGIN + candidate DDL + this test + ROLLBACK in one session.
 -- Payment event below is a synthetic SANDBOX callback, not a real Wompi charge.
+-- This toggle is transaction-local and MUST be rolled back: never enable LIVE in production.
+UPDATE public.billing_activation_settings SET production_enabled=true WHERE id=true;
 DO $g04$
 DECLARE
   v_actor uuid; v_org uuid; v_other uuid; v_terms uuid; v_basic uuid; v_pro uuid;
