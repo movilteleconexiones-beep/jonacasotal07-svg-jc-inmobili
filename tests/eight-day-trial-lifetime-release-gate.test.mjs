@@ -102,3 +102,15 @@ test('no automated DDL or personal data is ever sent to production',()=>{
   assert.doesNotMatch(draft,/\b(?:db push|migration repair)\b/i);
   assert.doesNotMatch(workflow,/supabase db push/);
 });
+
+test('new trial and lifetime UI must fail closed until SQL + release are authorized',()=>{
+  const flag=read('src/core/billing-release-flags.ts');
+  assert.match(flag,/import\.meta\.env\.VITE_BILLING_TRIAL_LIFETIME_ENABLED === 'true'/);
+  assert.match(billing,/canStartTrial = trialAndLifetimeActionsEnabled &&/);
+  assert.match(billing,/if \(!trialAndLifetimeActionsEnabled\)/);
+  assert.match(admin,/trialAndLifetimeActionsEnabled && <option value="GRANT_LIFETIME">/);
+  assert.match(admin,/action === 'GRANT_LIFETIME' && !trialAndLifetimeActionsEnabled/);
+  // A browser release switch is defense-in-depth, NEVER a substitute for
+  // the owner/SuperAdmin checks performed by SECURITY DEFINER RPCs.
+  assert.match(flag,/NOT a security/);
+});
