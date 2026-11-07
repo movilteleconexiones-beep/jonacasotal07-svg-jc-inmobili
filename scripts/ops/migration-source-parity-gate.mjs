@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gitBlobSha } from './finance-migration-gate.mjs';
+import { historicSqlFile } from './historic-sql-source.mjs';
 import { verifyAppliedConsolidation, verifyAppliedHardeningSource } from './finance-hardening-provenance.mjs';
 
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -25,7 +26,9 @@ const REVOKE_TRIAL_EXECUTABLE = [
 function localSource(path) {
   if (typeof path !== 'string' || !/^(supabase\/migrations|docs\/ops\/snapshots)\//.test(path))
     throw Error('Unsafe or unexpected historical source path');
-  const full = resolve(root, path);
+  const full = path.startsWith('supabase/migrations/')
+    ? historicSqlFile(root,path.slice('supabase/migrations/'.length))
+    : resolve(root,path);
   const pathFromRoot = relative(root, full);
   if (!pathFromRoot || pathFromRoot.startsWith('..' + sep) || pathFromRoot === '..')
     throw Error('Source path escapes repository root');
