@@ -24,7 +24,7 @@ test('G08 full browser login: 5 separated authenticated identities/tenants/role 
    const button=page.getByRole('button',{name:'Acceso',exact:true}).first();
    await button.waitFor({state:'visible',timeout:20000});
    await button.click();
-   await page.getByRole('textbox',{name:'Correo'}).fill(user.email);
+   await page.locator('form input[type=email]').fill(user.email);
    const password='G08qa-'+md5(user.uid+'g08-stage-20261107').slice(0,24);
    await page.locator('input[type=password]').fill(password);
    await page.locator('form').getByRole('button',{name:'Iniciar sesión'}).click();
