@@ -62,7 +62,7 @@ function getPinned() {
   // remains intentionally 109 files until the workflow exits.
   if(activeCount===100) {
     const canonical=inspectCutover();
-    if(!canonical.ok)throw Error('100-file canonical directory corrupted: +canonical.errors.join('; '));
+    if(!canonical.ok)throw Error('100-file canonical directory corrupted: '+canonical.errors.join('; '));
   } else if(activeCount!==109)throw Error('Unreviewed active migration file count');
   // Baseline is pinned as of 2026-11-06. Stop if the repository moves.
   if(inventory.localSqlFiles!==109 || inventory.appliedVersions!==99 ||
