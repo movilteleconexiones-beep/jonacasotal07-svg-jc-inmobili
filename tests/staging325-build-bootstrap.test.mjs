@@ -28,6 +28,7 @@ test('#325: preserve all 99 real migration IDs and hashes and insert 3 staging-o
  assert.deepEqual(forwards.map(r=>[r.version,r.sha]),[
    ['20261107072304','c9fdfccf55c2fd8d70da709dd50d1d56de3361d5'],
    ['20261107082410','258d3cba1a361ffd1b9b15be8d9b7828531d2f35'],
+   ['20261107103505','feaffad1398f38cea024ba173828cf8af8a18bb5'],
  ]);
  assert.equal(new Set(c.all.map(r=>r.version)).size,105);
  assert.ok(!c.all.some(r=>r.version==='20261010222700'));
