@@ -2,6 +2,10 @@
 -- This is NOT Supabase Auth, Storage or a recovered production backup.
 -- Applied solely after dedicated jco_migration_104_replay_test creation.
 -- The real auth.users catalogue is Supabase-managed; this is a deliberate stub.
+-- Supabase production has pgcrypto installed inside extensions.
+-- Use the same managed extension schema only in the disposable database.
+CREATE SCHEMA extensions;
+CREATE EXTENSION pgcrypto WITH SCHEMA extensions;
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE ROLE service_role NOLOGIN;
