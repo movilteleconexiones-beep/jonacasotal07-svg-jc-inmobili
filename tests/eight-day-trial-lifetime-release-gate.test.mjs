@@ -82,6 +82,16 @@ test('lifetime grant is not an unsuspend shortcut and is not repeatable',()=>{
   assert.match(assertions,/suspended tenant remains blocked after rejected lifetime regrant/);
 });
 
+test('perpetual catalog repairs stale rights and matches PRO, not just inserts absent rows',()=>{
+  assert.match(draft,/UPDATE public\.plans SET max_users=25,max_properties=2000\s+WHERE id=lifetime;/);
+  assert.match(draft,/ON CONFLICT\(plan_id,feature_key\) DO UPDATE SET\s+enabled=EXCLUDED\.enabled,\s+feature_limit=EXCLUDED\.feature_limit/);
+  assert.match(draft,/UPDATE public\.plan_features stale SET enabled=false/);
+  assert.match(fixture,/permission:unapproved_perpetual_export/);
+  assert.match(fixture,/max_users=2,max_properties=NULL WHERE code='LIFETIME'/);
+  assert.match(assertions,/perpetual plan must have exact PRO enabled permission and limit parity/);
+  assert.match(assertions,/extra lifetime-only permission cannot survive catalog synchronization/);
+});
+
 test('no automated DDL or personal data is ever sent to production',()=>{
   assert.match(draft,/DRAFT, NOT APPLIED/);
   assert.match(workflow,/jco_trial_perpetual_draft_test/);
