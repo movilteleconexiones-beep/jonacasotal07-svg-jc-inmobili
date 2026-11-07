@@ -12,7 +12,7 @@ DECLARE
  lifetime uuid; current_terms uuid; permissions text[];
 BEGIN
  IF (SELECT count(*) FROM supabase_migrations.schema_migrations)<>102 OR
-  (SELECT max(version) FROM supabase_migrations.schema_migrations)<>'20261107110000' THEN
+  (SELECT name FROM supabase_migrations.schema_migrations ORDER BY version DESC LIMIT 1)<>'manual_lifetime_owner_only' THEN
   RAISE EXCEPTION 'Expected safe, deployed v102 owner-only grant migration'; END IF;
  IF (SELECT production_enabled FROM public.billing_activation_settings) IS DISTINCT FROM false
  THEN RAISE EXCEPTION 'Do not provision while Wompi live'; END IF;
