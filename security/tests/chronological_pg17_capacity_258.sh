@@ -62,7 +62,7 @@ owned_roles=true
 node scripts/ops/reconstruct-applied-99.mjs --archive-temporary > "$workdir/archive.json"
 archive_dir="$(node -e 'const f=require("node:fs");const x=JSON.parse(f.readFileSync(process.argv[1],"utf8"));if(!x.ok||x.originalBodies!==99||x.bytes!==493999||x.safeToReplay!==false||!x.localArchive?.startsWith("/tmp/inmojco-104-historic-sql-"))process.exit(3);process.stdout.write(x.localArchive)' "$workdir/archive.json")"
 
-# Materialize exactly 103 ordered SQL files in a fresh temporary directory.
+# Materialize exactly 104 ordered SQL files in a fresh temporary directory.
 # Every canonical source and the three staging candidates is SHA-verified.
 if [[ -f "$RUNNER_TEMP/staging325-candidate.json" ]]; then
   cp -- "$RUNNER_TEMP/staging325-candidate.json" "$workdir/staging-candidate.json"
@@ -73,7 +73,7 @@ fi
 candidate_dir="$(node - "$workdir/staging-candidate.json" <<'JS'
 const fs=require('node:fs');
 const x=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-if(!x.ok || x.canonical!==99 || x.forwardApplied!==1 || x.stagingOnly!==3 || x.total!==103 ||
+if(!x.ok || x.canonical!==99 || x.forwardApplied!==2 || x.stagingOnly!==3 || x.total!==104 ||
    x.safeForProduction!==false ||
    !x.temporaryDirectory?.startsWith('/tmp/inmojco-staging325-NO-PROD-'))
   process.exit(5);
@@ -84,8 +84,8 @@ mapfile -t candidates < <(node - "$candidate_dir/STAGING-ONLY-MANIFEST.json" <<'
 const fs=require('node:fs');
 const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
 if(m.safeForProduction!==false||m.doNotMergeWithProduction!==true||
-   m.originalVersions!==99||m.forwardApplied!==1||m.stagingPrerequisites!==3||m.total!==103||
-   m.files.length!==103)process.exit(6);
+   m.originalVersions!==99||m.forwardApplied!==2||m.stagingPrerequisites!==3||m.total!==104||
+   m.files.length!==104)process.exit(6);
 for(const row of m.files) {
  if(!/^[0-9]{14}_[a-z0-9_]+\.sql$/.test(row.name)||
     !['CANONICAL','STAGING_ONLY','FORWARD_APPLIED'].includes(row.kind))process.exit(7);
@@ -93,8 +93,8 @@ for(const row of m.files) {
 }
 JS
 )
-if [[ "${#candidates[@]}" != 103 ]]; then
-  echo 'ERROR: staging bootstrap must contain precisely 103 pinned files' >&2
+if [[ "${#candidates[@]}" != 104 ]]; then
+  echo 'ERROR: staging bootstrap must contain precisely 104 pinned files' >&2
   exit 1
 fi
 
@@ -146,29 +146,21 @@ for row in "${candidates[@]}"; do
     "${psql_cmd[@]}" -q -d "$db" -c \
       "INSERT INTO supabase_migrations.schema_migrations(version) VALUES ('$version')" >/dev/null
   fi
-  echo "PG17 103-step staging-only candidate replay PASS $success/103 version $version $kind"
+  echo "PG17 104-step staging-only candidate replay PASS $success/104 version $version $kind"
 done
 
-# Confirm the staging proposal contains 103 successful steps while the
+# Confirm the staging proposal contains 104 successful steps while the
 # *authentic production* reference remains exactly 99 original versions.
 counts="$("${psql_cmd[@]}" -qAt -d "$db" -c "
 SELECT (SELECT count(*) FROM staging_candidate.replayed_versions),
        (SELECT count(*) FROM staging_candidate.replayed_versions WHERE kind='STAGING_ONLY'),
        (SELECT count(*) FROM supabase_migrations.schema_migrations)")"
-if [[ "$counts" != '103|3|100' ]]; then
-  echo "FAIL: 103/3/100 candidate/reference migration proof mismatch: $counts" >&2
+if [[ "$counts" != '104|3|101' ]]; then
+  echo "FAIL: 104/3/101 candidate/reference migration proof mismatch: $counts" >&2
   exit 1
 fi
 
-# #258 forward candidate: apply to the FULL 103-body reconstituted schema,
-# keeping this SQL OUT of the canonical production migration directory.
-# No writes outside the disposable PostgreSQL17 database.
-capacity_source=security/candidates/20261107_plan_capacity.NOT_APPLIED.sql
-if ! "${psql_cmd[@]}" -q -d "$db" -f "$capacity_source" > "$workdir/capacity-forward.log" 2>&1; then
-  echo 'FAIL: #258 migration cannot patch the complete historical schema' >&2
-  tail -n 28 "$workdir/capacity-forward.log" >&2
-  exit 1
-fi
+# Verify applied forward v101 was replayed exactly once with 104 migration bodies.
 capacity_proof="$("${psql_cmd[@]}" -qAt -d "$db" -c "
  SELECT
    (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON p.pronamespace=n.oid
@@ -186,7 +178,7 @@ if [[ "$capacity_proof" != '1|t|t|t|t|t' ]]; then
   echo "FAIL: #258 historical function/capacity/privilege mismatch: $capacity_proof" >&2
   exit 1
 fi
-echo 'PASS: full 103-step reconstructed PG17 + staged #258 forward patch: admin, platform, webhook, ACL'
+echo 'PASS: pinned #258 forward migration verified as final step of full 104 replay'
 
 # Compare current physical metadata against the pinned live production
 # reference. This is a diagnostic, NOT a certification of API, Auth or tenant data.
@@ -208,7 +200,7 @@ for query_kind in consignment portal; do
   ok="$(awk -F '|' '$3=="OK"{n++} END{print n+0}' "$output_file")"
   if [[ "$query_kind" == 'portal' ]]; then
     # This frozen 2026-11-06 source expects 99 migrations. The independent
-    # version-proof above requires 100 in current production, so only the
+    # version-proof above requires 101 in current production, so only the
     # ledger comparison may differ; every other catalog fingerprint MUST match.
     drift_count="$(awk -F '|' '$3=="DRIFT"{n++} END{print n+0}' "$output_file")"
     if [[ "$ok" != '9' || "$drift_count" != '1' ]] ||
@@ -217,7 +209,7 @@ for query_kind in consignment portal; do
       grep -v '|OK$' "$output_file" >&2 || true
       exit 1
     fi
-    echo 'CATALOG COMPARISON: portal 9/9 physical matches; 100 production versions verified independently'
+    echo 'CATALOG COMPARISON: portal 9/9 physical matches; 101 production versions verified independently'
   elif [[ "$ok" != "$expected_count" ]]; then
     grep -v '|OK$' "$output_file" >&2 || true
     echo "FAIL: isolated $query_kind catalog differs from pinned production reference" >&2
@@ -251,4 +243,4 @@ if [[ "$rls" != "4" ]]; then
 fi
 account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
 [[ "$account_count" == "0" ]]
-echo 'PASS: all 103 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 1 forward CRM); catalog 14/14 consignment + 9/9 portal + 100 ledger; hosted Supabase bootstrap still NOT certified'
+echo 'PASS: all 104 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 2 forward SQL); catalog 14/14 consignment + 9/9 portal + 101 ledger; hosted Supabase bootstrap still NOT certified'
