@@ -33,6 +33,14 @@ export function validatePostgresConnectionIdentity(env) {
     && user === 'postgres.' + PROJECT;
   if (!direct && !pooler)
     throw rejection('PostgreSQL host and username must identify the active INMOJCO project');
+  // libpq's PGHOSTADDR can silently redirect the socket to another server
+  // while PGHOST still contains the expected Supabase domain. A service
+  // profile can also introduce hidden connection settings.
+  if (env.PGHOSTADDR || env.PGSERVICE || env.PGSERVICEFILE)
+    throw rejection('implicit PostgreSQL host address or service profile is not allowed');
+  const port = String(env.PGPORT ?? '5432');
+  if (!['5432', '6543'].includes(port))
+    throw rejection('unsupported PostgreSQL port for Supabase');
   if (!['require', 'verify-ca', 'verify-full'].includes(env.PGSSLMODE))
     throw rejection('a secure PostgreSQL SSL mode is required');
 }
