@@ -1,0 +1,62 @@
+name: INMOJCO #307 eight-day trial & perpetual license (draft-only)
+on:
+  pull_request:
+    paths:
+      - 'security/drafts/20261105_eight_day_trial_manual_lifetime.NOT_APPLIED.sql'
+      - 'security/tests/eight_day_trial_perpetual_*.sql'
+      - 'tests/eight-day-trial-lifetime-release-gate.test.mjs'
+      - 'src/modules/billing/BillingModule.tsx'
+      - 'src/modules/platform/BillingAdminControls.tsx'
+      - '.github/workflows/billing307-disposable.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: inmojco-307-disposable-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  billing-draft-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute synthetic PostgreSQL 17 trial and lifetime checks only
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          db=jco_trial_perpetual_draft_test
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER TABLE public.subscriptions ADD COLUMN started_at timestamptz; ALTER TABLE public.subscriptions ADD COLUMN trial_ends_at timestamptz; ALTER TABLE auth.users ADD COLUMN email_confirmed_at timestamptz; ALTER TABLE public.license_acceptances ADD COLUMN accepted_at timestamptz NOT NULL DEFAULT now();"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261021114500_block_incompatible_checkout_contracts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f supabase/migrations/20261029030000_allow_trial_to_paid_wompi_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/eight_day_trial_perpetual_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/drafts/20261105_eight_day_trial_manual_lifetime.NOT_APPLIED.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/eight_day_trial_perpetual_assertions.sql
+          node --test tests/eight-day-trial-lifetime-release-gate.test.mjs
+      - name: Ensure no production operations or credentials
+        run: |
+          set -euo pipefail
+          test -f security/drafts/20261105_eight_day_trial_manual_lifetime.NOT_APPLIED.sql
+          test ! -f supabase/migrations/20261105_eight_day_trial_manual_lifetime.NOT_APPLIED.sql
+          ! grep -Eq 'supabase (db push|migration repair)' .github/workflows/billing307-disposable.yml
