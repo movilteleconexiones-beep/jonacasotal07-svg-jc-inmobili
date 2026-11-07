@@ -77,7 +77,7 @@ jobs:
             -d backup104_toc_fixture --no-password --format=custom \
             > "$RUNNER_TEMP/backup104-synthetic.dump"
           mkdir -p "$RUNNER_TEMP/backup104-pg17-client"
-          printf '#!/bin/sh\\nexec docker exec -i %s pg_restore --list < "$2"\\n' \
+          printf '#!/bin/sh\nexec docker exec -i %s pg_restore --list < "$2"\n' \
             "$db_container" > "$RUNNER_TEMP/backup104-pg17-client/pg_restore"
           chmod 700 "$RUNNER_TEMP/backup104-pg17-client/pg_restore"
           PATH="$RUNNER_TEMP/backup104-pg17-client:$PATH" \
