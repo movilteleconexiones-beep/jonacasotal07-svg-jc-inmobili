@@ -12,7 +12,8 @@ test('#325: preserve all 99 real migration IDs and hashes and insert 3 staging-o
  assert.equal(c.productionLedgerUntouched,true);
  assert.equal(c.authenticOriginals,99);
  assert.equal(c.stagingOnly,3);
- assert.equal(c.total,102);
+ assert.equal(c.forwardApplied,1);
+ assert.equal(c.total,103);
  assert.deepEqual(c.all.filter(r=>r.kind==='STAGING_ONLY').map(r=>[r.version,r.before]),[
    ['20261010232920','20261010232928'],
    ['20261010232929','20261010232930'],
@@ -23,6 +24,9 @@ test('#325: preserve all 99 real migration IDs and hashes and insert 3 staging-o
    'e6cb9a3923328158a42c86644fb4a591df25eba9',
  ]);
  assert.equal(c.all.filter(r=>r.kind==='CANONICAL').length,99);
+ const forward=c.all.find(r=>r.kind==='FORWARD_APPLIED');
+ assert.equal(forward.version,'20261107072304');
+ assert.equal(forward.sha,'c9fdfccf55c2fd8d70da709dd50d1d56de3361d5');
  assert.equal(new Set(c.all.map(r=>r.version)).size,102);
  assert.ok(!c.all.some(r=>r.version==='20261010222700'));
  assert.ok(c.all.find(r=>r.version==='20261031032349').sql.includes(
@@ -33,22 +37,24 @@ test('#325: materialize a sealed 102-file staging bundle in OS temporary space O
  const c=buildCandidate325();
  const result=writeDisposableCandidate325(c);
  try {
-   assert.equal(result.files,102);
+   assert.equal(result.files,103);
    assert.equal(result.safeForProduction,false);
    assert.match(result.dir,/inmojco-staging325-NO-PROD-/);
    const filenames=readdirSync(join(result.dir,'supabase','migrations'));
-   assert.equal(filenames.length,102);
+   assert.equal(filenames.length,103);
    const manifest=JSON.parse(readFileSync(join(result.dir,'STAGING-ONLY-MANIFEST.json'),'utf8'));
    assert.equal(manifest.safeForProduction,false);
    assert.equal(manifest.doNotMergeWithProduction,true);
    assert.equal(manifest.originalVersions,99);
    assert.equal(manifest.stagingPrerequisites,3);
-   assert.equal(manifest.files.length,102);
+   assert.equal(manifest.forwardApplied,1);
+   assert.equal(manifest.files.length,103);
    for(const item of manifest.files){
      const sql=readFileSync(join(result.dir,'supabase','migrations',item.name),'utf8');
      assert.equal(gitBlobSha(sql),item.sha,item.name);
    }
    assert.equal(manifest.files.filter(x=>x.kind==='CANONICAL').length,99);
    assert.equal(manifest.files.filter(x=>x.kind==='STAGING_ONLY').length,3);
+   assert.equal(manifest.files.filter(x=>x.kind==='FORWARD_APPLIED').length,1);
  } finally {rmSync(result.dir,{recursive:true,force:true});}
 });
