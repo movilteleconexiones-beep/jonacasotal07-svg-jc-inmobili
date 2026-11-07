@@ -12,12 +12,26 @@ BEGIN
   SELECT id INTO professional FROM public.plans WHERE code='PRO' AND billing_cycle='MONTHLY' AND active;
   IF lifetime IS NULL OR professional IS NULL THEN
     RAISE EXCEPTION 'Lifetime or professional plan is absent'; END IF;
+  -- This draft defines bounded LIFETIME access as PRO's exact permission set.
+  -- An existing, partially configured catalog MUST NOT silently retain more
+  -- permissions, stale disabled states, or legacy limits.
   UPDATE public.plans SET max_users=25,max_properties=2000
-    WHERE id=lifetime AND max_users IS NULL AND max_properties IS NULL;
+    WHERE id=lifetime;
   INSERT INTO public.plan_features(plan_id,feature_key,enabled,feature_limit)
-    SELECT lifetime,feature_key,enabled,feature_limit FROM public.plan_features
-    WHERE plan_id=professional AND enabled AND feature_key LIKE 'permission:%'
-    ON CONFLICT(plan_id,feature_key) DO NOTHING;
+    SELECT lifetime,f.feature_key,f.enabled,f.feature_limit
+    FROM public.plan_features f
+    WHERE f.plan_id=professional AND f.feature_key LIKE 'permission:%'
+    ON CONFLICT(plan_id,feature_key) DO UPDATE SET
+      enabled=EXCLUDED.enabled,
+      feature_limit=EXCLUDED.feature_limit;
+  -- A lifetime permission missing from PRO cannot remain independently enabled.
+  UPDATE public.plan_features stale SET enabled=false
+    WHERE stale.plan_id=lifetime AND stale.feature_key LIKE 'permission:%'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.plan_features source
+      WHERE source.plan_id=professional AND source.feature_key=stale.feature_key
+        AND source.enabled=true
+    );
 END $catalog$;
 
 
