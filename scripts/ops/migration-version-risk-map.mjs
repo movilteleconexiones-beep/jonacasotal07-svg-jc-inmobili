@@ -6,6 +6,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gitBlobSha } from './finance-migration-gate.mjs';
 import { verifyPinnedMigrationSources } from './migration-source-parity-gate.mjs';
+import {historicalInventory,historicSqlFile} from './historic-sql-source.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const migrationDir = resolve(root, 'supabase/migrations');
@@ -94,10 +95,12 @@ export function verifyCurrentVersionInventory() {
   const provenance = verifyPinnedMigrationSources();
   const manifest = JSON.parse(readFileSync(resolve(root, originalManifest), 'utf8'));
   const ledger = JSON.parse(readFileSync(resolve(root, originalLedger), 'utf8'));
-  const filenames = readdirSync(migrationDir);
+  // Legacy mismatch analysis must reference the preserved 109 original files,
+  // not the new 99-file canonical deployment directory.
+  const filenames = historicalInventory(root);
   const versionPlan = reconcileVersions({
     manifest, ledger, filenames,
-    fingerprint(file) { return gitBlobSha(readFileSync(join(migrationDir,file))); },
+    fingerprint(file) { return gitBlobSha(readFileSync(historicSqlFile(root,file))); },
   });
   if (!provenance.ok) versionPlan.errors.push('Pinned production SQL source parity failed');
   versionPlan.ok = versionPlan.errors.length === 0;

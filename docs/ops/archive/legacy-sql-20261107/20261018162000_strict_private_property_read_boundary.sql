@@ -1,0 +1,100 @@
+-- Defense in depth for private inventory. An accidentally permissive legacy
+-- SELECT policy may no longer expose every tenant's properties.
+-- Linked owners/tenants continue to see only their own referenced property.
+-- Do not touch any INSERT/UPDATE/DELETE policies or financial tables.
+BEGIN;
+ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir lectura publica de propiedades" ON public.properties;
+-- Production preflight confirmed that anon was granted SELECT, INSERT,
+-- UPDATE and DELETE on this *private* table. RLS currently denies anon rows,
+-- but any future accidental permissive policy must not unlock those grants.
+-- Public catalog/consignments use controlled SECURITY DEFINER RPCs instead.
+REVOKE ALL PRIVILEGES ON TABLE public.properties FROM anon;
+DROP POLICY IF EXISTS jco_private_properties_anon_deny ON public.properties;
+CREATE POLICY jco_private_properties_anon_deny ON public.properties
+ AS RESTRICTIVE FOR SELECT TO anon USING (false);
+
+-- Do NOT reuse the older portal helper here: a permissive legacy helper
+-- must not become the authorization source for cross-tenant private reads.
+CREATE OR REPLACE FUNCTION jco_private.can_read_authorized_external_property(
+ p_property_id uuid, p_organization_id uuid
+) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $jco$
+ SELECT (SELECT auth.uid()) IS NOT NULL
+   AND EXISTS (
+     SELECT 1 FROM public.properties p
+     JOIN public.organizations o
+       ON o.id=p.organization_id AND o.status='ACTIVE'
+     WHERE p.id=p_property_id AND p.organization_id=p_organization_id
+       AND (
+         EXISTS (
+           SELECT 1
+           FROM public.property_ownerships ownership
+           JOIN public.property_owners owner
+             ON owner.id=ownership.owner_id AND owner.organization_id=p.organization_id
+           JOIN public.portal_access_links link
+             ON link.organization_id=p.organization_id AND link.owner_id=owner.id
+           WHERE ownership.property_id=p.id
+             AND link.user_id=(SELECT auth.uid())
+         )
+         OR EXISTS (
+           SELECT 1 FROM public.leases lease
+           JOIN public.portal_access_links link
+             ON link.organization_id=lease.organization_id
+            AND link.contact_id=lease.tenant_id
+           WHERE lease.property_id=p.id
+             AND lease.organization_id=p.organization_id
+             AND lease.status IN ('ACTIVE','TERMINATED')
+             AND link.user_id=(SELECT auth.uid())
+         )
+       )
+   );
+$jco$;
+REVOKE ALL ON FUNCTION jco_private.can_read_authorized_external_property(uuid,uuid)
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION jco_private.can_read_authorized_external_property(uuid,uuid)
+ TO authenticated;
+
+-- A restrictive policy is intersected with all permissive SELECT grants.
+-- Require a valid active staff membership with view permission, a verified
+-- personally-linked external access, or the independently verified platform admin.
+DROP POLICY IF EXISTS jco_private_properties_tenant_read_boundary ON public.properties;
+CREATE POLICY jco_private_properties_tenant_read_boundary ON public.properties
+ AS RESTRICTIVE FOR SELECT TO authenticated
+ USING (
+    public.is_platform_admin()
+    OR (
+      jco_private.is_internal_staff(organization_id)
+      AND public.has_org_permission(organization_id, 'properties.view')
+    )
+    OR jco_private.can_read_authorized_external_property(id, organization_id)
+ );
+
+-- A platform administrator must be able to audit *all* organizations.
+-- Earlier migrations gave platform admins a restrictive staff exception but
+-- omitted a permissive SELECT policy: the intersection made their inventory
+-- visibility depend on ordinary organization permissions. This change is
+-- SELECT-only and does not grant write, tenant staff or public privileges.
+DO $jco_admin$
+BEGIN
+ IF NOT EXISTS(
+   SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='properties'
+     AND policyname='jco_commercial_portal_read_guard'
+     AND cmd='SELECT' AND permissive='RESTRICTIVE'
+ ) THEN
+   RAISE EXCEPTION 'Expected commercial restrictive property read gate is missing';
+ END IF;
+END $jco_admin$;
+
+ALTER POLICY jco_commercial_portal_read_guard ON public.properties TO authenticated
+ USING (
+   public.is_platform_admin()
+   OR (jco_private.operational_access(organization_id)
+       AND jco_private.is_internal_staff(organization_id))
+   OR public.has_portal_property(id)
+ );
+DROP POLICY IF EXISTS jco_platform_admin_properties_read ON public.properties;
+CREATE POLICY jco_platform_admin_properties_read ON public.properties
+ AS PERMISSIVE FOR SELECT TO authenticated
+ USING (public.is_platform_admin());
+
+COMMIT;

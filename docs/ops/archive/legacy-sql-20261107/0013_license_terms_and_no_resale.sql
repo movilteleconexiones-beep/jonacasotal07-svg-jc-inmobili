@@ -1,0 +1,3 @@
+-- License terms and no-resale restrictions.
+-- Production migration: 0013_license_terms_and_no_resale.
+-- Adds versioned license terms, organization license scope, and acceptance records.

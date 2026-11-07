@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {historicSqlFile} from './historic-sql-source.mjs';
 
 export const HARDENING_SOURCE = Object.freeze({
   localFile: 'supabase/migrations/20261012150000_finance_approval_and_audit_timestamp_hardening.sql',
@@ -92,10 +93,11 @@ export function verifyAppliedConsolidation(sources) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  const source = readFileSync(resolve(HARDENING_SOURCE.localFile), 'utf8');
+  const root = fileURLToPath(new URL('../..',import.meta.url));
+  const source = readFileSync(historicSqlFile(root,HARDENING_SOURCE.localFile.slice('supabase/migrations/'.length)), 'utf8');
   const report = verifyAppliedHardeningSource(source);
   const consolidation = verifyAppliedConsolidation(FINANCE_CONSOLIDATION.localFiles.map((file) =>
-    readFileSync(resolve('supabase/migrations',file),'utf8')));
+    readFileSync(historicSqlFile(root,file),'utf8')));
   console.log(JSON.stringify({ hardening: report, consolidation }, null, 2));
   if (!report.matchesRecordedSql || !consolidation.matchesRecordedSql) {
     console.error('DRIFT: historic finance SQL differs from applied production history');

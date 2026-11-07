@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {historicSourceRoot} from './historic-sql-source.mjs';
 
 export const REVIEWED_FINANCE_MIGRATIONS = Object.freeze([
   { version: '20261012120000', filename: '20261012120000_owner_statement_deduction_lines.sql', blob: '5e7a681c12fb879b2e8d6e65c532c300220b727a' },
@@ -28,7 +29,11 @@ export function gitBlobSha(content) {
 
 export function verifyRepositoryFinanceHistory(migrationDir) {
   const problems = [];
-  const sqlFiles = readdirSync(migrationDir).filter((file) => file.endsWith('.sql'));
+  const originalDir = resolve(migrationDir,'../..');
+  // For the canonical cutover, historic finance provenance still refers to
+  // unchanged archive copies; never reexecute old SQL from the live directory.
+  const historyDir = historicSourceRoot(originalDir);
+  const sqlFiles = readdirSync(historyDir).filter((file) => file.endsWith('.sql'));
   const versions = new Map();
   for (const file of sqlFiles) {
     const match = /^(\d{14})_[^.]+\.sql$/.exec(file);
@@ -45,7 +50,7 @@ export function verifyRepositoryFinanceHistory(migrationDir) {
     }
   }
   for (const migration of REVIEWED_FINANCE_MIGRATIONS) {
-    const file = join(migrationDir, migration.filename);
+    const file = join(historyDir, migration.filename);
     if (!existsSync(file)) {
       problems.push('Historic financial migration removed: ' + migration.filename);
       continue;

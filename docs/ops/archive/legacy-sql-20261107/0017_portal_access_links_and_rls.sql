@@ -1,0 +1,4 @@
+-- Portal access links and tenant-safe client/owner visibility.
+-- Applied in production as 0017_portal_access_links_and_rls.
+-- Adds portal_access_links and RLS policies so linked clients/owners only see their own
+-- contacts, properties, appointments, deals, leads, documents and activities.
