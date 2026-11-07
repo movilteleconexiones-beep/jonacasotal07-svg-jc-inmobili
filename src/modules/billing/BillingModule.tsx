@@ -3,6 +3,7 @@ import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 import { LicenseModule } from '../license/LicenseModule';
 import { paymentDisplayLabel, paymentReviewNotice } from '../../core/payment-display';
+import { trialAndLifetimeActionsEnabled } from '../../core/billing-release-flags';
 
 interface Plan { id: string; name: string; price: number; currency: string; billing_cycle: string; max_users: number | null; max_properties: number | null }
 interface Order { id: string; reference: string; status: string; fulfillment_status: string; review_reason: string | null; environment: string; created_at: string; expires_at: string | null; amount_in_cents: number }
@@ -35,6 +36,7 @@ export function BillingModule() {
   useEffect(() => { attempts.current.clear(); void load(); }, [load]);
 
   async function activateEightDayTrial(planId: string) {
+    if (!trialAndLifetimeActionsEnabled) { setError('La prueba gratuita aún no está habilitada comercialmente.'); return; }
     if (!orgId || busy || !billing?.terms_accepted ||
         billing.is_test || billing.subscription_status ||
         billing.status !== 'INACTIVE') return;
@@ -96,7 +98,7 @@ export function BillingModule() {
   const isLifetime = billing.operational && billing.subscription_status === 'LIFETIME';
   const isTrial = billing.operational && billing.subscription_status === 'TRIAL'
     && Boolean(billing.period_end) && Date.parse(billing.period_end!) > Date.now();
-  const canStartTrial = billing.status === 'INACTIVE' && !billing.is_test &&
+  const canStartTrial = trialAndLifetimeActionsEnabled && billing.status === 'INACTIVE' && !billing.is_test &&
     !billing.subscription_status && billing.terms_accepted && billing.can_manage_billing;
   // Tenant-scoped access (server enforced) is the authority; never infer an
   // entitlement from a Wompi redirect, a pending order, or a display label.
