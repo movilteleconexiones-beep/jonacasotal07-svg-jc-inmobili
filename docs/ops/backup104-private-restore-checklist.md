@@ -41,6 +41,8 @@ node scripts/ops/backup104-restore-gate.mjs --verify-local-db --port 5433
 
 El controlador fija 127.0.0.1, usuario postgres, base de prueba exacta, PostgreSQL 17, default_transaction_read_only=on y timeout. Verifica cuatro tablas físicas, 99 versiones aplicadas, presencia de usuarios Auth **sin leer sus datos** y los 24 fingerprints de catálogo ya usados en PR #315 (14 consignación y 10 portal/comercial/historial).
 
+**Verificación de identidad reforzada:** exige los 24 pares exactos `objeto/componente`, una sola vez cada uno, y resultado `OK` para todos. Un total de 24 filas verdes con una fila duplicada u otra comprobación omitida es **NO-GO**. La CI crea también un `.dump` real con `pg_dump` en PostgreSQL 17 y tablas enteramente ficticias para verificar que su TOC sea legible; esto no sustituye un backup de producción.
+
 **Advertencia de fecha:** las referencias representan el catálogo del 6 de noviembre de 2026. Un respaldo antiguo puede diferir legítimamente y exigir cotejo con la referencia histórica del mismo momento. Nunca alterar el backup ni relajar controles para obtener verde.
 
 ## Qué falta antes de cerrar #104
