@@ -15,7 +15,7 @@ const MANDATORY = Object.freeze([
   'public.properties',
 ]);
 const DB_NAME = 'jco_backup_104_restore_test';
-const CATALOG_CHECKS = Object.freeze({
+export const CATALOG_CHECKS = Object.freeze({
   // Names and components come from the two pinned, SELECT-only SQL snapshots.
   // A count of 'OK' lines is NOT sufficient: 14 copies of one successful
   // fingerprint could previously hide a missing or divergent object.
