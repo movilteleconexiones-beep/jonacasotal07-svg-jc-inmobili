@@ -110,7 +110,9 @@ export function BillingModule() {
     <div><h1 className="text-2xl font-bold">Plan y activación</h1>
       <p className="mt-2 text-sm text-slate-600">{billing.operational ? 'Tu inmobiliaria está habilitada.' : billing.status === 'SUSPENDED'
         ? 'La inmobiliaria está suspendida. Contacta al administrador.'
-        : 'Tu inmobiliaria está registrada y pendiente de activación. Puedes elegir un plan o iniciar una prueba de 8 días si cumples las condiciones.'}</p>
+        : (trialAndLifetimeActionsEnabled
+          ? 'Tu inmobiliaria está registrada y pendiente de activación. Puedes elegir un plan o solicitar una prueba de 8 días si cumples las condiciones.'
+          : 'Tu inmobiliaria está registrada y pendiente de activación. Puedes consultar los planes; los cobros y las pruebas se habilitarán cuando termine la revisión comercial.')}</p>
       {billing.period_end && <p className="mt-1 text-sm">Vigencia hasta {new Date(billing.period_end).toLocaleDateString('es-CO')}.</p>}
     </div>
     {isTrial && <p role="status" className="rounded-xl bg-blue-50 p-4 text-sm text-blue-950">Prueba gratuita de 8 días activa. Finaliza el {new Date(billing.period_end!).toLocaleDateString('es-CO')}. Puedes comprar tu plan en cualquier momento: al confirmarse el pago, termina la prueba y comienza la vigencia comercial, sin añadir días de regalo.</p>}
