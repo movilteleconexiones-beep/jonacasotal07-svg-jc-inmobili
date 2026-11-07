@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS private.jco_trial_redemptions (
   ends_at timestamptz NOT NULL,
   CHECK (ends_at = started_at + interval '8 days')
 );
+ALTER TABLE private.jco_trial_redemptions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE private.jco_trial_redemptions FROM PUBLIC,anon,authenticated,service_role;
 
 CREATE OR REPLACE FUNCTION public.billing_start_eight_day_trial(
@@ -141,6 +142,17 @@ BEGIN
       updated_at=now() WHERE organization_id=target_org;
     UPDATE public.organizations SET status='ACTIVE',plan_id=target_plan,updated_at=now() WHERE id=target_org;
   ELSIF action='GRANT_LIFETIME' THEN
+    -- A perpetual term is not a tool to override a suspension or rewrite
+    -- the beginning of an already active lifetime license. Both are separate
+    -- audited decisions; a suspended tenant requires explicit review.
+    IF EXISTS(SELECT 1 FROM public.organizations
+       WHERE id=target_org AND status='SUSPENDED') THEN
+      RAISE EXCEPTION 'Suspended organization requires separate reactivation'
+        USING ERRCODE='42501'; END IF;
+    IF EXISTS(SELECT 1 FROM public.organization_licenses
+       WHERE organization_id=target_org AND license_type='LIFETIME'
+         AND status='ACTIVE' AND ends_at IS NULL) THEN
+      RAISE EXCEPTION 'Perpetual license already active'; END IF;
     SELECT * INTO plan FROM public.plans
       WHERE id=target_plan AND active AND code='LIFETIME' AND billing_cycle='ONE_TIME' FOR SHARE;
     IF NOT FOUND OR plan.max_users IS NULL OR plan.max_properties IS NULL
