@@ -52,7 +52,7 @@ test('portal rollout is OFF by default and guarded by the matching DB deployment
   assert.match(source,/supabase\.rpc\('submit_public_website_lead_once'/);
   assert.match(source,/p_request_id: await getPublicInquiryRequestId\(inquiry\)/);
   assert.match(source,/: await supabase\.rpc\('submit_public_website_lead', inquiry\)/);
-  assert.match(source,/if \(useReplaySafeCrm\) clearPublicInquiryAttempt\(tenantSlug\)/);
+  assert.match(source,/if \(useReplaySafeCrm\) clearPublicInquiryAttempt\(submittedTenantSlug\)/);
   assert.match(source,/contactSubmitInFlight\.current = true/);
   assert.match(source,/contactSubmitInFlight\.current = false/);
 });
