@@ -151,7 +151,7 @@ BEGIN
     VALUES(target_org,auth.uid(),'billing.admin_'||lower(action),'organization',target_org,
       jsonb_build_object('reason',trim(reason),'plan_id',target_plan));
 END;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION jco_private.operational_access(target_org uuid)
  RETURNS boolean
