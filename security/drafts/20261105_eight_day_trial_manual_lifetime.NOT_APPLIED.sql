@@ -1,4 +1,4 @@
--- DRAFT, NOT APPLIED. #104 MIGRATION GATE IS NO-GO. PostgreSQL 17 CI only.
+-- DRAFT, NOT APPLIED. #104 CLOSED; #203 COMMERCIAL RELEASE GATE IS NO-GO. PostgreSQL 17 CI only.
 -- Commercial release: 8 days single-use per verified owner, paid immediately on verified Wompi;
 -- SuperAdmin may grant audited perpetual access without a payment and without a false expiration.
 BEGIN;

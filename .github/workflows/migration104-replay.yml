@@ -1,0 +1,106 @@
+name: INMOJCO #104 disposable chronological PostgreSQL replay
+on:
+  pull_request:
+    paths:
+      - 'security/tests/chronological_pg17_*'
+      - 'tests/chronological-pg17-*.test.mjs'
+      - 'scripts/ops/reconstruct-applied-99.mjs'
+      - 'scripts/ops/migration104-canonical-workspace.mjs'
+      - 'tests/migration104-canonical-workspace.test.mjs'
+      - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'tests/migration104-cutover-gate.test.mjs'
+      - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
+      - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
+      - 'tests/inmojco104-local-restore-reader.test.mjs'
+      - 'docs/ops/snapshots/**'
+      - '.github/workflows/migration104-replay.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'security/tests/chronological_pg17_*'
+      - 'tests/chronological-pg17-*.test.mjs'
+      - 'scripts/ops/reconstruct-applied-99.mjs'
+      - 'scripts/ops/migration104-canonical-workspace.mjs'
+      - 'tests/migration104-canonical-workspace.test.mjs'
+      - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'tests/migration104-cutover-gate.test.mjs'
+      - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
+      - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
+      - 'tests/inmojco104-local-restore-reader.test.mjs'
+      - '.github/workflows/migration104-replay.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: inmojco-104-replay-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  pg17-disposable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jco_security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jco_security_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact PR commit
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)
+        run: bash scripts/ops/migration104-ci-legacy-fixtures.sh
+      - name: Compare real 99-version ledger with legacy tree and check canonical temporary mirror
+        run: |
+          set -euo pipefail
+          node --test tests/migration104-canonical-workspace.test.mjs
+          node scripts/ops/migration104-canonical-workspace.mjs
+      - name: Fail closed on missing ledger and Docker internal-port regression
+        run: node --test tests/inmojco104-local-restore-reader.test.mjs
+      - name: Parse local existing-backup PowerShell verifier without executing it
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/ops/inmojco104-verify-existing-restore.ps1').Path,
+            [ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) { throw 'Restore verification PowerShell parse failed' }
+      - name: PG17 replay 26 original SQL bodies, from production history
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          node --test tests/chronological-pg17-first-26.test.mjs
+          node --test tests/chronological-pg17-assisted.test.mjs
+          bash security/tests/chronological_pg17_first_26.sh
+      - name: Confirm exactly why pure 99-version replay blocks at migration 28 (#104)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          set +e
+          bash security/tests/chronological_pg17_probe_99.sh > "$RUNNER_TEMP/pure-replay.log" 2>&1
+          replay_status=$?
+          set -e
+          tail -n 9 "$RUNNER_TEMP/pure-replay.log"
+          test "$replay_status" -eq 1
+          grep -F 'FAIL: isolated chronological SQL replay at version 20261010232928, after 27 successful original bodies' "$RUNNER_TEMP/pure-replay.log"
+          grep -F 'Incomplete consignment migration' "$RUNNER_TEMP/pure-replay.log"
+      - name: Bridge only pinned missing consignment and portal DDL in disposable PG17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          bash security/tests/chronological_pg17_bridge_probe.sh

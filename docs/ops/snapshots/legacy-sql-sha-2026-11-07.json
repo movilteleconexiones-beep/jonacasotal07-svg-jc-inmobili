@@ -1,0 +1,553 @@
+{
+  "purpose": "INMOJCO #104 immutable legacy SQL file inventory",
+  "sourceCommit": "911f3146eac96408095c633e5a7d808222b50926",
+  "productionMutationAuthorized": false,
+  "expectedFiles": 109,
+  "files": [
+    {
+      "name": "0001_multi_tenant_core.sql",
+      "sha": "a55ae066b1d6cc38b7ee9ca7d81087508ea17c96",
+      "bytes": 15724
+    },
+    {
+      "name": "0002_organization_bootstrap.sql",
+      "sha": "a586f016e7f620032877fe8251acdb39dcd1fd64",
+      "bytes": 5135
+    },
+    {
+      "name": "0003_real_estate_crm_core.sql",
+      "sha": "68daaefc7ec7b2869df15b3539ec401e51f19074",
+      "bytes": 10802
+    },
+    {
+      "name": "0004_data_import_onboarding.sql",
+      "sha": "af525c8f3163b67838bf5ed4e33352b538d24a1b",
+      "bytes": 5315
+    },
+    {
+      "name": "0005_security_hardening_and_indexes.sql",
+      "sha": "ed2ff47f5e886d0245907f8f35a1b08d0bc94f9a",
+      "bytes": 3849
+    },
+    {
+      "name": "0006_colombia_branding_defaults.sql",
+      "sha": "2440a99fc494f47764d2fbf2cc86436d9882f62a",
+      "bytes": 876
+    },
+    {
+      "name": "0007_organization_identity_update_policy.sql",
+      "sha": "cccc0097e89715a462079ecdf00e4b5f1a5ffa9d",
+      "bytes": 390
+    },
+    {
+      "name": "0008_latam_country_profiles_and_compliance.sql",
+      "sha": "61558d6b13f32547490ce80a5721cb70c5c46029",
+      "bytes": 13638
+    },
+    {
+      "name": "0009_country_switching.sql",
+      "sha": "e1809fa82b90bb7b979362a7e949a7f331d9e6b3",
+      "bytes": 2070
+    },
+    {
+      "name": "0010_user_invitations_roles_permissions.sql",
+      "sha": "458819e19f8c66e15863600276fd296d1d8d7916",
+      "bytes": 1195
+    },
+    {
+      "name": "0011_invitation_performance_hardening.sql",
+      "sha": "0cf6d15cf04dcbd8d137cd1bb877f2f65aaf5083",
+      "bytes": 811
+    },
+    {
+      "name": "0012_default_software_name_jco.sql",
+      "sha": "a1c546a9e1f126c90742eb30f848503a498142e3",
+      "bytes": 377
+    },
+    {
+      "name": "0013_license_terms_and_no_resale.sql",
+      "sha": "fc120f802e7ba31b60a1c7369a0c0b8ef419a415",
+      "bytes": 189
+    },
+    {
+      "name": "0014_owners_documents_commissions.sql",
+      "sha": "9b7e48d70af71892124ef78b93ed9616f9ccd441",
+      "bytes": 8792
+    },
+    {
+      "name": "0015_software_name_display_casing.sql",
+      "sha": "c06cfe2e58b3863a873c704614df9b839eadb286",
+      "bytes": 944
+    },
+    {
+      "name": "0016_default_role_permission_trigger.sql",
+      "sha": "19b2ed3a4dc7c9c37c011626e8015051f6116b57",
+      "bytes": 2154
+    },
+    {
+      "name": "0017_portal_access_links_and_rls.sql",
+      "sha": "bda55e5d6fcd8b1492df43b5c1957fbfdbb85d5c",
+      "bytes": 294
+    },
+    {
+      "name": "0018_portal_storage_and_client_role_hardening.sql",
+      "sha": "1dd857c01ca73520a35126d2b1b86ead8c685891",
+      "bytes": 296
+    },
+    {
+      "name": "0019_saas_plans_subscriptions_super_admin.sql",
+      "sha": "25761b0a44ad1c03b6c735c82d354b468abfaa8d",
+      "bytes": 7771
+    },
+    {
+      "name": "0020_security_and_index_cleanup.sql",
+      "sha": "f339ea2e6de20706e900f4573f1ca5e50544530a",
+      "bytes": 839
+    },
+    {
+      "name": "0021_missing_features_repair.sql",
+      "sha": "542c4edb12fe05861cdffe62b43f664b495a75e1",
+      "bytes": 17318
+    },
+    {
+      "name": "0022_enable_invitation_rls.sql",
+      "sha": "e7f56481bb54c237dc36493bcefeba8a9ec7299e",
+      "bytes": 134
+    },
+    {
+      "name": "0023_harden_client_portal_access.sql",
+      "sha": "28c7c198140327114f11a4629c9d17d3cc37ce2a",
+      "bytes": 7143
+    },
+    {
+      "name": "0024_fix_portal_link_tenant_check.sql",
+      "sha": "21a2506201cf9aa4544fb4cbc2e10252212dc631",
+      "bytes": 864
+    },
+    {
+      "name": "0025_licensing_branding_responsibility_v2.sql",
+      "sha": "57cc951adb1037a1019c70b34d2eb9eb5b3c7fde",
+      "bytes": 15730
+    },
+    {
+      "name": "0026_payment_orders_wompi_sandbox.sql",
+      "sha": "33935cd790afabb4f42b389acadd0420375c2017",
+      "bytes": 2606
+    },
+    {
+      "name": "0027_process_verified_payment_events.sql",
+      "sha": "6483afff8153ce70224f2330079c03422b199b10",
+      "bytes": 3058
+    },
+    {
+      "name": "0028_verified_payment_subscription_activation.sql",
+      "sha": "dbf6ce08cec767c303a13f5096f35f984c825055",
+      "bytes": 4958
+    },
+    {
+      "name": "0029_approved_jco_cop_pricing_draft.sql",
+      "sha": "6cc88c575432c783c4abd2408cc6edfca8fa144d",
+      "bytes": 2094
+    },
+    {
+      "name": "0030_billing_manage_permission_draft.sql",
+      "sha": "396dac23bc41de7aa73816b93295cedf952e30b6",
+      "bytes": 664
+    },
+    {
+      "name": "0031_tenant_billing_authorization_draft.sql",
+      "sha": "e34d59fc6cc314157f22e60f37f98927109b52a7",
+      "bytes": 908
+    },
+    {
+      "name": "0032_atomic_sandbox_payment_order_draft.sql",
+      "sha": "5f2ea42e08503dd23774fbcf91aa8980c85ff379",
+      "bytes": 2630
+    },
+    {
+      "name": "20261010212630_property_consignment_intake.sql",
+      "sha": "e4b252f022cf76f5ad773060ff86d33c29ef564c",
+      "bytes": 15761
+    },
+    {
+      "name": "20261010214633_fix_property_portal_rls_recursion.sql",
+      "sha": "e6cb9a3923328158a42c86644fb4a591df25eba9",
+      "bytes": 3336
+    },
+    {
+      "name": "20261010222342_verified_tenant_billing.sql",
+      "sha": "00b05a4aac0984e495bf1006e58a7617c8f464d1",
+      "bytes": 33036
+    },
+    {
+      "name": "20261010222700_commercial_plan_permissions.sql",
+      "sha": "463d7c438f30406b576caf2a7cbbc50e2147d4e6",
+      "bytes": 2765
+    },
+    {
+      "name": "20261010231042_compatible_licensing_records.sql",
+      "sha": "4fb3c28cf21d333c41f2e65e4abff23839545ec4",
+      "bytes": 4792
+    },
+    {
+      "name": "20261010231048_owner_trials_and_platform_overview.sql",
+      "sha": "52411f4ff05babab4520b99e8f79bb55915183b8",
+      "bytes": 9584
+    },
+    {
+      "name": "20261011000300_independent_owner_trial_entitlements.sql",
+      "sha": "ddf5da8703b83b68179fb2b96c8302c26df6d8b2",
+      "bytes": 4558
+    },
+    {
+      "name": "20261011090000_private_consignment_photos.sql",
+      "sha": "ee4c5a97b3114b9112659dbdcff182632e1f9e67",
+      "bytes": 2914
+    },
+    {
+      "name": "20261011095000_private_inventory_property_photos.sql",
+      "sha": "3d471ac388e89ec0fb77973028d51f17203897aa",
+      "bytes": 3898
+    },
+    {
+      "name": "20261011101500_basic_pro_explicit_entitlements.sql",
+      "sha": "d85ae857d84111d27ca71dcaba4703785eaf2d80",
+      "bytes": 1802
+    },
+    {
+      "name": "20261012120000_owner_statement_deduction_lines.sql",
+      "sha": "5e7a681c12fb879b2e8d6e65c532c300220b727a",
+      "bytes": 7270
+    },
+    {
+      "name": "20261012130000_rent_receipts_and_owner_drafts.sql",
+      "sha": "0cb9f6b8c495577d5c260da352428bfb849aad62",
+      "bytes": 9350
+    },
+    {
+      "name": "20261012140000_reconcile_owner_deductions.sql",
+      "sha": "cc65fbe4b81456996f87fc385125d560fbc23e9f",
+      "bytes": 3611
+    },
+    {
+      "name": "20261012143000_finance_rls_and_tenant_links.sql",
+      "sha": "8d4005753a905edf822d0a9172cd61b033128047",
+      "bytes": 7719
+    },
+    {
+      "name": "20261012150000_finance_approval_and_audit_timestamp_hardening.sql",
+      "sha": "44ca68e11894485ee160f673117b2d008c38c1d3",
+      "bytes": 1282
+    },
+    {
+      "name": "20261012180000_guided_rental_intake_admin_approval.sql",
+      "sha": "e6f7b6b62fcee5e2b42659ec1f319d0623563f87",
+      "bytes": 3768
+    },
+    {
+      "name": "20261012193000_deals_safe_admin_deletion.sql",
+      "sha": "0f475d0d819f2abe9130c2ef6e34addf1cde4956",
+      "bytes": 3389
+    },
+    {
+      "name": "20261012203000_owner_reconciliation_audit_and_safe_undo.sql",
+      "sha": "c8092a9ac239a3f97f54b84183596521c291705d",
+      "bytes": 8436
+    },
+    {
+      "name": "20261012235500_restrict_excessive_api_role_table_grants.sql",
+      "sha": "ec3e513b753d728e8999352438bd95776120bc61",
+      "bytes": 753
+    },
+    {
+      "name": "20261013010000_safe_future_rent_amendments_and_unpaid_corrections.sql",
+      "sha": "e4271e9197055cc5b4b3eb8eaf0ce2922a32ff8b",
+      "bytes": 13432
+    },
+    {
+      "name": "20261013020000_owner_statement_percentage_commission.sql",
+      "sha": "c4aa3f78e61dca5424d976364102f95efc4d15c1",
+      "bytes": 2803
+    },
+    {
+      "name": "20261013034500_commission_admin_void_only.sql",
+      "sha": "fa239eee6e09a466fab56b1ab29c8fd54c4b90fd",
+      "bytes": 4413
+    },
+    {
+      "name": "20261013040000_commission_recording_corrections.sql",
+      "sha": "ae8fe4418637e0478fd804ccd07f6c77f244132a",
+      "bytes": 1821
+    },
+    {
+      "name": "20261013040000_commission_safe_edit_and_paid_review.sql",
+      "sha": "d7586d99a98aed408c9962ecb43a4cacb570bd08",
+      "bytes": 17967
+    },
+    {
+      "name": "20261013043000_owner_deduction_admin_only_void.sql",
+      "sha": "ab76e15e7179739b49ff7b7a909e0133a4250624",
+      "bytes": 1087
+    },
+    {
+      "name": "20261013044000_commission_tenant_insert_validation.sql",
+      "sha": "e72ce5c330a4fe9c9418cff4ef884b4dd411ccc7",
+      "bytes": 1545
+    },
+    {
+      "name": "20261013044500_paid_commission_admin_accept_no_disbursement.sql",
+      "sha": "7e637baa768285f46d130f41e35e2493f7e3077e",
+      "bytes": 3908
+    },
+    {
+      "name": "20261013050000_archive_rectified_commissions.sql",
+      "sha": "42054be114c803f904f5db6e64726b33ddcccb36",
+      "bytes": 2377
+    },
+    {
+      "name": "20261013051500_fix_archive_reason.sql",
+      "sha": "b059125bfcdc8f8749e9d0ce4a882b22227fa94c",
+      "bytes": 1861
+    },
+    {
+      "name": "20261013052000_restore_cancelled_commissions.sql",
+      "sha": "6518768ef989df49ee9ff901b9a49ba1a97e8b70",
+      "bytes": 1556
+    },
+    {
+      "name": "20261013054000_admin_direct_commission_payment_status.sql",
+      "sha": "e2b1d2d789ced5630c62c0448fc708cd7f3944d1",
+      "bytes": 1685
+    },
+    {
+      "name": "20261013061500_archived_commission_replacement.sql",
+      "sha": "7d771ab657c930e30f3f189163c276e7ca80b897",
+      "bytes": 3581
+    },
+    {
+      "name": "20261013063000_restore_voided_owner_deduction.sql",
+      "sha": "b37d02cb95bbe0b781b05bc65356928040ee7a51",
+      "bytes": 3436
+    },
+    {
+      "name": "20261013070000_correct_owner_draft_commission_percentage.sql",
+      "sha": "f8ab6417cdb4f15825eeafd132062e864341ea83",
+      "bytes": 2995
+    },
+    {
+      "name": "20261013073000_prevent_duplicate_active_commissions.sql",
+      "sha": "ffc8ec6dd0ab0459a8c57655bbb800517702ccd8",
+      "bytes": 1728
+    },
+    {
+      "name": "20261013081500_finance_fk_lookup_indexes.sql",
+      "sha": "e28f1ebe62fe17301081327690e47c98e3205276",
+      "bytes": 590
+    },
+    {
+      "name": "20261013190000_owner_deduction_admin_approval.sql",
+      "sha": "102afcf6cc68c4f9d8d5b5b665fce95bdf4a9a04",
+      "bytes": 792
+    },
+    {
+      "name": "20261014010000_admin_archive_commission_reviews.sql",
+      "sha": "b34998595cb49c28bbc6e5d7f76f7e0d1a72ee11",
+      "bytes": 1412
+    },
+    {
+      "name": "20261014020000_admin_issue_owner_statement.sql",
+      "sha": "e1ff250a23d47a8cb4e7303b549f30956d3025b8",
+      "bytes": 2308
+    },
+    {
+      "name": "20261014030000_owner_payout_ledger.sql",
+      "sha": "97e1a678082f7ff86d8a6a7498d411b25d6109c0",
+      "bytes": 4238
+    },
+    {
+      "name": "20261014040000_owner_payout_review_requests.sql",
+      "sha": "1a1ed0cb788a182d66b0f43bda571f33ebdb94ee",
+      "bytes": 2610
+    },
+    {
+      "name": "20261014050000_owner_payout_admin_review.sql",
+      "sha": "a3b9a74994c4651ac2b59418e4f67ac699944183",
+      "bytes": 1633
+    },
+    {
+      "name": "20261014061000_audited_rental_end_owner_retirement.sql",
+      "sha": "1a5148501741b57db38f9775d3424e6f97fcf597",
+      "bytes": 13573
+    },
+    {
+      "name": "20261014071000_sync_rented_property_on_lease_activation.sql",
+      "sha": "b5c5708d63895c28ad3f21fa15d8fd95e88dac23",
+      "bytes": 5805
+    },
+    {
+      "name": "20261014082000_private_rent_receipt_supports.sql",
+      "sha": "de9908222d21619bd83a598e07a7f5c59c96ed0a",
+      "bytes": 8100
+    },
+    {
+      "name": "20261014093000_audited_role_permission_editor.sql",
+      "sha": "a8d2627efe04925bf645d8c0e5d28a45616487ca",
+      "bytes": 9984
+    },
+    {
+      "name": "20261014123500_isolate_client_portal_role_grants.sql",
+      "sha": "497d6685191628a6fe37e8d1db22716fd1aae14b",
+      "bytes": 1250
+    },
+    {
+      "name": "20261015074000_approved_monthly_prices_preserve_lifetime.sql",
+      "sha": "d8ac0b937850c175d3754311c2d77b22923e788f",
+      "bytes": 2537
+    },
+    {
+      "name": "20261015081500_basic_pro_functional_parity.sql",
+      "sha": "88e75c7e0858c29784b1a3b053aa8401907d7f09",
+      "bytes": 3937
+    },
+    {
+      "name": "20261015092500_isolate_external_accounts_and_staff_seats.sql",
+      "sha": "5ca0b657b1ec0b39ecf40db7452302bce5074121",
+      "bytes": 12913
+    },
+    {
+      "name": "20261015093000_scope_external_owner_and_tenant_data.sql",
+      "sha": "02b04f0f9002a3068d62c954cc27a5c524c420b9",
+      "bytes": 4670
+    },
+    {
+      "name": "20261015114500_reconcile_restrictive_portal_read_with_staff_write.sql",
+      "sha": "3b2521faf91aa3aee77c760eb2e2252965d0edb6",
+      "bytes": 4527
+    },
+    {
+      "name": "20261018130000_direct_paid_onboarding.sql",
+      "sha": "4542e133eec6575737eff22b85f7f3a7cf961ded",
+      "bytes": 10858
+    },
+    {
+      "name": "20261018140000_tenant_public_catalog.sql",
+      "sha": "5e5808548c1b775d9a932e71000cfa786b68f357",
+      "bytes": 2175
+    },
+    {
+      "name": "20261018162000_strict_private_property_read_boundary.sql",
+      "sha": "ef2a275ff0bf269db75cef31a5157c920199d8a4",
+      "bytes": 4704
+    },
+    {
+      "name": "20261019205000_tenant_public_website_brand_and_services.sql",
+      "sha": "10b164746e54a3e3811972055b8fd8f3f5250864",
+      "bytes": 3579
+    },
+    {
+      "name": "20261020070000_editable_public_portal_sections.sql",
+      "sha": "afbd56dedcfced8fb9ec78cb5133e6d94b62656c",
+      "bytes": 2747
+    },
+    {
+      "name": "20261020183000_owner_organization_public_slug.sql",
+      "sha": "ba78e3d3c1d40389b31c23a68d0a4dbf7d9ca8fc",
+      "bytes": 2666
+    },
+    {
+      "name": "20261020183500_owner_slug_strict_execute_acl.sql",
+      "sha": "b85ef90257d8b4e2a792ada79c78a4045d42674e",
+      "bytes": 516
+    },
+    {
+      "name": "20261020221500_public_website_leads.sql",
+      "sha": "faff9a8567a417e264d7bb5521247fca21b6f7c5",
+      "bytes": 4323
+    },
+    {
+      "name": "20261020222000_revoke_anonymous_crm_access.sql",
+      "sha": "cf9ccc2034947b879189aaae603bb3cfd9b8e001",
+      "bytes": 314
+    },
+    {
+      "name": "20261021033500_gate_public_consignment_operational_access.sql",
+      "sha": "9af251abf443787d0dc7a1d4caae8911651a826a",
+      "bytes": 7668
+    },
+    {
+      "name": "20261021040000_optimize_owner_deduction_rls_initplan.sql",
+      "sha": "5c4726413e42dd609ed6feacb1943c0fb47ffd9b",
+      "bytes": 411
+    },
+    {
+      "name": "20261021041500_public_website_contact_consent_receipts.sql",
+      "sha": "8ddd19fbfbda62b02624a31615898896ffecf3ea",
+      "bytes": 5434
+    },
+    {
+      "name": "20261021114500_block_incompatible_checkout_contracts.sql",
+      "sha": "44a9d7e25ef2eb924d95d3f497da90f5b2d073ab",
+      "bytes": 4231
+    },
+    {
+      "name": "20261021152000_index_critical_tenant_relationships.sql",
+      "sha": "a9a442b2c0976ef46df9190e4d4663048c78ca4f",
+      "bytes": 803
+    },
+    {
+      "name": "20261029030000_allow_trial_to_paid_wompi_activation.sql",
+      "sha": "15d4aa1618376686b77b3228a2d05bd0887e7fe2",
+      "bytes": 12032
+    },
+    {
+      "name": "20261029034500_reconcile_verified_sandbox_trial_payment.sql",
+      "sha": "405193ac5610aa4bb8c9a155cff516742c8fb5c9",
+      "bytes": 7227
+    },
+    {
+      "name": "20261029070000_repair_financial_portal_select_rls.sql",
+      "sha": "ee09d19d30429423b972d45bcf32d8a21d682ef5",
+      "bytes": 3010
+    },
+    {
+      "name": "20261029081500_active_lease_rectification_with_signed_evidence.sql",
+      "sha": "b75495e43fde0cfd304e01f7327850fa4618470b",
+      "bytes": 11087
+    },
+    {
+      "name": "20261029090000_rental_draft_correction_and_duplicates.sql",
+      "sha": "f72ebff1098ac1a1ef8ec33b9000a33bd2da84a1",
+      "bytes": 9828
+    },
+    {
+      "name": "20261029100000_audited_contact_correction_and_unlinked_removal.sql",
+      "sha": "f48a092df0903c334fc32c8e1d47d1cf0811d98c",
+      "bytes": 6831
+    },
+    {
+      "name": "20261029120000_linked_person_signed_lease_private_pdf.sql",
+      "sha": "6bd4582f45fe90f191c8a58869b5eea9cfd47e6f",
+      "bytes": 2519
+    },
+    {
+      "name": "20261029171601_revoke_disabled_trial_authorization_rpc.sql",
+      "sha": "dc23823984351eb674ddd243bae1ff906941c091",
+      "bytes": 543
+    },
+    {
+      "name": "20261029212500_remaining_foreign_key_covering_indexes.sql",
+      "sha": "71785872624bcaea579fd42e71a0a4d46cb920d7",
+      "bytes": 2177
+    },
+    {
+      "name": "20261030203000_verified_email_invitation_claims.sql",
+      "sha": "a8b97bec6024f2daf5b51816266c431cd43f8708",
+      "bytes": 2900
+    },
+    {
+      "name": "20261030222000_restrict_organization_commercial_updates.sql",
+      "sha": "dbbf1539036c30322b6d7005832ce5b27249dfac",
+      "bytes": 2882
+    }
+  ]
+}
