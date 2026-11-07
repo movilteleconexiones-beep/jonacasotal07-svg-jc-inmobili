@@ -169,9 +169,6 @@ for query_kind in consignment portal; do
   else
     check_sql=security/checks/unmatched_three_current_live_preflight.sql
     expected_count=10
-    # This frozen 2026-11-06 fingerprint expects exactly 99 versions.
-    # Production now has 100; its ledger-only row is intentionally stale.
-    # All 9 real portal/plan catalog fingerprints MUST still match.
   fi
   output_file="$workdir/catalog-$query_kind.txt"
   "${psql_cmd[@]}" -qAt -F '|' -d "$db" -f "$check_sql" > "$output_file"
@@ -182,102 +179,19 @@ for query_kind in consignment portal; do
   fi
   ok="$(awk -F '|' '$3=="OK"{n++} END{print n+0}' "$output_file")"
   if [[ "$query_kind" == 'portal' ]]; then
-    # The old pinned source compares against 99, whereas the current
-    # 100th version is independently verified by the 103|3|100 gate above.
-    if [[ "$ok" != '9' ]] ||
-       ! grep -Fxq 'MIGRATION_LEDGER|three-unmatched-versions-absent|DRIFT' "$output_file" ||
-       [[ "$(grep -c '|DRIFT
-done
-
-# Check actual physical state, not just psql's exit code.
-found="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c
-WHERE c.oid IN (
-  to_regclass('public.organizations'),to_regclass('public.organization_members'),
-  to_regclass('public.profiles'),to_regclass('public.properties'),
-  to_regclass('public.contacts'),to_regclass('public.leads'),
-  to_regclass('public.deals'),to_regclass('public.audit_log')
-) AND c.relkind='r'")"
-if [[ "$found" != "8" ]]; then
-  echo "FAIL: only $found/8 expected physical tables after historical replay" >&2
-  exit 1
-fi
-rls="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c WHERE c.oid IN (
- to_regclass('public.properties'),to_regclass('public.contacts'),
- to_regclass('public.leads'),to_regclass('public.deals'))
- AND c.relrowsecurity")"
-if [[ "$rls" != "4" ]]; then
-  echo "FAIL: only $rls/4 expected tenant RLS tables enabled" >&2
-  exit 1
-fi
-account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
-[[ "$account_count" == "0" ]]
-echo 'PASS: all 103 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 1 forward CRM); catalog 14/14 consignment + 9/9 portal + 100-row ledger; hosted Supabase bootstrap still NOT certified'
- "$output_file")" != '1' ]]; then
-      echo 'FAIL: a physical portal/plan fingerprint changed, not only stale 99-ledger metadata' >&2
-      grep -v '|OK
-done
-
-# Check actual physical state, not just psql's exit code.
-found="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c
-WHERE c.oid IN (
-  to_regclass('public.organizations'),to_regclass('public.organization_members'),
-  to_regclass('public.profiles'),to_regclass('public.properties'),
-  to_regclass('public.contacts'),to_regclass('public.leads'),
-  to_regclass('public.deals'),to_regclass('public.audit_log')
-) AND c.relkind='r'")"
-if [[ "$found" != "8" ]]; then
-  echo "FAIL: only $found/8 expected physical tables after historical replay" >&2
-  exit 1
-fi
-rls="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c WHERE c.oid IN (
- to_regclass('public.properties'),to_regclass('public.contacts'),
- to_regclass('public.leads'),to_regclass('public.deals'))
- AND c.relrowsecurity")"
-if [[ "$rls" != "4" ]]; then
-  echo "FAIL: only $rls/4 expected tenant RLS tables enabled" >&2
-  exit 1
-fi
-account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
-[[ "$account_count" == "0" ]]
-echo 'PASS: all 103 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 1 forward CRM); catalog 24/24; hosted Supabase bootstrap still NOT certified'
- "$output_file" >&2 || true
+    # This frozen 2026-11-06 source expects 99 migrations. The independent
+    # version-proof above requires 100 in current production, so only the
+    # ledger comparison may differ; every other catalog fingerprint MUST match.
+    drift_count="$(awk -F '|' '$3=="DRIFT"{n++} END{print n+0}' "$output_file")"
+    if [[ "$ok" != '9' || "$drift_count" != '1' ]] ||
+       ! grep -Fxq 'MIGRATION_LEDGER|three-unmatched-versions-absent|DRIFT' "$output_file"; then
+      echo 'FAIL: a physical portal/plan fingerprint changed, not only the obsolete 99-ledger expectation' >&2
+      grep -v '|OK$' "$output_file" >&2 || true
       exit 1
     fi
-    echo 'CATALOG COMPARISON: portal 9/9 physical matches; ledger 100 separately verified'
+    echo 'CATALOG COMPARISON: portal 9/9 physical matches; 100 production versions verified independently'
   elif [[ "$ok" != "$expected_count" ]]; then
-    grep -v '|OK
-done
-
-# Check actual physical state, not just psql's exit code.
-found="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c
-WHERE c.oid IN (
-  to_regclass('public.organizations'),to_regclass('public.organization_members'),
-  to_regclass('public.profiles'),to_regclass('public.properties'),
-  to_regclass('public.contacts'),to_regclass('public.leads'),
-  to_regclass('public.deals'),to_regclass('public.audit_log')
-) AND c.relkind='r'")"
-if [[ "$found" != "8" ]]; then
-  echo "FAIL: only $found/8 expected physical tables after historical replay" >&2
-  exit 1
-fi
-rls="$("${psql_cmd[@]}" -qAt -d "$db" -c "
-SELECT count(*) FROM pg_class c WHERE c.oid IN (
- to_regclass('public.properties'),to_regclass('public.contacts'),
- to_regclass('public.leads'),to_regclass('public.deals'))
- AND c.relrowsecurity")"
-if [[ "$rls" != "4" ]]; then
-  echo "FAIL: only $rls/4 expected tenant RLS tables enabled" >&2
-  exit 1
-fi
-account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
-[[ "$account_count" == "0" ]]
-echo 'PASS: all 103 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 1 forward CRM); catalog 24/24; hosted Supabase bootstrap still NOT certified'
- "$output_file" >&2 || true
+    grep -v '|OK$' "$output_file" >&2 || true
     echo "FAIL: isolated $query_kind catalog differs from pinned production reference" >&2
     exit 1
   else
@@ -309,4 +223,4 @@ if [[ "$rls" != "4" ]]; then
 fi
 account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
 [[ "$account_count" == "0" ]]
-echo 'PASS: all 103 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 1 forward CRM); catalog 24/24; hosted Supabase bootstrap still NOT certified'
+echo 'PASS: all 103 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 1 forward CRM); catalog 14/14 consignment + 9/9 portal + 100 ledger; hosted Supabase bootstrap still NOT certified'
