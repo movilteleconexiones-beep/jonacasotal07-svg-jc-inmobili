@@ -68,6 +68,11 @@ test('G12 LIVE edge uses only separately named production secrets and fails clos
   assert.ok(!production.includes('console.log(publicKey'));
   assert.ok(!production.includes('console.log(eventsSecret'));
   assert.ok(!production.includes('console.log(integritySecret'));
+  assert.ok(production.includes("G12_LIVE_SECRET_DIAGNOSTIC: "));
+  assert.ok(production.includes("'wrong_prefix' : 'absent'"));
+  assert.ok(production.includes("name + '=' + (value ? 'wrong_prefix' : 'absent')"));
+  assert.ok(!production.includes('console.warn(privateKey'));
+  assert.ok(!production.includes('console.warn(eventsSecret'));
 });
 
 test('G12 test tenants never use the LIVE gateway and SQL remains the authority', () => {
