@@ -45,11 +45,13 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Production CI source contract regression
         run: node --test tests/main-ci-deploy-contract.test.mjs
-      - name: Build and verify 105-file staging-only candidate before legacy fixture overlay
+      - name: Build and verify 106-file staging-only candidate before legacy fixture overlay
         run: |
           set -euo pipefail
           node --test tests/staging325-build-bootstrap.test.mjs
           node scripts/ops/staging325-build-bootstrap.mjs
+      - name: G08 production MAINTAIN privilege migration immutability
+        run: node --test tests/g08-public-api-maintain-revocation.test.mjs
       - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)
         run: bash scripts/ops/migration104-ci-legacy-fixtures.sh
       - name: Finance history guard and intentional migration NO-GO (#104)

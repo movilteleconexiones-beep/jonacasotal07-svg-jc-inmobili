@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# INMOJCO #325 — execute all 104 SQL files from the staging-only bundle,
+# INMOJCO #325 — execute all 106 SQL files from the staging-only bundle,
 # preserving the real 99-row history in a separate reference table.
 # NO production Supabase URL, no migration history repair, no network operations.
 set -euo pipefail
@@ -62,8 +62,8 @@ owned_roles=true
 node scripts/ops/reconstruct-applied-99.mjs --archive-temporary > "$workdir/archive.json"
 archive_dir="$(node -e 'const f=require("node:fs");const x=JSON.parse(f.readFileSync(process.argv[1],"utf8"));if(!x.ok||x.originalBodies!==99||x.bytes!==493999||x.safeToReplay!==false||!x.localArchive?.startsWith("/tmp/inmojco-104-historic-sql-"))process.exit(3);process.stdout.write(x.localArchive)' "$workdir/archive.json")"
 
-# Materialize exactly 104 ordered SQL files in a fresh temporary directory.
-# Every canonical source and the three staging candidates is SHA-verified.
+# Materialize exactly 106 ordered SQL files in a fresh temporary directory.
+# Every canonical source, four forwards and three staging prerequisites is SHA-verified.
 if [[ -f "$RUNNER_TEMP/staging325-candidate.json" ]]; then
   cp -- "$RUNNER_TEMP/staging325-candidate.json" "$workdir/staging-candidate.json"
 else
@@ -73,7 +73,7 @@ fi
 candidate_dir="$(node - "$workdir/staging-candidate.json" <<'JS'
 const fs=require('node:fs');
 const x=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-if(!x.ok || x.canonical!==99 || x.forwardApplied!==3 || x.stagingOnly!==3 || x.total!==105 ||
+if(!x.ok || x.canonical!==99 || x.forwardApplied!==4 || x.stagingOnly!==3 || x.total!==106 ||
    x.safeForProduction!==false ||
    !x.temporaryDirectory?.startsWith('/tmp/inmojco-staging325-NO-PROD-'))
   process.exit(5);
@@ -84,8 +84,8 @@ mapfile -t candidates < <(node - "$candidate_dir/STAGING-ONLY-MANIFEST.json" <<'
 const fs=require('node:fs');
 const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
 if(m.safeForProduction!==false||m.doNotMergeWithProduction!==true||
-   m.originalVersions!==99||m.forwardApplied!==3||m.stagingPrerequisites!==3||m.total!==105||
-   m.files.length!==105)process.exit(6);
+   m.originalVersions!==99||m.forwardApplied!==4||m.stagingPrerequisites!==3||m.total!==106||
+   m.files.length!==106)process.exit(6);
 for(const row of m.files) {
  if(!/^[0-9]{14}_[a-z0-9_]+\.sql$/.test(row.name)||
     !['CANONICAL','STAGING_ONLY','FORWARD_APPLIED'].includes(row.kind))process.exit(7);
@@ -93,8 +93,8 @@ for(const row of m.files) {
 }
 JS
 )
-if [[ "${#candidates[@]}" != 105 ]]; then
-  echo 'ERROR: staging bootstrap must contain precisely 105 pinned files' >&2
+if [[ "${#candidates[@]}" != 106 ]]; then
+  echo 'ERROR: staging bootstrap must contain precisely 106 pinned files' >&2
   exit 1
 fi
 
@@ -133,6 +133,21 @@ for row in "${candidates[@]}"; do
     grep -Fq 'Trusted billing service lost commercial update access' \
       "$workdir/expected-commercial-failure.log" || { echo 'FAIL: wrong ACL denial' >&2; exit 1; }
   fi
+  # Hosted Supabase defaults already grant these business SELECT privileges
+  # and service_role maintenance; the plain PG17 fixture does not. Reproduce
+  # only these known current ACLs, only in disposable PG17, immediately before
+  # checking the exact new MAINTAIN revocation migration. Never alter the SQL.
+  if [[ "$version" == '20261107115138' && "$kind" == 'FORWARD_APPLIED' ]]; then
+    "${psql_cmd[@]}" -q -d "$db" -c \
+      'GRANT SELECT ON TABLE public.contacts,public.leases,public.rent_payments,public.owner_statements TO authenticated;
+       GRANT MAINTAIN ON ALL TABLES IN SCHEMA public TO service_role' > "$workdir/g08-hosted-acl-fixture.log" 2>&1
+    acl_ok="$("${psql_cmd[@]}" -qAt -d "$db" -c \
+      "SELECT has_table_privilege('authenticated','public.contacts','SELECT')
+        AND has_table_privilege('authenticated','public.leases','SELECT')
+        AND has_table_privilege('authenticated','public.rent_payments','SELECT')
+        AND has_table_privilege('authenticated','public.owner_statements','SELECT')")"
+    [[ "$acl_ok" == 't' ]] || { echo 'FAIL: missing hosted SQL SELECT fixture' >&2; exit 1; }
+  fi
   # Fail at the exact version and stop. No production SQL has been invoked.
   if ! "${psql_cmd[@]}" -q -d "$db" -f "$candidate_dir/supabase/migrations/$filename" > "$workdir/step-$version.log" 2>&1; then
     echo "FAIL: isolated chronological SQL replay at version $version, after $success successful original bodies" >&2
@@ -146,17 +161,17 @@ for row in "${candidates[@]}"; do
     "${psql_cmd[@]}" -q -d "$db" -c \
       "INSERT INTO supabase_migrations.schema_migrations(version) VALUES ('$version')" >/dev/null
   fi
-  echo "PG17 105-step staging-only candidate replay PASS $success/105 version $version $kind"
+  echo "PG17 106-step staging-only candidate replay PASS $success/106 version $version $kind"
 done
 
-# Confirm the staging proposal contains 104 successful steps while the
+# Confirm the staging proposal contains 106 successful steps while the
 # *authentic production* reference remains exactly 99 original versions.
 counts="$("${psql_cmd[@]}" -qAt -d "$db" -c "
 SELECT (SELECT count(*) FROM staging_candidate.replayed_versions),
        (SELECT count(*) FROM staging_candidate.replayed_versions WHERE kind='STAGING_ONLY'),
        (SELECT count(*) FROM supabase_migrations.schema_migrations)")"
-if [[ "$counts" != '105|3|102' ]]; then
-  echo "FAIL: 105/3/102 candidate/reference migration proof mismatch: $counts" >&2
+if [[ "$counts" != '106|3|103' ]]; then
+  echo "FAIL: 106/3/103 candidate/reference migration proof mismatch: $counts" >&2
   exit 1
 fi
 
@@ -225,4 +240,4 @@ if [[ "$rls" != "4" ]]; then
 fi
 account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
 [[ "$account_count" == "0" ]]
-echo 'PASS: all 105 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 3 forward SQL); catalog 14/14 consignment + 9/9 portal + 102 ledger; hosted Supabase bootstrap still NOT certified'
+echo 'PASS: all 106 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 4 forward SQL); catalog 14/14 consignment + 9/9 portal + 103 ledger; hosted Supabase bootstrap still NOT certified'
