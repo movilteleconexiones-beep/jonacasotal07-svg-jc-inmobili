@@ -15,7 +15,7 @@ test('#104: first original 26/99 replay is CI-only with localhost PG17 and no te
  assert.match(script,/DROP ROLE IF EXISTS anon,authenticated,service_role/);
  assert.match(script,/trap cleanup EXIT/);
  assert.match(script,/reconstruct-applied-99\.mjs --archive-temporary/);
- assert.match(script,/m\.summaries\.slice\(0,8\)/);
+ assert.match(script,/m\.summaries\.slice\(0,26\)/);
  assert.match(script,/if \[\[ "\$\{#candidates\[@\]\}" != 26 \]\]/);
  assert.match(script,/PG17 isolated chronological replay PASS/);
  assert.match(script,/remaining 73 NOT certified/);
