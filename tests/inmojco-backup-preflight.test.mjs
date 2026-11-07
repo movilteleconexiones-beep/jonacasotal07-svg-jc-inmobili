@@ -60,6 +60,10 @@ test('preflight and actual backup share an exact, paired database identity gate'
     ...correct, PGHOST:'aws-0-us-west-2.pooler.supabase.com',
     PGUSER:'postgres.cuitgyqrjibgwuniapmk',
   }));
+  assert.doesNotThrow(()=>validatePostgresConnectionIdentity({
+    ...correct, PGHOST:'aws-0-us-west-2.pooler.supabase.com',
+    PGUSER:'postgres.cuitgyqrjibgwuniapmk', PGPORT:'6543',
+  }));
   const impersonationCases=[
     {PGHOST:'db.nqzopzhmhqdssgpljypu.supabase.co',PGUSER:'postgres.cuitgyqrjibgwuniapmk'},
     {PGHOST:'db.cuitgyqrjibgwuniapmk.supabase.co',PGUSER:'postgres.nqzopzhmhqdssgpljypu'},
@@ -68,6 +72,11 @@ test('preflight and actual backup share an exact, paired database identity gate'
     {PGHOST:'aws-0-us-west-2.pooler.supabase.com',PGUSER:'postgres.nqzopzhmhqdssgpljypu'},
     {PGHOST:'aws-0-us-west-2.pooler.supabase.com.attacker.test'},
     {PGDATABASE:'another_database'},
+    {PGHOSTADDR:'203.0.113.15'},
+    {PGSERVICE:'untrusted-profile'},
+    {PGSERVICEFILE:'/tmp/untrusted-service.conf'},
+    {PGPORT:'9999'},
+    {PGPORT:'5432,6543'},
     {PGSSLMODE:'disable'},
     {PGSSLMODE:'prefer'},
   ];
