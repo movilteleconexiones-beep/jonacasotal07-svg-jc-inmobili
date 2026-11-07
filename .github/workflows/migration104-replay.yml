@@ -52,9 +52,22 @@ jobs:
           set -euo pipefail
           node --test tests/chronological-pg17-first-26.test.mjs
           bash security/tests/chronological_pg17_first_26.sh
-      - name: Probe complete original 99-SQL history and fail at earliest missing dependency
+      - name: Confirm exactly why pure 99-version replay blocks at migration 28 (#104)
         env:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          bash security/tests/chronological_pg17_probe_99.sh
+          set +e
+          bash security/tests/chronological_pg17_probe_99.sh > "$RUNNER_TEMP/pure-replay.log" 2>&1
+          replay_status=$?
+          set -e
+          tail -n 9 "$RUNNER_TEMP/pure-replay.log"
+          test "$replay_status" -eq 1
+          grep -F 'FAIL: isolated chronological SQL replay at version 20261010232928, after 27 successful original bodies' "$RUNNER_TEMP/pure-replay.log"
+          grep -F 'Incomplete consignment migration' "$RUNNER_TEMP/pure-replay.log"
+      - name: Bridge only pinned missing consignment and portal DDL in disposable PG17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          bash security/tests/chronological_pg17_bridge_probe.sh
