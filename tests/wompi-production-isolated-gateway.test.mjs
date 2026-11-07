@@ -39,22 +39,26 @@ function req(path, body, origin='https://www.inmojco.com') {
 }
 
 test('G12 LIVE edge uses only separately named production secrets and fails closed', () => {
-  for(const name of ['WOMPI_PROD_PRIVATE_KEY','WOMPI_PROD_PUBLIC_KEY',
-    'WOMPI_PROD_EVENTS_SECRET','WOMPI_PROD_INTEGRITY_SECRET']) {
-    assert.match(production, new RegExp(`Deno\\.env\\.get\\('${name}'\\)`));
+  for (const name of [
+    'WOMPI_PROD_PRIVATE_KEY', 'WOMPI_PROD_PUBLIC_KEY',
+    'WOMPI_PROD_EVENTS_SECRET', 'WOMPI_PROD_INTEGRITY_SECRET',
+  ]) {
+    assert.ok(production.includes("Deno.env.get('" + name + "')"));
   }
-  for(const prefix of ['prv_prod_','pub_prod_','prod_events_','prod_integrity_'])
+  for (const prefix of ['prv_prod_', 'pub_prod_', 'prod_events_', 'prod_integrity_'])
     assert.ok(production.includes(prefix));
-  assert.match(production,/merchantConfigured \? eventsSecret : ''/);
-  assert.match(production,/merchantConfigured \? integritySecret : ''/);
-  assert.match(production,/merchantConfigured \? publicKey : ''/);
-  assert.match(production,/environment: 'production' as const/);
-  assert.match(production,/environment !== 'production'/);
-  assert.match(production,/production\\.wompi\\.co/);
-  assert.match(production,/async getUser\\(token\\)/);
-  assert.match(production,/Authorization: \`Bearer \$\\{token\\}\\`/);
-  assert.doesNotMatch(production,/Deno\\.env\\.get\\('WOMPI_ENV'\\)|WOMPI_PRIVATE_KEY'|WOMPI_PUBLIC_KEY'/);
-  assert.doesNotMatch(production,/\\bVITE_/);
+  assert.ok(production.includes("merchantConfigured ? eventsSecret : ''"));
+  assert.ok(production.includes("merchantConfigured ? integritySecret : ''"));
+  assert.ok(production.includes("merchantConfigured ? publicKey : ''"));
+  assert.ok(production.includes("environment: 'production' as const"));
+  assert.ok(production.includes("environment !== 'production'"));
+  assert.ok(production.includes('production.wompi.co'));
+  assert.ok(production.includes('async getUser(token)'));
+  assert.ok(production.includes("Authorization: `Bearer ${token}`"));
+  assert.ok(!production.includes("Deno.env.get('WOMPI_ENV')"));
+  assert.ok(!production.includes("Deno.env.get('WOMPI_PRIVATE_KEY')"));
+  assert.ok(!production.includes("Deno.env.get('WOMPI_PUBLIC_KEY')"));
+  assert.ok(!production.includes('import.meta.env.VITE_'));
 });
 
 test('G12 test tenants never use the LIVE gateway and SQL remains the authority', () => {
