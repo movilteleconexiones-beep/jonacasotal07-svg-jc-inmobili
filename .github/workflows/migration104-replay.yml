@@ -70,6 +70,8 @@ jobs:
           set -euo pipefail
           node --test tests/staging325-build-bootstrap.test.mjs
           node scripts/ops/staging325-build-bootstrap.mjs
+          # Materialize BEFORE temporary overlay replaces canonical 99 files.
+          node scripts/ops/staging325-build-bootstrap.mjs --temporary-staging-only > "$RUNNER_TEMP/staging325-candidate.json"
       - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)
         run: bash scripts/ops/migration104-ci-legacy-fixtures.sh
       - name: Compare real 99-version ledger with legacy tree and check canonical temporary mirror
