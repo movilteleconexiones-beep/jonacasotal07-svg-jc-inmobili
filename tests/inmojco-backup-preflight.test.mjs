@@ -4,7 +4,8 @@ import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, win32 } from 'node:path';
 import { after, test } from 'node:test';
-import { preflightOfflineBackup, validateOfflineTarget, assertPathOutsideRepository } from
+import { preflightOfflineBackup, validateOfflineTarget, assertPathOutsideRepository,
+  validatePostgresConnectionIdentity } from
   '../scripts/lib/inmojco-backup-preflight.mjs';
 
 const repo = resolve('.');
@@ -50,6 +51,48 @@ test('preflight refuses the legacy Supabase project, unrelated pooler user and i
     {PGDATABASE:'other_database'},
   ]) assert.throws(()=>validateOfflineTarget({...valid,...invalid},directory,repo),
     /Backup preflight failed/);
+});
+
+test('preflight and actual backup share an exact, paired database identity gate',()=>{
+  const correct=env();
+  assert.doesNotThrow(()=>validatePostgresConnectionIdentity(correct));
+  assert.doesNotThrow(()=>validatePostgresConnectionIdentity({
+    ...correct, PGHOST:'aws-0-us-west-2.pooler.supabase.com',
+    PGUSER:'postgres.cuitgyqrjibgwuniapmk',
+  }));
+  const impersonationCases=[
+    {PGHOST:'db.nqzopzhmhqdssgpljypu.supabase.co',PGUSER:'postgres.cuitgyqrjibgwuniapmk'},
+    {PGHOST:'db.cuitgyqrjibgwuniapmk.supabase.co',PGUSER:'postgres.nqzopzhmhqdssgpljypu'},
+    {PGHOST:'db.unrelated.supabase.co',PGUSER:'postgres.cuitgyqrjibgwuniapmk'},
+    {PGHOST:'127.0.0.1',PGUSER:'postgres.cuitgyqrjibgwuniapmk'},
+    {PGHOST:'aws-0-us-west-2.pooler.supabase.com',PGUSER:'postgres.nqzopzhmhqdssgpljypu'},
+    {PGHOST:'aws-0-us-west-2.pooler.supabase.com.attacker.test'},
+    {PGDATABASE:'another_database'},
+    {PGSSLMODE:'disable'},
+    {PGSSLMODE:'prefer'},
+  ];
+  for(const spoof of impersonationCases) {
+    const altered={...correct,...spoof};
+    assert.throws(()=>validatePostgresConnectionIdentity(altered),/Backup preflight failed/);
+    assert.throws(()=>validateOfflineTarget(altered,directory,repo),/Backup preflight failed/);
+  }
+});
+
+test('direct backup command refuses a mismatched DB before any network or archive write',()=>{
+  const fakeCredentials={
+    ...process.env,...env(),
+    INMOJCO_BACKUP_PASSPHRASE:'CI-only-passphrase-not-for-production',
+    SUPABASE_SERVICE_ROLE_KEY:'CI-only-fake-service-key',
+    PGPASSWORD:'CI-only-fake-password',
+    PGHOST:'db.nqzopzhmhqdssgpljypu.supabase.co',
+    PGUSER:'postgres.cuitgyqrjibgwuniapmk',
+  };
+  const run=spawnSync(process.execPath,[resolve('scripts/inmojco-backup.mjs'),'backup'],{
+    env:fakeCredentials,encoding:'utf8',timeout:10000,
+  });
+  assert.notEqual(run.status,0);
+  assert.match(run.stderr,/PostgreSQL host and username must identify the active INMOJCO project/);
+  assert.doesNotMatch(run.stderr,/CI-only-fake|nqzopzhmhqdssgpljypu/);
 });
 
 test('preflight refuses writing archives inside the app repository',async()=>{
