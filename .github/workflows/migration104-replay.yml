@@ -63,6 +63,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate exact 102 SQL staging-only bundle without linking Supabase
+        run: |
+          set -euo pipefail
+          node --test tests/staging325-build-bootstrap.test.mjs
+          node scripts/ops/staging325-build-bootstrap.mjs
       - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)
         run: bash scripts/ops/migration104-ci-legacy-fixtures.sh
       - name: Compare real 99-version ledger with legacy tree and check canonical temporary mirror
@@ -102,11 +107,6 @@ jobs:
           test "$replay_status" -eq 1
           grep -F 'FAIL: isolated chronological SQL replay at version 20261010232928, after 27 successful original bodies' "$RUNNER_TEMP/pure-replay.log"
           grep -F 'Incomplete consignment migration' "$RUNNER_TEMP/pure-replay.log"
-      - name: Validate exact 102 SQL staging-only bundle without linking Supabase
-        run: |
-          set -euo pipefail
-          node --test tests/staging325-build-bootstrap.test.mjs
-          node scripts/ops/staging325-build-bootstrap.mjs
       - name: Bridge only pinned missing consignment and portal DDL in disposable PG17
         env:
           PGPASSWORD: postgres
