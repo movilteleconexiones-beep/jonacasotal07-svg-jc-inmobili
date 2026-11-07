@@ -71,7 +71,10 @@ export function BillingModule() {
     const requestKey = attempts.current.get(planId) ?? crypto.randomUUID();
     attempts.current.set(planId, requestKey);
     try {
-      const { data, error: requestError } = await supabase.functions.invoke('billing/checkout', {
+      // Test tenants stay on Sandbox; commercial tenants use a separate LIVE gateway.
+      // PostgreSQL independently enforces !is_test, production_enabled and owner auth.
+      const gateway = billing?.is_test ? 'billing/checkout' : 'billing-production/checkout';
+      const { data, error: requestError } = await supabase.functions.invoke(gateway, {
         body: { organizationId: orgId, planId, requestKey },
       });
       if (requestError || !data) {
