@@ -1,0 +1,29 @@
+name: G12 Wompi LIVE/Sandbox hosted HTTP negative smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g12-live-edge-negative-http.test.mjs'
+      - '.github/workflows/g12-live-edge-negative-http.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g12-live-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Checkout immutable revision
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify LIVE endpoint rejects all unauthorized HTTP and Sandbox remains isolated
+        run: node --test tests/g12-live-edge-negative-http.test.mjs
