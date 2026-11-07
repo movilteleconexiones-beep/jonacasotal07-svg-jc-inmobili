@@ -4,6 +4,7 @@
  */
 
 import { getPublicInquiryRequestId, clearPublicInquiryAttempt } from './core/public-inquiry-attempt';
+import { updatePublicInquiryView } from './core/public-inquiry-view';
 import React, { useState, useMemo } from 'react';
 import {
   CASE_STUDIES,
@@ -178,7 +179,19 @@ export default function App() {
   const [contactBusy, setContactBusy] = useState(false);
   // Ref lock blocks a second submit before React can render the busy state.
   const contactSubmitInFlight = React.useRef(false);
+  // A stale result from agency A must never confirm a request on B (nor on
+  // a second visit to A). A token changes on every tenant navigation.
+  const publicInquiryView = React.useRef({ slug: tenantSlug, epoch: 0 });
+  publicInquiryView.current = updatePublicInquiryView(publicInquiryView.current, tenantSlug);
   React.useEffect(() => {
+    // Never carry personally identifying form fields into another agency's
+    // public portal, even when a request from the previous portal is in flight.
+    setContactName('');
+    setContactEmail('');
+    setContactPhone('');
+    setContactService('Consulta general');
+    setContactNotes('');
+    setContactTrap('');
     setContactSubmitted(false);
     setContactConsent(false);
     setContactError('');
@@ -304,6 +317,8 @@ export default function App() {
       setContactSubmitted(true);
       return;
     }
+    const submittedView = publicInquiryView.current;
+    const submittedTenantSlug = tenantSlug;
     contactSubmitInFlight.current = true;
     setContactBusy(true);
     const inquiry = {
@@ -329,11 +344,16 @@ export default function App() {
       if (error || data !== true) {
         throw new Error('No fue posible registrar la consulta. Comprueba si llegó al CRM antes de volver a enviarla.');
       }
-      if (useReplaySafeCrm) clearPublicInquiryAttempt(tenantSlug);
+      // A confirmed request clears the UUID for its ORIGINAL tenant, even if
+      // the visitor navigated away while the server was processing it.
+      if (useReplaySafeCrm) clearPublicInquiryAttempt(submittedTenantSlug);
+      if (publicInquiryView.current !== submittedView) return;
       setContactSubmitted(true);
       setContactConsent(false);
     } catch (error) {
-      setContactError(error instanceof Error ? error.message : 'No fue posible enviar la consulta.');
+      if (publicInquiryView.current === submittedView) {
+        setContactError(error instanceof Error ? error.message : 'No fue posible enviar la consulta.');
+      }
     } finally {
       contactSubmitInFlight.current = false;
       setContactBusy(false);
