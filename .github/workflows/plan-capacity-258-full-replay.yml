@@ -1,0 +1,47 @@
+name: INMOJCO #258 full historical capacity PG17 replay
+on:
+  pull_request:
+    paths:
+      - 'security/candidates/20261107_plan_capacity.NOT_APPLIED.sql'
+      - 'security/tests/chronological_pg17_capacity_258.sh'
+      - '.github/workflows/plan-capacity-258-full-replay.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'security/candidates/20261107_plan_capacity.NOT_APPLIED.sql'
+      - 'security/tests/chronological_pg17_capacity_258.sh'
+      - '.github/workflows/plan-capacity-258-full-replay.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capacity-full-104:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay original schema and stage 104th capacity migration in disposable PostgreSQL17
+        run: bash security/tests/chronological_pg17_capacity_258.sh
+      - name: Ensure migration #258 stays away from canonical production folder
+        run: |
+          set -euo pipefail
+          test -f security/candidates/20261107_plan_capacity.NOT_APPLIED.sql
+          test ! -e supabase/migrations/20261031090000_guard_plan_capacity_for_billing.sql
