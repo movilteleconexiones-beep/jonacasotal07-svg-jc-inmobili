@@ -3,11 +3,14 @@ on:
   pull_request:
     paths:
       - 'security/tests/chronological_pg17_*'
+      - 'security/tests/chronological_pg17_candidate102.sh'
       - 'tests/chronological-pg17-*.test.mjs'
       - 'scripts/ops/reconstruct-applied-99.mjs'
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
       - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'scripts/ops/staging325-build-bootstrap.mjs'
+      - 'tests/staging325-build-bootstrap.test.mjs'
       - 'tests/migration104-cutover-gate.test.mjs'
       - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
@@ -18,11 +21,14 @@ on:
     branches: [main]
     paths:
       - 'security/tests/chronological_pg17_*'
+      - 'security/tests/chronological_pg17_candidate102.sh'
       - 'tests/chronological-pg17-*.test.mjs'
       - 'scripts/ops/reconstruct-applied-99.mjs'
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
       - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'scripts/ops/staging325-build-bootstrap.mjs'
+      - 'tests/staging325-build-bootstrap.test.mjs'
       - 'tests/migration104-cutover-gate.test.mjs'
       - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
@@ -59,6 +65,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate exact 102 SQL staging-only bundle without linking Supabase
+        run: |
+          set -euo pipefail
+          node --test tests/staging325-build-bootstrap.test.mjs
+          node scripts/ops/staging325-build-bootstrap.mjs
+          # Materialize BEFORE temporary overlay replaces canonical 99 files.
+          node scripts/ops/staging325-build-bootstrap.mjs --temporary-staging-only > "$RUNNER_TEMP/staging325-candidate.json"
       - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)
         run: bash scripts/ops/migration104-ci-legacy-fixtures.sh
       - name: Compare real 99-version ledger with legacy tree and check canonical temporary mirror
@@ -104,3 +117,10 @@ jobs:
         run: |
           set -euo pipefail
           bash security/tests/chronological_pg17_bridge_probe.sh
+      - name: Replay all 102 staged SQL bodies in chronological order on disposable PG17
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          bash -n security/tests/chronological_pg17_candidate102.sh
+          bash security/tests/chronological_pg17_candidate102.sh
