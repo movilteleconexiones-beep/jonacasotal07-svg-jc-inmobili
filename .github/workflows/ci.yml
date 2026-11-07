@@ -606,6 +606,8 @@ jobs:
         run: node --import tsx --test tests/consignment-submit-refresh-idempotency.test.mjs
       - name: Verified checkout and webhook tests
         run: node --import tsx --test tests/billing-edge-handler.test.mjs
+      - name: G12 segregated Wompi production gateway and original Sandbox contract
+        run: node --import tsx --test tests/wompi-production-isolated-gateway.test.mjs
       - name: Sandbox payment labels cannot imply real sales
         run: node --import tsx --test tests/wompi-sandbox-commercial-separation.test.mjs
       - name: Wompi Edge gateway JWT and signed webhook safety
