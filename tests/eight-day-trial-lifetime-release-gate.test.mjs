@@ -64,6 +64,9 @@ test('SuperAdmin can grant perpetual term, not unlimited seats, with explicit au
   assert.match(draft,/s\.current_period_end IS NULL/);
   assert.match(assertions,/suspension supersedes perpetual duration/);
   assert.match(admin,/Conceder licencia perpetua · sin vencimiento/);
+  assert.match(admin,/action === 'GRANT_LIFETIME' && !window\.confirm/);
+  assert.match(admin,/¿Confirmas conceder la licencia perpetua a/);
+  assert.match(admin,/Esta autorización no tiene vencimiento ni realiza un cobro por Wompi/);
   assert.match(admin,/action==='GRANT_LIFETIME'/);
   assert.match(billing,/Licencia perpetua activa · sin fecha de vencimiento/);
   assert.match(billing,/isLifetime \? 'Licencia perpetua vigente'/);
