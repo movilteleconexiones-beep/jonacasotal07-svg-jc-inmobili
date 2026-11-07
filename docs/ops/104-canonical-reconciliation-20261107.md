@@ -54,6 +54,14 @@ El verificador apunta exclusivamente a `127.0.0.1:5433/inmojco_restore_test_3`, 
 
 Solo guarda `%USERPROFILE%\INMOJCO-RESPALDOS\RESULTADO-104-CATALOGO-LOCAL.json`. **Ese JSON resumido, no los .dump/.7z ni contraseñas, es el resultado que se puede aportar para finalizar esta comprobación.** El ensayo de login real, Storage API y aislamiento operativo corresponde al issue #203 y no se simula con este script.
 
+## Diagnóstico real sobre la restauración local (7-nov-2026)
+
+El operador ejecutó el comprobador contra `127.0.0.1:5433/inmojco_restore_test_3`, PostgreSQL 17, y confirmó la conexión de solo lectura. La primera versión del comprobador rechazaba erróneamente la dirección/puerto **internos** del contenedor Docker. Una segunda ejecución llegó a la consulta del ledger, pero PostgreSQL informó que **no existe** `supabase_migrations.schema_migrations` en esa restauración.
+
+La tabla de migraciones puede no formar parte del backup restaurado. Su ausencia no debe ocultar los resultados Auth/Storage ni motivar la creación artificial de una tabla. El comprobador actualizado ejecuta `to_regclass` antes de cualquier SELECT del ledger, lo clasifica como `UNAVAILABLE_LOCAL` cuando falta y sigue verificando los recuentos de Auth/Storage y relaciones. En ningún caso autoriza `migration repair` o `db push`. El historial remoto de 99 versiones está inventariado y reconstruido con hashes por separado (PR #319).
+
+**Pendiente:** recibir el JSON de ejecución local con los recuentos y determinar por inspección de TOC del backup si el ledger faltaba ya en el dump o quedó fuera en la restauración. El verificador V3 autónomo entregado al operador ejecuta además esa inspección de TOC, sin restaurar datos.
+
 ## Puertas de cierre verificables
 
 1. Correlacionar la copia auténtica existente y restauración local con la base actual mediante pruebas read-only, incluyendo inventario de Auth/Storage y rollback. No exigir duplicar copias innecesarias.

@@ -8,6 +8,7 @@ on:
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
+      - 'tests/inmojco104-local-restore-reader.test.mjs'
       - 'docs/ops/snapshots/**'
       - '.github/workflows/migration104-replay.yml'
   push:
@@ -19,6 +20,7 @@ on:
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
+      - 'tests/inmojco104-local-restore-reader.test.mjs'
       - '.github/workflows/migration104-replay.yml'
   workflow_dispatch:
 permissions:
@@ -56,6 +58,8 @@ jobs:
           set -euo pipefail
           node --test tests/migration104-canonical-workspace.test.mjs
           node scripts/ops/migration104-canonical-workspace.mjs
+      - name: Fail closed on missing ledger and Docker internal-port regression
+        run: node --test tests/inmojco104-local-restore-reader.test.mjs
       - name: Parse local existing-backup PowerShell verifier without executing it
         shell: pwsh
         run: |
