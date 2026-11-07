@@ -3,6 +3,7 @@ import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 import { LicenseModule } from '../license/LicenseModule';
 import { paymentDisplayLabel, paymentReviewNotice } from '../../core/payment-display';
+import { trialAndLifetimeActionsEnabled } from '../../core/billing-release-flags';
 
 interface Plan { id: string; name: string; price: number; currency: string; billing_cycle: string; max_users: number | null; max_properties: number | null }
 interface Order { id: string; reference: string; status: string; fulfillment_status: string; review_reason: string | null; environment: string; created_at: string; expires_at: string | null; amount_in_cents: number }
@@ -34,6 +35,27 @@ export function BillingModule() {
   }, [orgId, billing?.can_manage_billing]);
   useEffect(() => { attempts.current.clear(); void load(); }, [load]);
 
+  async function activateEightDayTrial(planId: string) {
+    if (!trialAndLifetimeActionsEnabled) { setError('La prueba gratuita aún no está habilitada comercialmente.'); return; }
+    if (!orgId || busy || !billing?.terms_accepted ||
+        billing.is_test || billing.subscription_status ||
+        billing.status !== 'INACTIVE') return;
+    setBusy(true); setError('');
+    try {
+      const { error: activationError } = await supabase.rpc('billing_start_eight_day_trial', {
+        target_org: orgId, target_plan: planId,
+      });
+      if (activationError) {
+        setError('No se pudo iniciar la prueba. Comprueba que la cuenta sea nueva, que no hayas usado antes una prueba y que los términos estén aceptados.');
+        return;
+      }
+      await Promise.all([load(),refreshMemberships()]);
+    } catch {
+      setError('No fue posible verificar el inicio de la prueba. Actualiza antes de repetir.');
+    } finally {
+      setBusy(false);
+    }
+  }
   async function refresh() { setBusy(true); try { await Promise.all([load(), refreshMemberships()]); } finally { setBusy(false); } }
   async function checkout(planId: string) {
     if (!orgId || busy) return;
@@ -73,6 +95,11 @@ export function BillingModule() {
   if (!billing) return null;
   const available = billing.is_test ? settings?.sandbox_enabled : settings?.production_enabled;
   const paymentLabel = paymentDisplayLabel;
+  const isLifetime = billing.operational && billing.subscription_status === 'LIFETIME';
+  const isTrial = billing.operational && billing.subscription_status === 'TRIAL'
+    && Boolean(billing.period_end) && Date.parse(billing.period_end!) > Date.now();
+  const canStartTrial = trialAndLifetimeActionsEnabled && billing.status === 'INACTIVE' && !billing.is_test &&
+    !billing.subscription_status && billing.terms_accepted && billing.can_manage_billing;
   // Tenant-scoped access (server enforced) is the authority; never infer an
   // entitlement from a Wompi redirect, a pending order, or a display label.
   const activePlan = billing.operational && billing.subscription_status === 'ACTIVE'
@@ -83,9 +110,13 @@ export function BillingModule() {
     <div><h1 className="text-2xl font-bold">Plan y activación</h1>
       <p className="mt-2 text-sm text-slate-600">{billing.operational ? 'Tu inmobiliaria está habilitada.' : billing.status === 'SUSPENDED'
         ? 'La inmobiliaria está suspendida. Contacta al administrador.'
-        : 'Tu inmobiliaria está registrada y pendiente de pago. El acceso se activa tras verificar el cobro.'}</p>
+        : (trialAndLifetimeActionsEnabled
+          ? 'Tu inmobiliaria está registrada y pendiente de activación. Puedes elegir un plan o solicitar una prueba de 8 días si cumples las condiciones.'
+          : 'Tu inmobiliaria está registrada y pendiente de activación. Puedes consultar los planes; los cobros y las pruebas se habilitarán cuando termine la revisión comercial.')}</p>
       {billing.period_end && <p className="mt-1 text-sm">Vigencia hasta {new Date(billing.period_end).toLocaleDateString('es-CO')}.</p>}
     </div>
+    {isTrial && <p role="status" className="rounded-xl bg-blue-50 p-4 text-sm text-blue-950">Prueba gratuita de 8 días activa. Finaliza el {new Date(billing.period_end!).toLocaleDateString('es-CO')}. Puedes comprar tu plan en cualquier momento: al confirmarse el pago, termina la prueba y comienza la vigencia comercial, sin añadir días de regalo.</p>}
+    {isLifetime && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-950">Licencia perpetua activa · sin fecha de vencimiento. Los límites de usuarios e inmuebles y las condiciones contractuales siguen vigentes.</p>}
     {activePlan && <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
       <p className="font-bold">Plan {activePlan.name} activo {billing.is_test ? '· entorno de pruebas' : '· licencia vigente'}</p>
       <p className="mt-1 text-sm">{activePlan.max_users ?? 'Usuarios según contrato'} usuarios · {activePlan.max_properties ?? 'Inmuebles según contrato'} inmuebles</p>
@@ -108,11 +139,17 @@ export function BillingModule() {
         <h2 className="font-bold">{plan.name}</h2><p className="mt-3 text-2xl font-bold">{money(Number(plan.price))}</p>
         <p className="text-sm text-slate-600">{plan.billing_cycle === 'ANNUAL' ? 'Por año' : 'Por mes'} · Total comercial 2026</p>
         <p className="mt-3 text-sm">{plan.max_users ? `${plan.max_users} usuarios` : 'Usuarios según contrato'} · {plan.max_properties ? `${plan.max_properties} inmuebles` : 'Inmuebles según contrato'}</p>
-        <button type="button" disabled={busy || !available || !billing.terms_accepted || billing.status === 'SUSPENDED' || differentActivePlan}
+        {canStartTrial && plan.billing_cycle==='MONTHLY' && <button type="button"
+          disabled={busy || !billing.terms_accepted}
+          onClick={()=>void activateEightDayTrial(plan.id)}
+          className="mt-3 w-full rounded-xl border border-blue-600 bg-blue-50 p-3 text-sm font-semibold text-blue-950 disabled:opacity-40">
+          Probar gratis 8 días
+        </button>}
+        <button type="button" disabled={busy || !available || !billing.terms_accepted || billing.status === 'SUSPENDED' || differentActivePlan || isLifetime}
           onClick={() => void checkout(plan.id)} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
           {differentActivePlan ? 'Cambio de plan: requiere revisión'
             : isCurrentPlan ? billing.is_test ? 'Simular renovación' : 'Renovar este plan'
-            : billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
+            : isLifetime ? 'Licencia perpetua vigente' : billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
       </article>;
       })}</div>
       {lifetimeAvailable && <section aria-label="Licencia vitalicia" className="rounded-2xl border border-stone-200 bg-white p-5">

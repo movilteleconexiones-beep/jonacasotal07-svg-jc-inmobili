@@ -670,6 +670,23 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/snapshots/create_organization_with_owner.read-only-applied-20261106.sql
           node --test tests/onboarding-production-rpc-snapshots.test.mjs
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/onboarding-to-license-pg17.assertions.sql
+      - name: Eight-day trial and manual perpetual license (isolated PG17 draft, release #203 NO-GO)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          db="jco_trial_perpetual_draft_test"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/billing_activation_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER TABLE public.subscriptions ADD COLUMN started_at timestamptz; ALTER TABLE public.subscriptions ADD COLUMN trial_ends_at timestamptz; ALTER TABLE auth.users ADD COLUMN email_confirmed_at timestamptz; ALTER TABLE public.license_acceptances ADD COLUMN accepted_at timestamptz NOT NULL DEFAULT now();"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f docs/ops/archive/legacy-sql-20261107/20261010222342_verified_tenant_billing.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f docs/ops/archive/legacy-sql-20261107/20261010222700_commercial_plan_permissions.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f docs/ops/archive/legacy-sql-20261107/20261021114500_block_incompatible_checkout_contracts.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f docs/ops/archive/legacy-sql-20261107/20261029030000_allow_trial_to_paid_wompi_activation.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/eight_day_trial_perpetual_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/drafts/20261105_eight_day_trial_manual_lifetime.NOT_APPLIED.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/eight_day_trial_perpetual_assertions.sql
+          node --test tests/eight-day-trial-lifetime-release-gate.test.mjs
       - name: Property consignment SQL security and atomicity tests
         env:
           PGPASSWORD: postgres
