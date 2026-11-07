@@ -1,0 +1,37 @@
+name: G08 real browser role navigation with ephemeral Supabase Auth identities
+on:
+  pull_request:
+    paths:
+      - 'tests/g08-hosted-browser-role-nav.test.mjs'
+      - '.github/workflows/g08-hosted-browser-role-nav.yml'
+permissions:
+  contents: read
+jobs:
+  role-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install app dependencies and pinned browser runner
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Start ephemeral Vite app pointing ONLY to staging branch
+        run: |
+          set -euo pipefail
+          export VITE_SUPABASE_URL='https://jrpkcsqzqrofzqphdaie.supabase.co'
+          export VITE_SUPABASE_PUBLISHABLE_KEY="$(node -e "const fs=require('fs');let s=fs.readFileSync('tests/g08-hosted-jwt-branch-only.test.mjs','utf8');let m=s.match(/^const apikey=(.+);$/m);if(!m)process.exit(2);console.log(JSON.parse(m[1]))")"
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/g08-staging-vite.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -sS --fail http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          tail -n 70 /tmp/g08-staging-vite.log
+          exit 1
+      - name: G08 five browser sessions, real menus and role separation
+        run: node --test tests/g08-hosted-browser-role-nav.test.mjs
