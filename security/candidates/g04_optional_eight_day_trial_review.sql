@@ -99,7 +99,7 @@ BEGIN
   SELECT * INTO contract FROM public.organization_licenses
     WHERE organization_id=target_org FOR UPDATE;
   IF contract.id IS NULL OR contract.license_type<>'SAAS'
-    OR contract.status<>'ACTIVE' OR contract.ends_at IS NOT NULL THEN
+    OR contract.status NOT IN ('PENDING','ACTIVE') OR contract.ends_at IS NOT NULL THEN
     RAISE EXCEPTION 'Existing contract requires review' USING ERRCODE='23514';
   END IF;
   SELECT id INTO terms_id FROM public.license_terms_versions WHERE active
