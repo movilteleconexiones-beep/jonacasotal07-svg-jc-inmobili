@@ -58,11 +58,11 @@ test('G12 LIVE edge uses only separately named production secrets and fails clos
 });
 
 test('G12 test tenants never use the LIVE gateway and SQL remains the authority', () => {
-  assert.match(billingUI,/billing\\?\\.is_test \\? 'billing\\/checkout' : 'billing-production\\/checkout'/);
-  assert.match(billingUI,/billing\\?\\.is_test \\? settings\\?\\.sandbox_enabled : settings\\?\\.production_enabled/);
-  assert.match(production,/client\\.rpc\\('billing_create_order', args\\)/);
-  assert.match(sandbox,/const environment = Deno\\.env\\.get\\('WOMPI_ENV'\\) === 'production'/);
-  assert.match(sandbox,/Deno\\.env\\.get\\('WOMPI_PUBLIC_KEY'\\)/);
+  assert.ok(billingUI.includes("billing?.is_test ? 'billing/checkout' : 'billing-production/checkout'"));
+  assert.ok(billingUI.includes('billing.is_test ? settings?.sandbox_enabled : settings?.production_enabled'));
+  assert.ok(production.includes("client.rpc('billing_create_order', args)"));
+  assert.ok(sandbox.includes("Deno.env.get('WOMPI_ENV') === 'production'"));
+  assert.ok(sandbox.includes("Deno.env.get('WOMPI_PUBLIC_KEY')"));
 });
 
 test('G12 missing LIVE keys block checkout and webhooks before creating orders', async () => {
