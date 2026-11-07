@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // INMOJCO #104 — Offline cutover candidate contract. NEVER executes SQL.
-// Preserve 99 immutable historical SQL bodies, 109 legacy sources, and three verified forwards (CRM, capacity, manual perpetual).
+// Preserve 99 immutable historical SQL bodies, 109 legacy sources, and four verified forwards (CRM, capacity, manual perpetual, MAINTAIN ACL).
 import {readFileSync,readdirSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -18,6 +18,7 @@ const forwards=Object.freeze([
   {name:'20261107072304_website_lead_reuse_event_consent.sql',sha:'c9fdfccf55c2fd8d70da709dd50d1d56de3361d5'},
   {name:'20261107082410_guard_plan_capacity_verified_review.sql',sha:'258d3cba1a361ffd1b9b15be8d9b7828531d2f35'},
   {name:'20261107103505_manual_lifetime_owner_only.sql',sha:'feaffad1398f38cea024ba173828cf8af8a18bb5'},
+  {name:'20261107115138_revoke_excess_public_maintain_postgres_phase.sql',sha:'951f76a05d7b3466e67ed6a90a87fd38e40ba6b9'},
 ]);
 
 export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFiles,getCanonical,getLegacy}) {
@@ -31,9 +32,9 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
   const permitted=new Set([...reference,...forwards.map(x=>x.name)]);
   const canonicalNames=canonicalFiles.filter(n=>n.endsWith('.sql')).sort();
   const legacyNames=legacyFiles.filter(n=>n.endsWith('.sql')).sort();
-  if(canonicalNames.length!==102 || permitted.size!==102 ||
+  if(canonicalNames.length!==103 || permitted.size!==103 ||
      JSON.stringify(canonicalNames)!==JSON.stringify([...permitted].sort()))
-    errors.push('Canonical file names differ from 99 historical + 3 pinned forward migrations');
+    errors.push('Canonical file names differ from 99 historical + 4 pinned forward migrations');
   for(const forward of forwards){
     try {
       if(gitBlobSha(getCanonical(forward.name))!==forward.sha)
@@ -74,7 +75,7 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
     errors.push('Unapplied candidate SQL must never be canonicalized');
   return {ok:errors.length===0,safeToPush:false,safeToRepair:false,
     readyToMerge:false,canonicalCount:canonicalNames.length,
-    archivedSources:legacyNames.length,matchedRecordedSql:99,verifiedForward:3,
+    archivedSources:legacyNames.length,matchedRecordedSql:99,verifiedForward:4,
     requiresHistoricalFixtureCompatibility:true,errors};
 }
 
