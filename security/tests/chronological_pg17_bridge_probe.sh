@@ -146,7 +146,9 @@ for query_kind in consignment portal; do
   ok="$(awk -F '|' '$3=="OK"{n++} END{print n+0}' "$output_file")"
   echo "CATALOG COMPARISON, NOT GO: $query_kind $ok/$expected_count match production reference"
   if [[ "$ok" != "$expected_count" ]]; then
-    grep -v '|OK$' "$output_file" || true
+    grep -v '|OK$' "$output_file" >&2 || true
+    echo "FAIL: isolated $query_kind catalog differs from pinned production reference" >&2
+    exit 1
   fi
 done
 
@@ -174,4 +176,4 @@ if [[ "$rls" != "4" ]]; then
 fi
 account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
 [[ "$account_count" == "0" ]]
-echo 'PASS: 99/99 SQL sources applied with two synthetic prerequisites on disposable PG17, 8 tables and 4 RLS guards verified; physical checks do not certify Supabase Auth/Storage; #104 still NO-GO; #104 NO-GO'
+echo 'PASS: 99/99 SQL sources applied with two synthetic prerequisites on disposable PG17, 8 tables and 4 RLS guards verified; physical checks do not certify Supabase Auth/Storage; #104 still NO-GO'

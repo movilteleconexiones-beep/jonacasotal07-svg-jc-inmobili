@@ -125,6 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test tests/chronological-pg17-first-26.test.mjs
+          node --test tests/chronological-pg17-assisted.test.mjs
           bash security/tests/chronological_pg17_first_26.sh
       - name: Privileged RPC anonymous allowlist and negative ACL tests (PostgreSQL 17)
         env:
