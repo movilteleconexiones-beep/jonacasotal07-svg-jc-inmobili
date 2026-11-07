@@ -17,13 +17,14 @@ test('a return visit to agency A cannot accept stale results from the earlier A 
 });
 
 test('public inquiry clears all visitor PII and consent on agency switch', () => {
-  const start = app.indexOf('React.useEffect(() => {\n    // Never carry personally identifying form fields');
+  const start = app.indexOf('React.useLayoutEffect(() => {\n    // Never carry personally identifying form fields');
   const end = app.indexOf('}, [tenantSlug]);', start);
   assert.ok(start > -1 && end > start, 'tenant-change effect must be scoped to tenantSlug');
   const effect = app.slice(start, end);
   for (const expression of [
     "setContactName('')", "setContactEmail('')", "setContactPhone('')",
     "setContactService('Consulta general')", "setContactNotes('')", "setContactTrap('')",
+    'setScheduledVisitsLog([])',
     'setContactSubmitted(false)', 'setContactConsent(false)', "setContactError('')",
   ]) assert.ok(effect.includes(expression), 'missing privacy reset: ' + expression);
 });
