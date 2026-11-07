@@ -92,6 +92,7 @@ jobs:
           # The hosted SQL rehearsal runs only on the designated isolated test
           # agency, explicitly inside BEGIN/ROLLBACK, never from CI against prod.
           node --test tests/finance-test-tenant-e2e-96.test.mjs
+          node --test tests/finance-owner-payout-hosted-96.test.mjs
       - name: Contact identity, shared mailbox and single-flight regressions
         run: node --import tsx --test tests/contact-create-single-flight.test.mjs tests/contact-identity-match.test.mjs
       - name: npm audit security gate (reject any published vulnerability)
