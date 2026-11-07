@@ -38,6 +38,17 @@ if (!merchantConfigured) {
   if (!eventsSecret.startsWith('prod_events_')) missingNames.push('WOMPI_PROD_EVENTS_SECRET');
   if (!integritySecret.startsWith('prod_integrity_')) missingNames.push('WOMPI_PROD_INTEGRITY_SECRET');
   console.warn('G12_LIVE_MERCHANT_SECRETS_INVALID: ' + missingNames.join(','));
+  // Categorize only absent-vs-wrong-prefix, never log values, lengths or fragments.
+  const secretPresence = [
+    ['WOMPI_PROD_PRIVATE_KEY', privateKey, 'prv_prod_'],
+    ['WOMPI_PROD_PUBLIC_KEY', publicKey, 'pub_prod_'],
+    ['WOMPI_PROD_EVENTS_SECRET', eventsSecret, 'prod_events_'],
+    ['WOMPI_PROD_INTEGRITY_SECRET', integritySecret, 'prod_integrity_'],
+  ] as const;
+  const invalidReasons = secretPresence
+    .filter(([, value, prefix]) => !value.startsWith(prefix))
+    .map(([name, value]) => name + '=' + (value ? 'wrong_prefix' : 'absent'));
+  console.warn('G12_LIVE_SECRET_DIAGNOSTIC: ' + invalidReasons.join(','));
 }
 
 const config = {
