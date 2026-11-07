@@ -2,6 +2,17 @@
 -- Run ONLY as BEGIN + candidate DDL + this test + ROLLBACK in one session.
 -- Payment event below is a synthetic SANDBOX callback, not a real Wompi charge.
 -- This toggle is transaction-local and MUST be rolled back: never enable LIVE in production.
+BEGIN;
+SET LOCAL statement_timeout='45s';
+SET LOCAL lock_timeout='5s';
+DO $preflight$
+BEGIN
+  IF current_user <> 'postgres' OR NOT EXISTS(
+    SELECT 1 FROM public.billing_activation_settings WHERE id=true AND production_enabled=false
+  ) THEN
+    RAISE EXCEPTION 'QA must run as postgres while real commercial payments are disabled';
+  END IF;
+END $preflight$;
 UPDATE public.billing_activation_settings SET production_enabled=true WHERE id=true;
 DO $g04$
 DECLARE
@@ -115,3 +126,4 @@ BEGIN
     RAISE EXCEPTION 'Payment incorrectly includes free trial days'; END IF;
 END
 $g04$;
+ROLLBACK;
