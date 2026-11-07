@@ -38,7 +38,16 @@ test('G08 full browser login: 5 separated authenticated identities/tenants/role 
      assert.equal(await page.getByRole('navigation',{name:'Módulos del sistema'}).count(),0,'CLIENT cannot get admin work modules');
    }else{
      const brand=page.getByLabel('Inmobiliaria activa');
-     await brand.waitFor({state:'visible',timeout:25000});
+     try {
+       await brand.waitFor({state:'visible',timeout:13000});
+     } catch(error) {
+       // Fictitious staging only. No tokens, passwords, identities or keys.
+       const visible=(await page.locator('body').innerText()).slice(0,2600);
+       const current=page.url().replace(/\\?.*$/,'');
+       console.log('STAGING_UI_DIAG role='+user.role+' path='+current+' page='+JSON.stringify(visible));
+       console.log('STAGING_UI_ERRORS '+JSON.stringify(browserErrors.slice(0,8)));
+       throw error;
+     }
      assert.equal((await brand.innerText()).trim(),user.brand);
      const nav=page.getByRole('navigation',{name:'Módulos del sistema'});
      await nav.waitFor({state:'visible'});
