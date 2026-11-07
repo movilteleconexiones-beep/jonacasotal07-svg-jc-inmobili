@@ -69,6 +69,16 @@ test('SuperAdmin can grant perpetual term, not unlimited seats, with explicit au
   assert.match(billing,/isLifetime \? 'Licencia perpetua vigente'/);
 });
 
+test('lifetime grant is not an unsuspend shortcut and is not repeatable',()=>{
+  assert.match(draft,/ALTER TABLE private\.jco_trial_redemptions ENABLE ROW LEVEL SECURITY/);
+  assert.match(draft,/status='SUSPENDED'[\s\S]*?Suspended organization requires separate reactivation/);
+  assert.match(draft,/license_type='LIFETIME'[\s\S]*?Perpetual license already active/);
+  assert.match(assertions,/duplicate lifetime grant accepted/);
+  assert.match(assertions,/duplicate grant must not generate a second success audit/);
+  assert.match(assertions,/perpetual grant reversed a suspension/);
+  assert.match(assertions,/suspended tenant remains blocked after rejected lifetime regrant/);
+});
+
 test('no automated DDL or personal data is ever sent to production',()=>{
   assert.match(draft,/DRAFT, NOT APPLIED/);
   assert.match(workflow,/jco_trial_perpetual_draft_test/);
