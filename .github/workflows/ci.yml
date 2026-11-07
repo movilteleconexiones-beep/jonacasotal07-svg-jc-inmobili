@@ -45,13 +45,22 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Production CI source contract regression
         run: node --test tests/main-ci-deploy-contract.test.mjs
-      - name: Build and verify 107-file staging-only candidate before legacy fixture overlay
+      - name: Build and verify 108-file staging-only candidate before legacy fixture overlay
         run: |
           set -euo pipefail
           node --test tests/staging325-build-bootstrap.test.mjs
           node scripts/ops/staging325-build-bootstrap.mjs
       - name: G08 production MAINTAIN privilege migration immutability
         run: node --test tests/g08-public-api-maintain-revocation.test.mjs
+      - name: G08 tenant FK applied SQL immutability and scope
+        run: node --test tests/g08-maintenance-tenant-fk-release-gate.test.mjs
+      - name: G08 maintenance/property tenant FK and cascade regression (isolated PG17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g08_maintenance_fk'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_maintenance_fk -f security/tests/g08_maintenance_property_tenant_fk_pg17.sql
       - name: G04 optional eight-day trial SQL immutability and release gates
         run: node --test tests/g04-eight-day-trial-release-gate.test.mjs
       - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * #325: Build an isolated 107-step SQL bootstrap candidate from 99 authentic
+ * #325: Build an isolated 108-step SQL bootstrap candidate from 99 authentic
  * production migration bodies + 3 staging-only historical prerequisites and
- * 5 separately applied forwards: CRM (100th), capacity (101st), lifetime (102nd), MAINTAIN ACL (103rd), optional trial (104th).
+ * 6 separately applied forwards: CRM (100th), capacity (101st), lifetime (102nd), MAINTAIN ACL (103rd), trial (104th), scoped maintenance FK (105th).
  *
  * NEVER writes to supabase/migrations, talks to Supabase, or updates production.
  * An isolated PG17/Supabase preview MUST still validate this candidate before
@@ -71,8 +71,8 @@ function pinnedLegacySql(item) {
 
 export function buildCandidate325() {
   const cutover = inspectCutover();
-  if (!cutover.ok || cutover.canonicalCount !== 104 || cutover.archivedSources !== 109)
-    throw Error('Canonical 99 + 5 verified forward SQL or archived 109 SQL inventory changed');
+  if (!cutover.ok || cutover.canonicalCount !== 105 || cutover.archivedSources !== 109)
+    throw Error('Canonical 99 + 6 verified forward SQL or archived 109 SQL inventory changed');
   const historic = buildPinnedHistoricalArchive();
   if (!historic.ok || historic.count !== 99 || historic.bytes !== 493999 ||
       historic.safeToReplay !== false || historic.safeToPush !== false)
@@ -88,7 +88,7 @@ export function buildCandidate325() {
     return {version:c.version,name:c.name,sql,kind:'STAGING_ONLY',
       sha:gitBlobSha(sql),bytes:Buffer.byteLength(sql,'utf8'),before:c.before};
   });
-  // Production versions 100-104 are separately pinned, NEVER rebasing the original 99.
+  // Production versions 100-105 are separately pinned, NEVER rebasing the original 99.
   const forwards = [
     {version:'20261107072304',name:'website_lead_reuse_event_consent',
       sha:'c9fdfccf55c2fd8d70da709dd50d1d56de3361d5'},
@@ -100,6 +100,8 @@ export function buildCandidate325() {
       sha:'951f76a05d7b3466e67ed6a90a87fd38e40ba6b9'},
     {version:'20261107124207',name:'optional_eight_day_trial_release_gated',
       sha:'135ff4e7593255a214223daeb5f4690bf1b51dcf'},
+    {version:'20261107133623',name:'scope_maintenance_property_to_tenant',
+      sha:'0bf9a164f518702702879852b5fc70322cda6f9c'},
   ].map(row=>{
     const file=realpathSync(resolve(ROOT,'supabase/migrations/'+row.version+'_'+row.name+'.sql'));
     const relativeFile=relative(ROOT,file);
@@ -111,7 +113,7 @@ export function buildCandidate325() {
   });
   const all = [...original,...staging,...forwards].sort((a,b) => a.version.localeCompare(b.version));
   const ids = new Set(all.map(x=>x.version));
-  if (all.length !== 107 || ids.size !== 107 ||
+  if (all.length !== 108 || ids.size !== 108 ||
       original.some((x,i)=>x.version !== historic.bodies[i].version))
     throw Error('Candidate 104 does not preserve original 99 migration identities');
   for (const candidate of staging) {
@@ -123,13 +125,13 @@ export function buildCandidate325() {
   if (all.some(x=>x.version==='20261010222700' || /commercial_plan_permissions/.test(x.name)))
     throw Error('Obsolete commercial price/permission draft must never execute');
   return {ok:true,safeForProduction:false,productionLedgerUntouched:true,
-    authenticOriginals:99,forwardApplied:5,stagingOnly:3,total:107,all};
+    authenticOriginals:99,forwardApplied:6,stagingOnly:3,total:108,all};
 }
 
 export function writeDisposableCandidate325(bundle) {
   if (!bundle?.ok || bundle.safeForProduction !== false ||
-      bundle.authenticOriginals !== 99 || bundle.forwardApplied !== 5 ||
-      bundle.stagingOnly !== 3 || bundle.total !== 107 || bundle.all.length !== 107)
+      bundle.authenticOriginals !== 99 || bundle.forwardApplied !== 6 ||
+      bundle.stagingOnly !== 3 || bundle.total !== 108 || bundle.all.length !== 108)
     throw Error('Unreviewed staging bootstrap candidate');
   const dir = mkdtempSync(join(tmpdir(),'inmojco-staging325-NO-PROD-'));
   const migrations = join(dir,'supabase','migrations');
@@ -145,9 +147,9 @@ export function writeDisposableCandidate325(bundle) {
   }
   writeFileSync(join(dir,'STAGING-ONLY-MANIFEST.json'),
     JSON.stringify({safeForProduction:false,doNotMergeWithProduction:true,
-      originalVersions:99,forwardApplied:5,stagingPrerequisites:3,total:107,files},null,2)+'\n',
+      originalVersions:99,forwardApplied:6,stagingPrerequisites:3,total:108,files},null,2)+'\n',
     {flag:'wx',mode:0o600});
-  return {dir,files:107,safeForProduction:false};
+  return {dir,files:108,safeForProduction:false};
 }
 
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
@@ -156,7 +158,7 @@ if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)
     throw Error('Usage: node scripts/ops/staging325-build-bootstrap.mjs [--temporary-staging-only]');
   const candidate=buildCandidate325();
   const result=args.length?writeDisposableCandidate325(candidate):null;
-  console.log(JSON.stringify({ok:true,canonical:99,forwardApplied:5,stagingOnly:3,
-    total:107,safeForProduction:false,
+  console.log(JSON.stringify({ok:true,canonical:99,forwardApplied:6,stagingOnly:3,
+    total:108,safeForProduction:false,
     temporaryDirectory:result?.dir??null},null,2));
 }

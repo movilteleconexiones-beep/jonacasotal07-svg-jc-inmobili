@@ -12,8 +12,8 @@ test('#325: preserve all 99 real migration IDs and hashes and insert 3 staging-o
  assert.equal(c.productionLedgerUntouched,true);
  assert.equal(c.authenticOriginals,99);
  assert.equal(c.stagingOnly,3);
- assert.equal(c.forwardApplied,5);
- assert.equal(c.total,107);
+ assert.equal(c.forwardApplied,6);
+ assert.equal(c.total,108);
  assert.deepEqual(c.all.filter(r=>r.kind==='STAGING_ONLY').map(r=>[r.version,r.before]),[
    ['20261010232920','20261010232928'],
    ['20261010232929','20261010232930'],
@@ -31,35 +31,36 @@ test('#325: preserve all 99 real migration IDs and hashes and insert 3 staging-o
    ['20261107103505','feaffad1398f38cea024ba173828cf8af8a18bb5'],
    ['20261107115138','951f76a05d7b3466e67ed6a90a87fd38e40ba6b9'],
    ['20261107124207','135ff4e7593255a214223daeb5f4690bf1b51dcf'],
+   ['20261107133623','0bf9a164f518702702879852b5fc70322cda6f9c'],
  ]);
- assert.equal(new Set(c.all.map(r=>r.version)).size,107);
+ assert.equal(new Set(c.all.map(r=>r.version)).size,108);
  assert.ok(!c.all.some(r=>r.version==='20261010222700'));
  assert.ok(c.all.find(r=>r.version==='20261031032349').sql.includes(
    'GRANT UPDATE ON TABLE public.organizations TO service_role'));
 });
 
-test('#325: materialize a sealed 107-file staging bundle in OS temporary space ONLY',()=>{
+test('#325: materialize a sealed 108-file staging bundle in OS temporary space ONLY',()=>{
  const c=buildCandidate325();
  const result=writeDisposableCandidate325(c);
  try {
-   assert.equal(result.files,107);
+   assert.equal(result.files,108);
    assert.equal(result.safeForProduction,false);
    assert.match(result.dir,/inmojco-staging325-NO-PROD-/);
    const filenames=readdirSync(join(result.dir,'supabase','migrations'));
-   assert.equal(filenames.length,107);
+   assert.equal(filenames.length,108);
    const manifest=JSON.parse(readFileSync(join(result.dir,'STAGING-ONLY-MANIFEST.json'),'utf8'));
    assert.equal(manifest.safeForProduction,false);
    assert.equal(manifest.doNotMergeWithProduction,true);
    assert.equal(manifest.originalVersions,99);
    assert.equal(manifest.stagingPrerequisites,3);
-   assert.equal(manifest.forwardApplied,5);
-   assert.equal(manifest.files.length,107);
+   assert.equal(manifest.forwardApplied,6);
+   assert.equal(manifest.files.length,108);
    for(const item of manifest.files){
      const sql=readFileSync(join(result.dir,'supabase','migrations',item.name),'utf8');
      assert.equal(gitBlobSha(sql),item.sha,item.name);
    }
    assert.equal(manifest.files.filter(x=>x.kind==='CANONICAL').length,99);
    assert.equal(manifest.files.filter(x=>x.kind==='STAGING_ONLY').length,3);
-   assert.equal(manifest.files.filter(x=>x.kind==='FORWARD_APPLIED').length,5);
+   assert.equal(manifest.files.filter(x=>x.kind==='FORWARD_APPLIED').length,6);
  } finally {rmSync(result.dir,{recursive:true,force:true});}
 });

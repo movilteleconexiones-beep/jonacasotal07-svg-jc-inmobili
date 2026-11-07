@@ -65,7 +65,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate exact 107 SQL staging-only bundle without linking Supabase
+      - name: Validate exact 108 SQL staging-only bundle without linking Supabase
         run: |
           set -euo pipefail
           node --test tests/staging325-build-bootstrap.test.mjs
@@ -117,7 +117,7 @@ jobs:
         run: |
           set -euo pipefail
           bash security/tests/chronological_pg17_bridge_probe.sh
-      - name: Replay all 107 staged SQL bodies in chronological order on disposable PG17
+      - name: Replay all 108 staged SQL bodies in chronological order on disposable PG17
         env:
           PGPASSWORD: postgres
         run: |
