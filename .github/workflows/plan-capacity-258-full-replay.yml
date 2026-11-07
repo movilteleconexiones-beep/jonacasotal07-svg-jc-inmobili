@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Replay 104 migrations including applied capacity v101 in disposable PostgreSQL17
+      - name: Replay 105 migrations including applied capacity v101 in disposable PostgreSQL17
         run: bash security/tests/chronological_pg17_capacity_258.sh
       - name: Ensure migration #258 stays away from canonical production folder
         run: |
