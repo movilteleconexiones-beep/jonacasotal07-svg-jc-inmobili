@@ -7,6 +7,9 @@ on:
       - 'scripts/ops/reconstruct-applied-99.mjs'
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
+      - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'tests/migration104-cutover-gate.test.mjs'
+      - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
       - 'tests/inmojco104-local-restore-reader.test.mjs'
       - 'docs/ops/snapshots/**'
@@ -19,6 +22,9 @@ on:
       - 'scripts/ops/reconstruct-applied-99.mjs'
       - 'scripts/ops/migration104-canonical-workspace.mjs'
       - 'tests/migration104-canonical-workspace.test.mjs'
+      - 'scripts/ops/migration104-cutover-gate.mjs'
+      - 'tests/migration104-cutover-gate.test.mjs'
+      - 'scripts/ops/migration104-ci-legacy-fixtures.sh'
       - 'scripts/ops/inmojco104-verify-existing-restore.ps1'
       - 'tests/inmojco104-local-restore-reader.test.mjs'
       - '.github/workflows/migration104-replay.yml'
@@ -53,6 +59,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)
+        run: bash scripts/ops/migration104-ci-legacy-fixtures.sh
       - name: Compare real 99-version ledger with legacy tree and check canonical temporary mirror
         run: |
           set -euo pipefail
