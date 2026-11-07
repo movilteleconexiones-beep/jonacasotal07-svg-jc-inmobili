@@ -28,6 +28,8 @@ test('G08 full browser login: 5 separated authenticated identities/tenants/role 
    const password='G08qa-'+md5(user.uid+'g08-stage-20261107').slice(0,24);
    await page.locator('input[type=password]').fill(password);
    await page.locator('form').getByRole('button',{name:'Iniciar sesión'}).click();
+   // Public root is intentionally never replaced by backoffice on login.
+   await page.goto(origin+'/app',{waitUntil:'domcontentloaded',timeout:20000});
    if(user.portalOnly){
      await page.getByText('Portal privado',{exact:false}).first().waitFor({state:'visible',timeout:25000});
      const body=(await page.locator('body').innerText()).slice(0,7000);
