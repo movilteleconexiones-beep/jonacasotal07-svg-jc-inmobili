@@ -59,6 +59,15 @@ test('G12 LIVE edge uses only separately named production secrets and fails clos
   assert.ok(!production.includes("Deno.env.get('WOMPI_PRIVATE_KEY')"));
   assert.ok(!production.includes("Deno.env.get('WOMPI_PUBLIC_KEY')"));
   assert.ok(!production.includes('import.meta.env.VITE_'));
+  assert.ok(production.includes("console.warn('G12_LIVE_MERCHANT_SECRETS_INVALID: '"));
+  assert.ok(production.includes("missingNames.push('WOMPI_PROD_PRIVATE_KEY')"));
+  assert.ok(production.includes("missingNames.push('WOMPI_PROD_PUBLIC_KEY')"));
+  assert.ok(production.includes("missingNames.push('WOMPI_PROD_EVENTS_SECRET')"));
+  assert.ok(production.includes("missingNames.push('WOMPI_PROD_INTEGRITY_SECRET')"));
+  assert.ok(!production.includes('console.log(privateKey'));
+  assert.ok(!production.includes('console.log(publicKey'));
+  assert.ok(!production.includes('console.log(eventsSecret'));
+  assert.ok(!production.includes('console.log(integritySecret'));
 });
 
 test('G12 test tenants never use the LIVE gateway and SQL remains the authority', () => {
