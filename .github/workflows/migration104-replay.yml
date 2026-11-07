@@ -5,6 +5,8 @@ on:
       - 'security/tests/chronological_pg17_*'
       - 'tests/chronological-pg17-*.test.mjs'
       - 'scripts/ops/reconstruct-applied-99.mjs'
+      - 'scripts/ops/migration104-canonical-workspace.mjs'
+      - 'tests/migration104-canonical-workspace.test.mjs'
       - 'docs/ops/snapshots/**'
       - '.github/workflows/migration104-replay.yml'
   push:
@@ -13,6 +15,8 @@ on:
       - 'security/tests/chronological_pg17_*'
       - 'tests/chronological-pg17-*.test.mjs'
       - 'scripts/ops/reconstruct-applied-99.mjs'
+      - 'scripts/ops/migration104-canonical-workspace.mjs'
+      - 'tests/migration104-canonical-workspace.test.mjs'
       - '.github/workflows/migration104-replay.yml'
   workflow_dispatch:
 permissions:
@@ -45,6 +49,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Compare real 99-version ledger with legacy tree and check canonical temporary mirror
+        run: |
+          set -euo pipefail
+          node --test tests/migration104-canonical-workspace.test.mjs
+          node scripts/ops/migration104-canonical-workspace.mjs
       - name: PG17 replay 26 original SQL bodies, from production history
         env:
           PGPASSWORD: postgres
