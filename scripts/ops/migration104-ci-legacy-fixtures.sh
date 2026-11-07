@@ -11,6 +11,7 @@ if [[ ! -f docs/ops/snapshots/legacy-sql-sha-2026-11-07.json ]]; then
   echo "NO-GO: immutable archived source manifest missing" >&2
   exit 2
 fi
+node --test tests/migration104-cutover-gate.test.mjs
 node scripts/ops/migration104-cutover-gate.mjs
 test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 99
 archive="$RUNNER_TEMP/inmojco-104-canonical-sql-for-review"
