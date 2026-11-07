@@ -14,3 +14,4 @@ END
 $check$;
 GRANT UPDATE ON TABLE public.organizations TO service_role;
 COMMIT;
+-- #325: Preview-only migration, never merge into the canonical production history.
