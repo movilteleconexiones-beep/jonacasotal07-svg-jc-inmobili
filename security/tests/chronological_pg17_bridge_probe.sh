@@ -76,6 +76,11 @@ if [[ "${#candidates[@]}" != 99 ]]; then
   exit 1
 fi
 
+# Supabase CLI normally maintains this metadata. Emulate ONLY the version
+# column inside the disposable replay database, inserting after each success.
+"${psql_cmd[@]}" -q -d "$db" -c 'CREATE SCHEMA supabase_migrations;
+CREATE TABLE supabase_migrations.schema_migrations(version text PRIMARY KEY)' >/dev/null
+
 success=0
 for row in "${candidates[@]}"; do
   version="${row%%|*}"
@@ -117,6 +122,7 @@ for row in "${candidates[@]}"; do
     exit 1
   fi
   success=$((success+1))
+  "${psql_cmd[@]}" -q -d "$db" -c "INSERT INTO supabase_migrations.schema_migrations(version) VALUES ('$version')" >/dev/null
   echo "PG17 bridge-assisted chronological probe PASS $success/99 version $version"
 done
 
