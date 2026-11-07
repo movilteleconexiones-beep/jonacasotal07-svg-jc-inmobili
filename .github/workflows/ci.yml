@@ -82,8 +82,8 @@ jobs:
           fi
           grep -q '^NO-GO:' "$RUNNER_TEMP/migration-no-go.log"
           grep -q 'Do not run db push' "$RUNNER_TEMP/migration-no-go.log"
-      - name: Contact registration single-flight and uncertain retry prevention
-        run: node --test tests/contact-create-single-flight.test.mjs
+      - name: Contact identity, shared mailbox and single-flight regressions
+        run: node --import tsx --test tests/contact-create-single-flight.test.mjs tests/contact-identity-match.test.mjs
       - name: npm audit security gate (reject any published vulnerability)
         run: |
           npm audit --json > "$RUNNER_TEMP/inmojco-audit.json" || true

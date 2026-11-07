@@ -3,6 +3,7 @@ import { ContactRound, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { sameContactIdentity } from '../../core/contact-identity';
 
 interface ContactRow {
   id: string;
@@ -76,6 +77,9 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     const email = String(form.get('email') ?? '').trim();
+    const firstName = String(form.get('first_name') ?? '').trim();
+    const lastName = String(form.get('last_name') ?? '').trim();
+    const candidateIdentity = { email, first_name: firstName, last_name: lastName };
     const phone = String(form.get('phone') ?? '').trim();
     const whatsapp = String(form.get('whatsapp') ?? '').trim();
     if (!email && !phone && !whatsapp) {
@@ -86,8 +90,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       setMessage('Ingresa un correo electrónico válido.');
       return;
     }
-    if(email && rows.some(row=>row.email?.trim().toLowerCase()===email.toLowerCase())){
-      setMessage('Ya existe una ficha con este correo. Utiliza «Editar cliente» para corregirla en lugar de crear otra.');
+    if(email && rows.some(row=>sameContactIdentity(row,candidateIdentity))){
+      setMessage('Ya existe una ficha con este correo y nombre. Utiliza «Editar cliente» para corregirla en lugar de crear otra.');
       return;
     }
     for (const number of [phone, whatsapp]) {
@@ -99,8 +103,8 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
     }
     const payload = {
       organization_id: organizationId,
-      first_name: String(form.get('first_name') ?? '').trim(),
-      last_name: String(form.get('last_name') ?? '').trim() || null,
+      first_name: firstName,
+      last_name: lastName || null,
       email: email || null,
       phone: phone || null,
       whatsapp: whatsapp || null,
@@ -117,18 +121,19 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
         // The rendered list can be stale (other staff may have registered this email).
         // Escape SQL LIKE wildcards so a literal '_' or '%' in an email is not a wildcard.
         const literalEmailPattern = email.replace(/[\\%_]/g, character => '\\' + character);
-        const { data: duplicates, error: duplicateError } = await supabase.from('contacts')
-          .select('id')
+        const { data: duplicates, error: duplicateError, count } = await supabase.from('contacts')
+          .select('id,first_name,last_name,email', { count: 'exact' })
           .eq('organization_id', organizationId)
           .ilike('email', literalEmailPattern)
-          .limit(1);
+          .limit(500);
         if (currentOrganization.current !== organizationId) return;
-        if (duplicateError) {
-          setMessage('No fue posible comprobar si el correo ya existe. Actualiza la lista antes de registrar.');
+        // Fail closed when a large mailbox has more rows than we inspected.
+        if (duplicateError || count === null || count > (duplicates?.length ?? 0)) {
+          setMessage('No fue posible comprobar todas las fichas con este correo. Actualiza la lista antes de registrar.');
           return;
         }
-        if (duplicates?.length) {
-          setMessage('Ya existe una ficha con este correo. Selecciona el cliente existente para evitar duplicados.');
+        if (duplicates?.some(row => sameContactIdentity(row,candidateIdentity))) {
+          setMessage('Ya existe una ficha con este correo y nombre. Selecciona el cliente existente para evitar duplicados.');
           return;
         }
       }
@@ -138,7 +143,11 @@ export function ContactsModule({contactsOnly=false,onCreated,onSelected}: {conta
       const { data:created, error } = await supabase.from('contacts').insert(payload).select('id').single();
       if (currentOrganization.current !== organizationId) return;
       if (error) {
-        setMessage('No se pudo registrar el contacto: ' + error.message);
+        if (error.code === '23505' && error.message.includes('jco_contacts_tenant_email_name_unique')) {
+          setMessage('Otro usuario ya registró este cliente. Actualiza y selecciona su ficha.');
+        } else {
+          setMessage('No se pudo registrar el contacto: ' + error.message);
+        }
         return;
       }
       if (created?.id) onCreated?.(created.id);

@@ -31,8 +31,10 @@ test('live duplicate lookup is scoped and fail closed before insert', () => {
   assert.ok(duplicateLookup > 0 && insert > duplicateLookup, 'read duplicate before inserting');
   assert.match(source, /literalEmailPattern = email\.replace\(/);
   assert.match(source, /\.eq\('organization_id', organizationId\)\s*\.ilike\('email', literalEmailPattern\)/);
-  assert.match(source, /if \(duplicateError\)/);
-  assert.match(source, /if \(duplicates\?\.length\)/);
+  assert.match(source, /if \(duplicateError \|\| count === null \|\| count > \(duplicates\?\.length \?\? 0\)\)/);
+  assert.match(source, /duplicates\?\.some\(row => sameContactIdentity\(row,candidateIdentity\)\)/);
+  assert.match(source, /\.select\('id,first_name,last_name,email', \{ count: 'exact' \}\)/);
+  assert.match(source, /\.limit\(500\)/);
   assert.match(source, /if \(currentOrganization\.current !== organizationId\) return/);
 });
 
