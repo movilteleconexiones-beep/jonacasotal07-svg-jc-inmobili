@@ -119,6 +119,13 @@ jobs:
           # Local ephemeral service only; no Supabase URL, keys, repair or db push.
           node --test tests/consignment-pg17-disposable-replay.test.mjs
           bash security/tests/consignment_local_ddl_replay_pg17.sh
+      - name: Actual first eight historic migrations replay on disposable PostgreSQL 17 (#104)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          node --test tests/chronological-pg17-first-eight.test.mjs
+          bash security/tests/chronological_pg17_first_eight.sh
       - name: Privileged RPC anonymous allowlist and negative ACL tests (PostgreSQL 17)
         env:
           PGPASSWORD: postgres
