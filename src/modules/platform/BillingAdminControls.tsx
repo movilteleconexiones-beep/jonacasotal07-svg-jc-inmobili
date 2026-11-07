@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { trialAndLifetimeActionsEnabled } from '../../core/billing-release-flags';
 
 interface Tenant { organization_id: string; organization_name: string; organization_status: string; owner_user_id: string | null }
 interface Plan { id: string; name: string; code: string; billing_cycle: string; currency: string }
@@ -30,6 +31,10 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   }
   async function apply() {
     if (!tenant || busy) return;
+    if (action === 'GRANT_LIFETIME' && !trialAndLifetimeActionsEnabled) {
+      setMessage('La licencia perpetua está pendiente de habilitación y verificación contractual.');
+      return;
+    }
     if (action==='GRANT_LIFETIME' && plans.find(p=>p.id===plan)?.code!=='LIFETIME') {
       setMessage('Selecciona la licencia perpetua configurada antes de continuar.');
       return;
@@ -62,7 +67,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
     {tenant && <div className="mt-5 border-t pt-5"><h3 className="font-semibold">Gestionar {tenant.organization_name}</h3>
       <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm">Acción
         <select aria-label="Acción administrativa" value={action} onChange={e=>{setAction(e.target.value);setPlan('');}} className="mt-1 w-full rounded-lg border p-3">
-          <option value="APPROVE">Autorizar acceso por un período del plan</option><option value="GRANT_LIFETIME">Conceder licencia perpetua · sin vencimiento</option><option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para entorno de pruebas</option>
+          <option value="APPROVE">Autorizar acceso por un período del plan</option>{trialAndLifetimeActionsEnabled && <option value="GRANT_LIFETIME">Conceder licencia perpetua · sin vencimiento</option>}<option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para entorno de pruebas</option>
         </select></label>
         {(action==='APPROVE' || action==='GRANT_LIFETIME') && <label className="text-sm">Plan
           <select aria-label="Plan para autorización" value={plan} onChange={e=>setPlan(e.target.value)} className="mt-1 w-full rounded-lg border p-3">
