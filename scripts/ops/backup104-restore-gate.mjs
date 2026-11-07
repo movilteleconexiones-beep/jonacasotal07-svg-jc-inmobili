@@ -15,6 +15,29 @@ const MANDATORY = Object.freeze([
   'public.properties',
 ]);
 const DB_NAME = 'jco_backup_104_restore_test';
+const CATALOG_CHECKS = Object.freeze({
+  // Names and components come from the two pinned, SELECT-only SQL snapshots.
+  // A count of 'OK' lines is NOT sufficient: 14 copies of one successful
+  // fingerprint could previously hide a missing or divergent object.
+  consignment: Object.freeze(
+    ['private.property_intake_sites', 'public.property_consignments']
+      .flatMap(object => ['CATALOG_IDENTITY', 'COLUMNS', 'CONSTRAINTS',
+        'INDEXES', 'POLICIES', 'TRIGGERS', 'ACL']
+        .map(component => [object, component]))),
+  portalAndBilling: Object.freeze([
+    ['RLS_FUNCTION', 'private.can_read_portal_property(uuid,uuid)'],
+    ['RLS_FUNCTION', 'public.has_portal_property(uuid)'],
+    ['RLS_POLICY', 'public.properties.properties_select_portal_related'],
+    ['RLS_POLICY', 'public.property_ownerships.ownerships_select_portal_owner'],
+    ['COMMERCIAL_PLAN', 'BASIC'],
+    ['COMMERCIAL_PLAN', 'PRO'],
+    ['COMMERCIAL_PLAN', 'LIFETIME'],
+    ['COMMERCIAL_PLAN', 'ENTERPRISE'],
+    ['COMMERCIAL_CATALOG', 'annual-plans-unconfigured'],
+    ['MIGRATION_LEDGER', 'three-unmatched-versions-absent'],
+  ]),
+});
+
 
 export function outsideRepository(target, repoRoot = ROOT) {
   const rel = relative(resolve(repoRoot), resolve(target));
@@ -46,11 +69,30 @@ export function parseArchiveToc(text) {
   return {checks, complete: checks.every(item => item.schema && item.dataEntry)};
 }
 
-export function checkCatalogOutput(output, expected) {
+export function checkCatalogOutput(output, expectedRows) {
+  if (!Array.isArray(expectedRows) || !expectedRows.length ||
+      expectedRows.some(pair => !Array.isArray(pair) || pair.length !== 2))
+    throw Error('Catalog validation requires explicitly named fingerprint pairs');
+
+  const expected = new Set(expectedRows.map(pair => pair.join('|')));
+  if (expected.size !== expectedRows.length) throw Error('Duplicate expected fingerprint');
   const lines = output.trim().split(/\r?\n/).filter(Boolean);
-  const findings = lines.map(line => line.split('|').at(-1)?.trim());
-  return {total: lines.length, passing: findings.filter(x => x === 'OK').length,
-    complete: lines.length === expected && findings.every(x => x === 'OK')};
+  const seen = new Set();
+  let passing = 0;
+  let valid = true;
+  for (const line of lines) {
+    const parts = line.split('|');
+    const key = parts.slice(0, 2).join('|');
+    if (parts.length !== 3 || !expected.has(key) || seen.has(key) ||
+        parts[2] !== 'OK') {
+      valid = false;
+    } else {
+      passing++;
+    }
+    seen.add(key);
+  }
+  return {total: lines.length, passing,
+    complete: valid && expected.size === seen.size && lines.length === expected.size};
 }
 
 function exec(command, args, options = {}) {
@@ -101,7 +143,7 @@ function verifyRestoredDb(port) {
   const ledger = Number(readOnlyQuery('SELECT count(*) FROM supabase_migrations.schema_migrations', port));
   const accounts = Number(readOnlyQuery('SELECT count(*) FROM auth.users', port));
   const results = [];
-  for (const [name, expected] of [['consignment', 14], ['portalAndBilling', 10]]) {
+  for (const [name, expected] of Object.entries(CATALOG_CHECKS)) {
     const path = resolve(ROOT, name === 'consignment'
       ? 'security/checks/consignment_restore_shape_fingerprint.sql'
       : 'security/checks/unmatched_three_current_live_preflight.sql');
