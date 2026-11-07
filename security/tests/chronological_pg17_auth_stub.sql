@@ -21,7 +21,8 @@ CREATE TABLE storage.buckets (
   id text PRIMARY KEY,
   name text NOT NULL,
   public boolean NOT NULL DEFAULT false,
-  file_size_limit bigint
+  file_size_limit bigint,
+  allowed_mime_types text[]
 );
 CREATE TABLE storage.objects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
