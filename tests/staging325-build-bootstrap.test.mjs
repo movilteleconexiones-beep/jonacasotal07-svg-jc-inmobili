@@ -27,13 +27,13 @@ test('#325: preserve all 99 real migration IDs and hashes and insert 3 staging-o
  const forward=c.all.find(r=>r.kind==='FORWARD_APPLIED');
  assert.equal(forward.version,'20261107072304');
  assert.equal(forward.sha,'c9fdfccf55c2fd8d70da709dd50d1d56de3361d5');
- assert.equal(new Set(c.all.map(r=>r.version)).size,102);
+ assert.equal(new Set(c.all.map(r=>r.version)).size,103);
  assert.ok(!c.all.some(r=>r.version==='20261010222700'));
  assert.ok(c.all.find(r=>r.version==='20261031032349').sql.includes(
    'GRANT UPDATE ON TABLE public.organizations TO service_role'));
 });
 
-test('#325: materialize a sealed 102-file staging bundle in OS temporary space ONLY',()=>{
+test('#325: materialize a sealed 103-file staging bundle in OS temporary space ONLY',()=>{
  const c=buildCandidate325();
  const result=writeDisposableCandidate325(c);
  try {
