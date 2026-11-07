@@ -27,3 +27,17 @@ Entre los **76 archivos fechados sin versión equivalente**, 73 están referenci
 5. Conservar #104 abierto y la barrera de CI hasta demostrar GO con rollback probado.
 
 **Reglas:** no reexportar ni recifrar el respaldo auténtico del 1 de noviembre; no alterar Supabase/Railway/Wompi real ni activar el PR #307, el CRM #281 o el cobro live bajo este diagnóstico.
+
+## Actualización verificada: 06-nov-2026, SELECT-only sobre Supabase activo
+
+Se ejecutó **sin escrituras** `security/checks/consignment_restore_shape_fingerprint.sql` contra `cuitgyqrjibgwuniapmk`, con **14/14 resultados OK**: ACL, identidad, columnas, restricciones, índices, RLS y triggers de las dos tablas de consignación. Estos controles corroboran el esquema **actual**, sin atribuir el CREATE original a una migración específica.
+
+Se ejecutó asimismo `security/checks/unmatched_three_current_live_preflight.sql`, con **10/10 resultados OK**: 
+- función privada `private.can_read_portal_property(uuid,uuid)`, definición SHA256 `99043c5260c8396e41f115576b87659646310d4a78057a2b9617a80e001b8609`, SEC DEF, STABLE, `search_path=''`, EXECUTE anónimo denegado y autenticado permitido;
+- función `public.has_portal_property(uuid)`, SHA256 `cff460f7627973317147be83d814527fb7792a03f7d0dabb36ab7fedf4688555`, mismas restricciones; la función privada *delega* actualmente en ella, a diferencia del SQL histórico original. Recuperar ese SQL mediante CREATE FUNCTION eliminaría verificaciones actuales sobre contratos y accesos.
+- políticas de solo lectura `properties_select_portal_related` y `ownerships_select_portal_owner`: RLS activo, rol exactamente `authenticated`, predicados SHA256 fijados y sin `WITH CHECK`;
+- catálogo BASIC 129.900 COP (5/200 y 47 permisos), PRO 299.900 COP (25/2000 y 47 permisos), LIFETIME aún 0 USD / sin cupos ni permisos; ningún plan anual configurado; 99 versiones aplicadas, ninguna de las tres candidatas.
+
+**Entrega reproducible:** resultados de las 24 filas sin datos personales en `docs/ops/snapshots/unmatched-three-live-baseline-2026-11-06.json`; prueba offline adversarial y SQL de catálogo específico. El SQL no requiere credenciales en el repositorio. **Si el catálogo cambia legítimamente, reauditar y actualizar la línea base antes de aceptar nuevas migraciones**.
+
+**Restricciones que permanecen:** 24/24 describe el estado consultado y su seguridad de catálogo, no es prueba E2E con JWT de usuarios de inmobiliarias diferentes ni garantiza qué commit/migración creó los objetos. El SQL histórico de portal y el catálogo comercial **no deben ejecutarse** para reparar números de versión. No equivale a restauración PG17 auténtica ni a la capacidad de declarar GO para #104.

@@ -1,0 +1,136 @@
+{
+  "purpose": "Read-only live catalog attestation for three unmatched migration files. Not migration provenance or GO.",
+  "capturedDateAmericaBogota": "2026-11-06",
+  "productionProject": "cuitgyqrjibgwuniapmk",
+  "mainCommitAtCapture": "735edc9c0486cdf223d5e991b123ab915ffdb6f4",
+  "safeToPush": false,
+  "safeToRepair": false,
+  "queries": {
+    "consignment": "security/checks/consignment_restore_shape_fingerprint.sql",
+    "portalAndBilling": "security/checks/unmatched_three_current_live_preflight.sql"
+  },
+  "consignment": [
+    {
+      "identifier": "private.property_intake_sites",
+      "component": "ACL",
+      "finding": "OK"
+    },
+    {
+      "identifier": "private.property_intake_sites",
+      "component": "CATALOG_IDENTITY",
+      "finding": "OK"
+    },
+    {
+      "identifier": "private.property_intake_sites",
+      "component": "COLUMNS",
+      "finding": "OK"
+    },
+    {
+      "identifier": "private.property_intake_sites",
+      "component": "CONSTRAINTS",
+      "finding": "OK"
+    },
+    {
+      "identifier": "private.property_intake_sites",
+      "component": "INDEXES",
+      "finding": "OK"
+    },
+    {
+      "identifier": "private.property_intake_sites",
+      "component": "POLICIES",
+      "finding": "OK"
+    },
+    {
+      "identifier": "private.property_intake_sites",
+      "component": "TRIGGERS",
+      "finding": "OK"
+    },
+    {
+      "identifier": "public.property_consignments",
+      "component": "ACL",
+      "finding": "OK"
+    },
+    {
+      "identifier": "public.property_consignments",
+      "component": "CATALOG_IDENTITY",
+      "finding": "OK"
+    },
+    {
+      "identifier": "public.property_consignments",
+      "component": "COLUMNS",
+      "finding": "OK"
+    },
+    {
+      "identifier": "public.property_consignments",
+      "component": "CONSTRAINTS",
+      "finding": "OK"
+    },
+    {
+      "identifier": "public.property_consignments",
+      "component": "INDEXES",
+      "finding": "OK"
+    },
+    {
+      "identifier": "public.property_consignments",
+      "component": "POLICIES",
+      "finding": "OK"
+    },
+    {
+      "identifier": "public.property_consignments",
+      "component": "TRIGGERS",
+      "finding": "OK"
+    }
+  ],
+  "portalAndBilling": [
+    {
+      "component": "COMMERCIAL_CATALOG",
+      "identifier": "annual-plans-unconfigured",
+      "finding": "OK"
+    },
+    {
+      "component": "COMMERCIAL_PLAN",
+      "identifier": "BASIC",
+      "finding": "OK"
+    },
+    {
+      "component": "COMMERCIAL_PLAN",
+      "identifier": "ENTERPRISE",
+      "finding": "OK"
+    },
+    {
+      "component": "COMMERCIAL_PLAN",
+      "identifier": "LIFETIME",
+      "finding": "OK"
+    },
+    {
+      "component": "COMMERCIAL_PLAN",
+      "identifier": "PRO",
+      "finding": "OK"
+    },
+    {
+      "component": "MIGRATION_LEDGER",
+      "identifier": "three-unmatched-versions-absent",
+      "finding": "OK"
+    },
+    {
+      "component": "RLS_FUNCTION",
+      "identifier": "private.can_read_portal_property(uuid,uuid)",
+      "finding": "OK"
+    },
+    {
+      "component": "RLS_FUNCTION",
+      "identifier": "public.has_portal_property(uuid)",
+      "finding": "OK"
+    },
+    {
+      "component": "RLS_POLICY",
+      "identifier": "public.properties.properties_select_portal_related",
+      "finding": "OK"
+    },
+    {
+      "component": "RLS_POLICY",
+      "identifier": "public.property_ownerships.ownerships_select_portal_owner",
+      "finding": "OK"
+    }
+  ]
+}
