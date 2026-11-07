@@ -244,3 +244,31 @@ fi
 account_count="$("${psql_cmd[@]}" -qAt -d "$db" -c 'SELECT count(*) FROM auth.users')"
 [[ "$account_count" == "0" ]]
 echo 'PASS: all 104 staging-only candidate SQL files replayed on disposable PG17 (99 canonical + 3 prerequisites + 2 forward SQL); catalog 14/14 consignment + 9/9 portal + 101 ledger; hosted Supabase bootstrap still NOT certified'
+# #254: optional isolated forward-only candidate AFTER the fully verified
+# 104-step historical replay. NEVER writes a production migration ledger.
+if [[ "${JCO_STAGE_TRIAL254:-}" == "true" ]]; then
+  candidate=security/candidates/20261107_trial_lifetime_capacity_forward.NOT_APPLIED.sql
+  test -f "$candidate" || { echo 'FAIL: missing trial candidate'; exit 1; }
+  if ! "${psql_cmd[@]}" -q -d "$db" -f "$candidate" > "$workdir/trial-forward.log" 2>&1; then
+    echo 'FAIL: #254 8-day/lifetime forward candidate incompatible with authentic 104-step schema' >&2
+    tail -n 40 "$workdir/trial-forward.log" >&2
+    exit 1
+  fi
+  proof="$("${psql_cmd[@]}" -qAt -d "$db" -c "
+SELECT
+ to_regclass('private.jco_trial_redemptions') IS NOT NULL,
+ to_regprocedure('public.billing_start_eight_day_trial(uuid,uuid)') IS NOT NULL,
+ NOT has_function_privilege('anon','public.billing_start_eight_day_trial(uuid,uuid)','EXECUTE'),
+ has_function_privilege('authenticated','public.billing_start_eight_day_trial(uuid,uuid)','EXECUTE'),
+ position('jco_private.plan_capacity_fits(target_org,target_plan)' in
+  pg_get_functiondef('public.billing_admin_action(uuid,text,text,uuid)'::regprocedure))>0,
+ position('jco_private.plan_capacity_fits(org.id,payment.plan_id)' in
+  pg_get_functiondef('public.process_verified_payment_event(text,text,bigint,text,text,text,text,text)'::regprocedure))>0,
+ position('jco_private.plan_capacity_fits(target_org,target_plan_id)' in
+  pg_get_functiondef('public.platform_set_subscription(uuid,text,text,text)'::regprocedure))>0,
+ (SELECT count(*) FROM supabase_migrations.schema_migrations)=101
+  ")"
+  [[ "$proof" == 't|t|t|t|t|t|t|t' ]] || { echo "FAIL: capacity/trial/ACL regression: $proof"; exit 1; }
+  echo 'PASS: #254 8-day/lifetime forward SQL + preserved 3 capacity guards; disposable PG17 ONLY'
+fi
+
