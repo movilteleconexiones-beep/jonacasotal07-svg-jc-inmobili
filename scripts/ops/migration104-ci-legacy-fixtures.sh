@@ -13,6 +13,23 @@ if [[ ! -f docs/ops/snapshots/legacy-sql-sha-2026-11-07.json ]]; then
 fi
 node --test tests/migration104-cutover-gate.test.mjs
 node scripts/ops/migration104-cutover-gate.mjs
+# Exercise every current offline audit against the REAL 99-file candidate
+# before any temporary legacy fixture overlay. This proves that local
+# historical tooling works without relying on CI-specific copy operations.
+node scripts/ops/migration-source-parity-gate.mjs
+node scripts/ops/reconstruct-applied-99.mjs
+node scripts/ops/migration-version-risk-map.mjs
+node scripts/ops/migration104-canonical-workspace.mjs
+set +e
+node scripts/ops/finance-migration-gate.mjs --ledger docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json > "$RUNNER_TEMP/canonical-finance-no-go.txt" 2>&1
+finance_status=$?
+set -e
+if [[ "$finance_status" -ne 2 ]]; then
+  cat "$RUNNER_TEMP/canonical-finance-no-go.txt"
+  echo "NO-GO: finance gate must not authorize production SQL" >&2
+  exit 2
+fi
+grep -q 'Do not run db push' "$RUNNER_TEMP/canonical-finance-no-go.txt"
 test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 99
 archive="$RUNNER_TEMP/inmojco-104-canonical-sql-for-review"
 if [[ -e "$archive" ]]; then
