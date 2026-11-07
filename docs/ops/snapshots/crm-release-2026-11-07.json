@@ -1,0 +1,30 @@
+{
+  "issue": 281,
+  "productionProject": "cuitgyqrjibgwuniapmk",
+  "appliedVersion": "20261107072304",
+  "appliedName": "website_lead_reuse_event_consent",
+  "sqlSource": "supabase/migrations/20261107072304_website_lead_reuse_event_consent.sql",
+  "sqlGitBlob": "c9fdfccf55c2fd8d70da709dd50d1d56de3361d5",
+  "previousHistoricalVersions": 99,
+  "observedVersionCountAfterRelease": 100,
+  "agencyCountAfterRelease": 2,
+  "websiteContactsBeforeAndAfter": 0,
+  "legacyConsentCountBeforeAndAfter": 0,
+  "newConsentCountAfterRelease": 0,
+  "checks": {
+    "rlsEnabled": true,
+    "anonConsentSelect": false,
+    "authenticatedConsentSelect": false,
+    "anonDirectContactInsert": false,
+    "legacyAnonymousRpcExecute": true,
+    "newIdempotentAnonymousRpcExecute": true,
+    "foreignKeys": 3,
+    "uniques": 1,
+    "primaryKey": 1
+  },
+  "status": "SQL_APPLIED_VERIFIED",
+  "functionalE2E": "NOT_VERIFIED_MISSING_AGENCY_PRIVACY_POLICY",
+  "wompiProductionEnabled": false,
+  "productionReplayNotAuthorized": true,
+  "provenance": "read-only post-migration Supabase catalog checks 2026-11-07"
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // INMOJCO #104 — Offline cutover candidate contract. NEVER executes SQL.
-// Verify exact 99 real migration blobs AND preservation of all 109 old sources.
+// Preserve 99 immutable historical SQL bodies, 109 legacy sources, and one verified forward CRM migration.
 import {readFileSync,readdirSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -13,6 +13,8 @@ const ledgerPath='docs/ops/snapshots/supabase-migration-ledger-2026-11-02.json';
 const archivePinPath='docs/ops/snapshots/legacy-sql-sha-2026-11-07.json';
 const dest=resolve(root,'supabase/migrations');
 const archive=resolve(root,'docs/ops/archive/legacy-sql-20261107');
+// Independently applied in hosted production on Nov 7. Original 99 stay pinned.
+const forward=Object.freeze({name:'20261107072304_website_lead_reuse_event_consent.sql',sha:'c9fdfccf55c2fd8d70da709dd50d1d56de3361d5'});
 
 export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFiles,getCanonical,getLegacy}) {
   const errors=[];
@@ -22,12 +24,16 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
      archives.files.length!==109 || !Array.isArray(canonicalFiles) || !Array.isArray(legacyFiles))
     return {ok:false,safeToPush:false,errors:['Unreviewed or incomplete migration input']};
   const reference=manifest.records.map(r=>r.version+'_'+r.appliedName+'.sql');
-  const permitted=new Set(reference);
+  const permitted=new Set([...reference,forward.name]);
   const canonicalNames=canonicalFiles.filter(n=>n.endsWith('.sql')).sort();
   const legacyNames=legacyFiles.filter(n=>n.endsWith('.sql')).sort();
-  if(canonicalNames.length!==99 || permitted.size!==99 ||
+  if(canonicalNames.length!==100 || permitted.size!==100 ||
      JSON.stringify(canonicalNames)!==JSON.stringify([...permitted].sort()))
-    errors.push('Canonical file names differ from the 99 applied identities');
+    errors.push('Canonical file names differ from 99 historical + 1 pinned forward migration');
+  try {
+    if(gitBlobSha(getCanonical(forward.name))!==forward.sha)
+      errors.push('Verified forward CRM migration differs from applied SQL');
+  } catch { errors.push('Missing verified forward CRM migration'); }
   const archivedNames=archives.files.map(x=>x.name).sort();
   if(legacyNames.length!==109 || new Set(archivedNames).size!==109 ||
       JSON.stringify(archivedNames)!==JSON.stringify(legacyNames))
@@ -62,7 +68,7 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
     errors.push('Unapplied candidate SQL must never be canonicalized');
   return {ok:errors.length===0,safeToPush:false,safeToRepair:false,
     readyToMerge:false,canonicalCount:canonicalNames.length,
-    archivedSources:legacyNames.length,matchedRecordedSql:99,
+    archivedSources:legacyNames.length,matchedRecordedSql:99,verifiedForward:1,
     requiresHistoricalFixtureCompatibility:true,errors};
 }
 

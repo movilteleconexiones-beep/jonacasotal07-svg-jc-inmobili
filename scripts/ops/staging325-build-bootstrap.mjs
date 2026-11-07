@@ -70,8 +70,8 @@ function pinnedLegacySql(item) {
 
 export function buildCandidate325() {
   const cutover = inspectCutover();
-  if (!cutover.ok || cutover.canonicalCount !== 99 || cutover.archivedSources !== 109)
-    throw Error('Canonical 99 or archived 109 SQL inventory changed');
+  if (!cutover.ok || cutover.canonicalCount !== 100 || cutover.archivedSources !== 109)
+    throw Error('Canonical 99 + forward CRM or archived 109 SQL inventory changed');
   const historic = buildPinnedHistoricalArchive();
   if (!historic.ok || historic.count !== 99 || historic.bytes !== 493999 ||
       historic.safeToReplay !== false || historic.safeToPush !== false)

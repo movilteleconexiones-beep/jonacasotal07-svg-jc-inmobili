@@ -21,9 +21,10 @@ const inputs={
 test('#104 DRAFT cutover pins all 99 original applied SQL bodies and preserves 109 sources',()=>{
   const result=inspectCutover();
   assert.equal(result.ok,true,JSON.stringify(result.errors));
-  assert.equal(result.canonicalCount,99);
+  assert.equal(result.canonicalCount,100);
   assert.equal(result.archivedSources,109);
   assert.equal(result.matchedRecordedSql,99);
+  assert.equal(result.verifiedForward,1);
   assert.deepEqual([result.safeToPush,result.safeToRepair,result.readyToMerge],[false,false,false]);
 });
 
@@ -32,6 +33,10 @@ test('#104 DRAFT cutover rejects altered canonical SQL and lost historical sourc
   const corrupt=checkCutover({...inputs,getCanonical:n=>n===name?Buffer.from('SELECT 1;'):inputs.getCanonical(n)});
   assert.equal(corrupt.ok,false);
   assert.match(corrupt.errors.join(';'),/Canonical body differs/);
+  const forward='20261107072304_website_lead_reuse_event_consent.sql';
+  const tamperedForward=checkCutover({...inputs,getCanonical:n=>n===forward?Buffer.from('SELECT 1;'):inputs.getCanonical(n)});
+  assert.equal(tamperedForward.ok,false);
+  assert.match(tamperedForward.errors.join(';'),/forward CRM migration differs/);
   const missing=checkCutover({...inputs,legacyFiles:inputs.legacyFiles.filter(n=>!n.endsWith('.sql'))});
   assert.equal(missing.ok,false);
   assert.match(missing.errors.join(';'),/archive incomplete/);
