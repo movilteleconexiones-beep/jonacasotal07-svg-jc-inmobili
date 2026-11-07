@@ -45,6 +45,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Production CI source contract regression
         run: node --test tests/main-ci-deploy-contract.test.mjs
+      - name: Verify canonical 99 and activate original 109 offline SQL test fixtures (DRAFT #104)
+        run: bash scripts/ops/migration104-ci-legacy-fixtures.sh
       - name: Finance history guard and intentional migration NO-GO (#104)
         run: |
           set -euo pipefail
