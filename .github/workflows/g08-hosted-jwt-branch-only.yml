@@ -1,0 +1,19 @@
+name: G08 hosted Supabase Auth JWT and multi-tenant RLS E2E (ephemeral)
+on:
+  pull_request:
+    paths:
+      - 'tests/g08-hosted-jwt-branch-only.test.mjs'
+      - '.github/workflows/g08-hosted-jwt-branch-only.yml'
+permissions:
+  contents: read
+jobs:
+  hosted-real-sessions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Five distinct actual Supabase Auth sessions, tenant RLS and separate roles
+        run: node --test tests/g08-hosted-jwt-branch-only.test.mjs
