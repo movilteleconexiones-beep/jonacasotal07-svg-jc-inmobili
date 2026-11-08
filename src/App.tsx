@@ -400,7 +400,7 @@ export default function App() {
     return <main className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
       <section className="w-full max-w-lg space-y-5 rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm">
         <h1 className="text-2xl font-semibold">
-          {recoveryState === 'sign-in' ? 'Accede a tu panel INMOJCO' : 'Verifica el acceso a tu inmobiliaria'}
+          {recoveryState === 'sign-in' ? 'Accede a tu panel INMOJCO' : 'Acceso privado no autorizado'}
         </h1>
         <p className="text-sm text-slate-600">
           {recoveryState === 'sign-in'
