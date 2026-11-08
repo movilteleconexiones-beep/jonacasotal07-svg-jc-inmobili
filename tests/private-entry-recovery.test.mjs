@@ -28,7 +28,8 @@ test('public pages and non-return billing values are not intercepted', () => {
   assert.equal(state('/','?billing=other'), null);
   assert.equal(state('/inmobiliaria/other-tenant','?billing=return'), null);
   assert.equal(state('/super-admin',''), null);
-  assert.equal(state('/app','',false,true), null);
+  // A stale membership after sign-out must not mask the login prompt.
+  assert.equal(state('/app','',false,true), 'sign-in');
 });
 
 test('recovery is checked before public catalog failure and never alters billing/RLS', () => {
