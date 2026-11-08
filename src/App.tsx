@@ -23,6 +23,7 @@ import type { TenantBrandingState } from './core/use-tenant-branding';
 import { usePublicTenantCatalog } from './core/use-public-tenant-catalog';
 import { safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY } from './core/tenant-palette';
 import { shouldOpenAgencyWorkspace } from './core/agency-workspace-entry';
+import { privateEntryRecovery } from './core/private-entry-recovery';
 import { isPublicStorefrontPath, resolvePublicTenantSlug, tenantPublicPath } from './core/public-tenant-route';
 import { tenantPrivatePath } from './core/tenant-links';
 import { getCountryOption } from './core/countries';
@@ -386,13 +387,32 @@ export default function App() {
     </React.Suspense>;
   }
 
-  if (window.location.pathname === '/app' && user && !activeMembership && !isPlatformAdmin) {
-    return <main role="alert" className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
-      <div className="max-w-lg space-y-4 text-center">
-        <h1 className="text-xl font-semibold">Acceso privado no autorizado</h1>
-        <p>{accessError || 'No tienes una inmobiliaria activa asociada a este acceso.'}</p>
-        <a href="/app" className="inline-block rounded-lg border bg-white px-4 py-2 font-semibold">Volver a mis inmobiliarias</a>
-      </div>
+  // A missing/expired session must never be stranded behind a public
+  // catalog error, particularly after returning from the billing provider.
+  // This is a sign-in screen, not an authorization bypass.
+  const recoveryState = privateEntryRecovery({
+    pathname: window.location.pathname,
+    search: window.location.search,
+    authenticated: Boolean(user),
+    authorized: Boolean(activeMembership || isPlatformAdmin),
+  });
+  if (recoveryState) {
+    return <main className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
+      <section className="w-full max-w-lg space-y-5 rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-semibold">
+          {recoveryState === 'sign-in' ? 'Accede a tu panel INMOJCO' : 'Verifica el acceso a tu inmobiliaria'}
+        </h1>
+        <p className="text-sm text-slate-600">
+          {recoveryState === 'sign-in'
+            ? 'Inicia sesión para continuar al panel. Tu licencia y tus datos se conservarán.'
+            : 'La sesión está iniciada, pero no se ha podido confirmar una inmobiliaria autorizada. Actualiza el acceso o selecciona tu inmobiliaria.'}
+        </p>
+        {accessError && <p role="alert" className="text-sm text-red-700">{accessError}</p>}
+        <div className="flex justify-center"><AuthAccessButton showIdentity={false} /></div>
+        <a href="/" className="inline-block text-sm font-medium text-slate-700 underline underline-offset-4">
+          Volver a la portada
+        </a>
+      </section>
     </main>;
   }
 
@@ -401,11 +421,20 @@ export default function App() {
       La dirección pública de esta inmobiliaria no es válida.
     </main>;
   }
-  // A suspended or unknown tenant must never show the platform-owner's site.
+  // A suspended or unknown tenant must never show another agency's brand.
+  // Catalog availability must not prevent authorized users from signing in.
   if (tenantSlug && (!publicCatalog.brand || publicCatalog.loading)) {
     return <main role="status" className="grid min-h-screen place-items-center bg-stone-100 p-6 text-slate-800">
-      {publicCatalog.loading ? 'Cargando sitio de la inmobiliaria…' :
-        publicCatalog.error || 'El sitio de esta inmobiliaria no está disponible.'}
+      <div className="max-w-lg space-y-5 text-center">
+        <p>{publicCatalog.loading ? 'Cargando sitio de la inmobiliaria…' :
+          publicCatalog.error || 'El sitio de esta inmobiliaria no está disponible.'}</p>
+        {!publicCatalog.loading && <div className="flex flex-wrap items-center justify-center gap-3">
+          <a href="/app" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">
+            Ir al panel privado
+          </a>
+          {!user && <AuthAccessButton showIdentity={false} />}
+        </div>}
+      </div>
     </main>;
   }
 
