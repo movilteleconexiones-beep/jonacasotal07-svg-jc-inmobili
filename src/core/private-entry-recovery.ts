@@ -20,6 +20,8 @@ export function privateEntryRecovery({
   const billingReturn = pathname === '/' &&
     new URLSearchParams(search).get('billing') === 'return';
 
-  if ((!privatePath && !billingReturn) || authorized) return null;
-  return authenticated ? 'restore-membership' : 'sign-in';
+  if (!privatePath && !billingReturn) return null;
+  // Supabase sign-out can clear the user before stale memberships are reset.
+  if (!authenticated) return 'sign-in';
+  return authorized ? null : 'restore-membership';
 }
