@@ -489,6 +489,8 @@ jobs:
         run: node --test tests/client-portal-only-entry-regression.test.mjs
       - name: Private agency home vs platform landing regression
         run: node --import tsx --test tests/agency-workspace-entry.test.mjs
+      - name: Private access recovery after billing callback or expired session
+        run: node --import tsx --test tests/private-entry-recovery.test.mjs
       - name: Tenant identity and private inventory boundary checks
         run: node --test tests/tenant-boundary-ui-regression.test.mjs
       - name: External role verification must fail closed
