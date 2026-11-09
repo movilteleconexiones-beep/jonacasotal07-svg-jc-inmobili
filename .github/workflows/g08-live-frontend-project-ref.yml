@@ -1,0 +1,31 @@
+name: G08 live frontend Supabase project and private entrypoint smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g08-live-frontend-project-ref.test.mjs'
+      - 'tests/g08-live-browser-private-entry.test.mjs'
+      - '.github/workflows/g08-live-frontend-project-ref.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-runtime-target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify published www routes and compile-time production project ref without credentials
+        run: node --test tests/g08-live-frontend-project-ref.test.mjs
+      - name: Install pinned Chromium for live anonymous UI validation
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify unauthenticated homepage, sign-in modal and Wompi return in real browser
+        run: node --test tests/g08-live-browser-private-entry.test.mjs
