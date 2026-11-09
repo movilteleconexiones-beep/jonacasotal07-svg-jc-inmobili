@@ -69,11 +69,12 @@ test('public catalogue function exposes only public marketing keys and scoped da
 
 });
 
-test('central software identity is INMOJCO, never the JCO test-agency name', () => {
+test('commercial brand is Sistema Inmobiliario JCO while tenant and technical identities stay isolated', () => {
   const app = source('src/App.tsx');
-  assert.match(app, /const fallbackCompanyName = tenantSlug \? 'Portal inmobiliario' : 'INMOJCO'/);
+  assert.match(app, /const PUBLIC_COMMERCIAL_NAME = 'Sistema Inmobiliario JCO'/);
+  assert.match(app, /const fallbackCompanyName = tenantSlug \? 'Portal inmobiliario' : PUBLIC_COMMERCIAL_NAME/);
   assert.match(app, /companyName: publicCatalog\.brand\?\.companyName \|\| fallbackCompanyName/);
   assert.match(app, /softwareName: 'INMOJCO'/);
-  assert.match(app, /const softwareBrand = branding\.softwareName \|\| 'INMOJCO'/);
+  assert.match(app, /const softwareBrand = tenantSlug \? \(branding\.softwareName \|\| 'INMOJCO'\) : PUBLIC_COMMERCIAL_NAME/);
   assert.doesNotMatch(app, /companyName: publicCatalog\.brand\?\.companyName \|\| 'Sistema Inmobiliario JCO'/);
 });
