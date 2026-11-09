@@ -331,6 +331,8 @@ jobs:
 
       - name: TypeScript validation
         run: npm run lint
+      - name: Canonical INMOJCO WWW search metadata and private noindex policy
+        run: node --test tests/seo-primary-www-domain.test.mjs
       - name: Public portal SPA stylesheet and cache integration (Caddy)
         run: |
           npm run build
@@ -354,6 +356,15 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.css)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/assets/removed-version.js)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/inmobiliaria/sistema-inmobiliario-jco)" = "200"
+          # Host-scoped SEO: the marketed product is always www.inmojco.com.
+          curl -fsSI -H 'Host: www.inmojco.com' http://127.0.0.1:18080/ | grep -Fqi 'https://www.inmojco.com/'
+          curl -fsSI -H 'Host: www.inmojco.com' http://127.0.0.1:18080/app | grep -iq '^x-robots-tag: noindex'
+          curl -fsSI -H 'Host: www.inmojco.com' http://127.0.0.1:18080/super-admin | grep -iq '^x-robots-tag: noindex'
+          curl -fsSI -H 'Host: www.inmojco.com' 'http://127.0.0.1:18080/?billing=return' | grep -iq '^x-robots-tag: noindex'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: inmojco.com' http://127.0.0.1:18080/)" = "308"
+          curl -fsSI -H 'Host: inmojco.com' http://127.0.0.1:18080/ | grep -Fqi 'location: https://www.inmojco.com/'
+          curl -fsS -H 'Host: www.inmojco.com' http://127.0.0.1:18080/robots.txt | grep -Fq 'Sitemap: https://www.inmojco.com/sitemap.xml'
+          curl -fsS -H 'Host: www.inmojco.com' http://127.0.0.1:18080/sitemap.xml | grep -Fq '<loc>https://www.inmojco.com/</loc>'
 
       - name: Approved COP monthly prices and immutable perpetual license SQL
         env:
