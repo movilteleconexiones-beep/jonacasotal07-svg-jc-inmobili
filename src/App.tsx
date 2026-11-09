@@ -313,7 +313,7 @@ export default function App() {
     if (!automaticContactEnabled && !contactFallbackEmail) {
       setContactError(tenantSlug
         ? 'La inmobiliaria todavía no tiene un canal de contacto configurado.'
-        : `${PUBLIC_COMMERCIAL_NAME} todavía no tiene un correo comercial configurado.`);
+        : 'INMOJCO todavía no tiene un correo comercial configurado.');
       return;
     }
     if (!automaticContactEnabled) {
@@ -1336,14 +1336,14 @@ export default function App() {
                     <p className="mt-2">
                       {tenantSlug
                         ? 'Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido.'
-                        : `${PUBLIC_COMMERCIAL_NAME} todavía no tiene un correo comercial configurado para recibir consultas.`}
+                        : 'INMOJCO todavía no tiene un correo comercial configurado para recibir consultas.'}
                       {' '}No solicitaremos tus datos hasta que exista un canal de atención verificable.
                     </p>
                     {tenantSlug ? (
                       <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>
                     ) : (
                       <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <p className="w-full">¿Quieres utilizar {PUBLIC_COMMERCIAL_NAME} para tu inmobiliaria? Puedes crear tu cuenta desde aquí.</p>
+                        <p className="w-full">¿Quieres utilizar INMOJCO para tu inmobiliaria? Puedes crear tu cuenta desde aquí.</p>
                         <AuthAccessButton showIdentity={false} initialMode="SIGN_UP" />
                       </div>
                     )}
@@ -1541,7 +1541,7 @@ export default function App() {
           <div className="max-w-3xl text-xs leading-relaxed text-slate-500">
             {tenantSlug
               ? `Las publicaciones, servicios y datos comerciales son responsabilidad de ${publicCompanyName}. Las condiciones se confirman directamente con la inmobiliaria.`
-              : `${PUBLIC_COMMERCIAL_NAME} provee tecnología de gestión. La operación inmobiliaria y los servicios profesionales son responsabilidad de cada inmobiliaria usuaria, no del proveedor tecnológico.`}
+              : 'INMOJCO provee tecnología de gestión. La operación inmobiliaria y los servicios profesionales son responsabilidad de cada inmobiliaria usuaria, no del proveedor tecnológico.'}
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
