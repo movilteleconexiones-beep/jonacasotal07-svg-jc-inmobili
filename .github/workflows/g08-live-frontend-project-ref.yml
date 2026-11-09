@@ -1,0 +1,23 @@
+name: G08 live frontend Supabase project and private entrypoint smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g08-live-frontend-project-ref.test.mjs'
+      - '.github/workflows/g08-live-frontend-project-ref.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-runtime-target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify published www routes and compile-time production project ref without credentials
+        run: node --test tests/g08-live-frontend-project-ref.test.mjs
