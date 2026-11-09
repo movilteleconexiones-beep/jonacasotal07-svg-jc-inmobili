@@ -10,6 +10,23 @@
     encode zstd gzip
     header X-Content-Type-Options "nosniff"
 
+    # Prefer one public brand URL. Redirect obsolete hostnames only if
+    # their DNS and HTTPS already terminate at this service.
+    @legacyDomains host inmojco.com app.inmojco.com
+    redir @legacyDomains https://www.inmojco.com{uri} 308
+
+    # HTTP canonical is limited to / so individual agency portals are not
+    # incorrectly canonicalized to the software marketing homepage.
+    @publicHomepage path /
+    header @publicHomepage Link "<https://www.inmojco.com/>; rel=\"canonical\""
+
+    # Do not index sign-in, administrator screens or payment callbacks.
+    # Keep these routes crawlable: blocking them in robots.txt hides noindex.
+    @privateRoutes path /app /app/* /super-admin /super-admin/*
+    header @privateRoutes X-Robots-Tag "noindex, nofollow, noarchive"
+    @billingReturn query billing=return
+    header @billingReturn X-Robots-Tag "noindex, nofollow, noarchive"
+
     # Only a web-server liveness check. This never claims that Supabase,
     # Storage, or Wompi is healthy; no SPA fallback may impersonate it.
     handle /readyz {
