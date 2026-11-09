@@ -81,7 +81,7 @@ test('public intake never asks for PII without a configured destination',()=>{
  assert.match(app,/href=\{\x60mailto:\$\{contactFallbackEmail\}/);
  assert.match(app,/setContactError\(tenantSlug/);
   assert.match(app,/La inmobiliaria todavía no tiene un canal de contacto configurado/);
-  assert.match(app,/INMOJCO todavía no tiene un correo comercial configurado/);
+  assert.match(app,/PUBLIC_COMMERCIAL_NAME.*todavía no tiene un correo comercial configurado/);
  assert.match(settings,/const hasPublishedContactEmail = /);
  assert.match(settings,/Configurar correo comercial/);
  assert.match(settings,/id="correo-comercial"/);
