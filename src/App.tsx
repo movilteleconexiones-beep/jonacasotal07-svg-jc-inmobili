@@ -48,6 +48,8 @@ import {
 const PrivateDashboard = React.lazy(() => import('./modules/dashboard/PrivateDashboard.tsx').then(module => ({ default: module.PrivateDashboard })));
 const SuperAdminModule = React.lazy(() => import('./modules/platform/SuperAdminModule'));
 
+const PUBLIC_COMMERCIAL_NAME = 'Sistema Inmobiliario JCO';
+
 export default function App() {
   const [isSuperAdminRoute, setIsSuperAdminRoute] = useState(
     () => window.location.pathname === '/super-admin' || window.location.hash === '#super-admin'
@@ -88,7 +90,7 @@ export default function App() {
   // Public branding must NEVER be inherited from a different signed-in tenant.
   // Only the server-scoped public catalog may supply public tenant identity.
   // A missing tenant must not inherit the JCO test agency identity.
-  const fallbackCompanyName = tenantSlug ? 'Portal inmobiliario' : 'INMOJCO';
+  const fallbackCompanyName = tenantSlug ? 'Portal inmobiliario' : PUBLIC_COMMERCIAL_NAME;
   const branding: TenantBrandingState = {
     companyName: publicCatalog.brand?.companyName || fallbackCompanyName,
     softwareName: 'INMOJCO',
@@ -108,7 +110,7 @@ export default function App() {
   };
   const countryProfile = getCountryOption(branding.country);
   const organizationBrand = branding.companyName || fallbackCompanyName;
-  const softwareBrand = branding.softwareName || 'INMOJCO';
+  const softwareBrand = tenantSlug ? (branding.softwareName || 'INMOJCO') : PUBLIC_COMMERCIAL_NAME;
   const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
@@ -125,7 +127,7 @@ export default function App() {
   React.useEffect(() => {
     document.title = tenantSlug && publicCatalog.brand
       ? publicCompanyName
-      : tenantSlug ? 'Portal inmobiliario' : 'INMOJCO';
+      : tenantSlug ? 'Portal inmobiliario' : `${PUBLIC_COMMERCIAL_NAME} | Software inmobiliario`;
   }, [tenantSlug, publicCatalog.brand, publicCompanyName]);
   const [isPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
@@ -311,7 +313,7 @@ export default function App() {
     if (!automaticContactEnabled && !contactFallbackEmail) {
       setContactError(tenantSlug
         ? 'La inmobiliaria todavía no tiene un canal de contacto configurado.'
-        : 'INMOJCO todavía no tiene un correo comercial configurado.');
+        : `${PUBLIC_COMMERCIAL_NAME} todavía no tiene un correo comercial configurado.`);
       return;
     }
     if (!automaticContactEnabled) {
@@ -1334,14 +1336,14 @@ export default function App() {
                     <p className="mt-2">
                       {tenantSlug
                         ? 'Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido.'
-                        : 'INMOJCO todavía no tiene un correo comercial configurado para recibir consultas.'}
+                        : `${PUBLIC_COMMERCIAL_NAME} todavía no tiene un correo comercial configurado para recibir consultas.`}
                       {' '}No solicitaremos tus datos hasta que exista un canal de atención verificable.
                     </p>
                     {tenantSlug ? (
                       <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>
                     ) : (
                       <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <p className="w-full">¿Quieres utilizar INMOJCO para tu inmobiliaria? Puedes crear tu cuenta desde aquí.</p>
+                        <p className="w-full">¿Quieres utilizar {PUBLIC_COMMERCIAL_NAME} para tu inmobiliaria? Puedes crear tu cuenta desde aquí.</p>
                         <AuthAccessButton showIdentity={false} initialMode="SIGN_UP" />
                       </div>
                     )}
@@ -1539,7 +1541,7 @@ export default function App() {
           <div className="max-w-3xl text-xs leading-relaxed text-slate-500">
             {tenantSlug
               ? `Las publicaciones, servicios y datos comerciales son responsabilidad de ${publicCompanyName}. Las condiciones se confirman directamente con la inmobiliaria.`
-              : 'INMOJCO provee tecnología de gestión. La operación inmobiliaria y los servicios profesionales son responsabilidad de cada inmobiliaria usuaria, no del proveedor tecnológico.'}
+              : `${PUBLIC_COMMERCIAL_NAME} provee tecnología de gestión. La operación inmobiliaria y los servicios profesionales son responsabilidad de cada inmobiliaria usuaria, no del proveedor tecnológico.`}
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
