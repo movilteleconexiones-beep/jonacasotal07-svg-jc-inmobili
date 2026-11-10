@@ -37,7 +37,22 @@ for(const [url,label] of cases) {
       }
     }else{
       assert.ok([301,308].includes(response.status),'Apex should permanently redirect');
-      assert.ok(location?.startsWith('https://www.inmojco.com/'),'Apex redirect must use canonical HTTPS www');
+      // Railway can first upgrade HTTP to HTTPS at its edge. Caddy then
+      // performs the second permanent redirect to canonical www.
+      // Never accept a downgrade, a third-party host, or an endless chain.
+      if(url.startsWith('http://') && location?.startsWith('https://inmojco.com/')){
+        const second=await fetch(location,{method:'GET',redirect:'manual',
+          headers:{'User-Agent':'INMOJCO-LaunchReadOnly/1.0','Accept':'text/html'},
+          signal:AbortSignal.timeout(12500)});
+        const finalLocation=second.headers.get('location');
+        console.log('apex HTTPS hop: status='+second.status+' location='+(finalLocation??'-'));
+        assert.ok([301,308].includes(second.status),'HTTPS apex must permanently redirect to www');
+        assert.ok(finalLocation?.startsWith('https://www.inmojco.com/'),
+          'HTTPS apex must use canonical www without third-party redirects');
+      }else{
+        assert.ok(location?.startsWith('https://www.inmojco.com/'),
+          'Apex must redirect directly to canonical HTTPS www, or upgrade via HTTPS apex');
+      }
     }
   });
 }
