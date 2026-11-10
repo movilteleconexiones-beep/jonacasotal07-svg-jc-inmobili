@@ -28,7 +28,7 @@ import { isPublicStorefrontPath, resolvePublicTenantSlug, tenantPublicPath } fro
 import { tenantPrivatePath } from './core/tenant-links';
 import { getCountryOption } from './core/countries';
 import { agencyHeroCopy, AGENCY_SERVICE_PROMPT } from './core/public-agency-content';
-import { DEFAULT_PUBLIC_PAGE } from './core/public-page-content';
+import { DEFAULT_PUBLIC_PAGE, safePrivacyPolicyDocumentUrl } from './core/public-page-content';
 import { supabase } from './lib/supabase';
 import { CatalogLocationFilter } from './components/CatalogLocationFilter';
 import { matchesCatalogLocation, matchesCatalogSearch, type CatalogLocationSelection } from './core/catalog-location';
@@ -116,7 +116,7 @@ export default function App() {
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
   const publicAgencyServices = publicCatalog.brand?.publicServices || [];
   const page = publicCatalog.brand?.publicPage || DEFAULT_PUBLIC_PAGE;
-  const privacyPolicyUrl = safeBrandUrl(page.privacyPolicyUrl);
+  const privacyPolicyUrl = safePrivacyPolicyDocumentUrl(page.privacyPolicyUrl);
   const automaticContactEnabled = Boolean(tenantSlug && privacyPolicyUrl);
   // A missing policy disables automatic CRM intake. Only offer a manual email
   // when the agency has a valid destination, never a false 'submitted' receipt.

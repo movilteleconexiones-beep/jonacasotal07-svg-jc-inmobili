@@ -7,7 +7,7 @@ import { useTenantBranding } from '../../core/use-tenant-branding';
 import { paletteFromLogoUrl, safeBrandUrl, safeTenantColor, TENANT_DEFAULT_PRIMARY, TENANT_DEFAULT_SECONDARY } from '../../core/tenant-palette';
 import { supabase } from '../../lib/supabase';
 import type { PublicAgencyService } from '../../core/public-agency-content';
-import { parsePublicPageContent, validPublicPageContent, type PublicPageContent } from '../../core/public-page-content';
+import { parsePublicPageContent, safePrivacyPolicyDocumentUrl, validPublicPageContent, type PublicPageContent } from '../../core/public-page-content';
 import { tenantPublicPath } from '../../core/public-tenant-route';
 import { isValidTenantSlug, normalizeTenantSlug, tenantPrivatePath } from '../../core/tenant-links';
 
@@ -54,7 +54,7 @@ export function SettingsModule() {
   const selectedCountry = useMemo(() => getCountryOption(country), [country]);
   const isOwner = Boolean(activeMembership?.roles.some(role => role.key === 'ORGANIZATION_OWNER' && role.active));
   const currentSlug = activeMembership?.organization.slug || '';
-  const hasPublishedPrivacyPolicy = /^https:\/\/[^\s]+$/.test(branding.publicPage.privacyPolicyUrl || '');
+  const hasPublishedPrivacyPolicy = Boolean(safePrivacyPolicyDocumentUrl(branding.publicPage.privacyPolicyUrl));
   const hasPublishedContactEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(branding.email || '');
 
   useEffect(() => { setPublicSlug(currentSlug); }, [organizationId, currentSlug]);
@@ -183,6 +183,10 @@ export function SettingsModule() {
     }
     if (publicHeadline.trim().length > 160 || publicDescription.trim().length > 700 || publicOfficeAddress.trim().length > 220) {
       setMessage('Revisa los límites del título (160), descripción (700) y dirección de atención (220).');
+      return;
+    }
+    if (publicPage.privacyPolicyUrl.trim() && !safePrivacyPolicyDocumentUrl(publicPage.privacyPolicyUrl)) {
+      setMessage('La política debe tener un enlace HTTPS al documento de esta inmobiliaria; no se admite la portada principal del software.');
       return;
     }
     if (!validPublicPageContent(publicPage)) {
