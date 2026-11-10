@@ -508,6 +508,7 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
+          node --test tests/privacy-policy-db-release-gate.test.mjs
           # Reuse the disposable CRM database; never connect to Supabase production.
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/candidates/privacy_policy_document_receipts_guard.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/tests/privacy_policy_document_receipts_guard_pg17.sql
