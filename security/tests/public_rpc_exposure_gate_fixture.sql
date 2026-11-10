@@ -15,15 +15,15 @@ CREATE FUNCTION public.submit_public_website_lead_once(
   p_slug text,p_name text,p_email text,p_phone text,p_service text,
   p_message text,p_consent boolean,p_trap text,p_request_id uuid)
 RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path=''
-AS $ SELECT true $;
+AS $$ SELECT true $$;
 -- Legacy compatibility entrypoint stays SECURITY INVOKER.
 CREATE FUNCTION public.submit_public_website_lead(
   p_slug text,p_name text,p_email text,p_phone text,p_service text,
   p_message text,p_consent boolean,p_trap text)
 RETURNS boolean LANGUAGE sql SET search_path=''
-AS $ SELECT public.submit_public_website_lead_once(
+AS $$ SELECT public.submit_public_website_lead_once(
   p_slug,p_name,p_email,p_phone,p_service,p_message,p_consent,p_trap,
-  pg_catalog.gen_random_uuid()) $;
+  pg_catalog.gen_random_uuid()) $$;
 CREATE FUNCTION public.tenant_public_catalog(tenant_slug text)
 RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path=''
 AS $$ SELECT '{}'::jsonb $$;
