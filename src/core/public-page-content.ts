@@ -60,10 +60,34 @@ export function parsePublicPageContent(value: unknown): PublicPageContent {
   return result;
 }
 
+/**
+ * Validates the link shape for an agency privacy notice; this is not legal
+ * approval or a live HTTP/content check. Never enable CRM intake from the
+ * platform home page or another INMOJCO screen posing as a privacy notice.
+ */
+export function safePrivacyPolicyDocumentUrl(value: string | null | undefined): string | null {
+  if (!value || value.trim().length > STRING_LIMITS.privacyPolicyUrl) return null;
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return null;
+    const hostname = url.hostname.toLowerCase().replace(/\.$/, '');
+    if (hostname === 'inmojco.com' || hostname === 'www.inmojco.com') {
+      const path = url.pathname.toLowerCase();
+      const policyRoute =
+        /^\/politicas\/[^/]+/.test(path) ||
+        /^\/(?:politica-de-datos|politica-de-privacidad|privacidad)(?:\/|$)/.test(path);
+      if (!policyRoute) return null;
+    }
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 export function validPublicPageContent(value: PublicPageContent): boolean {
   return Object.entries(STRING_LIMITS).every(([key, length]) => {
     const item = (value as unknown as Record<string, unknown>)[key];
     return typeof item === 'string' && item.length <= length;
   }) && TOGGLES.every(key => typeof value[key] === 'boolean')
-    && (!value.privacyPolicyUrl || /^https:\/\/[^\s]+$/.test(value.privacyPolicyUrl));
+    && (!value.privacyPolicyUrl || Boolean(safePrivacyPolicyDocumentUrl(value.privacyPolicyUrl)));
 }
