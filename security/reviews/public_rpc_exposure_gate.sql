@@ -1,6 +1,8 @@
 -- INMOJCO - read-only privileged RPC exposure regression gate.
 -- Use with psql -v ON_ERROR_STOP=1. No production changes.
--- Tested against live project metadata on 2026-10-30.
+-- Reconciled read-only against production pg_proc ACLs on 2026-11-10.
+-- Legacy submit_public_website_lead(...) is SECURITY INVOKER; only
+-- submit_public_website_lead_once(...,uuid) is privileged and public.
 DO $gate$
 DECLARE
   n_unknown int;
@@ -24,7 +26,7 @@ BEGIN
     AND (p.proname, pg_catalog.oidvectortypes(p.proargtypes)) NOT IN (
       ('get_public_property_intake_site','text'),
       ('submit_property_consignment','text, uuid, jsonb'),
-      ('submit_public_website_lead','text, text, text, text, text, text, boolean, text'),
+      ('submit_public_website_lead_once','text, text, text, text, text, text, boolean, text, uuid'),
       ('tenant_public_catalog','text')
     );
   IF n_unknown <> 0 THEN
