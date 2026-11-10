@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const candidate = read('security/candidates/privacy_policy_document_receipts_guard.sql');
-const migration = read('supabase/migrations/20261110062359_privacy_policy_document_receipts_guard.sql');
+const migration = read('security/applied/20261110062359_privacy_policy_document_receipts_guard.sql');
 const rollback = read('security/rollback/20261110062359_privacy_policy_document_receipts_guard.sql');
 
 test('production migration contains identical verified SQL as PG17 candidate',()=>{
