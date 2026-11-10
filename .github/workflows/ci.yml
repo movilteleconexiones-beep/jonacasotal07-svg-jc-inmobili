@@ -503,6 +503,14 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/tests/website_lead_idempotency_assertions.sql
           bash security/tests/public_website_lead_idempotency_concurrency.sh jco_public_lead_intake_test
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/tests/website_lead_consents_fk_assertions.sql
+      - name: Privacy notice SQL receipt guard and atomic CRM rollback (disposable PG17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # Reuse the disposable CRM database; never connect to Supabase production.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/candidates/privacy_policy_document_receipts_guard.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_public_lead_intake_test -f security/tests/privacy_policy_document_receipts_guard_pg17.sql
       - name: Private signed lease PDF portal browser-access regression
         run: node --test tests/linked-signed-lease-portal.test.mjs
       - name: External portal navigation and no internal CRM data regression
