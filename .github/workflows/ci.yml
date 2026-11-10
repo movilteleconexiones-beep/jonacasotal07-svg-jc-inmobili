@@ -185,6 +185,15 @@ jobs:
           fi
           grep -q 'unauthorized anonymous SECURITY DEFINER RPC' "$RUNNER_TEMP/rpc-error.log"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "DROP FUNCTION public.private_export()"
+          # The legacy wrapper may be called anonymously but MUST NOT gain
+          # SECURITY DEFINER privileges; only the idempotent *_once RPC may.
+          legacy='public.submit_public_website_lead(text,text,text,text,text,text,boolean,text)'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION $legacy SECURITY DEFINER"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql > "$RUNNER_TEMP/rpc-error.log" 2>&1; then
+            echo 'ERROR: privileged legacy website wrapper was allowed'; exit 1
+          fi
+          grep -q 'unauthorized anonymous SECURITY DEFINER RPC' "$RUNNER_TEMP/rpc-error.log"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "ALTER FUNCTION $legacy SECURITY INVOKER"
           # PUBLIC is not a named RPC role; default PUBLIC EXECUTE must be rejected.
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "GRANT EXECUTE ON FUNCTION public.get_public_property_intake_site(text) TO PUBLIC"
           if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/reviews/public_rpc_exposure_gate.sql > "$RUNNER_TEMP/rpc-error.log" 2>&1; then
