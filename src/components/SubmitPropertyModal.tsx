@@ -257,6 +257,25 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               </button>
             </div>
           </div>
+        ) : siteLoading || !site ? (
+          <div role="status" className="p-8 space-y-4 text-center">
+            <h3 className="text-xl font-semibold text-slate-900">
+              Recepción de consignaciones temporalmente no disponible
+            </h3>
+            <p className="text-sm leading-relaxed text-slate-600">
+              {siteLoading
+                ? 'Verificando si esta inmobiliaria tiene habilitada la recepción de consignaciones.'
+                : siteError || 'Esta inmobiliaria todavía no tiene habilitada la recepción de consignaciones.'}
+              {' '}No solicitaremos tu nombre, teléfono ni fotografías mientras este servicio no esté disponible.
+            </p>
+            <button
+              type="button"
+              onClick={resetAndClose}
+              className="px-6 py-2.5 rounded-lg bg-[#0F2942] text-white text-xs font-medium"
+            >
+              Cerrar
+            </button>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} aria-busy={submitting} className="p-6 space-y-4">
             <fieldset disabled={submitting} className="contents">

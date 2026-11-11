@@ -1683,6 +1683,7 @@ export default function App() {
 
       {/* CONSIGNAR / SUBMIT NEW PROPERTY MODAL */}
       <SubmitPropertyModal
+        key={tenantSlug || 'platform'}
         publicSiteSlug={tenantSlug}
         branding={branding}
         isOpen={isSubmitModalOpen}

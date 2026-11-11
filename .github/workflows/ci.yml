@@ -645,6 +645,8 @@ jobs:
       - name: Existing property operation and rental price edit safety
         run: node --test tests/property-edit-existing-operation.test.mjs
 
+      - name: G07 public consignment fail-closed presentation regression
+        run: node --test tests/g07-consignment-public-failclosed-ui.test.mjs
       - name: Property consignment validation tests
         run: node --import tsx --test tests/property-consignment.test.mjs
       - name: Consignment request survives tab refresh without persisting PII
