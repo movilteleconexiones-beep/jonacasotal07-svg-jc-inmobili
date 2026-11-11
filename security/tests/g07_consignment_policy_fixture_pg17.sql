@@ -29,3 +29,26 @@ VALUES
 UPDATE public.consignment_test_operational_access
    SET allowed=true
  WHERE organization_id='22222222-2222-2222-2222-222222222222';
+
+-- Mirror the deployed photo resolver signature and grants. This PG17 fixture
+-- does not open Storage or accept any real photos.
+CREATE OR REPLACE FUNCTION public.resolve_consignment_photo_submission(
+  p_slug text,p_request_id uuid,p_reference text
+) RETURNS TABLE(
+  consignment_id uuid,organization_id uuid,created_at timestamptz,status text
+) LANGUAGE sql SECURITY DEFINER SET search_path TO ''
+AS $photo$
+ SELECT c.id,c.organization_id,c.created_at,c.status
+ FROM private.property_intake_sites s
+ JOIN public.property_consignments c ON c.organization_id=s.organization_id
+ WHERE s.slug=p_slug AND s.enabled AND c.request_id=p_request_id
+   AND c.reference=p_reference AND c.status='NEW'
+   AND c.created_at>now()-interval '1 hour'
+   AND EXISTS(SELECT 1 FROM public.organizations o
+              WHERE o.id=s.organization_id AND o.status='ACTIVE')
+ LIMIT 1;
+$photo$;
+REVOKE ALL ON FUNCTION public.resolve_consignment_photo_submission(text,uuid,text)
+  FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_consignment_photo_submission(text,uuid,text)
+  TO service_role;
