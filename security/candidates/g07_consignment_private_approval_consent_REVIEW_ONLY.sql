@@ -85,9 +85,17 @@ AS $function$
     and a.revoked_at is null
     and a.policy_url = b.public_page_content->>'privacyPolicyUrl'
     and private.consignment_policy_url_valid(a.policy_url)
-  where s.slug = p_slug and s.enabled
-    and coalesce(os.enable_public_website, true)
-    and jco_private.operational_access(o.id);
+  where (s.slug = p_slug or o.slug = p_slug)
+    and s.enabled and coalesce(os.enable_public_website, true)
+    and jco_private.operational_access(o.id)
+    -- A public organization slug may differ from the private intake alias.
+    -- On an alias/organization-slug collision across tenants, fail closed.
+    and not exists(
+      select 1 from private.property_intake_sites another
+      join public.organizations other_org on other_org.id=another.organization_id
+      where another.organization_id<>o.id
+        and (another.slug=p_slug or other_org.slug=p_slug)
+    );
 $function$;
 
 
