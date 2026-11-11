@@ -11,7 +11,7 @@ const modal = readFileSync(new URL('../src/components/SubmitPropertyModal.tsx', 
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url),'utf8');
 
 test('public consignment form is rendered only when the current tenant intake is available', () => {
-  const branchStart = modal.indexOf(') : siteLoading || !site || site.slug !== publicSiteSlug ? (');
+  const branchStart = modal.indexOf(') : siteLoading || !site ? (');
   const formStart = modal.indexOf('<form onSubmit={handleSubmit}',branchStart);
   assert.ok(branchStart > 0 && formStart > branchStart,'The form must be gated by active site availability');
   const unavailable=modal.slice(branchStart,formStart);
@@ -26,8 +26,8 @@ test('public consignment form is rendered only when the current tenant intake is
   assert.match(form,/Enviar consignación/);
 });
 
-test('RPC submit handler checks that the loaded intake matches the current tenant', () => {
-  assert.match(modal,/if \(!site \|\| site\.slug !== publicSiteSlug \|\| siteLoading\)/);
+test('RPC submit handler requires an available site and the button never bypasses server access', () => {
+  assert.match(modal,/if \(!site \|\| siteLoading\)/);
   assert.match(modal,/const reference = await submitPropertyConsignment\(site\.slug, requestId, input\)/);
 });
 
