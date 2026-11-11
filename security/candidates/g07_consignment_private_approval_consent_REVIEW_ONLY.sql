@@ -29,8 +29,8 @@ AS $validator$
     AND raw_url = lower(btrim(raw_url))
     AND raw_url ~ '^https://[a-z0-9.-]+(:443)?/[^/?#[:space:]][^?#[:space:]]*$'
     AND (
-      raw_url !~ '^https://(www\\.)?inmojco\\.com(:443)?/'
-      OR raw_url ~ '^https://(www\\.)?inmojco\\.com(:443)?/(politicas/[^/?#[:space:]]+|politica-de-datos|politica-de-privacidad|privacidad)(/[^?#[:space:]]*)?$'
+      raw_url !~ '^https://(www\.)?inmojco\.com(:443)?/'
+      OR raw_url ~ '^https://(www\.)?inmojco\.com(:443)?/(politicas/[^/?#[:space:]]+|politica-de-datos|politica-de-privacidad|privacidad)(/[^?#[:space:]]*)?$'
     );
 $validator$;
 
