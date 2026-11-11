@@ -15,8 +15,8 @@ function assertDocumentUrl(raw, slug) {
   const url = new URL(raw, origin);
   assert.equal(url.protocol, 'https:', slug + ': legal document must be HTTPS');
   assert.ok(!url.username && !url.password, 'No credentials in policy URL');
-  assert.notEqual(url.pathname.replace(/\\/+$/, '') || '/', '/', slug + ': homepage is not a policy');
-  assert.ok(!/^\\/(?:app|super-admin|login)(?:\\/|$)/i.test(url.pathname),
+  assert.notEqual(url.pathname.replace(/\/+$/, '') || '/', '/', slug + ': homepage is not a policy');
+  assert.ok(!/^\/(?:app|super-admin|login)(?:\/|$)/i.test(url.pathname),
     slug + ': private application route is not a privacy policy');
   assert.notEqual(url.hostname, 'localhost');
 }
@@ -31,7 +31,7 @@ test('G03: each hosted agency fails closed without a published data policy', asy
           const page = await context.newPage();
           let submissions = 0;
           page.on('request', request => {
-            if (/\\/rpc\\/submit_public_website_lead(?:_once)?(?:\\?|$)/.test(request.url()))
+            if (/\/rpc\/submit_public_website_lead(?:_once)?(?:\?|$)/.test(request.url()))
               submissions += 1;
           });
 
