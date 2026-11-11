@@ -173,9 +173,11 @@ BEGIN
     NOT got ? 'approved_document_sha256'
     AND NOT got ? 'approval_reference',
     'Public response must not expose legal/approval metadata');
-  PERFORM public.consignment_test_assert(
-    (SELECT count(*)=0 FROM public.property_consignments),
-    'Anonymous caller cannot SELECT raw submissions');
+  BEGIN
+    PERFORM 1 FROM public.property_consignments LIMIT 1;
+    RAISE EXCEPTION 'Anonymous SELECT of consignments must be denied';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
 END $anonymous$;
 RESET ROLE;
 SELECT 'G07 PASS: legal approval, consent receipt, revocation and atomicity verified' AS result;
