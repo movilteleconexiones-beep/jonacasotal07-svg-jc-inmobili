@@ -593,7 +593,12 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
 
             <label className="flex items-start gap-2 text-xs text-slate-600">
               <input type="checkbox" checked={contactConsent} onChange={e => setContactConsent(e.target.checked)} required className="mt-0.5" />
-              <span>Autorizo a {branding.companyName} a usar mi nombre y teléfono para atender esta solicitud de consignación.</span>
+              <span>He leído la <a
+                href={site.policy_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline"
+              >política de tratamiento de datos (versión {site.policy_version})</a> de {branding.companyName} y autorizo el tratamiento de mi nombre, teléfono y datos del inmueble para estudiar esta consignación.</span>
             </label>
             <p className="text-[11px] leading-relaxed text-stone-500">
               {branding.companyName} es responsable de la atención de esta solicitud y de los servicios, contratos, pólizas, avalúos y verificaciones que decida ofrecer. La plataforma tecnológica no garantiza esos servicios.
