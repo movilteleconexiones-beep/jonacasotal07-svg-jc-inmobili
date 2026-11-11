@@ -55,6 +55,23 @@ BEGIN
     public.get_public_property_intake_site('tenant-a')->>'policy_version'='2026-11-v1',
     'Approved policy version must reach the public consent form');
   PERFORM public.consignment_test_assert(
+    public.get_public_property_intake_site('agency-a')->>'slug'='tenant-a',
+    'Public organization slug resolves only its own private intake alias');
+  PERFORM public.consignment_test_assert(
+    public.get_public_property_intake_site('agency-b') IS NULL,
+    'Another public organization slug without approval remains hidden');
+  -- Even if an intake alias collides with a different agency public slug,
+  -- neither tenant's intake should be selected by that ambiguous URL.
+  UPDATE public.organizations SET slug='tenant-a' WHERE id=org_b;
+  PERFORM public.consignment_test_assert(
+    public.get_public_property_intake_site('tenant-a') IS NULL,
+    'Ambiguous cross-tenant alias must not resolve');
+  PERFORM public.consignment_test_assert(
+    public.get_public_property_intake_site('agency-a')->>'slug'='tenant-a',
+    'Unambiguous public slug continues to serve its intended tenant');
+  UPDATE public.organizations SET slug='agency-b' WHERE id=org_b;
+
+  PERFORM public.consignment_test_assert(
     public.get_public_property_intake_site('tenant-b') IS NULL,
     'Tenant B must remain closed with tenant A approved');
 
