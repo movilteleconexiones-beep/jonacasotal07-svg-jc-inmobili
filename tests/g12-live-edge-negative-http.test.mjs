@@ -72,9 +72,18 @@ test('G12 LIVE: fabricated Wompi webhook cannot activate a license',async()=>{
        currency:'COP',status:'APPROVED'}},
      signature:{properties:['transaction.id'],checksum:'0'.repeat(64)},
    }});
- // 503 = keys intentionally absent; 401 = configured but signature invalid.
- assert.ok([401,503].includes(r.status), 'Invalid event reached payment processor');
- assert.ok(['invalid_signature','payments_not_configured'].includes(r.data?.error));
+ // Separate fail-closed safety from production merchant readiness.
+ // In manual strict mode 503 MUST fail: the LIVE merchant is not configured.
+ if (process.env.INMOJCO_REQUIRE_LIVE_READY === '1') {
+   assert.equal(r.status, 401,
+     'NO-GO: LIVE merchant is not ready; expected a rejected invalid signature (401), not an unconfigured gateway (503)');
+   assert.equal(r.data?.error, 'invalid_signature');
+ } else {
+   // Normal PR smoke proves an invalid webhook cannot activate a license,
+   // even before the owner configures LIVE merchant secrets.
+   assert.ok([401, 503].includes(r.status), 'Invalid event reached payment processor');
+   assert.ok(['invalid_signature', 'payments_not_configured'].includes(r.data?.error));
+ }
 });
 test('G12 SANDBOX: its independent original gateway still requires JWT',async()=>{
  const r=await call(sandbox+'/checkout',{body:invalidRequest(),
