@@ -124,7 +124,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitLock.current) return;
-    if (!site || site.slug !== publicSiteSlug || siteLoading) {
+    if (!site || siteLoading) {
       setError(siteError || 'Espera a que se conecte la recepción de consignaciones.');
       return;
     }
@@ -257,7 +257,7 @@ export const SubmitPropertyModal: React.FC<SubmitPropertyModalProps> = ({
               </button>
             </div>
           </div>
-        ) : siteLoading || !site || site.slug !== publicSiteSlug ? (
+        ) : siteLoading || !site ? (
           <div role="status" className="p-8 space-y-4 text-center">
             <h3 className="text-xl font-semibold text-slate-900">
               Recepción de consignaciones temporalmente no disponible
