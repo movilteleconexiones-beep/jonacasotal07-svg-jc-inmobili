@@ -17,7 +17,8 @@ BEGIN
   END IF;
   IF to_regprocedure('public.submit_property_consignment(text,uuid,jsonb)') IS NULL
     OR to_regprocedure('public.get_public_property_intake_site(text)') IS NULL
-    OR to_regclass('public.organization_branding') IS NULL THEN
+    OR to_regclass('public.organization_branding') IS NULL
+    OR to_regprocedure('public.resolve_consignment_photo_submission(text,uuid,text)') IS NULL THEN
     RAISE EXCEPTION 'Required consignment and branding baseline missing';
   END IF;
 END $preflight$;
@@ -256,6 +257,36 @@ $function$;
 
 
 
+-- Photo uploads are handled by the service-role Edge Function. Gate the
+-- resolver itself, so an old request ID/reference cannot upload after policy
+-- revocation or a publication change. No request details are exposed to anon.
+CREATE OR REPLACE FUNCTION public.resolve_consignment_photo_submission(
+  p_slug text,p_request_id uuid,p_reference text
+) RETURNS TABLE(
+  consignment_id uuid,organization_id uuid,created_at timestamptz,status text
+) LANGUAGE sql SECURITY DEFINER SET search_path TO ''
+AS $jco_photo$
+ SELECT c.id,c.organization_id,c.created_at,c.status
+ FROM private.property_intake_sites s
+ JOIN public.property_consignments c ON c.organization_id=s.organization_id
+ JOIN private.consignment_policy_receipts receipt ON receipt.consignment_id=c.id
+   AND receipt.organization_id=c.organization_id AND receipt.request_id=c.request_id
+ JOIN private.consignment_policy_approvals a ON a.organization_id=c.organization_id
+   AND a.revoked_at IS NULL
+   AND a.policy_url=receipt.policy_url
+   AND a.policy_version=receipt.policy_version
+   AND a.approved_document_sha256=receipt.approved_document_sha256
+ JOIN public.organization_branding b ON b.organization_id=c.organization_id
+   AND b.public_page_content->>'privacyPolicyUrl'=a.policy_url
+ WHERE s.slug=p_slug AND s.enabled AND c.request_id=p_request_id
+   AND c.reference=p_reference AND c.status='NEW'
+   AND c.created_at>now()-interval '1 hour'
+   AND private.consignment_policy_url_valid(a.policy_url)
+   AND EXISTS(SELECT 1 FROM public.organizations o
+              WHERE o.id=s.organization_id AND o.status='ACTIVE')
+ LIMIT 1;
+$jco_photo$;
+
 DO $postflight$
 BEGIN
   IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid='private.consignment_policy_approvals'::regclass)
@@ -264,6 +295,9 @@ BEGIN
     OR has_table_privilege('authenticated','private.consignment_policy_approvals','INSERT')
     OR NOT has_function_privilege('anon','public.get_public_property_intake_site(text)','EXECUTE')
     OR NOT has_function_privilege('anon','public.submit_property_consignment(text,uuid,jsonb)','EXECUTE')
+    OR NOT has_function_privilege('service_role','public.resolve_consignment_photo_submission(text,uuid,text)','EXECUTE')
+    OR has_function_privilege('anon','public.resolve_consignment_photo_submission(text,uuid,text)','EXECUTE')
+    OR has_function_privilege('authenticated','public.resolve_consignment_photo_submission(text,uuid,text)','EXECUTE')
   THEN RAISE EXCEPTION 'G07 postflight ACL or RLS failed'; END IF;
 END $postflight$;
 COMMIT;
