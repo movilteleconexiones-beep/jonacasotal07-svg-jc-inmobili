@@ -777,6 +777,19 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f supabase/migrations/20261010214633_fix_property_portal_rls_recursion.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_consignment_test -f security/tests/property_portal_rls_assertions.sql
+      - name: G07 public consignment policy approval, private consent and rollback (isolated PG17)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          node --test tests/g07-consignment-policy-ui-release.test.mjs
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g07_consignment_consent'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f security/tests/property_consignment_fixture.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f supabase/migrations/20261010212630_property_consignment_intake.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f supabase/migrations/20261021033500_gate_public_consignment_operational_access.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f security/tests/g07_consignment_policy_fixture_pg17.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f security/candidates/g07_consignment_private_approval_consent_REVIEW_ONLY.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f security/tests/g07_consignment_policy_guard_pg17.sql
       - name: Consignment private photo safety checks
         run: node --test tests/consignment-photo-upload.test.mjs
       - name: Consignment photo idempotency and concurrent retry handler (offline)

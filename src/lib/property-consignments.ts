@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import type { PropertyConsignmentInput } from '../core/property-consignment';
 import { consignmentErrorMessage } from '../core/property-consignment';
 import { isSupabaseConfigured, supabase } from './supabase';
+import { safePrivacyPolicyDocumentUrl } from '../core/public-page-content';
 
 export interface PublicPropertyIntakeSite {
   slug: string;
   company_name: string;
   country: string;
   currency: string;
+  policy_url: string;
+  policy_version: string;
 }
 
 export function usePublicPropertyIntakeSite(enabled: boolean, publicSiteSlug?: string) {
@@ -30,10 +33,12 @@ export function usePublicPropertyIntakeSite(enabled: boolean, publicSiteSlug?: s
       try {
         const { data, error: rpcError } = await supabase.rpc('get_public_property_intake_site', { p_slug: publicSiteSlug });
         if (cancelled) return;
-        if (rpcError || !data?.slug || !data?.company_name || !data?.country || !data?.currency) {
+        const approvedPolicyUrl = safePrivacyPolicyDocumentUrl(data?.policy_url);
+        if (rpcError || !data?.slug || !data?.company_name || !data?.country || !data?.currency ||
+          !approvedPolicyUrl || typeof data?.policy_version !== 'string' || !data.policy_version.trim()) {
           setError('La recepción de consignaciones no está disponible. Contacta directamente a la inmobiliaria.');
         } else {
-          setSite(data as PublicPropertyIntakeSite);
+          setSite({ ...data, policy_url: approvedPolicyUrl } as PublicPropertyIntakeSite);
         }
       } catch {
         if (!cancelled) setError('No se pudo conectar con la inmobiliaria. Cierra y abre el formulario para reintentar.');
