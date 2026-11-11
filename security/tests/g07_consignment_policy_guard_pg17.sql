@@ -101,6 +101,14 @@ BEGIN
         AND octet_length(receipt.payload_sha256)=32),
     'Per-request policy receipt must be transactionally linked and private');
   PERFORM public.consignment_test_assert(
+    (SELECT count(*)=1 FROM public.resolve_consignment_photo_submission(
+      'tenant-a',request_a,original_reference->>'reference')),
+    'Service-role photo resolver sees only new consented request');
+  PERFORM public.consignment_test_assert(
+    (SELECT count(*)=0 FROM public.resolve_consignment_photo_submission(
+      'tenant-b',request_a,original_reference->>'reference')),
+    'Cross-tenant photo resolver must not expose request');
+  PERFORM public.consignment_test_assert(
     public.submit_property_consignment('tenant-a',request_a,public.consignment_test_payload())=original_reference,
     'Retry with original request is idempotent');
   PERFORM public.consignment_test_assert(
@@ -131,6 +139,10 @@ BEGIN
   PERFORM public.consignment_test_assert(
     (SELECT count(*)=1 FROM private.consignment_policy_receipts),
     'Revocation retains historical consent evidence');
+  PERFORM public.consignment_test_assert(
+    (SELECT count(*)=0 FROM public.resolve_consignment_photo_submission(
+      'tenant-a',request_a,original_reference->>'reference')),
+    'Revoked policy blocks photos even for an earlier valid reference');
 
   -- A mismatched link for the approved tenant must fail closed.
   UPDATE private.consignment_policy_approvals SET revoked_at=NULL
