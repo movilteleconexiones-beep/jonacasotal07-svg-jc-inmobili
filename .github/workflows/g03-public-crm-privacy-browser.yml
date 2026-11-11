@@ -1,0 +1,40 @@
+name: G03 live CRM privacy policy fail-closed browser
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g03-public-crm-privacy-browser.test.mjs'
+      - '.github/workflows/g03-public-crm-privacy-browser.yml'
+  workflow_dispatch:
+    inputs:
+      require_policy_published:
+        description: 'Fail when either agency still lacks its own valid HTTPS privacy document URL'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g03-privacy-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-policy-privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      INMOJCO_REQUIRE_POLICY_PUBLISHED: ${{ inputs.require_policy_published && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Playwright Chromium test runner
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Check two real public portals without submitting personal data
+        run: node --test tests/g03-public-crm-privacy-browser.test.mjs
