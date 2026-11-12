@@ -9,13 +9,6 @@ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
 END $roles$;
-CREATE TABLE public.property_ownerships (
- property_id uuid NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
- owner_id uuid NOT NULL REFERENCES public.property_owners(id) ON DELETE CASCADE,
- ownership_percentage numeric NOT NULL DEFAULT 100 CHECK (ownership_percentage>0 AND ownership_percentage<=100),
- is_primary boolean NOT NULL DEFAULT false,
- PRIMARY KEY(property_id,owner_id)
-);
 
 CREATE TABLE public.organizations(id uuid PRIMARY KEY,status text NOT NULL);
 CREATE TABLE public.contacts(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL);
@@ -48,6 +41,14 @@ ALTER TABLE public.property_consignments ADD CONSTRAINT property_consignments_co
 ALTER TABLE public.property_consignments ADD CONSTRAINT property_consignments_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES public.leads(id) ON DELETE RESTRICT;
 ALTER TABLE public.property_consignments ADD CONSTRAINT property_consignments_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id) ON DELETE RESTRICT;
 ALTER TABLE public.property_private_photos ADD CONSTRAINT property_private_photos_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.properties(id) ON DELETE CASCADE;
+CREATE TABLE public.property_ownerships (
+ property_id uuid NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
+ owner_id uuid NOT NULL REFERENCES public.property_owners(id) ON DELETE CASCADE,
+ ownership_percentage numeric NOT NULL DEFAULT 100 CHECK (ownership_percentage>0 AND ownership_percentage<=100),
+ is_primary boolean NOT NULL DEFAULT false,
+ PRIMARY KEY(property_id,owner_id)
+);
+
 
 
 -- Simulate a production legacy ownership pair that crosses two tenants.
