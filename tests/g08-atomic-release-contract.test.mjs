@@ -54,4 +54,7 @@ test('G08: negative fixture forces ownership failure AFTER 16 FK candidate and v
   assert.match(ci, /--single-transaction/);
   assert.match(ci, /Existing ownership relationship crosses tenants/);
   assert.match(ci, /G08 atomic 16-FK \+ ownership release and failure rollback/);
+  assert.match(ci, /DROP DATABASE jco_g08_atomic_negative/);
+  assert.match(ci, /DROP DATABASE jco_g08_atomic_positive/);
+  assert.match(ci, /DROP ROLE IF EXISTS anon, authenticated/);
 });
