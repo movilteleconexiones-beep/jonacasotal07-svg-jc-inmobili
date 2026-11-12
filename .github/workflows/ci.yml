@@ -54,6 +54,37 @@ jobs:
         run: node --test tests/g08-public-api-maintain-revocation.test.mjs
       - name: G08 tenant FK applied SQL immutability and scope
         run: node --test tests/g08-maintenance-tenant-fk-release-gate.test.mjs
+      - name: G08 preflight release dry-run (READ ONLY SQL, isolated PG17; reject drift and cross-tenant)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          node --test tests/g08-production-readonly-preflight.test.mjs
+          db=jco_g08_readonly_preflight
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c "CREATE DATABASE $db"
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/g08_readonly_preflight_fixture_pg17.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/g08_production_read_only_preflight.sql
+          # A legacy single-column FK allows a cross-tenant reference; G08
+          # must catch it BEFORE any production migration is attempted.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "
+            INSERT INTO public.leads(id,organization_id,contact_id)
+            VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6',
+             '11111111-1111-1111-1111-111111111111',
+             'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2')"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/g08_production_read_only_preflight.sql; then
+            echo 'SECURITY FAILURE: cross-tenant reference unexpectedly passed G08 preflight' >&2
+            exit 1
+          fi
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "
+            DELETE FROM public.leads WHERE id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6'"
+          # Missing or renamed FK must also block the exact release gate.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -c "
+            ALTER TABLE public.leads DROP CONSTRAINT leads_contact_id_fkey"
+          if psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d "$db" -f security/tests/g08_production_read_only_preflight.sql; then
+            echo 'SECURITY FAILURE: missing FK unexpectedly passed G08 preflight' >&2
+            exit 1
+          fi
+          echo 'G08 PASS: read-only preflight accepts clean schema, rejects cross-tenant data and FK drift'
       - name: G08 Agenda CRM consignments commissions tenant boundaries (16 relationships, isolated PG17)
         env:
           PGPASSWORD: postgres
