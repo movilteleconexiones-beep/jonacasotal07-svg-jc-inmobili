@@ -1,0 +1,42 @@
+name: G07 public consignment hosted HTTP and browser privacy gate
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g07-hosted-intake-policy-browser.test.mjs'
+      - '.github/workflows/g07-hosted-intake-policy-browser.yml'
+      - 'src/components/SubmitPropertyModal.tsx'
+      - 'src/lib/property-consignments.ts'
+  workflow_dispatch:
+    inputs:
+      expect_all_closed:
+        description: 'Enforce both public consignment intakes remain disabled before signed policies'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g07-hosted-intake-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  anon-browser-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      INMOJCO_EXPECT_ALL_INTAKES_CLOSED: ${{ github.event_name != 'workflow_dispatch' && '1' || (inputs.expect_all_closed && '1' || '0') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Chromium browser test runner
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify live anonymous intake RPC and no-PII modal in both agencies
+        run: node --test tests/g07-hosted-intake-policy-browser.test.mjs
