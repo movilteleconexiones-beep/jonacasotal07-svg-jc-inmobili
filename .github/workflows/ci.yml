@@ -105,9 +105,47 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g08_atomic_positive'
+          node --test tests/g08-atomic-release-contract.test.mjs
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_atomic_positive -f security/tests/g08_atomic_dual_candidate_pg17.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g08_atomic_negative'
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_atomic_negative -f security/tests/g08_atomic_failure_fixture_pg17.sql
+          # Prove the owner/tenant guard DOES NOT suffer a concurrent-write
+          # race between SELECT preflight and CREATE TRIGGER. A separate
+          # PG17 connection holds RowExclusiveLock for a short interval.
+          psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_atomic_negative \
+            -c "BEGIN; LOCK TABLE public.property_ownerships IN ROW EXCLUSIVE MODE; SELECT pg_sleep(8); ROLLBACK;" >/dev/null 2>&1 &
+          lock_pid=$!
+          active_locks=0
+          for attempt in $(seq 1 40); do
+            active_locks="$(psql -X -At -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_atomic_negative \
+              -c "SELECT count(*) FROM pg_locks l JOIN pg_class c ON c.oid=l.relation
+                 WHERE c.relname='property_ownerships' AND l.mode='RowExclusiveLock'
+                   AND l.granted AND l.pid<>pg_backend_pid()")"
+            if [ "$active_locks" -ge 1 ]; then break; fi
+            sleep 0.2
+          done
+          if [ "$active_locks" -lt 1 ]; then
+            echo 'G08 FAILURE: could not establish synthetic concurrent DML lock'
+            wait "$lock_pid" || true
+            exit 1
+          fi
+          lock_log="$(mktemp)"
+          if psql -X --single-transaction -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_atomic_negative \
+              -f security/candidates/g08_ownership_link_tenant_guard_REVIEW_ONLY.sql >"$lock_log" 2>&1; then
+            echo 'G08 FAILURE: owner candidate bypassed a concurrent DML lock'
+            rm -f "$lock_log"
+            wait "$lock_pid" || true
+            exit 1
+          fi
+          if ! grep -q 'canceling statement due to lock timeout' "$lock_log"; then
+            echo 'G08 FAILURE: expected 3-second fail-closed lock timeout'
+            tail -30 "$lock_log"
+            rm -f "$lock_log"
+            wait "$lock_pid" || true
+            exit 1
+          fi
+          rm -f "$lock_log"
+          wait "$lock_pid"
           # Apply both exact candidates in ONE transaction and require the second
           # to abort on a deliberately cross-tenant property-owner link.
           log="$(mktemp)"
