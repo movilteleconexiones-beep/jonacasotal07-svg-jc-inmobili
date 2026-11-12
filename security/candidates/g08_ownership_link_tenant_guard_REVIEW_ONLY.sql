@@ -3,6 +3,13 @@
 -- rather than an incompatible non-null column in the existing app.
 SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '25s';
+-- Prevent a time-of-check/time-of-use race: a concurrent INSERT into the
+-- link table, or a parent organization_id UPDATE, must not slip between the
+-- cross-tenant preflight and installation of the protecting triggers.
+-- SHARE ROW EXCLUSIVE blocks concurrent DML but permits ordinary SELECT.
+-- lock_timeout aborts the WHOLE transaction if a busy table cannot be locked.
+LOCK TABLE public.property_ownerships, public.properties, public.property_owners
+ IN SHARE ROW EXCLUSIVE MODE;
 DO $preflight$
 BEGIN
  IF current_user <> 'postgres' THEN RAISE EXCEPTION 'Expected postgres migration executor'; END IF;
