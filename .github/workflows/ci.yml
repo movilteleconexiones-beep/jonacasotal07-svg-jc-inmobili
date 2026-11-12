@@ -164,6 +164,12 @@ jobs:
           fi
           rm -f "$log"
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g08_atomic_negative -f security/tests/g08_atomic_failure_postflight_pg17.sql
+          # CREATE ROLE is a cluster-wide side effect, even when the fixture DB
+          # is disposable. Remove both isolated databases before dropping only
+          # the synthetic roles, so legacy CI replay starts with a clean cluster.
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'DROP DATABASE jco_g08_atomic_negative'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'DROP DATABASE jco_g08_atomic_positive'
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'DROP ROLE IF EXISTS anon, authenticated'
           echo 'G08 PASS: both exact candidates work together, rollback is atomic on ownership failure'
       - name: G08 maintenance/property tenant FK and cascade regression (isolated PG17)
         env:
