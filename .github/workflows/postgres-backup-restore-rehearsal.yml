@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'tests/backup/postgres_restore_rehearsal.sh'
+      - 'tests/backup/test_restore_dependencies.sh'
+      - 'scripts/backup/inspect_restore_dependencies.sql'
       - '.github/workflows/postgres-backup-restore-rehearsal.yml'
 jobs:
   restore:
@@ -31,3 +33,9 @@ jobs:
             -e PGHOST=127.0.0.1 -e PGUSER=postgres -e PGPASSWORD="$PGPASSWORD" \
             -v "$PWD:/workspace:ro" -w /workspace postgres:17 \
             bash tests/backup/postgres_restore_rehearsal.sh
+      - name: Check catalog dependencies in a synthetic isolated restore
+        run: |
+          docker run --rm --network host \
+            -e PGHOST=127.0.0.1 -e PGUSER=postgres -e PGPASSWORD="$PGPASSWORD" \
+            -v "$PWD:/workspace:ro" -w /workspace postgres:17 \
+            bash tests/backup/test_restore_dependencies.sh
