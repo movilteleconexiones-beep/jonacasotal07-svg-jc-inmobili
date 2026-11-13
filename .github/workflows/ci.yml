@@ -756,6 +756,8 @@ jobs:
         run: node --test tests/g12-live-readiness-gate.test.mjs
       - name: G12 LIVE clone-only billing replay and rollback safety contract
         run: node --test tests/g12-live-clone-rehearsal-contract.test.mjs
+      - name: G07 temporary public CRM legal freeze protects catalog and permissions
+        run: node --test tests/g07-public-crm-acl-freeze.test.mjs
       - name: Commercial launch GO-NO-GO safety gates
         run: node --test tests/release-readiness-gates.test.mjs
       - name: Owner deduction administrator approval regression
