@@ -119,7 +119,7 @@ BEGIN
    RAISE EXCEPTION 'No tienes permiso para liquidar copropietarios' USING ERRCODE='42501';
  END IF;
  IF target_month IS NULL OR NOT pg_catalog.isfinite(target_month)
- OR pg_catalog.extract(day FROM target_month)<>1
+ OR extract(day FROM target_month)<>1
  OR agency_commission IS NULL OR withholding_tax IS NULL
  OR agency_commission<0 OR withholding_tax<0
  OR agency_commission<>pg_catalog.round(agency_commission,2)
@@ -247,7 +247,7 @@ BEGIN
  WHERE l.id=statement.lease_id AND l.organization_id=target_org;
  SELECT count(*),coalesce(sum(ownership_percentage),0)
  INTO ownership_count,share_sum FROM public.property_ownerships
- WHERE public.property_ownerships.property_id=reconcile_owner_draft_statement.property_id;
+ WHERE public.property_ownerships.property_id=property_id;
  IF ownership_count>1 THEN
   IF share_sum<>100 THEN RAISE EXCEPTION 'Participaciones no suman 100 %%' USING ERRCODE='23514'; END IF;
   SELECT allocated INTO split_gross FROM jco_private.allocate_owner_amount(property_id,collected)
