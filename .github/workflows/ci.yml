@@ -886,6 +886,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test tests/g07-consignment-policy-ui-release.test.mjs
+          node --test tests/g07-consent-evidence-immutability.test.mjs
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres -c 'CREATE DATABASE jco_g07_consignment_consent'
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f security/tests/property_consignment_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_g07_consignment_consent -f supabase/migrations/20261010212630_property_consignment_intake.sql
