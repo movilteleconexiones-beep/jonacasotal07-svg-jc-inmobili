@@ -205,7 +205,7 @@ DECLARE
  statement public.owner_statements%ROWTYPE;
  approved_other numeric;detail_commission numeric;detail_tax numeric;
  commission_rows integer;tax_rows integer;pending_rows integer;
- collected numeric;net_total numeric;property_id uuid;ownership_count integer;
+ collected numeric;net_total numeric;v_property_id uuid;ownership_count integer;
  share_sum numeric;split_gross numeric;
 BEGIN
  IF auth.uid() IS NULL OR
@@ -243,14 +243,14 @@ BEGIN
  SELECT coalesce(sum(paid_amount),0) INTO collected FROM public.rent_payments
  WHERE organization_id=target_org AND lease_id=statement.lease_id AND
  period_month=statement.period_month AND status<>'CANCELLED';
- SELECT l.property_id INTO property_id FROM public.leases l
+ SELECT l.property_id INTO v_property_id FROM public.leases l
  WHERE l.id=statement.lease_id AND l.organization_id=target_org;
  SELECT count(*),coalesce(sum(ownership_percentage),0)
  INTO ownership_count,share_sum FROM public.property_ownerships
- WHERE public.property_ownerships.property_id=property_id;
+ WHERE public.property_ownerships.property_id=v_property_id;
  IF ownership_count>1 THEN
   IF share_sum<>100 THEN RAISE EXCEPTION 'Participaciones no suman 100 %%' USING ERRCODE='23514'; END IF;
-  SELECT allocated INTO split_gross FROM jco_private.allocate_owner_amount(property_id,collected)
+  SELECT allocated INTO split_gross FROM jco_private.allocate_owner_amount(v_property_id,collected)
   WHERE owner_id=statement.owner_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'El propietario no pertenece al inmueble' USING ERRCODE='23514'; END IF;
   collected:=split_gross;
