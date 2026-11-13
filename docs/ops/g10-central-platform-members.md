@@ -2,7 +2,7 @@
 
 **Objetivo.** En el panel SuperAdmin, listar miembros, roles y estados por inmobiliaria; suspender o reactivar sin borrar identidades, contratos, auditorías o cobros.
 
-**Orden obligatorio de despliegue:** (1) validar SQL en el clon con ROLLBACK y roles simulados; (2) validar CI de frontend; (3) instalar SOLO el SQL revisado con migración controlada e inspección de privilegios; (4) comprobar RPC en producción sin mutar datos; (5) publicar UI y verificar con sesión real. NO usar `supabase db push` hasta reconciliar #104.
+**Despliegue verificado 13-nov-2026:** (1) SQL instalado en clon dentro de BEGIN/ROLLBACK; prueba de cuenta ficticia y auditoría PASS, guardia último propietario PASS, sin residuos Auth; (2) CI #43499806403 SUCCESS; (3) aplicada exclusivamente migración 20261113201924 en Supabase oficial; (4) verificado el RPC desde sesión autenticada simulada en producción con transacción READ ONLY, sin modificar membresías. (5) UI pendiente de merge/despliegue y verificación con sesión real. NO usar `supabase db push` hasta reconciliar #104.
 
 **Controles:**
 - Las RPC exigen `public.is_platform_admin()` en PostgreSQL y `auth.uid()` válido. Cero EXECUTE anónimo.
@@ -14,4 +14,4 @@
 
 **Reversión:** retirar el control de la UI mediante rollback de commit. Si fuera necesario retirar las RPC, revocar EXECUTE a `authenticated` y comprobar inexistencia de consumidores; nunca revertir datos de membresía mediante actualización masiva.
 
-**Pendiente para certificación G10:** prueba con cinco sesiones reales en dos inmobiliarias, concurrente de dos suspensiones del último propietario, restauración/rollback y supervisión de auditores. La inmobiliaria del SuperAdmin queda fuera de todas las mutaciones de QA.
+**Pendiente para certificación G10:** prueba HTTP/browser de SuperAdmin y usuario de agencia con JWT auténtico, prueba de concurrencia de dos suspensiones del último propietario y supervisión posterior de auditorías. La inmobiliaria del SuperAdmin queda fuera de todas las mutaciones de QA. La inmobiliaria del SuperAdmin queda fuera de todas las mutaciones de QA.
