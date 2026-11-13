@@ -222,6 +222,7 @@ jobs:
           set -euo pipefail
           node --check scripts/qa/finance96-run-auth.mjs
           node --test tests/finance96-ephemeral-auth-runner-contract.test.mjs
+          node --test tests/finance96-membership-seat-capacity.test.mjs
           node --test tests/finance96-cleanup-behavior.test.mjs
           node --test tests/finance96-private-pdf-fixtures.test.mjs
           node --test tests/finance96-two-qa-only-matrix-contract.test.mjs

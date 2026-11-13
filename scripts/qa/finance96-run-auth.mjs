@@ -17,6 +17,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { cleanupQaAccounts } from './finance96-cleanup.mjs';
+import { addTemporaryQaMember } from './finance96-membership.mjs';
 import {createQaReceiptFixture,cleanupQaReceiptFixtures} from './finance96-pdf-fixtures.mjs';
 
 const CLONE_ORIGIN = 'https://zjgstfgiirgjssnihaam.supabase.co';
@@ -174,16 +175,9 @@ async function main() {
       const user = checked(createdUser?.user,createError,'Auth admin createUser');
       const record = {userId:user.id,memberId:null};
       created.push(record);
-      const {data:member,error:memberError} = await admin
-        .from('organization_members')
-        .insert({organization_id:own.id,user_id:user.id,status:'ACTIVE'})
-        .select('id').single();
-      checked(member,memberError,'QA membership creation');
-      record.memberId=member.id;
-      const {error:roleError} = await admin
-        .from('member_roles')
-        .insert({organization_member_id:member.id,role_id:byRole.get(role)});
-      assert.ifError(roleError && new Error('QA role assignment failed'));
+      await addTemporaryQaMember({
+        admin,orgId:own.id,userId:user.id,roleId:byRole.get(role),record,
+      });
       env['JCO_QA96_' + suffix + '_EMAIL']=email;
       env['JCO_QA96_' + suffix + '_PASSWORD']=password;
     }
