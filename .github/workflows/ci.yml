@@ -748,6 +748,10 @@ jobs:
       - name: Existing property operation and rental price edit safety
         run: node --test tests/property-edit-existing-operation.test.mjs
 
+      - name: G07 signed public policy PDF integrity and no-draft publication gate
+        run: |
+          node --test tests/g07-legal-publication.test.mjs
+          node scripts/legal/verify-approved-policies.mjs
       - name: G07 public consignment fail-closed presentation regression
         run: node --test tests/g07-consignment-public-failclosed-ui.test.mjs
       - name: Property consignment validation tests
