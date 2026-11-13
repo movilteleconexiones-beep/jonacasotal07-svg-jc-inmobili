@@ -16,6 +16,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
+import { cleanupQaAccounts } from './finance96-cleanup.mjs';
 
 const CLONE_ORIGIN = 'https://zjgstfgiirgjssnihaam.supabase.co';
 const PRIMARY_SLUG = 'sistema-inmobiliario-jco';
@@ -130,27 +131,6 @@ async function spawnAcceptance(env) {
   assert.equal(status,0,'Authentic QA certification failed');
 }
 
-async function cleanup(admin,created,orgId) {
-  let failures=0;
-  for(const item of [...created].reverse()) {
-    try {
-      if(item.memberId) {
-        const {error} = await admin.from('organization_members').delete()
-          .eq('id',item.memberId).eq('organization_id',orgId).eq('user_id',item.userId);
-        if(error) throw new Error('QA membership deletion failed');
-      }
-      // User IDs are generated during THIS run; no existing account is touched.
-      const {error} = await admin.auth.admin.deleteUser(item.userId);
-      if(error) throw new Error('QA Auth deletion failed');
-    } catch {
-      failures++;
-      // Fail closed: never silently report cleanup as successful.
-    }
-  }
-  console.log('QA96 CLEANUP: attempted=' + created.length + ', failures=' + failures);
-  if(failures) throw new Error('QA cleanup incomplete; inspect clone-only run markers');
-}
-
 async function main() {
   assert.equal(process.env.JCO_QA96_PROVISION,'1',
     'Disabled by default; explicit QA opt-in required');
@@ -208,7 +188,7 @@ async function main() {
   } catch (e) {
     error=e;
   } finally {
-    try {await cleanup(admin,created,own.id);}
+    try {await cleanupQaAccounts({admin,created,orgId:own.id,runId});}
     catch(e) {error=error ? new AggregateError([error,e],'QA and cleanup failed'):e;}
   }
   if(error) throw error;

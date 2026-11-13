@@ -31,8 +31,8 @@ test('#96 creates exactly five temporary real Auth accounts and always cleans th
   assert.match(source,/\.insert\(\{organization_member_id:member\.id,role_id:byRole\.get\(role\)\}\)/);
   assert.match(source,/assert\.equal\(created\.length,5/);
   assert.match(source,/await spawnAcceptance\(env\)/);
-  assert.match(source,/finally \{\s*try \{await cleanup\(admin,created,own\.id\)/);
-  assert.match(source,/auth\.admin\.deleteUser\(item\.userId\)/);
+  assert.match(source,/finally \{\s*try \{await cleanupQaAccounts\(\{admin,created,orgId:own\.id,runId\}\)/);
+  assert.match(source,/import \{ cleanupQaAccounts \} from '\.\/finance96-cleanup\.mjs'/);
   assert.match(source,/scope/); // QA scope is documented by code comments.
 });
 
