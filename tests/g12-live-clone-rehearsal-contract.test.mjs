@@ -27,7 +27,7 @@ test('G12 temporary LIVE buyer is existing QA tenant; superadmin LIFETIME stays 
   assert.match(sql,/qa_org=super_org/);
   assert.match(sql,/UPDATE public\.organization_billing_access\s+SET is_test=false WHERE organization_id=qa_org AND is_test=true/);
   assert.match(sql,/UPDATE public\.billing_activation_settings\s+SET production_enabled=true WHERE id=true AND production_enabled=false/);
-  assert.match(sql,/SELECT \* INTO super_org/);
+  assert.match(sql,/SELECT o\.id INTO super_org FROM public\.organizations o/);
   assert.match(sql,/super_org'\)::uuid/);
 });
 
