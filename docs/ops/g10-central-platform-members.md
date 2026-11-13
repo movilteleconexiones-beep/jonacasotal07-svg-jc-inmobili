@@ -2,7 +2,7 @@
 
 **Objetivo.** En el panel SuperAdmin, listar miembros, roles y estados por inmobiliaria; suspender o reactivar sin borrar identidades, contratos, auditorías o cobros.
 
-**Despliegue verificado 13-nov-2026:** (1) SQL instalado en clon dentro de BEGIN/ROLLBACK; prueba de cuenta ficticia y auditoría PASS, guardia último propietario PASS, sin residuos Auth; (2) CI #43499806403 SUCCESS; (3) aplicada exclusivamente migración 20261113201924 en Supabase oficial; (4) verificado el RPC desde sesión autenticada simulada en producción con transacción READ ONLY, sin modificar membresías. (5) UI pendiente de merge/despliegue y verificación con sesión real. NO usar `supabase db push` hasta reconciliar #104.
+**Despliegue verificado 13-nov-2026:** (1) SQL instalado en clon dentro de BEGIN/ROLLBACK; prueba de cuenta ficticia y auditoría PASS, guardia último propietario PASS, sin residuos Auth; (2) CI #43499806403 SUCCESS; (3) aplicada exclusivamente migración 20261113201924 en Supabase oficial (SQL exacto archivado en `security/applied/`, fuera del inventario inmutable de `supabase/migrations/` por la divergencia histórica #104); (4) verificado el RPC desde sesión autenticada simulada en producción con transacción READ ONLY, sin modificar membresías. (5) UI pendiente de merge/despliegue y verificación con sesión real. NO usar `supabase db push` hasta reconciliar #104.
 
 **Controles:**
 - Las RPC exigen `public.is_platform_admin()` en PostgreSQL y `auth.uid()` válido. Cero EXECUTE anónimo.
