@@ -100,6 +100,38 @@ BEGIN
         AND receipt.policy_version='2026-11-v1'
         AND octet_length(receipt.payload_sha256)=32),
     'Per-request policy receipt must be transactionally linked and private');
+  -- Neither deletion of the consignment nor UPDATE/DELETE of the evidence
+  -- may silently remove or alter the consent receipt.
+  denied:=false;
+  BEGIN
+    DELETE FROM public.property_consignments WHERE id=submission_id;
+  EXCEPTION WHEN foreign_key_violation THEN denied:=true;
+  END;
+  PERFORM public.consignment_test_assert(denied,
+    'Hard-deleting a consignment with consent evidence must be blocked');
+
+  denied:=false;
+  BEGIN
+    UPDATE private.consignment_policy_receipts
+      SET policy_version='tampered' WHERE consignment_id=submission_id;
+  EXCEPTION WHEN check_violation THEN denied:=true;
+  END;
+  PERFORM public.consignment_test_assert(denied,
+    'An approved consent receipt must not be modifiable');
+
+  denied:=false;
+  BEGIN
+    DELETE FROM private.consignment_policy_receipts WHERE consignment_id=submission_id;
+  EXCEPTION WHEN check_violation THEN denied:=true;
+  END;
+  PERFORM public.consignment_test_assert(denied,
+    'An approved consent receipt must not be deleted');
+
+  PERFORM public.consignment_test_assert(
+    (SELECT count(*)=1 FROM public.property_consignments) AND
+    (SELECT count(*)=1 FROM private.consignment_policy_receipts),
+    'Tampering must leave both the consignment and its evidence intact');
+
   PERFORM public.consignment_test_assert(
     (SELECT count(*)=1 FROM public.resolve_consignment_photo_submission(
       'tenant-a',request_a,original_reference->>'reference')),
@@ -108,6 +140,14 @@ BEGIN
     (SELECT count(*)=0 FROM public.resolve_consignment_photo_submission(
       'tenant-b',request_a,original_reference->>'reference')),
     'Cross-tenant photo resolver must not expose request');
+  UPDATE public.consignment_test_operational_access SET allowed=false
+  WHERE organization_id=org_a;
+  PERFORM public.consignment_test_assert(
+    (SELECT count(*)=0 FROM public.resolve_consignment_photo_submission(
+      'tenant-a',request_a,original_reference->>'reference')),
+    'Photo resolver must reject when tenant operational access is suspended');
+  UPDATE public.consignment_test_operational_access SET allowed=true
+  WHERE organization_id=org_a;
   PERFORM public.consignment_test_assert(
     public.submit_property_consignment('tenant-a',request_a,public.consignment_test_payload())=original_reference,
     'Retry with original request is idempotent');
