@@ -64,7 +64,7 @@ BEGIN
  FROM public.property_ownerships WHERE property_id=v_property;
  IF v_owner_count<=1 THEN RETURN NEW; END IF;
  IF v_share_sum<>100 THEN
-   RAISE EXCEPTION 'La participación de copropietarios debe sumar 100 %' USING ERRCODE='23514';
+   RAISE EXCEPTION 'La participación de copropietarios debe sumar 100 %%' USING ERRCODE='23514';
  END IF;
  SELECT ownership_percentage INTO v_share
  FROM public.property_ownerships
@@ -141,7 +141,7 @@ BEGIN
  WHERE p.property_id=v_lease.property_id;
  IF v_owners<2 OR v_sum<>100 OR v_primary<>1 OR v_primary_id IS DISTINCT FROM v_lease.owner_id
  OR v_owners<>(SELECT count(*) FROM public.property_ownerships WHERE property_id=v_lease.property_id)
- THEN RAISE EXCEPTION 'Copropietarios incompletos, participación distinta de 100 % o titular principal inconsistente'
+ THEN RAISE EXCEPTION 'Copropietarios incompletos, participación distinta de 100 %% o titular principal inconsistente'
  USING ERRCODE='23514'; END IF;
  IF EXISTS(SELECT 1 FROM public.owner_statements s WHERE s.organization_id=target_org
  AND s.lease_id=target_lease AND s.period_month=target_month) THEN
@@ -249,7 +249,7 @@ BEGIN
  INTO ownership_count,share_sum FROM public.property_ownerships
  WHERE public.property_ownerships.property_id=reconcile_owner_draft_statement.property_id;
  IF ownership_count>1 THEN
-  IF share_sum<>100 THEN RAISE EXCEPTION 'Participaciones no suman 100 %' USING ERRCODE='23514'; END IF;
+  IF share_sum<>100 THEN RAISE EXCEPTION 'Participaciones no suman 100 %%' USING ERRCODE='23514'; END IF;
   SELECT allocated INTO split_gross FROM jco_private.allocate_owner_amount(property_id,collected)
   WHERE owner_id=statement.owner_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'El propietario no pertenece al inmueble' USING ERRCODE='23514'; END IF;
