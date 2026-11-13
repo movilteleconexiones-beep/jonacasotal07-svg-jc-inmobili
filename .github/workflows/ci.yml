@@ -562,6 +562,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261018162000_strict_private_property_read_boundary.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
+      - name: G11 audited 17 CRM/Agenda/commission/consignment FK indexes contract
+        run: node --test tests/g11-fk-cover-indexes.test.mjs
       - name: Remaining financial, compliance and licensing FK indexes (PostgreSQL 17)
         env:
           PGPASSWORD: postgres
