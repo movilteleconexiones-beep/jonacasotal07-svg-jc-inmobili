@@ -69,9 +69,13 @@ async function openPortal(page,path){
 test('G11 source releases matching mobile fixes, not a global overflow hide',()=>{
  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
  const simulator=readFileSync(new URL('../src/components/PatrimonialSimulator.tsx',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(app,/flex w-full min-w-0 max-w-full flex-wrap items-center justify-start/);
  assert.match(simulator,/grid w-full min-w-0 grid-cols-1 gap-1 p-1/);
  assert.match(simulator,/sm:inline-flex sm:w-auto/);
+ assert.ok(html.includes('<link rel="canonical" href="https://www.inmojco.com/" />'));
+ assert.ok(app.includes("document.querySelector<HTMLLinkElement>('link[rel=\"canonical\"]')"));
+ assert.ok(app.includes('tenantPublicPath(tenantSlug)'));
  assert.doesNotMatch(app,/overflow-x-hidden|overflow-hidden.*inicio/);
 });
 
@@ -83,8 +87,13 @@ test('G11: official mobile site and two agencies render without leaking customer
    try{
     await openPortal(page,'/');
     assert.match(await page.title(),/Sistema Inmobiliario JCO/);
-    const canonical=await page.locator('link[rel=canonical]').first().getAttribute('href');
-    assert.equal(canonical,ORIGIN+'/');
+    const candidate=page.locator('link[rel=canonical]');
+    const canonical=await candidate.count() ? await candidate.first().getAttribute('href') : null;
+    // PR verifies CSS overlay against the older published build;
+    // main/push must verify real canonical metadata without overlays.
+    if(process.env.INMOJCO_PR_CSS_SIMULATION==='1'){
+      assert.ok(canonical===null||canonical===ORIGIN+'/');
+    } else assert.equal(canonical,ORIGIN+'/');
     assert.deepEqual(events.exceptions,[],'Unhandled JavaScript errors on mobile home');
     assert.equal(events.submissions,0);
     console.log('G11_MOBILE home PASS no-overflow no-PII 390px');
@@ -95,6 +104,10 @@ test('G11: official mobile site and two agencies render without leaking customer
     const {context,page,events}=await mobilePage(browser);
     try{
      await openPortal(page,'/inmobiliaria/'+slug);
+     if(process.env.INMOJCO_PR_CSS_SIMULATION!=='1'){
+       const agencyCanonical=await page.locator('link[rel=canonical]').first().getAttribute('href');
+       assert.equal(agencyCanonical,ORIGIN+'/inmobiliaria/'+slug);
+     }
      await page.locator('#contacto').waitFor({state:'visible',timeout:15000});
      await page.getByRole('button',{name:'Consignar Propiedad',exact:true}).first().click();
      const dialog=page.getByRole('dialog',{name:/Consignar propiedad con/i});
