@@ -134,7 +134,7 @@ BEGIN
  PERFORM 1 FROM public.property_ownerships
  WHERE property_id=v_lease.property_id ORDER BY owner_id FOR SHARE;
  SELECT count(*),coalesce(sum(p.ownership_percentage),0),
-   count(*) FILTER(WHERE p.is_primary),max(p.owner_id) FILTER(WHERE p.is_primary)
+   count(*) FILTER(WHERE p.is_primary),(array_agg(p.owner_id) FILTER(WHERE p.is_primary))[1]
  INTO v_owners,v_sum,v_primary,v_primary_id
  FROM public.property_ownerships p JOIN public.property_owners owner
  ON owner.id=p.owner_id AND owner.organization_id=target_org
