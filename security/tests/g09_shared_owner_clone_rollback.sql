@@ -4,7 +4,7 @@
 -- EVERY fictitious owner, receipt amount and payout is rolled back.
 DO $setup$
 DECLARE v_org uuid;v_lease uuid;v_property uuid;v_primary uuid;v_actor uuid;
- v_second uuid;v_changed integer;
+ v_second uuid;v_foreign uuid;v_changed integer;
 BEGIN
  SELECT o.id,l.id,l.property_id,l.owner_id INTO v_org,v_lease,v_property,v_primary
  FROM public.organizations o JOIN public.organization_billing_access b
@@ -38,6 +38,12 @@ BEGIN
  GET DIAGNOSTICS v_changed=ROW_COUNT;
  IF v_changed<>1 THEN RAISE EXCEPTION 'QA receipt fixture changed unexpectedly'; END IF;
 
+ SELECT o.id INTO v_foreign FROM public.organizations o
+ JOIN public.organization_billing_access b ON b.organization_id=o.id AND b.is_test
+ WHERE o.slug='qa-finance-96-foreign-20261113';
+ IF v_foreign IS NULL OR v_foreign=v_org THEN
+   RAISE EXCEPTION 'G09 independent QA foreign tenant missing'; END IF;
+ PERFORM set_config('jco.g09.foreign',v_foreign::text,true);
  PERFORM set_config('jco.g09.org',v_org::text,true);
  PERFORM set_config('jco.g09.lease',v_lease::text,true);
  PERFORM set_config('jco.g09.actor',v_actor::text,true);
@@ -118,13 +124,10 @@ BEGIN
  UPDATE public.property_ownerships SET ownership_percentage=60
  WHERE property_id=v_property AND owner_id=current_setting('jco.g09.primary')::uuid;
 
- -- Cross-tenant negative test only READS the protected organization's ID;
- -- the RPC denies this QA actor BEFORE loading any of that organization's rows.
- -- No mutation to the SuperAdmin tenant is attempted.
- SELECT id INTO v_other FROM public.organizations
- WHERE slug='jco-inmodigital-global';
- IF v_other IS NULL OR v_other=v_org THEN
-  RAISE EXCEPTION 'G09 independent tenant guard unavailable'; END IF;
+ -- Foreign tenant UUID is resolved by trusted SETUP before SET ROLE;
+ -- authenticated RLS rightly cannot SELECT the other organization's ID.
+ -- Only the QA foreign tenant is referenced: SuperAdmin is untouched.
+ v_other:=current_setting('jco.g09.foreign')::uuid;
  BEGIN
   PERFORM public.create_owner_shared_drafts(v_other,v_lease,'2026-10-01',10.01,2.02);
   RAISE EXCEPTION 'G09 FAIL: cross-tenant allowed';
