@@ -111,6 +111,33 @@ test('#96 real Auth: five separate JWT sessions, 25 RPC decisions and private re
         .eq('organization_id',org).single();
       assert.ok(!billingError && billing?.is_test === true,
         'Refuse any organization that is not an explicitly marked test tenant');
+      const {data:foreignBilling,error:foreignBillingError} = await auditor
+        .from('organization_billing_access').select('is_test')
+        .eq('organization_id',other).single();
+      assert.ok(!foreignBillingError && foreignBilling?.is_test === true,
+        'Refuse real foreign tenants; both organizations must be QA-only');
+      const {data:supports,error:supportError} = await auditor
+        .from('rent_receipt_supports')
+        .select('storage_path,organization_id,rent_payment_id,mime_type,size_bytes')
+        .in('storage_path',[receipt,foreignReceipt]);
+      assert.ok(!supportError && supports?.length === 2,
+        'Both PDFs must have actual rent receipt support metadata');
+      for (const support of supports) {
+        const tenant = support.storage_path === receipt ? org : other;
+        assert.equal(support.organization_id,tenant,'Receipt metadata crosses tenants');
+        assert.equal(support.mime_type,'application/pdf','Receipt is not registered as PDF');
+        assert.ok(Number(support.size_bytes)>10,'Empty private receipt');
+      }
+      const {data:payments,error:paymentsError} = await auditor
+        .from('rent_payments').select('id,organization_id')
+        .in('id',supports.map(x => x.rent_payment_id));
+      assert.ok(!paymentsError && payments?.length === 2,
+        'Test PDFs require two real test-period records');
+      const paymentTenant = new Map(payments.map(x => [x.id,x.organization_id]));
+      for (const support of supports) {
+        assert.equal(paymentTenant.get(support.rent_payment_id),support.organization_id,
+          'Receipt support is not linked to its own tenant');
+      }
       const {data:members,error:memberError} = await auditor
         .from('organization_members').select('id,user_id,organization_id,status')
         .in('user_id',[...userIds]);
