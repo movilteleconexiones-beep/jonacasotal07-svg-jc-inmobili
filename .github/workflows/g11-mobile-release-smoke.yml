@@ -5,13 +5,11 @@ on:
     paths:
       - 'tests/g11-mobile-public-release-smoke.test.mjs'
       - '.github/workflows/g11-mobile-release-smoke.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'tests/g11-mobile-public-release-smoke.test.mjs'
-      - 'src/App.tsx'
-      - 'src/components/PatrimonialSimulator.tsx'
-      - '.github/workflows/g11-mobile-release-smoke.yml'
+  # Railway waits for all GitHub checks before deploying main.
+  # A strict live smoke on push/main would run against the PREVIOUS deployed
+  # build and deadlock deployment when it correctly rejects that old version.
+  # PR smoke tests proposed geometry; strict production smoke is launched only
+  # via workflow_dispatch AFTER both Railway services report SUCCESS on main.
   workflow_dispatch:
 
 permissions:
