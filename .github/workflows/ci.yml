@@ -227,6 +227,18 @@ jobs:
           node --test tests/finance96-private-pdf-fixtures.test.mjs
           node --test tests/finance96-two-qa-only-matrix-contract.test.mjs
           # Never provision accounts from CI without explicitly scoped clone secrets.
+      - name: Finance #96 PowerShell launcher syntax (offline)
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            'scripts/qa/finance96-windows.ps1', [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
       - name: Finance #96 authentic JWT/private PDF harness (code checked; live run opt-in)
         run: |
           set -euo pipefail
