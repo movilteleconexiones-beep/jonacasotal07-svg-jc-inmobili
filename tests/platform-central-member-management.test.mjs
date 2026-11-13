@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const sql = readFileSync(new URL('../security/candidates/g10_platform_members_safe_admin_REVIEW_ONLY.sql', import.meta.url), 'utf8');
-const appliedSql = readFileSync(new URL('../supabase/migrations/20261113201924_g10_platform_members_safe_admin_20261113.sql', import.meta.url), 'utf8');
+const appliedSql = readFileSync(new URL('../security/applied/20261113201924_g10_platform_members_safe_admin_20261113.sql', import.meta.url), 'utf8');
 const component = readFileSync(new URL('../src/modules/platform/PlatformMembers.tsx', import.meta.url), 'utf8');
 const admin = readFileSync(new URL('../src/modules/platform/SuperAdminModule.tsx', import.meta.url), 'utf8');
 
