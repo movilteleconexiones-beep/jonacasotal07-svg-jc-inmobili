@@ -217,6 +217,12 @@ jobs:
           fi
           grep -q '^NO-GO:' "$RUNNER_TEMP/migration-no-go.log"
           grep -q 'Do not run db push' "$RUNNER_TEMP/migration-no-go.log"
+      - name: Finance #96 ephemeral Auth QA provisioner (offline safety only)
+        run: |
+          set -euo pipefail
+          node --check scripts/qa/finance96-run-auth.mjs
+          node --test tests/finance96-ephemeral-auth-runner-contract.test.mjs
+          # Never provision accounts from CI without explicitly scoped clone secrets.
       - name: Finance #96 authentic JWT/private PDF harness (code checked; live run opt-in)
         run: |
           set -euo pipefail
