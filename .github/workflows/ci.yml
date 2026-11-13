@@ -1074,6 +1074,8 @@ jobs:
         run: node --test tests/safe-retirement-tenant-users-roles.test.mjs
       - name: Commission percentage consistency and exact COP preview
         run: node --import tsx --test tests/commission-percentage-consistency.test.mjs
+      - name: G09 financial co-owners: exact cent allocation and safe hosted QA contract
+        run: node --test tests/g09-coowners-cent-allocation-contract.test.mjs
       - name: Owner percentage commission SQL security and accuracy
         env:
           PGPASSWORD: postgres
