@@ -36,6 +36,21 @@ async function openPortal(page,path){
    viewport:document.documentElement.clientWidth,
    scroll:document.documentElement.scrollWidth,
  }));
+ if(width.scroll-width.viewport>12){
+  // Visual geometry only: do NOT print DOM text, inputs, PII or user content.
+  const culprits=await page.evaluate(()=>{
+   const viewport=document.documentElement.clientWidth;
+   return [...document.querySelectorAll('body *')].map(el=>{
+    const rect=el.getBoundingClientRect();
+    return {tag:el.tagName.toLowerCase(),id:el.id||undefined,
+     cls:typeof el.className==='string' ? el.className.slice(0,105) : '',
+     x:Math.round(rect.left),right:Math.round(rect.right),
+     width:Math.round(rect.width),position:getComputedStyle(el).position};
+   }).filter(x=>x.right>viewport+12&&x.width>0)
+     .sort((a,b)=>b.right-a.right).slice(0,24);
+  });
+  console.log('G11_MOBILE_OVERFLOW_DIAG '+JSON.stringify({path,width,culprits}));
+ }
  assert.ok(width.scroll-width.viewport<=12,
   path+': horizontal overflow on 390px viewport (viewport='+width.viewport+', scroll='+width.scroll+')');
 }
