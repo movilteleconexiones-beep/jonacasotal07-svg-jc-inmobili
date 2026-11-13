@@ -51,9 +51,17 @@ test('G07: anonymous hosted consignments remain fail-closed without policy appro
             { timeout: 20000 });
           await page.getByRole('button', { name: 'Consignar Propiedad' }).click();
           const response = await responsePromise;
-          assert.equal(response.status(), 200,
-            slug + ': anonymous read-only intake RPC must respond without a server error');
-          const site = await response.json();
+          // Before the ACL freeze: HTTP 200 with JSON null. After revocation:
+          // HTTP 401/403 is an expected fail-closed response, not a leak.
+          // Both must produce the same safe modal without PII inputs.
+          const status = response.status();
+          assert.ok([200, 401, 403].includes(status),
+            slug + ': unexpected intake RPC HTTP status ' + status);
+          const site = status === 200 ? await response.json() : null;
+          if (status === 200 && expectAllClosed) {
+            assert.equal(site, null,
+              slug + ': an intake became enabled before signed-policy approval');
+          }
           const modal = page.getByRole('dialog', { name: /Consignar propiedad con/i });
           await modal.waitFor({ state: 'visible', timeout: 15000 });
 

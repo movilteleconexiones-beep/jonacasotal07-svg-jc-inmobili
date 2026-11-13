@@ -7,6 +7,7 @@ on:
       - '.github/workflows/g07-hosted-intake-policy-browser.yml'
       - 'src/components/SubmitPropertyModal.tsx'
       - 'src/lib/property-consignments.ts'
+      - 'security/ops/g07_freeze_public_consignment_until_approved.sql'
   workflow_dispatch:
     inputs:
       expect_all_closed:
