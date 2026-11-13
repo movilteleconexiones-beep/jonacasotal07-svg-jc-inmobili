@@ -1,0 +1,32 @@
+name: G11 official mobile launch smoke (no PII)
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g11-mobile-public-release-smoke.test.mjs'
+      - '.github/workflows/g11-mobile-release-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g11-mobile-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned real browser
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify official mobile portal, both tenants and private login
+        run: node --test tests/g11-mobile-public-release-smoke.test.mjs
