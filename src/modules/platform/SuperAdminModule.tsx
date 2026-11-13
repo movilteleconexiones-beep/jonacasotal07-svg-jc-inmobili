@@ -4,6 +4,7 @@ import { etiquetaES } from '../../core/etiquetas-es';
 import { supabase } from '../../lib/supabase';
 import { monthLabel, organizationStatusLabel, parsePlatformOverview, type OrganizationSummary, type PlatformOverview } from '../../core/platform-overview';
 import { BillingAdminControls } from './BillingAdminControls';
+import { PlatformMembers } from './PlatformMembers';
 
 export function SuperAdminModule() {
   const { user, activeMembership, loading: authLoading, isPlatformAdmin } = useAuth();
@@ -99,6 +100,7 @@ export function SuperAdminModule() {
     <nav aria-label="Menú de superadministración" className="mb-6 flex flex-wrap gap-2">
       <a href="#resumen-inmobiliarias" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Resumen</a>
       <a href="#todas-inmobiliarias" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Inmobiliarias</a>
+      <a href="#miembros-plataforma" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Miembros</a>
       <a href="#resumen-mensual" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Resumen mensual</a>
     </nav>
     {error && <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
@@ -107,6 +109,7 @@ export function SuperAdminModule() {
       {cards.map(([label,value]) => <article key={label} className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-600">{label}</p><p className="mt-2 text-3xl font-bold tabular-nums">{loading || value === undefined ? '—' : value}</p></article>)}
     </section><p className="mt-2 text-xs text-slate-500">{totals ? `${totals.tests} cuentas de prueba incluidas en el total. ` : ''}El estado de acceso contempla la vigencia, las suspensiones y la activación pendiente.</p>
     <BillingAdminControls tenant={selectedOrganization} onDone={() => void refresh()} />
+    {selectedOrganization && <PlatformMembers organization={selectedOrganization} onChanged={() => void refresh()} />}
     <section id="todas-inmobiliarias" className="mt-6"><h2 className="text-xl font-bold">Inmobiliarias registradas</h2>
       <p className="mt-2 text-sm text-slate-600">Para cuentas que dejaron de pagar, utiliza <strong>Suspender acceso</strong>: conserva el historial, los contratos y los datos de la inmobiliaria. La eliminación definitiva requiere respaldo, revisión legal y un proceso independiente; no se realiza desde este panel.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Filtros de inmobiliarias">
@@ -125,7 +128,7 @@ export function SuperAdminModule() {
         {['Inmobiliaria','Estado','Plan','Contrato','Vigencia','Miembros','Inmuebles','Registro'].map(label => <th key={label} className="p-4">{label}</th>)}
       </tr></thead><tbody>{filteredOrganizations.map(org => <tr key={org.organization_id} className="border-t">
         <td className="p-4"><p className="font-semibold">{org.organization_name}</p><p className="mt-1 text-xs text-slate-500">{org.organization_slug}</p>
-          <button type="button" onClick={() => setSelectedOrganization(org)} className="mt-2 text-xs font-semibold text-blue-700 underline">Gestionar activación</button>
+          <button type="button" onClick={() => setSelectedOrganization(org)} className="mt-2 text-xs font-semibold text-blue-700 underline">Gestionar activación y miembros</button>
           {org.organization_status !== 'SUSPENDED' && (
             <button type="button" onClick={() => void suspendOrganization(org)}
               disabled={retiringOrg !== null || org.organization_id === activeMembership?.organization.id || org.owner_user_id === user?.id}
