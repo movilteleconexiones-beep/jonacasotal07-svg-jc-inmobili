@@ -36,9 +36,10 @@ test('G12 must mark vendor/legal facts as NOT_VERIFIED until independently prove
     'live_webhook_dashboard_registration',
     'approved_public_legal_policies',
   ]) {
-    const line=statements.split('\n').find(s=>s.includes("'"+name+"'"));
-    assert.ok(line,'Missing review-only gate '+name);
-    assert.ok(line.includes('NULL::boolean'),'Unsafe automatic approval of '+name);
+    // A review gate may wrap across lines: bind NULL directly to its named
+    // row instead of accidentally treating any other NULL in the query as proof.
+    const pattern = new RegExp("'" + name + "'\\s*,\\s*NULL::boolean\\b");
+    assert.match(statements,pattern,'Unsafe automatic approval of '+name);
   }
   assert.match(statements,/WHEN passed IS TRUE THEN 'PASS'/);
   assert.match(statements,/WHEN passed IS FALSE THEN 'FAIL'/);
