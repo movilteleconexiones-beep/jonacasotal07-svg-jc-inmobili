@@ -26,6 +26,9 @@ test('G09 preserves whole-cent sums, validates 100 percent and locks the lease',
  assert.match(ddl,/pg_catalog\.floor\(p_amount \* 100 \* po\.ownership_percentage \/ 100\)/);
  assert.match(ddl,/ORDER BY f\.residue DESC,f\.owner_id/);
  assert.match(ddl,/v_sum<>100/);
+ assert.match(ddl,/agency_commission_percentage<>pg_catalog\.round\(agency_commission_percentage,2\)/);
+ assert.match(ddl,/agency_commission_percentage>100/);
+ assert.match(ddl,/v_commission:=pg_catalog\.round\(v_income\*agency_commission_percentage\/100,2\)/);
  assert.match(ddl,/v_primary<>1/);
  assert.match(ddl,/v_primary_id IS DISTINCT FROM v_lease\.owner_id/);
  assert.match(ddl,/FROM public\.leases WHERE id=target_lease\s+AND organization_id=target_org FOR UPDATE/);
@@ -53,6 +56,8 @@ test('G09 UI shows shares and routes shared to dedicated RPC; old single-owner u
  assert.match(ui,/const sharesValid=!hasMultipleOwners/);
  assert.match(ui,/sharesValid/);
  assert.match(ui,/rpc\('create_owner_shared_drafts'/);
+ assert.match(ui,/agency_commission_percentage:commissionPercentage/);
+ assert.doesNotMatch(ui,/agency_commission:commissionNumber/);
  assert.match(ui,/rpc\('create_owner_draft_statement_by_percentage'/);
  assert.match(ui,/no se transfirió dinero/);
  assert.match(ui,/Array\.isArray\(data\)/);
