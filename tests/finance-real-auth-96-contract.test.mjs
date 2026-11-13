@@ -40,3 +40,18 @@ test('#96 acceptance probe covers the exact privileged roles, five RPC decisions
   assert.match(source,/anonymous cannot download the private receipt/);
   assert.match(source,/foreignPdf/);
 });
+
+test('#96 privileged review RPC passes its input check before the missing-record branch', () => {
+  // The clone RPC checks note length >=15 and <=500 before selecting review_id.
+  // An invalid note returns 23514 and can conceal whether the authorized path
+  // actually returns P0002. Keep the exact missing-review state authoritative.
+  const match = source.match(/const VALID_REVIEW_NOTE = '([^']+)';/);
+  assert.ok(match, 'Review reason must be an explicit auditable constant');
+  assert.ok(match[1].trim().length >= 15 && match[1].trim().length <= 500,
+    'Review reason must pass the SQL 15..500 length validation');
+  assert.match(source,/p_note:VALID_REVIEW_NOTE/);
+  assert.match(source,/\['review', 'admin_decide_owner_payout_review',[\s\S]*?privileged \? 'P0002' : DENY/);
+  assert.doesNotMatch(source,/p_note:'QA-NO-WRITE'/);
+  assert.match(source,/function checkError\(error, code, label\)/);
+  assert.match(source,/assert\.equal\(error\.code, code/);
+});
