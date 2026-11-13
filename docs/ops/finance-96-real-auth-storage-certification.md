@@ -83,3 +83,12 @@ El modo automático **no se ejecuta desde la CI común**. Solo debe ejecutarse d
 Los documentos generados son objetos Storage reales en `jco-rent-receipts-private` y llevan relaciones reales a `rent_receipts`, `rent_payments`, `leases` y `properties`, siempre bajo los dos tenants `is_test=true`. No prueban un giro bancario ni convierten una operación ficticia en un comprobante contable. Un error de limpieza produce estado FAIL y requiere inspección del clon; no borrar datos ajenos a los IDs del ensayo.
 
 **Estado:** código de automatización entregado a CI; la certificación con cuentas Auth reales sigue pendiente hasta ejecutarse con credenciales secretas exclusivas del clon.
+
+## Incidente real de JWT de 13-nov-2026 — justificación de revisión (PR #385)
+
+En el primer reintento **real** con cinco sesiones Auth independientes tras corregir el límite de plazas, el caso `ADMIN / review` falló en `tests/finance-real-auth-96.test.mjs`: el test esperaba SQLSTATE `P0002` (solicitud inexistente), pero obtuvo `23514`. Causa verificada en la función `public.admin_decide_owner_payout_review` del **clon**: antes de consultar la solicitud, se exige que `p_note` tenga entre **15 y 500 caracteres**. El test enviaba `QA-NO-WRITE`, de 11 caracteres; la función rechazó correctamente la entrada.
+
+La corrección establece `VALID_REVIEW_NOTE='Autorizacion de prueba no persistente'`, que supera la validación **sin** debilitar SQL, roles, políticas, ni los SQLSTATE exigidos. El test de contrato exige que el texto tenga longitud válida y que la salida autorizada continúe siendo **exactamente `P0002`**, no simplemente `23514` o cualquier rechazo. La matriz SQL de 25 casos ya usaba una justificación válida.
+
+**Ejecución anterior NO certificada:** cinco JWT temporales llegaron a la matriz de RPC, pero no se obtuvieron 25/25 ni todos los accesos PDF. El runner informó `PDF FIXTURE CLEANUP attempted=2,failures=0` y `Auth CLEANUP attempted=6,authDeleted=6,failures=0`. Postflight SQL de solo lectura confirmó 0 cuentas Auth QA96, 0 membresías QA96, 0 soportes, 0 periodos QA, 0 objetos PDF QA, 0 giros y 0 revisiones persistentes. #96 permanece abierta hasta repetir la **prueba real** después de aprobar y fusionar esta corrección.
+
