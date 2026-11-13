@@ -496,7 +496,7 @@ export default function App() {
           </nav>
 
           {/* Zone 3: 2 primary actions */}
-          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+          <div className="flex w-full min-w-0 max-w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end sm:shrink-0">
             <button
               type="button"
               onClick={() => setIsPortfolioDrawerOpen(true)}
