@@ -4,6 +4,7 @@ import {test} from 'node:test';
 
 const ddl=readFileSync(new URL('../security/candidates/g09_shared_owner_financial_drafts_REVIEW_ONLY.sql',import.meta.url),'utf8');
 const qa=readFileSync(new URL('../security/tests/g09_shared_owner_clone_rollback.sql',import.meta.url),'utf8');
+const rollback=readFileSync(new URL('../security/ops/g09_shared_owner_revert_only_if_unused.sql',import.meta.url),'utf8');
 const ui=readFileSync(new URL('../src/modules/finance/OwnerSettlementEntry.tsx',import.meta.url),'utf8');
 
 test('G09 migration is explicit, transactional and never modifies historical statements directly',()=>{
@@ -77,4 +78,18 @@ test('G09 hosted finance rehearsal explicitly simulates JWT and rolls back, no b
  assert.match(qa,/ROLLBACK;/);
  assert.doesNotMatch(qa,/\bCOMMIT\s*;/i);
  assert.match(qa,/b\.is_test/);
+});
+
+test('G09 exact pre-migration rollback refuses to erase used owner settlements',()=>{
+ assert.match(rollback,/c3e1ce9d703bc89c940db384cfc7d405/);
+ assert.match(rollback,/BEGIN;/);
+ assert.match(rollback,/^COMMIT;/m);
+ assert.match(rollback,/current_user<>'postgres'/);
+ assert.match(rollback,/shared_draft_created/);
+ assert.match(rollback,/multi-owner activity already exists/);
+ assert.match(rollback,/DROP TRIGGER owner_statements_shared_cap/);
+ assert.match(rollback,/DROP FUNCTION public\.create_owner_shared_drafts/);
+ assert.match(rollback,/CREATE OR REPLACE FUNCTION public\.reconcile_owner_draft_statement/);
+ assert.match(rollback,/DROP FUNCTION jco_private\.allocate_owner_amount/);
+ assert.doesNotMatch(rollback,/DELETE FROM public\.owner_statements|UPDATE public\.owner_statements/i);
 });
