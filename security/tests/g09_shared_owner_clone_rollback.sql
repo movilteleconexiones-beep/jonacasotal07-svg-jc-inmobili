@@ -118,9 +118,13 @@ BEGIN
  UPDATE public.property_ownerships SET ownership_percentage=60
  WHERE property_id=v_property AND owner_id=current_setting('jco.g09.primary')::uuid;
 
+ -- Cross-tenant negative test only READS the protected organization's ID;
+ -- the RPC denies this QA actor BEFORE loading any of that organization's rows.
+ -- No mutation to the SuperAdmin tenant is attempted.
  SELECT id INTO v_other FROM public.organizations
- WHERE slug='qa-finance-96-foreign-20261113';
- IF v_other IS NULL THEN RAISE EXCEPTION 'G09 foreign QA org not installed'; END IF;
+ WHERE slug='jco-inmodigital-global';
+ IF v_other IS NULL OR v_other=v_org THEN
+  RAISE EXCEPTION 'G09 independent tenant guard unavailable'; END IF;
  BEGIN
   PERFORM public.create_owner_shared_drafts(v_other,v_lease,'2026-10-01',10.01,2.02);
   RAISE EXCEPTION 'G09 FAIL: cross-tenant allowed';
