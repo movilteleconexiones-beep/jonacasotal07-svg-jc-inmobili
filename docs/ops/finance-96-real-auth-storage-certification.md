@@ -59,3 +59,13 @@ Sin el indicador `JCO_QA96_RUN_REAL_AUTH=1`, la prueba **SKIP**, nunca PASS real
 - UI/navegador completo con cinco cuentas; prorrateo de copropietarios, reversos/concurrencia, tratamiento contable y comisión histórica #118.
 - GO jurídico G07 #370, primer pago auténtico Wompi G12 y venta comercial #203.
 - **Wompi LIVE permanece desactivado**. Ningún giro simulado debe presentarse como transferencia bancaria.
+
+## Aprovisionamiento automático sin tocar cuentas existentes (PR siguiente)
+
+El comando `node scripts/qa/finance96-run-auth.mjs` puede crear **solo durante la ejecución** cinco cuentas reales Auth en el clon restaurado, con contraseñas aleatorias que permanecen en memoria, asignar un único rol por cuenta, ejecutar la prueba `finance-real-auth-96.test.mjs` y eliminar exclusivamente las cinco identidades de ese ensayo al terminar, incluso si la prueba falla. Nunca se crean ni se eliminan cuentas en la inmobiliaria del SuperAdmin.
+
+**Bloqueado por defecto:** necesita `JCO_QA96_PROVISION=1`, URL exacta del clon, clave de servicio del clon en entorno seguro, publishable key del clon y las rutas de dos PDFs privados ficticios **ya cargados y enlazados** con `rent_receipt_supports`. Si falta cualquier soporte, la prevalidación falla ANTES de crear usuarios.
+
+La segunda agencia QA `qa-finance-96-foreign-20261113` es un tenant **ficticio, no facturable y sin miembros**, creado únicamente en el clon el 13-nov-2026. Está marcado `is_test=true`, `requires_payment=false`, con estado `INACTIVE`. No es la inmobiliaria original del SuperAdmin, cuya información se preserva sin ninguna escritura.
+
+No almacenar los secretos en GitHub. El runner jamás debe lanzarse desde la web pública; solo en un equipo o workflow protegido con secretos del clon y control de acceso al operador. Si la limpieza automática reporta fallos, inspeccionar el clon por `app_metadata.qa_suite=finance96` y no eliminar usuarios ajenos. **El script aún no constituye prueba aprobada hasta su ejecución real**.
