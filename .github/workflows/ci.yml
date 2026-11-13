@@ -222,6 +222,7 @@ jobs:
           set -euo pipefail
           node --check scripts/qa/finance96-run-auth.mjs
           node --test tests/finance96-ephemeral-auth-runner-contract.test.mjs
+          node --test tests/finance96-cleanup-behavior.test.mjs
           # Never provision accounts from CI without explicitly scoped clone secrets.
       - name: Finance #96 authentic JWT/private PDF harness (code checked; live run opt-in)
         run: |
