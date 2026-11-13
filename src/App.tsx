@@ -128,6 +128,14 @@ export default function App() {
     document.title = tenantSlug && publicCatalog.brand
       ? publicCompanyName
       : tenantSlug ? 'Portal inmobiliario' : `${PUBLIC_COMMERCIAL_NAME} | Software inmobiliario`;
+    // Index only the official WWW homepage and explicit tenant URLs.
+    // Logged-in tenant previews at / remain canonical to the commercial root.
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical) {
+      const path = window.location.pathname.startsWith('/inmobiliaria/')
+        ? tenantPublicPath(tenantSlug) : '/';
+      canonical.href = `https://www.inmojco.com${path}`;
+    }
   }, [tenantSlug, publicCatalog.brand, publicCompanyName]);
   const [isPrivateDashboardOpen] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'return',
