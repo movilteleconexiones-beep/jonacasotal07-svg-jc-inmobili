@@ -6,6 +6,9 @@ import { test } from 'node:test';
 
 const CLONE_REF = 'zjgstfgiirgjssnihaam';
 const DENY = '42501';
+// admin_decide_owner_payout_review validates note length (15..500)
+// after authorization and BEFORE testing whether the review exists.
+const VALID_REVIEW_NOTE = 'Autorizacion de prueba no persistente';
 const MISSING = '00000000-0000-4000-8000-000000000111';
 const ROLES = [
   {name:'ORGANIZATION_OWNER', env:'OWNER', privileged:true},
@@ -36,7 +39,7 @@ function expectedRpcCases(org, other, privileged) {
        p_evidence_reference:'QA-NO-WRITE'}, privileged ? 'P0002' : DENY],
     ['review', 'admin_decide_owner_payout_review',
       {p_organization_id:org, p_review_id:MISSING, p_decision:'RESOLVED',
-       p_note:'QA-NO-WRITE'}, privileged ? 'P0002' : DENY],
+       p_note:VALID_REVIEW_NOTE}, privileged ? 'P0002' : DENY],
     ['receipt', 'record_tenant_rent_receipt',
       {target_org:org, target_payment:MISSING, receipt_amount:1,
        receipt_method:'CASH', receipt_reference:'QA-NO-WRITE',
