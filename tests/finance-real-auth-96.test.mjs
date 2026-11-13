@@ -222,7 +222,9 @@ test('#96 real Auth: five separate JWT sessions, 25 RPC decisions and private re
         assert.ok(error && !data, 'Anonymous private receipt read must fail');
       });
     } finally {
-      // No refresh or persisted local storage; revoke the five test sessions.
+      // No refresh or persisted local storage. This local sign-out discards
+      // client sessions; the provisioner separately deletes only its own QA users.
+      // Local sign-out by itself does NOT revoke existing JWT access tokens.
       await Promise.all([...clients.values()].map(client =>
         client.auth.signOut({scope:'local'}).catch(() => null)));
     }
