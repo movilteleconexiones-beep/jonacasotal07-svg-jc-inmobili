@@ -42,6 +42,15 @@
         file_server
     }
 
+    # G07: legal policy PDFs must exist on disk. An absent/unapproved policy
+    # returns a genuine HTTP 404, NEVER SPA index.html with a false HTTP 200.
+    # Nothing is published until a signed policy passes the CI release gate.
+    @legalDocuments path /politicas /politicas/*
+    handle @legalDocuments {
+        header Cache-Control "public, max-age=0, must-revalidate"
+        file_server
+    }
+
     # Other static files must also return a real 404 when absent.
     @staticFiles path_regexp staticFiles \.(?:css|js|mjs|map|png|jpe?g|svg|webp|gif|woff2?|ttf|ico|json|webmanifest)$
     handle @staticFiles {
