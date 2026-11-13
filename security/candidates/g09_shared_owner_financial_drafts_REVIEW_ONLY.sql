@@ -102,14 +102,14 @@ CREATE TRIGGER owner_statements_shared_cap
 -- Authorized manager/owner gets exactly one isolated draft per rightful owner.
 CREATE FUNCTION public.create_owner_shared_drafts(
   target_org uuid,target_lease uuid,target_month date,
-  agency_commission numeric,withholding_tax numeric
+  agency_commission_percentage numeric,withholding_tax numeric
 ) RETURNS SETOF uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path='pg_catalog'
 AS $shared$
 DECLARE
  v_lease public.leases%ROWTYPE;
- v_income numeric;v_owners integer;v_sum numeric;v_primary integer;
+ v_income numeric;v_commission numeric;v_owners integer;v_sum numeric;v_primary integer;
  v_primary_id uuid;v_rec record;v_id uuid;
 BEGIN
  IF auth.uid() IS NULL
@@ -120,10 +120,10 @@ BEGIN
  END IF;
  IF target_month IS NULL OR NOT pg_catalog.isfinite(target_month)
  OR extract(day FROM target_month)<>1
- OR agency_commission IS NULL OR withholding_tax IS NULL
- OR agency_commission<0 OR withholding_tax<0
- OR agency_commission<>pg_catalog.round(agency_commission,2)
- OR withholding_tax<>pg_catalog.round(withholding_tax,2)
+ OR agency_commission_percentage IS NULL OR withholding_tax IS NULL
+ OR agency_commission_percentage<0 OR agency_commission_percentage>100
+ OR agency_commission_percentage<>pg_catalog.round(agency_commission_percentage,2)
+ OR withholding_tax<0 OR withholding_tax<>pg_catalog.round(withholding_tax,2)
  THEN RAISE EXCEPTION 'Fecha o deducciones inválidas' USING ERRCODE='22023'; END IF;
  SELECT * INTO v_lease FROM public.leases WHERE id=target_lease
  AND organization_id=target_org FOR UPDATE;
@@ -151,7 +151,8 @@ BEGIN
  SELECT coalesce(sum(paid_amount),0) INTO v_income
  FROM public.rent_payments WHERE organization_id=target_org AND lease_id=target_lease
  AND period_month=target_month AND status<>'CANCELLED';
- IF v_income<=0 OR agency_commission+withholding_tax>v_income THEN
+ v_commission:=pg_catalog.round(v_income*agency_commission_percentage/100,2);
+ IF v_income<=0 OR v_commission+withholding_tax>v_income THEN
    RAISE EXCEPTION 'Ingreso no cobrado o deducciones superiores al canon'
      USING ERRCODE='23514';
  END IF;
@@ -160,7 +161,7 @@ BEGIN
     c.allocated AS commission_amount,t.allocated AS tax_amount,
     po.ownership_percentage AS share_percent
   FROM jco_private.allocate_owner_amount(v_lease.property_id,v_income) g
-  JOIN jco_private.allocate_owner_amount(v_lease.property_id,agency_commission) c
+  JOIN jco_private.allocate_owner_amount(v_lease.property_id,v_commission) c
     ON c.owner_id=g.owner_id
   JOIN jco_private.allocate_owner_amount(v_lease.property_id,withholding_tax) t
     ON t.owner_id=g.owner_id
