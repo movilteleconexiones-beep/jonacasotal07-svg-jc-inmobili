@@ -34,3 +34,13 @@ Fuentes oficiales:
 - SIC: https://sedeelectronica.sic.gov.co/publicaciones/boletin-juridico/concepto/politicas-de-tratamiento-de-datos-personales
 
 **Nunca declarar 100 % ni cerrar #203 solo por habilitar `production_enabled`.** 
+
+## Prueba reversible adicional de todo el ciclo SQL LIVE (sin dinero real)
+
+Se ejecutó `security/tests/g12_clone_only_live_billing_rollback.sql` en `zjgstfgiirgjssnihaam` y obtuvo:
+
+`PASS: simulated LIVE billing RPC, one order, idempotent event, active license, SuperAdmin protected; ALL SQL WRITES ROLLED BACK (NO MONEY CHARGED)`
+
+**Alcance real de la prueba:** bajo JWT/roles **simulados por SQL**, tomó temporalmente la agencia QA ya existente, la convirtió en compradora no-test exclusivamente dentro de `BEGIN/ROLLBACK`, activó el flag LIVE solo en esa transacción y llamó a la RPC real `billing_create_order` con el plan Básico. Confirmó orden pendiente `production` e importe correcto, reintento idempotente de orden, invocó `process_verified_payment_event` desde `service_role` con un evento **sintético**, verificó orden `APPROVED/APPLIED`, un evento, período ampliado y licencia SAAS activa; segundo evento obtuvo `duplicate` y la licencia `LIFETIME` SuperAdmin no cambió. **No contactó Wompi ni probó firmas o JWT reales**, por lo tanto esta simulación NO prueba una venta, pago bancario, ni el webhook externo.
+
+**Postflight independiente de lectura en CLON y PRODUCCIÓN:** `production_enabled=false`, la agencia QA siguió `is_test=true`, 0 órdenes y eventos `production`, inmobiliaria SuperAdmin siguió con suscripción `LIFETIME`. Ninguna mutación quedó persistida. La regresión tiene contrato estático en CI para evitar ejecuciones sin `ROLLBACK`.
