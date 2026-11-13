@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {chromium} from 'playwright';
+import {readFileSync} from 'node:fs';
 
 /**
  * G11 release gate: real mobile Chromium browsing against the official domain.
@@ -32,6 +33,16 @@ async function openPortal(page,path){
  assert.equal(response?.status(),200,path+': expected 200 from published site');
  assert.equal(new URL(page.url()).origin,ORIGIN,'Canonical host changed');
  await page.locator('#inicio').waitFor({state:'visible',timeout:TIMEOUT});
+ if(process.env.INMOJCO_PR_CSS_SIMULATION==='1'){
+   // PR on production: simulate ONLY the two CSS fixes. This tests geometry
+   // while published prod is still old. Strict proof occurs on main after deploy.
+   await page.addStyleTag({content:`@media (max-width: 639px) {
+     #calculadora [role="tablist"] { display:grid !important; width:100% !important;
+       min-width:0 !important; grid-template-columns:minmax(0,1fr) !important; gap:.25rem; }
+     header div.shrink-0 { width:100% !important; min-width:0 !important;
+       max-width:100% !important; justify-content:flex-start !important; flex-wrap:wrap !important; }
+   }`});
+ }
  const width=await page.evaluate(()=>({
    viewport:document.documentElement.clientWidth,
    scroll:document.documentElement.scrollWidth,
@@ -54,6 +65,15 @@ async function openPortal(page,path){
  assert.ok(width.scroll-width.viewport<=12,
   path+': horizontal overflow on 390px viewport (viewport='+width.viewport+', scroll='+width.scroll+')');
 }
+
+test('G11 source releases matching mobile fixes, not a global overflow hide',()=>{
+ const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+ const simulator=readFileSync(new URL('../src/components/PatrimonialSimulator.tsx',import.meta.url),'utf8');
+ assert.match(app,/flex w-full min-w-0 max-w-full flex-wrap items-center justify-start/);
+ assert.match(simulator,/grid w-full min-w-0 grid-cols-1 gap-1 p-1/);
+ assert.match(simulator,/sm:inline-flex sm:w-auto/);
+ assert.doesNotMatch(app,/overflow-x-hidden|overflow-hidden.*inicio/);
+});
 
 test('G11: official mobile site and two agencies render without leaking customer information',async t=>{
  const browser=await chromium.launch({headless:true});
