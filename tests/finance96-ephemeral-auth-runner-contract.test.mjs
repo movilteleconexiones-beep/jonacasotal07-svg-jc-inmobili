@@ -26,9 +26,9 @@ test('#96 creates exactly five temporary real Auth accounts and always cleans th
   assert.match(source,/auth\.admin\.createUser/);
   assert.match(source,/email_confirm:true/);
   assert.match(source,/qa_suite:'finance96'/);
-  assert.match(source,/\.from\('organization_members'\)/);
-  assert.match(source,/\.from\('member_roles'\)/);
-  assert.match(source,/\.insert\(\{organization_member_id:member\.id,role_id:byRole\.get\(role\)\}\)/);
+  assert.match(source,/import \{ addTemporaryQaMember \} from '\.\/finance96-membership\.mjs'/);
+  assert.match(source,/await addTemporaryQaMember\(\{/);
+  assert.match(source,/admin,orgId:own\.id,userId:user\.id,roleId:byRole\.get\(role\),record/);
   assert.match(source,/assert\.equal\(created\.length,5/);
   assert.match(source,/await spawnAcceptance\(env\)/);
   assert.match(source,/finally \{[\s\S]*?await cleanupQaAccounts\(\{admin,created,orgId:own\.id,runId\}\)/);
