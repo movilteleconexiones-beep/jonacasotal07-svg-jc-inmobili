@@ -123,7 +123,7 @@ export const PatrimonialSimulator: React.FC<PatrimonialSimulatorProps> = ({
 
           {/* Interactive Segmented Control (Functional Buttons) */}
           <div
-            className="inline-flex items-center p-1 bg-[#F2F2EE] rounded-lg border border-stone-200/80 self-start"
+            className="grid w-full min-w-0 grid-cols-1 gap-1 p-1 bg-[#F2F2EE] rounded-lg border border-stone-200/80 self-start sm:inline-flex sm:w-auto sm:grid-cols-none"
             role="tablist"
             aria-label="Modos de simulación patrimonial"
           >
