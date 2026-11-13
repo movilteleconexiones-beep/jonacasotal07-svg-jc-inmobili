@@ -53,7 +53,7 @@ REVOKE ALL ON TABLE private.consignment_policy_approvals
   FROM PUBLIC,anon,authenticated,service_role;
 
 CREATE TABLE private.consignment_policy_receipts(
-  consignment_id uuid PRIMARY KEY REFERENCES public.property_consignments(id) ON DELETE CASCADE,
+  consignment_id uuid PRIMARY KEY REFERENCES public.property_consignments(id) ON DELETE RESTRICT,
   organization_id uuid NOT NULL,
   request_id uuid NOT NULL,
   policy_url text NOT NULL CHECK(private.consignment_policy_url_valid(policy_url)),
@@ -62,12 +62,28 @@ CREATE TABLE private.consignment_policy_receipts(
   payload_sha256 bytea NOT NULL CHECK(octet_length(payload_sha256)=32),
   consented_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY(organization_id,request_id)
-    REFERENCES public.property_consignments(organization_id,request_id) ON DELETE CASCADE,
+    REFERENCES public.property_consignments(organization_id,request_id) ON DELETE RESTRICT,
   UNIQUE(organization_id,request_id)
 );
 ALTER TABLE private.consignment_policy_receipts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE private.consignment_policy_receipts
   FROM PUBLIC,anon,authenticated,service_role;
+
+-- The consent evidence is append-only. A hard deletion of a consignation
+-- must not silently delete its legal receipt. Restrict both parent FKs;
+-- regulated retention/purge must be an explicit reviewed administrative action.
+CREATE FUNCTION private.deny_consignment_receipt_mutation()
+RETURNS trigger LANGUAGE plpgsql SET search_path TO ''
+AS $immutable$
+BEGIN
+  RAISE EXCEPTION USING ERRCODE='23514', MESSAGE='consignment_consent_immutable';
+END;
+$immutable$;
+REVOKE ALL ON FUNCTION private.deny_consignment_receipt_mutation()
+  FROM PUBLIC,anon,authenticated,service_role;
+CREATE TRIGGER deny_consignment_receipt_update_delete
+  BEFORE UPDATE OR DELETE ON private.consignment_policy_receipts
+  FOR EACH ROW EXECUTE FUNCTION private.deny_consignment_receipt_mutation();
 
 CREATE OR REPLACE FUNCTION public.get_public_property_intake_site(p_slug text)
  RETURNS jsonb
@@ -282,6 +298,7 @@ AS $jco_photo$
    AND c.reference=p_reference AND c.status='NEW'
    AND c.created_at>now()-interval '1 hour'
    AND private.consignment_policy_url_valid(a.policy_url)
+   AND jco_private.operational_access(s.organization_id)
    AND EXISTS(SELECT 1 FROM public.organizations o
               WHERE o.id=s.organization_id AND o.status='ACTIVE')
  LIMIT 1;
@@ -293,6 +310,14 @@ BEGIN
     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid='private.consignment_policy_receipts'::regclass)
     OR has_table_privilege('anon','private.consignment_policy_receipts','SELECT')
     OR has_table_privilege('authenticated','private.consignment_policy_approvals','INSERT')
+    OR (SELECT count(*) FROM pg_constraint c
+        WHERE c.conrelid='private.consignment_policy_receipts'::regclass
+          AND c.confrelid='public.property_consignments'::regclass
+          AND c.contype='f' AND c.confdeltype='r')<>2
+    OR (SELECT count(*) FROM pg_trigger t
+        WHERE t.tgrelid='private.consignment_policy_receipts'::regclass
+          AND t.tgname='deny_consignment_receipt_update_delete'
+          AND t.tgenabled='O' AND NOT t.tgisinternal)<>1
     OR NOT has_function_privilege('anon','public.get_public_property_intake_site(text)','EXECUTE')
     OR NOT has_function_privilege('anon','public.submit_property_consignment(text,uuid,jsonb)','EXECUTE')
     OR NOT has_function_privilege('service_role','public.resolve_consignment_photo_submission(text,uuid,text)','EXECUTE')
