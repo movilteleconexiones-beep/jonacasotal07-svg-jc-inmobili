@@ -232,6 +232,7 @@ jobs:
           set -euo pipefail
           node --check tests/finance-real-auth-96.test.mjs
           node --test tests/finance-real-auth-96-contract.test.mjs
+          node --test tests/finance96-windows-launcher-contract.test.mjs
           # No QA secrets in general CI; test MUST report SKIP (never a live-session PASS).
           node --test tests/finance-real-auth-96.test.mjs
       - name: Finance #96 reversible end-to-end tenant contract regression
