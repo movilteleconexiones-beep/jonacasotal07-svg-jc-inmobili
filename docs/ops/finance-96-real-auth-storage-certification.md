@@ -69,3 +69,17 @@ El comando `node scripts/qa/finance96-run-auth.mjs` puede crear **solo durante l
 La segunda agencia QA `qa-finance-96-foreign-20261113` es un tenant **ficticio, no facturable y sin miembros**, creado únicamente en el clon el 13-nov-2026. Está marcado `is_test=true`, `requires_payment=false`, con estado `INACTIVE`. No es la inmobiliaria original del SuperAdmin, cuya información se preserva sin ninguna escritura.
 
 No almacenar los secretos en GitHub. El runner jamás debe lanzarse desde la web pública; solo en un equipo o workflow protegido con secretos del clon y control de acceso al operador. Si la limpieza automática reporta fallos, inspeccionar el clon por `app_metadata.qa_suite=finance96` y no eliminar usuarios ajenos. **El script aún no constituye prueba aprobada hasta su ejecución real**.
+
+
+## Flujo autónomo de PDFs privados QA — preparación de certificación
+
+El runner `scripts/qa/finance96-run-auth.mjs` admite ahora dos modos, siempre **solo en el clon restaurado**:
+
+- **Automático recomendado**: `JCO_QA96_AUTO_FIXTURES=1`. Con `JCO_QA96_PROVISION=1` y las dos claves **del clon** disponibles en entorno seguro, crea cinco cuentas de rol + una identidad temporal de autor QA para el segundo tenant, genera dos PDF reales de una página rotulados `QA ONLY - NO REAL RECEIPT`, crea solo propiedades, contratos `DRAFT`, períodos/recibos ficticios y sus metadatos privados, ejecuta las pruebas JWT y elimina los registros/archivos y cuentas generados en `finally`. No requiere rutas de PDFs ingresadas manualmente.
+- **Manual anterior**: sin `JCO_QA96_AUTO_FIXTURES=1`, exige `JCO_QA96_PRIVATE_PDF_PATH` y `JCO_QA96_OTHER_PRIVATE_PDF_PATH`, verifica los archivos existentes **antes** de crear cuentas y no los elimina (porque no los creó).
+
+El modo automático **no se ejecuta desde la CI común**. Solo debe ejecutarse dentro de un runtime privado con la clave secreta del **clon**. Nunca introducir esa clave en GitHub, el chat, capturas ni código frontend.
+
+Los documentos generados son objetos Storage reales en `jco-rent-receipts-private` y llevan relaciones reales a `rent_receipts`, `rent_payments`, `leases` y `properties`, siempre bajo los dos tenants `is_test=true`. No prueban un giro bancario ni convierten una operación ficticia en un comprobante contable. Un error de limpieza produce estado FAIL y requiere inspección del clon; no borrar datos ajenos a los IDs del ensayo.
+
+**Estado:** código de automatización entregado a CI; la certificación con cuentas Auth reales sigue pendiente hasta ejecutarse con credenciales secretas exclusivas del clon.
