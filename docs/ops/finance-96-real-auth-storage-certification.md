@@ -4,7 +4,7 @@
 
 ## Alcance y barreras
 - Únicamente Supabase restaurado `zjgstfgiirgjssnihaam`, **nunca** producción `cuitgyqrjibgwuniapmk`.
-- Script `tests/finance-real-auth-96.test.mjs`: 5 usuarios únicos, 5 JWT genuinos, 25 decisiones RPC de PostgREST, lectura de PDF real privado por propietario/administrador, rechazo a coordinador/asesor/cliente y a otro tenant, rechazo anónimo.
+- Script `tests/finance-real-auth-96.test.mjs`: 5 usuarios únicos, 5 JWT genuinos, auditoría en lectura de roles exclusivos y ausencia de SuperAdmin, 25 decisiones RPC de PostgREST, lectura de PDF real privado por propietario/administrador, rechazo a coordinador/asesor/cliente y a otro tenant, rechazo anónimo.
 - RPC se llaman con UUID reservados inexistentes. Las llamadas autorizadas deben devolver `P0002` (o `23514` para recibos), no generan abonos, estados ni giros. Las no autorizadas deben devolver `42501`.
 - La prueba no fabrica usuarios, no escribe SQL, no sube comprobantes y no hace pagos. Necesita fixtures externos genuinos, además de pruebas de interfaz separadas.
 
@@ -23,6 +23,7 @@ Configurarlas en un entorno local seguro o Secrets de un entorno QA protegido; j
 JCO_QA96_RUN_REAL_AUTH=1
 JCO_QA96_SUPABASE_URL=https://zjgstfgiirgjssnihaam.supabase.co
 JCO_QA96_PUBLISHABLE_KEY=<clave publicable DEL CLON>
+JCO_QA96_SECRET_KEY=<clave secreta SOLO DEL CLON; únicamente proceso Node servidor>
 JCO_QA96_TEST_ORG_ID=<uuid agencia QA>
 JCO_QA96_OTHER_ORG_ID=<uuid segunda agencia QA>
 JCO_QA96_PRIVATE_PDF_PATH=<org>/<rent_payment>/<uploader>/<upload>/comprobante.pdf
