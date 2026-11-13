@@ -14,6 +14,10 @@ test('#96 real-session probe is disabled in ordinary CI and pinned to the restor
   assert.match(source,/client\.auth\.getUser/);
   assert.match(source,/userIds\.size, 5/);
   assert.match(source,/signatures\.size, 5/);
+  assert.match(source,/JCO_QA96_SECRET_KEY/);
+  assert.match(source,/Exactly one role assignment per QA identity is required/);
+  assert.match(source,/QA users must never possess SuperAdmin/);
+  assert.match(source,/CLIENT QA must not inherit separate portal permissions/);
   assert.match(source,/jco-rent-receipts-private/g);
   assert.match(source,/other tenant/);
   assert.doesNotMatch(source,/createUser\(|auth\.admin\.|\.insert\(|\.update\(|\.delete\(|\.upload\(|\.remove\(/);
