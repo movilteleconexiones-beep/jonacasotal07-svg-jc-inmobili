@@ -98,7 +98,7 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
       const {data,error}=hasMultipleOwners
         ?await supabase.rpc('create_owner_shared_drafts',{
           target_org:organizationId,target_lease:selected.id,target_month:period+'-01',
-          agency_commission:commissionNumber,withholding_tax:taxNumber,
+          agency_commission_percentage:commissionPercentage,withholding_tax:taxNumber,
         })
         :await supabase.rpc('create_owner_draft_statement_by_percentage',{
           target_org:organizationId,target_lease:selected.id,target_month:period+'-01',
