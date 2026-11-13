@@ -92,3 +92,16 @@ La corrección establece `VALID_REVIEW_NOTE='Autorizacion de prueba no persisten
 
 **Ejecución anterior NO certificada:** cinco JWT temporales llegaron a la matriz de RPC, pero no se obtuvieron 25/25 ni todos los accesos PDF. El runner informó `PDF FIXTURE CLEANUP attempted=2,failures=0` y `Auth CLEANUP attempted=6,authDeleted=6,failures=0`. Postflight SQL de solo lectura confirmó 0 cuentas Auth QA96, 0 membresías QA96, 0 soportes, 0 periodos QA, 0 objetos PDF QA, 0 giros y 0 revisiones persistentes. #96 permanece abierta hasta repetir la **prueba real** después de aprobar y fusionar esta corrección.
 
+
+## Ejecución de Windows simplificada — sin bloques manuales de variables
+
+Para evitar mezclar instrucciones CMD con PowerShell o copiar llaves en comandos, desde **PowerShell 7** y la carpeta local del repositorio se puede utilizar:
+
+```powershell
+git pull --ff-only origin main
+pwsh -NoProfile -File .\scripts\qa\finance96-windows.ps1
+```
+
+El lanzador comprueba que está instalada la versión corregida de `finance-real-auth-96.test.mjs`, fija el único proyecto aceptado al clon `zjgstfgiirgjssnihaam`, solicita las claves `sb_publishable_` y `sb_secret_` interactivamente (la segunda queda oculta), ejecuta el runner con datos PDF ficticios automáticos, imprime solo `RESULTADO QA96` y borra las variables sensibles y la representación BSTR en un bloque `finally`.
+
+No ejecutar en producción ni mostrar las claves en pantallas o capturas. Si termina con código distinto de cero, no repetir antes de revisar el error y el postflight de limpieza. No es necesario crear nuevas claves para cada ejecución.
