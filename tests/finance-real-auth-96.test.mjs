@@ -75,6 +75,7 @@ test('#96 real Auth: five separate JWT sessions, 25 RPC decisions and private re
     const { createClient } = await import('@supabase/supabase-js');
     const clients = new Map();
     const userIds = new Set();
+    const idsByRole = new Map();
     const signatures = new Set();
     try {
       // Each client owns its own non-persistent Auth session and access token.
@@ -94,10 +95,61 @@ test('#96 real Auth: five separate JWT sessions, 25 RPC decisions and private re
           'Auth server did not independently verify ' + role.name);
         assert.ok(!userIds.has(data.user.id), 'Role identities are not independent');
         userIds.add(data.user.id);
+        idsByRole.set(role.name,data.user.id);
         signatures.add(data.session.access_token);
       }
       assert.equal(userIds.size, 5, 'Five distinct Auth identities are compulsory');
       assert.equal(signatures.size, 5, 'Sessions must have distinct JWTs');
+
+      // Server-side read-only fixture attestation. Never send this QA-only
+      // secret key to the web browser or expose it in logs.
+      const secret = required('JCO_QA96_SECRET_KEY');
+      const auditor = createClient(endpoint.origin,secret,
+        {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+      const {data:billing,error:billingError} = await auditor
+        .from('organization_billing_access').select('is_test')
+        .eq('organization_id',org).single();
+      assert.ok(!billingError && billing?.is_test === true,
+        'Refuse any organization that is not an explicitly marked test tenant');
+      const {data:members,error:memberError} = await auditor
+        .from('organization_members').select('id,user_id,organization_id,status')
+        .in('user_id',[...userIds]);
+      assert.ok(!memberError && members?.length === 5,
+        'QA identities must have exactly one membership each');
+      for (const member of members) {
+        assert.equal(member.organization_id,org,'No memberships in another tenant');
+        assert.equal(member.status,'ACTIVE','All QA memberships must be active');
+      }
+      const {data:assignments,error:assignmentError} = await auditor
+        .from('member_roles').select('organization_member_id,role_id')
+        .in('organization_member_id',members.map(x => x.id));
+      assert.ok(!assignmentError && assignments?.length === 5,
+        'Exactly one role assignment per QA identity is required');
+      const {data:roleDefs,error:roleError} = await auditor
+        .from('roles').select('id,key,organization_id,active')
+        .in('id',assignments.map(x => x.role_id));
+      assert.ok(!roleError && roleDefs?.length === 5,'Role definitions are incomplete');
+      const memberByUser = new Map(members.map(x => [x.user_id,x.id]));
+      const roleById = new Map(roleDefs.map(x => [x.id,x]));
+      for (const role of ROLES) {
+        const memberId = memberByUser.get(idsByRole.get(role.name));
+        const assigned = assignments.filter(x => x.organization_member_id === memberId);
+        assert.equal(assigned.length,1,role.name + ': not an exclusive role');
+        const definition = roleById.get(assigned[0].role_id);
+        assert.equal(definition?.key,role.name,'QA account has wrong role');
+        assert.equal(definition?.organization_id,org,'Role belongs to another tenant');
+        assert.equal(definition?.active,true,'QA role inactive');
+      }
+      const {data:admins,error:adminError} = await auditor
+        .from('platform_admins').select('user_id').eq('active',true)
+        .in('user_id',[...userIds]);
+      assert.ok(!adminError && admins?.length === 0,
+        'QA users must never possess SuperAdmin');
+      const {data:links,error:linksError} = await auditor
+        .from('portal_access_links').select('user_id')
+        .eq('user_id',idsByRole.get('CLIENT'));
+      assert.ok(!linksError && links?.length === 0,
+        'CLIENT QA must not inherit separate portal permissions');
 
       for (const role of ROLES) {
         await t.test(role.name + ' — 5 genuine JWT RPC decisions', async () => {
