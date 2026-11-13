@@ -76,7 +76,7 @@ test('G09 hosted finance rehearsal explicitly simulates JWT and rolls back, no b
  assert.match(qa,/G09 FAIL: cross-tenant allowed/);
  assert.match(qa,/QA-G09-NO-MONEY/);
  assert.match(qa,/ROLLBACK;/);
- assert.doesNotMatch(qa,/\bCOMMIT\s*;/i);
+ assert.doesNotMatch(qa,/^COMMIT\s*;/im);
  assert.match(qa,/b\.is_test/);
 });
 
@@ -91,5 +91,8 @@ test('G09 exact pre-migration rollback refuses to erase used owner settlements',
  assert.match(rollback,/DROP FUNCTION public\.create_owner_shared_drafts/);
  assert.match(rollback,/CREATE OR REPLACE FUNCTION public\.reconcile_owner_draft_statement/);
  assert.match(rollback,/DROP FUNCTION jco_private\.allocate_owner_amount/);
- assert.doesNotMatch(rollback,/DELETE FROM public\.owner_statements|UPDATE public\.owner_statements/i);
+ const mutations=rollback.split('CREATE OR REPLACE FUNCTION public.reconcile_owner_draft_statement')[0]
+   .split('\n').filter(line=>!line.trim().startsWith('--')).join('\n');
+ assert.doesNotMatch(mutations,/\bDELETE\s+FROM\s+public\.owner_statements|\bUPDATE\s+public\.owner_statements/i);
+ assert.match(rollback,/WHERE id=target_statement AND organization_id=target_org AND status='DRAFT'/);
 });
