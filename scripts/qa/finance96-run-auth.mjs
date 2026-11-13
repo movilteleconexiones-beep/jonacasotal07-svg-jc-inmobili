@@ -17,6 +17,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { cleanupQaAccounts } from './finance96-cleanup.mjs';
+import {createQaReceiptFixture,cleanupQaReceiptFixtures} from './finance96-pdf-fixtures.mjs';
 
 const CLONE_ORIGIN = 'https://zjgstfgiirgjssnihaam.supabase.co';
 const PRIMARY_SLUG = 'sistema-inmobiliario-jco';
@@ -64,7 +65,7 @@ async function assertPdf(client, path, orgId) {
     'QA fixture must contain authentic PDF bytes');
 }
 
-async function preflight(admin, ownPath, foreignPath) {
+async function preflight(admin, ownPath, foreignPath, {autoFixtures=false}={}) {
   const {data:organizations,error:orgError} = await admin
     .from('organizations').select('id,slug,status')
     .in('slug',[PRIMARY_SLUG,FOREIGN_SLUG]);
@@ -86,32 +87,34 @@ async function preflight(admin, ownPath, foreignPath) {
   assert.equal(new Set(roleDefs.map(x=>x.key)).size,5,
     'All five distinct organization roles must exist');
   const byRole = new Map(roleDefs.map(x => [x.key,x.id]));
-  // Preflight BEFORE creating a single Auth user: validate PDFs and their
-  // linked receipt/payment rows to avoid orphaned accounts on a missing fixture.
-  assert.notEqual(ownPath,foreignPath,'Receipt paths must be different');
-  await assertPdf(admin,ownPath,own.id);
-  await assertPdf(admin,foreignPath,foreign.id);
-  const {data:supports,error:supportError} = await admin
-    .from('rent_receipt_supports')
-    .select('organization_id,rent_payment_id,storage_path,mime_type,size_bytes')
-    .in('storage_path',[ownPath,foreignPath]);
-  checked(supports,supportError,'finance support records');
-  assert.equal(supports.length,2,'Both PDF support records must exist');
-  for(const s of supports) {
-    const correctOrg = s.storage_path === ownPath ? own.id : foreign.id;
-    assert.equal(s.organization_id,correctOrg,'Support crosses organizations');
-    assert.equal(s.mime_type,'application/pdf','Support not registered as PDF');
-    assert.ok(Number(s.size_bytes)>10,'Empty receipt support');
-  }
-  const {data:payments,error:paymentError} = await admin
-    .from('rent_payments').select('id,organization_id')
-    .in('id',supports.map(x=>x.rent_payment_id));
-  checked(payments,paymentError,'rent period fixture');
-  assert.equal(payments.length,2,'Expected two real test periods');
-  for(const support of supports) {
-    assert.ok(payments.some(p => p.id === support.rent_payment_id &&
-      p.organization_id === support.organization_id),
-      'Receipt support does not match its tenant period');
+  if (!autoFixtures) {
+    // Preflight BEFORE creating a single Auth user: validate PDFs and their
+    // linked receipt/payment rows to avoid orphaned accounts on a missing fixture.
+    assert.notEqual(ownPath,foreignPath,'Receipt paths must be different');
+    await assertPdf(admin,ownPath,own.id);
+    await assertPdf(admin,foreignPath,foreign.id);
+    const {data:supports,error:supportError} = await admin
+      .from('rent_receipt_supports')
+      .select('organization_id,rent_payment_id,storage_path,mime_type,size_bytes')
+      .in('storage_path',[ownPath,foreignPath]);
+    checked(supports,supportError,'finance support records');
+    assert.equal(supports.length,2,'Both PDF support records must exist');
+    for(const s of supports) {
+      const correctOrg = s.storage_path === ownPath ? own.id : foreign.id;
+      assert.equal(s.organization_id,correctOrg,'Support crosses organizations');
+      assert.equal(s.mime_type,'application/pdf','Support not registered as PDF');
+      assert.ok(Number(s.size_bytes)>10,'Empty receipt support');
+    }
+    const {data:payments,error:paymentError} = await admin
+      .from('rent_payments').select('id,organization_id')
+      .in('id',supports.map(x=>x.rent_payment_id));
+    checked(payments,paymentError,'rent period fixture');
+    assert.equal(payments.length,2,'Expected two real test periods');
+    for(const support of supports) {
+      assert.ok(payments.some(p => p.id === support.rent_payment_id &&
+        p.organization_id === support.organization_id),
+        'Receipt support does not match its tenant period');
+    }
   }
   return {own,foreign,byRole};
 }
@@ -138,13 +141,15 @@ async function main() {
     'Refuse any production, staging or unexpected Supabase project');
   const key = required('JCO_QA96_SECRET_KEY');
   const publicKey = required('JCO_QA96_PUBLISHABLE_KEY');
-  const ownPath = required('JCO_QA96_PRIVATE_PDF_PATH');
-  const foreignPath = required('JCO_QA96_OTHER_PRIVATE_PDF_PATH');
+  const autoFixtures = process.env.JCO_QA96_AUTO_FIXTURES === '1';
+  const ownPath = autoFixtures ? null : required('JCO_QA96_PRIVATE_PDF_PATH');
+  const foreignPath = autoFixtures ? null : required('JCO_QA96_OTHER_PRIVATE_PDF_PATH');
   const admin = createClient(CLONE_ORIGIN,key,{
     auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
   });
-  const {own,foreign,byRole} = await preflight(admin,ownPath,foreignPath);
+  const {own,foreign,byRole} = await preflight(admin,ownPath,foreignPath,{autoFixtures});
   const created = [];
+  const createdFixtures = [];
   let error = null;
   const runId = randomUUID();
   const env = {
@@ -183,13 +188,35 @@ async function main() {
       env['JCO_QA96_' + suffix + '_PASSWORD']=password;
     }
     assert.equal(created.length,5,'Exactly five temporary test users required');
+    if (autoFixtures) {
+      const email = 'qa96-foreign-' + randomUUID().slice(0,12) + '@example.invalid';
+      const password = randomBytes(32).toString('base64url');
+      const {data:createdForeign,error:foreignError} =
+        await admin.auth.admin.createUser({
+          email,password,email_confirm:true,
+          app_metadata:{qa_suite:'finance96',qa_run:runId},
+        });
+      const foreignUser = checked(createdForeign?.user,foreignError,'Foreign QA author');
+      created.push({userId:foreignUser.id,memberId:null});
+      // All artifacts are fictitious, created only under marked QA tenants.
+      env.JCO_QA96_PRIVATE_PDF_PATH = await createQaReceiptFixture({
+        admin,tenant:own,uploaderId:created[0].userId,runId,created:createdFixtures,
+      });
+      env.JCO_QA96_OTHER_PRIVATE_PDF_PATH = await createQaReceiptFixture({
+        admin,tenant:foreign,uploaderId:foreignUser.id,runId,created:createdFixtures,
+      });
+    }
     await spawnAcceptance(env);
     console.log('QA96 CERTIFICATION: real Auth/PostgREST/Storage checks completed');
   } catch (e) {
     error=e;
   } finally {
+    if (autoFixtures) {
+      try {await cleanupQaReceiptFixtures({admin,created:createdFixtures,runId});}
+      catch(e) {error=error ? new AggregateError([error,e],'QA and PDF cleanup failed'):e;}
+    }
     try {await cleanupQaAccounts({admin,created,orgId:own.id,runId});}
-    catch(e) {error=error ? new AggregateError([error,e],'QA and cleanup failed'):e;}
+    catch(e) {error=error ? new AggregateError([error,e],'QA and Auth cleanup failed'):e;}
   }
   if(error) throw error;
 }
