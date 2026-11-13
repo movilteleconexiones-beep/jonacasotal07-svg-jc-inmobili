@@ -130,7 +130,7 @@ test('G11 supports all 17 genuine tenant-scoped composite foreign keys',()=>{
  assert.equal(new Set(expected.map(x=>x.constraint)).size,17);
  assert.equal(new Set(expected.map(x=>x.index)).size,17);
  for(const e of expected){
-   assert.match(source,new RegExp('\\('+"'" +e.constraint+"',"+ "'" +e.index+"'," + "'" +e.schema+'.'+e.table+"'"+'\\)'));
+   assert.ok(source.includes(`('${e.constraint}','${e.index}','${e.schema}.${e.table}')`),'Missing exact FK index mapping');
    const needle='CREATE INDEX IF NOT EXISTS '+e.index+
       ' ON '+e.schema+'.'+e.table+' ('+e.columns+');';
    assert.ok(source.includes(needle),'Missing exact index '+e.index);
@@ -138,7 +138,7 @@ test('G11 supports all 17 genuine tenant-scoped composite foreign keys',()=>{
 });
 test('G11 is atomic, fail-closed, with 17/17 catalog coverage and no financial mutations',()=>{
  assert.match(source,/^BEGIN;/m);
- assert.match(source,/^COMMIT;\\s*$/m);
+ assert.match(source,/^COMMIT;\s*$/m);
  assert.match(source,/SET LOCAL lock_timeout='3s'/);
  assert.match(source,/current_user <> 'postgres'/);
  assert.match(source,/IF v_count<>17/);
