@@ -104,7 +104,7 @@ export function MonthlyAccountingReport({ selection, onSelect, month, onMonthCha
             .eq('organization_id',organizationId)
             .gte(dateColumn,start).lt(dateColumn,end)
             .order(dateColumn,{ascending:true}).order('id').range(from,to),
-            {maxRows:10000}) as DataRow[];
+            {maxRows:10000}) as unknown as DataRow[];
           if (cancelled) return;
           const effectiveRows=section.name==='Comisiones'
             ? effectiveCommissionRows(rows as ({id:string;status:string;amount:number|null}&DataRow)[],rectifications)
