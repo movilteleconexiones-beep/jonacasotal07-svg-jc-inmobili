@@ -25,10 +25,13 @@ function record(context,page){
    if(method==='GET'||method==='OPTIONS')return;
    // Catalog RPC is a read-only POST; all other RPC/Storage writes are forbidden.
    if(u.pathname.endsWith('/rpc/tenant_public_catalog'))return;
-   if(/\\/rpc\\/(?:submit_|record_|admin_|platform_set_|billing_|create_|reconcile_|request_)/.test(u.pathname)
-     ||/\\/functions\\/v1\\/(?:consignment|wompi)/.test(u.pathname)
-     ||/\\/rest\\/v1\\/(?:contacts|leads|commissions|leases|rent_|organization_members)/.test(u.pathname)
-     ||/\\/storage\\/v1\\/object\\//.test(u.pathname)) trace.writes.push(method+':'+u.pathname.slice(0,95));
+   const writePaths=['/rpc/submit_','/rpc/record_','/rpc/admin_','/rpc/platform_set_',
+    '/rpc/billing_','/rpc/create_','/rpc/reconcile_','/rpc/request_',
+    '/functions/v1/consignment','/functions/v1/wompi','/rest/v1/contacts',
+    '/rest/v1/leads','/rest/v1/commissions','/rest/v1/leases',
+    '/rest/v1/rent_','/rest/v1/organization_members','/storage/v1/object/'];
+   if(writePaths.some(path=>u.pathname.includes(path)))
+     trace.writes.push(method+':'+u.pathname.slice(0,95));
  });
  return trace;
 }
@@ -115,7 +118,7 @@ test('G15 all public paths / 4 form factors / access guards (no PII submissions)
    }
    for(const slug of TENANTS){
     const path='/inmobiliaria/'+slug;
-    await t.test(device.name+' '+slug+' G07 intake closed and private PDF inaccessible',async()=>{
+    await t.test(device.name+' '+slug+' G07 anonymous intake closed and photo upload inaccessible',async()=>{
      await fixture(browser,device,async(page,trace)=>{
       await publicPortal(page,path);
       await page.locator('#contacto').waitFor({state:'visible',timeout:TIMEOUT});
@@ -124,7 +127,8 @@ test('G15 all public paths / 4 form factors / access guards (no PII submissions)
       console.log('G15_INTAKE_CLOSED '+device.name+' '+slug);
      });
     });
-    await t.test(device.name+' private /app and agency-specific entry require authentication',async()=>{
+   }
+   await t.test(device.name+' private /app and agency-specific entry require authentication',async()=>{
      await fixture(browser,device,async(page,trace)=>{
       for(const path of ['/app','/app?inmobiliaria='+TENANTS[0],'/?billing=return']){
        await nav(page,path);
