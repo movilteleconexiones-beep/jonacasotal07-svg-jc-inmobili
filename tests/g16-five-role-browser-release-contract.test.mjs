@@ -18,7 +18,11 @@ test('G16 five-role UI is never silently counted as certified without explicit o
  assert.match(browser,/['"]AGENT['"]/);
  assert.match(browser,/['"]CLIENT['"]/);
  assert.match(browser,/acceptDownloads:false/);
- assert.match(browser,/Unexpected Supabase host/);
+ assert.match(browser,/Blocked unexpected network origin/);
+ assert.match(browser,/context\.route\('\*\*\/\*'/);
+ assert.match(browser,/return route\.abort\('blockedbyclient'\)/);
+ assert.match(browser,/u\.origin!==LOCAL && u\.origin!==CLONE/);
+ assert.doesNotMatch(browser,/page\.on\('request'/);
  assert.match(browser,/Forbidden mutation/);
 });
 
@@ -57,4 +61,13 @@ test('G16 temporary Auth users are not cleaned until AFTER UI acceptance, even o
  assert.match(runner,/if\(process\.env\.JCO_QA96_RUN_BROWSER==='1'\)/);
  assert.match(runner,/cleanupQaReceiptFixtures/);
  assert.match(runner,/cleanupQaAccounts/);
+});
+
+test('G16 network allowlist must be installed before submitting any ephemeral Auth credentials',()=>{
+ const guard=browser.indexOf("await context.route('**/*'");
+ const signIn=browser.indexOf('await signIn(page,email,password);');
+ assert.ok(guard>0&&signIn>guard,'Network blocker must run before login');
+ assert.match(browser,/route\.abort\('blockedbyclient'\)/);
+ assert.match(browser,/return route\.continue\(\)/);
+ assert.match(browser,/u\.origin===CLONE/);
 });
