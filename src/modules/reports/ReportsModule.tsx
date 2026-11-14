@@ -3,6 +3,7 @@ import { BarChart3, Building2, Handshake, UsersRound, WalletCards } from 'lucide
 import { useAuth } from '../../core/auth-context';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
+import { readCompletePages } from '../../lib/tenant-pagination';
 import { effectiveCommissionTotals } from '../../core/effective-commissions';
 import { monthlyDateBounds } from '../../core/accounting-export';
 import { PERMISSIONS } from '../../core/permissions';
@@ -70,52 +71,48 @@ export function ReportsModule() {
       setState(EMPTY);
       try {
         const {start,end}=monthlyDateBounds(month);
-        const [properties, contacts, leads, deals, commissions, corrections, consignments, statements] = await Promise.all([
+        const [properties, contacts, leads, dealRows, commissionRows, correctionRows, consignmentRows, statementRows] = await Promise.all([
           supabase.from('properties').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
           supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
           supabase.from('leads').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
-          supabase.from('deals')
-            .select('id,stage,operation_type,closed_at,final_price,offered_price,asking_price,commission_amount', { count: 'exact' })
-            .eq('organization_id', organizationId).eq('stage','WON')
-            .gte('closed_at',start+'T00:00:00-05:00').lt('closed_at',end+'T00:00:00-05:00').limit(1000),
-          supabase.from('commissions')
-            .select('id,status,amount', { count: 'exact' })
-            .eq('organization_id', organizationId),
-          supabase.from('commission_accounting_corrections').select('commission_id,archived_from_active',{count:'exact'}).eq('organization_id',organizationId).limit(1000),
-          canSeeAdminIntakes ? supabase.from('property_consignments')
-            .select('payload,reviewed_at,status',{count:'exact'})
+          readCompletePages((from,to)=>supabase.from('deals')
+            .select('id,stage,operation_type,closed_at,final_price,offered_price,asking_price,commission_amount',{count:'exact'})
+            .eq('organization_id',organizationId).eq('stage','WON')
+            .gte('closed_at',start+'T00:00:00-05:00').lt('closed_at',end+'T00:00:00-05:00')
+            .order('id').range(from,to),{maxRows:10000,key:row=>row.id}),
+          readCompletePages((from,to)=>supabase.from('commissions')
+            .select('id,status,amount',{count:'exact'})
+            .eq('organization_id',organizationId).order('id').range(from,to),
+            {maxRows:20000,key:row=>row.id}),
+          readCompletePages((from,to)=>supabase.from('commission_accounting_corrections')
+            .select('id,commission_id,archived_from_active',{count:'exact'})
+            .eq('organization_id',organizationId).order('id').range(from,to),
+            {maxRows:20000,key:row=>row.id}),
+          canSeeAdminIntakes ? readCompletePages((from,to)=>supabase.from('property_consignments')
+            .select('id,payload,reviewed_at,status',{count:'exact'})
             .eq('organization_id',organizationId).eq('status','ACCEPTED')
-            .gte('reviewed_at',start+'T00:00:00-05:00').lt('reviewed_at',end+'T00:00:00-05:00').limit(1000) : Promise.resolve(null),
-          canSeeAdminFees ? supabase.from('owner_statements')
-            .select('commission_amount,status,period_month',{count:'exact'})
+            .gte('reviewed_at',start+'T00:00:00-05:00').lt('reviewed_at',end+'T00:00:00-05:00')
+            .order('id').range(from,to),{maxRows:10000,key:row=>row.id}) : Promise.resolve([]),
+          canSeeAdminFees ? readCompletePages((from,to)=>supabase.from('owner_statements')
+            .select('id,commission_amount,status,period_month',{count:'exact'})
             .eq('organization_id',organizationId).eq('status','ISSUED')
-            .gte('period_month',start).lt('period_month',end).limit(1000) : Promise.resolve(null),
+            .gte('period_month',start).lt('period_month',end)
+            .order('id').range(from,to),{maxRows:10000,key:row=>row.id}) : Promise.resolve([]),
         ]);
         if (cancelled) return;
-        if (properties.error || contacts.error || leads.error || deals.error || commissions.error || corrections.error || consignments?.error || statements?.error) {
-          setError('No se pudieron consultar todos los indicadores. Revisa los permisos y actualiza la página.');
-          setLoading(false);
-          return;
-        }
+        // A null COUNT is not a legitimate zero. Fail rather than display
+        // financially false dashboard totals on permission or API errors.
+        if (properties.error || contacts.error || leads.error ||
+          properties.count == null || contacts.count == null || leads.count == null)
+          throw new Error('No fue posible verificar el conteo completo del CRM.');
 
-        const dealRows = deals.data ?? [];
-        const commissionRows = commissions.data ?? [];
-        const correctionRows = corrections.data ?? [];
-        const consignmentRows = consignments?.data ?? [];
-        const statementRows = statements?.data ?? [];
         const commissionTotals=effectiveCommissionTotals(commissionRows,correctionRows);
         const safeAmount=(value: unknown) => {
           const number=Number(value??0);
-          if(!Number.isFinite(number)||number<0)throw new Error('Los importes comerciales contienen valores inválidos.');
+          if(!Number.isFinite(number)||number<0)
+            throw new Error('Los importes comerciales contienen valores inválidos.');
           return number;
         };
-        if ((deals.count ?? 0) > dealRows.length || (commissions.count ?? 0) > commissionRows.length || (corrections.count ?? 0) > correctionRows.length ||
-          (consignments && (consignments.count ?? 0) > consignmentRows.length) || (statements && (statements.count ?? 0) > statementRows.length)) {
-          setError('Hay más registros de los que esta consulta puede mostrar. No se presentan totales parciales como si fueran completos.');
-          setLoading(false);
-          return;
-        }
-
         const next: ReportState = {
           properties: properties.count ?? 0,
           contacts: contacts.count ?? 0,
