@@ -62,11 +62,16 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
       try{
        const u=new URL(req.url());
        if(u.hostname.endsWith('.supabase.co')&&u.origin!==CLONE)violations.push('Unexpected Supabase host');
-       if(req.method()!=='GET'&&req.method()!=='OPTIONS'&&
-         (/\\/rpc\\/(?:billing_admin_action|platform_set_subscription|process_verified_payment_event|admin_record_owner_payout|record_tenant_rent_receipt|submit_public_website_lead)/.test(u.pathname)
-          ||/\\/functions\\/v1\\/wompi/.test(u.pathname)
-          ||/\\/storage\\/v1\\/object\\//.test(u.pathname)))
+       if(req.method()!=='GET'&&req.method()!=='OPTIONS'){
+         const protectedRoutes=[
+           '/rpc/billing_admin_action','/rpc/platform_set_subscription',
+           '/rpc/process_verified_payment_event','/rpc/admin_record_owner_payout',
+           '/rpc/record_tenant_rent_receipt','/rpc/submit_public_website_lead',
+           '/functions/v1/wompi','/storage/v1/object/',
+         ];
+         if(protectedRoutes.some(route=>u.pathname.includes(route)))
            violations.push('Forbidden mutation '+u.pathname.slice(0,90));
+       }
       }catch{violations.push('Invalid request URL');}
     });
     try{
