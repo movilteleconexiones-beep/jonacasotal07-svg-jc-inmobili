@@ -5,6 +5,8 @@
  */
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {readFileSync,readdirSync} from 'node:fs';
+import {join} from 'node:path';
 import assert from 'node:assert/strict';
 
 const ROOT=fileURLToPath(new URL('../../',import.meta.url));
@@ -27,13 +29,22 @@ async function run(argv,env,description){
  assert.equal(status,0,description+' failed');
 }
 
-async function ready(proc){
+async function ready(proc,expectedHtml){
  for(let n=0;n<120;n++){
   if(proc.exitCode!==null)throw Error('Local QA preview stopped unexpectedly');
   try{
    const response=await fetch(LOCAL+'/app',{redirect:'manual',signal:AbortSignal.timeout(1000)});
-   if(response.status===200)return;
-  }catch{/* Preview not ready yet. */}
+   if(response.status===200){
+     const served=await response.text();
+     // A different service already occupying 4173 must never receive QA
+     // credentials. Strictly match the freshly built index and asset hash.
+     assert.equal(served,expectedHtml,'QA preview port is occupied by another frontend');
+     return;
+   }
+  }catch(error){
+   if(error?.code==='ERR_ASSERTION')throw error;
+   // Preview may still be starting.
+  }
   await new Promise(resolve=>setTimeout(resolve,150));
  }
  throw Error('Local QA preview never became ready');
@@ -62,6 +73,16 @@ export async function runProtectedQaBrowser(env){
   VITE_PUBLIC_CRM_IDEMPOTENT:'false',
  };
  await run([VITE,'build'],publicBuildEnv,'QA clone frontend build');
+ // Verify build output before accepting any five user credentials.
+ const assetNames=readdirSync(join(ROOT,'dist','assets')).filter(name=>name.endsWith('.js'));
+ assert.ok(assetNames.length>0,'QA Vite build has no JS assets');
+ const publishedJs=assetNames.map(name=>readFileSync(join(ROOT,'dist','assets',name),'utf8')).join('');
+ assert.ok(publishedJs.includes(CLONE),'QA bundle does not target the verified cloned project');
+ assert.ok(!publishedJs.includes('cuitgyqrjibgwuniapmk'),
+   'QA bundle unexpectedly references production Supabase');
+ if(env.JCO_QA96_SECRET_KEY)assert.ok(!publishedJs.includes(env.JCO_QA96_SECRET_KEY),
+   'PRIVATE QA key accidentally embedded in frontend assets');
+ const expectedHtml=readFileSync(join(ROOT,'dist','index.html'),'utf8');
 
  // Do NOT permit a pre-existing service to impersonate the QA preview.
  // --strictPort fails if 4173 is occupied, and the parsed host is loopback.
@@ -72,7 +93,7 @@ export async function runProtectedQaBrowser(env){
  let previewError=null;
  preview.on('error',e=>{previewError=e;});
  try{
-  await ready(preview);
+  await ready(preview,expectedHtml);
   if(previewError)throw previewError;
   const browserEnv={
    PATH:process.env.PATH||'',HOME:process.env.HOME||'',
