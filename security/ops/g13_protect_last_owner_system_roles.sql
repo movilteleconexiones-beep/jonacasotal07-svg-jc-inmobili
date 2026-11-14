@@ -5,6 +5,13 @@
 BEGIN;
 SET LOCAL lock_timeout='3s';
 SET LOCAL statement_timeout='30s';
+DO $preflight$
+BEGIN
+  IF current_user<>'postgres' THEN
+    RAISE EXCEPTION 'G13 installation requires trusted migration operator'
+      USING ERRCODE='42501';
+  END IF;
+END $preflight$;
 
 CREATE OR REPLACE FUNCTION jco_private.guard_protected_membership_mutations()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
@@ -118,6 +125,11 @@ DROP TRIGGER IF EXISTS z_jco_system_role_delete_guard ON public.roles;
 CREATE TRIGGER z_jco_system_role_delete_guard
 BEFORE DELETE ON public.roles FOR EACH ROW
 EXECUTE FUNCTION jco_private.guard_protected_membership_mutations();
+
+-- TRIGGER functions are not callable as ordinary RPCs; revoke inherited
+-- PUBLIC EXECUTE anyway as defense in depth on the non-exposed schema.
+REVOKE ALL ON FUNCTION jco_private.guard_protected_membership_mutations()
+  FROM PUBLIC, anon, authenticated;
 
 -- The older billing trigger must run first and serialize changes by org.
 DO $checks$
