@@ -34,7 +34,58 @@ const commercialChecks = [
   ['commercial.wompi_sandbox_signed', 'Firma e idempotencia de Wompi Sandbox probadas'],
   ['commercial.wompi_real_approved', 'Autorización expresa del SuperAdmin para habilitar Wompi real'],
   ['commercial.licensing_is_superadmin_only', 'Licencias y cobros restringidos al SuperAdmin'],
+  // These are independent release prerequisites; CI or simulated JWT/SQL
+  // cannot replace real browser, restored binaries or signed legal evidence.
+  ['security.real_auth_five_role_browser', 'G16 cinco sesiones privadas reales con JWT y rol independiente'],
+  ['security.financial_rpc_authorization_reviewed', 'RPC financieras críticas verificadas por identidad y organización'],
+  ['database.storage_binary_sha256_verified', 'Archivos privados restaurados descargados y comparados por SHA-256'],
+  ['commercial.private_financial_browser_e2e', 'Contratos, cobros, liquidaciones, giros ficticios y reversos en interfaz privada'],
+  ['commercial.shared_owner_financial_browser_e2e', 'Copropietarios y distribución sin doble cargo en sesiones reales'],
+  ['commercial.commission_118_documented', 'Comisión histórica #118 conciliada con contrato y comprobante originales'],
+  ['commercial.public_crm_consent_e2e', 'CRM público con política vigente y recibo de consentimiento privado'],
+  ['commercial.consignment_private_photo_e2e', 'Consignación y fotografías privadas E2E después de G07'],
+  ['deployment.production_smoke_verified', 'Dominio oficial, rutas canónicas, acceso privado y móvil verificados tras despliegue'],
+  ['deployment.rollback_rehearsed', 'Simulacro reproducible de reversión y recuperación sin alterar datos reales'],
 ];
+
+// Two separate legal owners/brands must be verified against the exact PDF
+// bytes actually published on the canonical HTTPS domain. Boolean flags alone
+// must never turn unsigned draft policies into launch approval.
+const REQUIRED_POLICY_URLS = new Map([
+  ['sistema-inmobiliario-jco', 'https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf'],
+  ['jco-inmodigital-global', 'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf'],
+]);
+function checkSignedPolicyEvidence(legal, now, errors) {
+  const policies=legal?.policies;
+  if (!Array.isArray(policies) || policies.length!==REQUIRED_POLICY_URLS.size) {
+    errors.push('Faltan las dos políticas jurídicas aprobadas y firmadas de las inmobiliarias.');
+    return;
+  }
+  const seen=new Set();
+  for(const policy of policies){
+    const slug=policy?.slug;
+    const target=REQUIRED_POLICY_URLS.get(slug);
+    if(!target || seen.has(slug)){
+      errors.push('Política jurídica duplicada o perteneciente a inmobiliaria desconocida.');
+      continue;
+    }
+    seen.add(slug);
+    if(policy.url!==target ||
+      !SHA256.test(policy.sha256??'') ||
+      typeof policy.version!=='string' || !/^[a-zA-Z0-9._-]{1,80}$/.test(policy.version) ||
+      policy.signed_adoption_act!==true ||
+      policy.pdf_sha256_matches_published_bytes!==true ||
+      !recentTimestamp(policy.pdf_verified_at,now,168) ||
+      typeof policy.approved_at!=='string' ||
+      !Number.isFinite(Date.parse(policy.approved_at)) ||
+      Date.parse(policy.approved_at)>now.getTime()+600000){
+      errors.push('Política de '+slug+': faltan acta firmada, versión, PDF HTTPS/hash auténtico o verificación reciente.');
+    }
+  }
+  for(const slug of REQUIRED_POLICY_URLS.keys()){
+    if(!seen.has(slug))errors.push('Falta la política específica de '+slug+'.');
+  }
+}
 
 function get(obj, path) {
   return path.split('.').reduce((current, key) => current && current[key], obj);
@@ -101,6 +152,11 @@ export function evaluateReleaseReadiness(evidence, {
     if (e.commercial?.approved_order_status !== 'APPROVED' ||
         e.commercial?.approved_fulfillment_status !== 'APPLIED')
       errors.push('Falta orden de producción APPROVED/APPLIED verificable.');
+    checkSignedPolicyEvidence(e.legal,now,errors);
+    if(e.legal?.consumer_terms_approved!==true ||
+       e.legal?.buyer_acceptance_verified!==true){
+      errors.push('Faltan condiciones comerciales aprobadas y aceptación válida del comprador.');
+    }
     for (const [key, description] of commercialChecks) {
       if (get(e, key) !== true) errors.push('Falta evidencia comercial: ' + description + '.');
     }
