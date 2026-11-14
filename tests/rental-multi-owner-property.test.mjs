@@ -17,7 +17,8 @@ test('one owner can own many different properties without duplicate owner or inv
   assert.equal(new Set(links.map(row=>row.owner_id)).size,1);
   assert.equal(new Set(links.map(row=>row.property_id)).size,3);
   assert.equal(automaticOwnerId(links.filter(link=>link.property_id==='property-2')),'owner-1');
-  assert.match(wizard,/\.eq\('owner_id',ownerId\)/);\n  assert.match(wizard,/\.order\('property_id'\)\.range\(from,to\)/);
+  assert.match(wizard,/\.eq\('owner_id',ownerId\)/);
+  assert.match(wizard,/\.order\('property_id'\)\.range\(from,to\)/);
   assert.match(wizard,/\.in\('id',group\)/);
   assert.match(wizard,/linkedProperties\.map\(item=>/);
   assert.match(wizard,/Elegir inmueble/);
