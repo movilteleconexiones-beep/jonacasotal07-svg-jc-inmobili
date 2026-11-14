@@ -39,6 +39,10 @@ test('G16 local Vite never receives service-role key, production URLs, payments 
  assert.match(runtime,/VITE_PUBLIC_CRM_IDEMPOTENT:'false'/);
  assert.match(runtime,/--host','127\.0\.0\.1'/);
  assert.match(runtime,/--strictPort/);
+ assert.match(runtime,/publishedJs\.includes\(CLONE\)/);
+ assert.match(runtime,/!publishedJs\.includes\('cuitgyqrjibgwuniapmk'\)/);
+ assert.match(runtime,/!publishedJs\.includes\(env\.JCO_QA96_SECRET_KEY\)/);
+ assert.match(runtime,/assert\.equal\(served,expectedHtml/);
  assert.match(runtime,/JCO_QA96_RUN_BROWSER,'1'/);
  assert.match(runtime,/preview\.kill\('SIGTERM'\)/);
  assert.doesNotMatch(runtime,/VITE_SUPABASE_SERVICE_ROLE|VITE_WOMPI_PROD|VITE_SUPABASE_SECRET_KEY/);
