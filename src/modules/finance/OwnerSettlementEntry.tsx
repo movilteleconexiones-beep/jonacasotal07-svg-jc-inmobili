@@ -5,6 +5,7 @@ import { parseMoneyInput } from '../../core/rent-owner-money';
 import { commissionValueFromRate, parseCommissionPercentage } from '../../core/commission-percentage';
 import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
+import { readCompletePages } from '../../lib/tenant-pagination';
 
 interface Lease {id:string;owner_id:string|null;property_id:string;contract_number:string|null;status:string}
 interface PropertyOwnership {property_id:string;owner_id:string;ownership_percentage:number;is_primary:boolean}
@@ -34,30 +35,34 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
     setLeases([]);setPayments([]);setOwnerships([]);setLeaseId('');setMessage('');setLoading(true);
     void(async()=>{
       try {
-        const [l,p]=await Promise.all([
-          supabase.from('leases').select('id,owner_id,property_id,contract_number,status').eq('organization_id',organizationId).limit(501),
-          supabase.from('rent_payments').select('lease_id,period_month,paid_amount,status').eq('organization_id',organizationId).limit(501),
+        const [leases,monthlyPayments]=await Promise.all([
+          readCompletePages((from,to)=>supabase.from('leases')
+            .select('id,owner_id,property_id,contract_number,status',{count:'exact'})
+            .eq('organization_id',organizationId).order('id').range(from,to),
+            {maxRows:20000,key:row=>row.id}),
+          readCompletePages((from,to)=>supabase.from('rent_payments')
+            .select('id,lease_id,period_month,paid_amount,status',{count:'exact'})
+            .eq('organization_id',organizationId).eq('period_month',period+'-01')
+            .order('id').range(from,to),{maxRows:10000,key:row=>row.id}),
         ]);
         if(cancelled)return;
-        if(l.error||p.error||(l.data?.length??0)>500||(p.data?.length??0)>500)
-          setMessage('No se pudieron consultar todos los contratos y pagos de esta inmobiliaria.');
-        else {
-          const leaseRows=(l.data??[]) as Lease[];
-          const ids=[...new Set(leaseRows.map(row=>row.property_id))];
-          const shares=ids.length
-            ?await supabase.from('property_ownerships')
-              .select('property_id,owner_id,ownership_percentage,is_primary')
-              .in('property_id',ids).limit(501)
-            :{data:[] as PropertyOwnership[],error:null};
+        const ids=[...new Set(leases.map(row=>row.property_id))];
+        const shares:PropertyOwnership[]=[];
+        // 75 UUIDs per query avoids very long .in() URLs when a PRO agency
+        // owns thousands of homes. No foreign-tenant rows can enter a result:
+        // every property is first resolved under this organization.
+        for(let offset=0;offset<ids.length;offset+=75){
+          const group=ids.slice(offset,offset+75);
+          const page=await readCompletePages((from,to)=>supabase.from('property_ownerships')
+            .select('property_id,owner_id,ownership_percentage,is_primary',{count:'exact'})
+            .in('property_id',group).order('property_id').order('owner_id').range(from,to),
+            {maxRows:10000,key:row=>row.property_id+':'+row.owner_id});
           if(cancelled)return;
-          if(shares.error||(shares.data?.length??0)>500) {
-            setMessage('No se pudo verificar el reparto de propietarios. No crees liquidaciones sin validar las participaciones.');
-          } else {
-            setOwnerships((shares.data??[]) as PropertyOwnership[]);
-            setLeases(leaseRows);
-            setPayments((p.data??[]) as ReceiptPeriod[]);
-          }
+          shares.push(...(page as PropertyOwnership[]));
         }
+        setOwnerships(shares);
+        setLeases(leases as Lease[]);
+        setPayments(monthlyPayments as ReceiptPeriod[]);
       } catch {
         if(!cancelled) setMessage('Falló la conexión al consultar contratos y pagos. Reintenta ingresar al módulo.');
       } finally {
@@ -65,7 +70,7 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
       }
     })();
     return()=>{cancelled=true;};
-  },[organizationId,revision]);
+  },[organizationId,revision,period]);
 
   const available=leases.filter(x=>x.owner_id&&['ACTIVE','RENEWAL','FINISHED'].includes(x.status));
   const gross=payments.filter(x=>x.lease_id===leaseId&&String(x.period_month).slice(0,7)===period&&x.status!=='CANCELLED')
@@ -84,7 +89,7 @@ export function OwnerSettlementEntry({organizationId}:{organizationId:string}){
   const net=Number.isFinite(totalDeduction)?gross-totalDeduction:NaN;
   async function save(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!permitted||busy||settlementInFlight.current||!organizationId)return;
+    if(!permitted||loading||busy||settlementInFlight.current||!organizationId)return;
     const selected=available.find(x=>x.id===leaseId);
     if(!selected?.owner_id||!sharesValid||!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)||
        !Number.isFinite(gross)||gross<0||!Number.isFinite(commissionPercentage)||!Number.isFinite(net)||net<0){
