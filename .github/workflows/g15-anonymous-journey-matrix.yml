@@ -1,0 +1,32 @@
+name: G15 all published anonymous journeys (safe)
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g15-all-public-and-locked-private-journeys.test.mjs'
+      - '.github/workflows/g15-anonymous-journey-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g15-published-journeys-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium-journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser and dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify public catalog, tenant boundaries and locked private navigation at 4 form factors
+        run: node --test tests/g15-all-public-and-locked-private-journeys.test.mjs
