@@ -66,11 +66,16 @@ async function checkViewport(page,label){
  }));
  if(widths.scroll>widths.viewport+12){
   const offenders=await page.evaluate(()=>[...document.querySelectorAll('body *')]
-   .map(el=>{const r=el.getBoundingClientRect();return {
-    tag:el.tagName.toLowerCase(),id:el.id||'',right:Math.round(r.right),
-    width:Math.round(r.width),position:getComputedStyle(el).position}})
-   .filter(v=>v.width>0&&v.right>document.documentElement.clientWidth+12)
-   .sort((a,b)=>b.right-a.right).slice(0,10));
+   .map(el=>{const r=el.getBoundingClientRect();const st=getComputedStyle(el);return {
+    tag:el.tagName.toLowerCase(),id:el.id||'',
+    cls:typeof el.className==='string'?el.className.slice(0,85):'',
+    right:Math.round(r.right),left:Math.round(r.left),
+    width:Math.round(r.width),scroll:el.scrollWidth,client:el.clientWidth,
+    overflowX:st.overflowX,position:st.position}})
+   .filter(v=>v.width>0&&(v.right>document.documentElement.clientWidth+8||
+     v.scroll>v.client+10 && v.client>0))
+   .sort((a,b)=>(b.scroll-b.client)-(a.scroll-a.client))
+   .slice(0,25));
   console.log('G15_GEOMETRY '+JSON.stringify({label,widths,offenders}));
  }
  assert.ok(widths.scroll<=widths.viewport+12,
@@ -177,16 +182,31 @@ test('G15 all public paths / 4 form factors / access guards (no PII submissions)
    await t.test(device.name+' does not retain visitor PII when changing tenants in same context',async()=>{
     await fixture(browser,device,async(page,trace)=>{
      await publicPortal(page,'/inmobiliaria/'+TENANTS[0]);
-     await page.locator('#c-name').waitFor({state:'visible',timeout:TIMEOUT});
-     // Fictitious, never submitted, never sent to provider.
-     await page.locator('#c-name').fill('QA NOMBRE FICTICIO');
-     await page.locator('#c-email').fill('qa@example.invalid');
-     await page.locator('#c-phone').fill('3000000000');
-     await page.locator('#c-notes').fill('QA SOLO EN MEMORIA DEL NAVEGADOR');
-     await publicPortal(page,'/inmobiliaria/'+TENANTS[1]);
-     for(const selector of ['#c-name','#c-email','#c-phone','#c-notes']){
-       assert.equal(await page.locator(selector).inputValue(),'',
-        selector+': input data carried to another tenant');
+     const form=page.locator('#c-name');
+     if(await form.count()){
+       // Fictitious, never submitted. A tenant with a lawful inbox may show
+       // the local-only preparation form; ensure it resets on tenant change.
+       await form.fill('QA NOMBRE FICTICIO');
+       await page.locator('#c-email').fill('qa@example.invalid');
+       await page.locator('#c-phone').fill('3000000000');
+       await page.locator('#c-notes').fill('QA SOLO EN MEMORIA DEL NAVEGADOR');
+       await publicPortal(page,'/inmobiliaria/'+TENANTS[1]);
+       for(const selector of ['#c-name','#c-email','#c-phone','#c-notes']){
+         if(await page.locator(selector).count()){
+           assert.equal(await page.locator(selector).inputValue(),'',
+             selector+': input data carried to another tenant');
+         }
+       }
+     } else {
+       // Both live agencies lack signed privacy policies and a valid contact
+       // fallback, so the page must NOT render inputs that collect visitor PII.
+       await page.getByText('Contacto temporalmente no disponible',{exact:true})
+        .waitFor({state:'visible',timeout:TIMEOUT});
+       await publicPortal(page,'/inmobiliaria/'+TENANTS[1]);
+       await page.getByText('Contacto temporalmente no disponible',{exact:true})
+        .waitFor({state:'visible',timeout:TIMEOUT});
+       assert.equal(await page.locator('#c-name,#c-email,#c-phone,#c-notes').count(),0,
+         'Unapproved agency rendered fields for personally identifying data');
      }
      checkClean(trace,'tenant data isolation');
      console.log('G15_TENANT_PII_CLEAR '+device.name);
