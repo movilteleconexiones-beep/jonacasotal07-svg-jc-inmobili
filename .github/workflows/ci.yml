@@ -562,6 +562,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_fixture.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f supabase/migrations/20261018162000_strict_private_property_read_boundary.sql
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
+      - name: G15 mobile catalog category filter responsive contract
+        run: node --test tests/g15-mobile-catalog-categories-contract.test.mjs
       - name: G14 block cross-tenant role grants and preserve valid agency roles
         run: node --test tests/g14-member-role-tenant-boundary.test.mjs
       - name: G13 last-owner, member-identity and system-role database safety contract

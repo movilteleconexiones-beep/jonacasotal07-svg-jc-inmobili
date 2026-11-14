@@ -660,7 +660,7 @@ export default function App() {
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Category filter buttons */}
-              <div className="inline-flex items-center p-1 bg-stone-200/70 rounded-lg">
+              <div className="inline-flex max-w-full min-w-0 flex-wrap items-center gap-1 p-1 bg-stone-200/70 rounded-lg sm:flex-nowrap sm:gap-0">
                 {(['Todas', 'Residencial', 'Departamento', 'Comercial y Terreno'] as const).map((cat) => (
                   <button
                     key={cat}
