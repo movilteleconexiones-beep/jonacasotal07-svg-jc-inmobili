@@ -27,6 +27,8 @@ test('G13 is atomic and never grants tenant privileges or changes financial data
  assert.match(sql,/^COMMIT;\s*$/m);
  assert.match(sql,/SET LOCAL lock_timeout='3s'/);
  assert.match(sql,/SET LOCAL statement_timeout='30s'/);
+ assert.match(sql,/current_user<>'postgres'/);
+ assert.match(sql,/REVOKE ALL ON FUNCTION jco_private\.guard_protected_membership_mutations\(\)/);
  assert.equal((sql.match(/^CREATE TRIGGER /gm)||[]).length,3);
  assert.doesNotMatch(sql,/\b(?:GRANT|INSERT INTO|UPDATE public\.|DELETE FROM|TRUNCATE|CREATE POLICY|ALTER TABLE)\b/i);
 });
