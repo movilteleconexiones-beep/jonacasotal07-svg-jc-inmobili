@@ -19,6 +19,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cleanupQaAccounts } from './finance96-cleanup.mjs';
 import { addTemporaryQaMember } from './finance96-membership.mjs';
 import {createQaReceiptFixture,cleanupQaReceiptFixtures} from './finance96-pdf-fixtures.mjs';
+import {runProtectedQaBrowser} from './finance96-browser-runtime.mjs';
 
 const CLONE_ORIGIN = 'https://zjgstfgiirgjssnihaam.supabase.co';
 const PRIMARY_SLUG = 'sistema-inmobiliario-jco';
@@ -201,6 +202,12 @@ async function main() {
       });
     }
     await spawnAcceptance(env);
+    // Optional UI continuation while the five REAL JWT accounts are alive.
+    // Failure propagates through the existing finally cleanup; never run it
+    // after accounts are deleted or against production.
+    if(process.env.JCO_QA96_RUN_BROWSER==='1'){
+      await runProtectedQaBrowser(env);
+    }
     console.log('QA96 CERTIFICATION: real Auth/PostgREST/Storage checks completed');
   } catch (e) {
     error=e;
