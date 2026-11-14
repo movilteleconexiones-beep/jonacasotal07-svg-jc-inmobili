@@ -184,7 +184,7 @@ test('G17: verify identity, document hash, signed act and canonical URL for each
   // The other commercial gates remain missing in this unit; focus only on
   // whether legal evidence is rejected independently.
   const legalErrors=e=>readiness(e,{phase:'commercial'}).errors.filter(
-    msg=>/Política|política|condiciones comerciales/.test(msg));
+    msg=>/^Política de |^Falta la política específica|^Faltan las dos políticas jurídicas|^Faltan condiciones comerciales/.test(msg));
   assert.deepEqual(legalErrors(src),[]);
   const missing=structuredClone(src);missing.legal.policies.pop();
   assert.ok(legalErrors(missing).length>0,'One signed tenant is not both signed tenants');
