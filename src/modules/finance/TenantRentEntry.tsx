@@ -5,6 +5,7 @@ import { parseMoneyInput } from '../../core/rent-owner-money';
 import { rentalCanonDifference, rentalCanonWarning } from '../../core/rental-canon-reference';
 import { localMonthISO } from '../../core/local-calendar';
 import { supabase } from '../../lib/supabase';
+import { readCompletePages } from '../../lib/tenant-pagination';
 import { SignedLeaseDocuments } from './SignedLeaseDocuments';
 import { canPrepareRental } from '../../core/rental-owner-selection';
 import {
@@ -69,28 +70,41 @@ export function TenantRentEntry({organizationId,mode='STANDARD',preferredPropert
     void(async()=>{
       try {
         const [p,t,o,l,r]=await Promise.all([
-          supabase.from('properties').select('id,code,title,price,operation_type').eq('organization_id',organizationId).limit(501),
-          supabase.from('contacts').select('id,first_name,last_name').eq('organization_id',organizationId).limit(501),
-          supabase.from('property_owners').select('id,first_name,last_name').eq('organization_id',organizationId).eq('agency_status','ACTIVE').limit(501),
-          supabase.from('leases').select('id,contract_number,monthly_rent,status,property_id,tenant_id,owner_id,start_date,end_date').eq('organization_id',organizationId).limit(501),
-          canReadRent ? supabase.from('rent_payments').select('id,lease_id,period_month,expected_amount,paid_amount,status')
-            .eq('organization_id',organizationId).limit(501)
-            : Promise.resolve({data:[] as Period[],error:null}),
+          readCompletePages((from,to)=>supabase.from('properties')
+            .select('id,code,title,price,operation_type',{count:'exact'})
+            .eq('organization_id',organizationId).order('id').range(from,to),
+            {maxRows:5000,key:row=>row.id}),
+          readCompletePages((from,to)=>supabase.from('contacts')
+            .select('id,first_name,last_name',{count:'exact'})
+            .eq('organization_id',organizationId).order('id').range(from,to),
+            {maxRows:20000,key:row=>row.id}),
+          readCompletePages((from,to)=>supabase.from('property_owners')
+            .select('id,first_name,last_name',{count:'exact'})
+            .eq('organization_id',organizationId).eq('agency_status','ACTIVE')
+            .order('id').range(from,to),
+            {maxRows:20000,key:row=>row.id}),
+          readCompletePages((from,to)=>supabase.from('leases')
+            .select('id,contract_number,monthly_rent,status,property_id,tenant_id,owner_id,start_date,end_date',{count:'exact'})
+            .eq('organization_id',organizationId).order('id').range(from,to),
+            {maxRows:20000,key:row=>row.id}),
+          canReadRent ? readCompletePages((from,to)=>supabase.from('rent_payments')
+            .select('id,lease_id,period_month,expected_amount,paid_amount,status',{count:'exact'})
+            .eq('organization_id',organizationId).neq('status','PAID').neq('status','CANCELLED')
+            .order('id').range(from,to),{maxRows:30000,key:row=>row.id})
+            : Promise.resolve([] as Period[]),
         ]);
         if(cancelled)return;
-        if(p.error||t.error||o.error||l.error||r.error||[p,t,o,l,r].some(x=>(x.data?.length??0)>500))
-          throw Error('No se pudieron cargar todos los registros autorizados. Revisa permisos y volumen.');
-        setProperties((p.data??[]).map(x=>({id:x.id,label:[x.code,x.title].filter(Boolean).join(' · '),
+        setProperties(p.map(x=>({id:x.id,label:[x.code,x.title].filter(Boolean).join(' · '),
           price:x.price==null?null:Number(x.price),operation_type:x.operation_type})));
-        setTenants((t.data??[]).map(x=>({id:x.id,label:[x.first_name,x.last_name].filter(Boolean).join(' ')})));
-        setOwners((o.data??[]).map(x=>({id:x.id,label:[x.first_name,x.last_name].filter(Boolean).join(' ')})));
-        setLeases((l.data??[]) as Lease[]);
-        setPeriods((r.data??[]) as Period[]);
+        setTenants(t.map(x=>({id:x.id,label:[x.first_name,x.last_name].filter(Boolean).join(' ')})));
+        setOwners(o.map(x=>({id:x.id,label:[x.first_name,x.last_name].filter(Boolean).join(' ')})));
+        setLeases(l as Lease[]);
+        setPeriods(r as Period[]);
       }catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Error consultando registros.');}
       finally{if(!cancelled)setLoading(false);}
     })();
     return()=>{cancelled=true;};
-  },[organizationId,revision]);
+  },[organizationId,revision,canReadRent]);
 
   const newProperty=properties.find(p=>p.id===newPropertyId);
   const newCanonMismatch=rentalCanonDifference(
