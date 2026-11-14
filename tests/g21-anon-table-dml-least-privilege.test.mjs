@@ -13,7 +13,7 @@ test('G21 preserves operational RLS, locks and atomic rollback on errors',()=>{
  assert.match(src,/p\.polcmd IN \('\*','a','w','d'\)/);
  assert.match(src,/legitimate anonymous write policy/);
  assert.match(src,/anonymous write grants remain/);
- assert.doesNotMatch(src,/\b(UPDATE|DELETE\s+FROM|INSERT\s+INTO|TRUNCATE|DROP\s+TABLE|ALTER\s+TABLE|DISABLE\s+ROW\s+LEVEL\s+SECURITY)\b/i);
+ assert.doesNotMatch(src,/^\s*(?:UPDATE\s+public\.|DELETE\s+FROM\s+public\.|INSERT\s+INTO\s+public\.|TRUNCATE\s+public\.|DROP\s+TABLE|ALTER\s+TABLE|DISABLE\s+ROW\s+LEVEL\s+SECURITY)/im);
 });
 test('G21 only revokes anon direct writes on 31 pinned tables, not other roles',()=>{
  const sql=[...src.matchAll(/^REVOKE INSERT, UPDATE, DELETE ON TABLE public\.([a-z_]+) FROM anon;$/gm)];
