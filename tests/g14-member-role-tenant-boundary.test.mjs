@@ -37,5 +37,5 @@ test('G14 clone QA checks allow same-tenant changes but reject cross-tenant inse
  assert.match(fixture,/UPDATE public\.member_roles SET role_id=v_foreign_role/);
  assert.match(fixture,/WHEN check_violation THEN/g);
  assert.match(fixture,/v_pass<>5/);
- assert.match(fixture,/v_pass:=v_pass\\+1/);
+ assert.match(fixture,/v_pass:=v_pass\+1/);
 });
