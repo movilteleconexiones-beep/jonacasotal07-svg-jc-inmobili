@@ -58,21 +58,35 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
     const page=await context.newPage();
     const violations=[],uncaught=[];
     page.on('pageerror',e=>uncaught.push(e.name));
-    page.on('request',req=>{
-      try{
-       const u=new URL(req.url());
-       if(u.hostname.endsWith('.supabase.co')&&u.origin!==CLONE)violations.push('Unexpected Supabase host');
-       if(req.method()!=='GET'&&req.method()!=='OPTIONS'){
-         const protectedRoutes=[
-           '/rpc/billing_admin_action','/rpc/platform_set_subscription',
-           '/rpc/process_verified_payment_event','/rpc/admin_record_owner_payout',
-           '/rpc/record_tenant_rent_receipt','/rpc/submit_public_website_lead',
-           '/functions/v1/wompi','/storage/v1/object/',
-         ];
-         if(protectedRoutes.some(route=>u.pathname.includes(route)))
-           violations.push('Forbidden mutation '+u.pathname.slice(0,90));
-       }
-      }catch{violations.push('Invalid request URL');}
+    // Abort any unexpected request BEFORE it leaves the QA browser. A passive
+    // request observer notices exfiltration only after it may have happened.
+    // This QA preview deliberately allows only localhost and the CLONE API.
+    // No production, tracking/telemetry, payment gateway or third-party host.
+    await context.route('**/*',route=>{
+      const req=route.request();
+      let u;
+      try{u=new URL(req.url());}
+      catch{
+        violations.push('Invalid request URL');
+        return route.abort('blockedbyclient');
+      }
+      if(u.origin!==LOCAL && u.origin!==CLONE){
+        violations.push('Blocked unexpected network origin');
+        return route.abort('blockedbyclient');
+      }
+      if(u.origin===CLONE && req.method()!=='GET' && req.method()!=='OPTIONS'){
+        const protectedRoutes=[
+          '/rpc/billing_admin_action','/rpc/platform_set_subscription',
+          '/rpc/process_verified_payment_event','/rpc/admin_record_owner_payout',
+          '/rpc/record_tenant_rent_receipt','/rpc/submit_public_website_lead',
+          '/functions/v1/wompi','/storage/v1/object/',
+        ];
+        if(protectedRoutes.some(path=>u.pathname.includes(path))){
+          violations.push('Forbidden mutation '+u.pathname.slice(0,90));
+          return route.abort('blockedbyclient');
+        }
+      }
+      return route.continue();
     });
     try{
      const email=requireEnv('JCO_QA96_'+suffix+'_EMAIL');
