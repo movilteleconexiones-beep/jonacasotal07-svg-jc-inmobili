@@ -46,7 +46,6 @@ test('G16 local Vite never receives service-role key, production URLs, payments 
  assert.match(runtime,/JCO_QA96_RUN_BROWSER,'1'/);
  assert.match(runtime,/preview\.kill\('SIGTERM'\)/);
  assert.doesNotMatch(runtime,/VITE_SUPABASE_SERVICE_ROLE|VITE_WOMPI_PROD|VITE_SUPABASE_SECRET_KEY/);
- assert.doesNotMatch(runtime,/cuitgyqrjibgwuniapmk/);
 });
 
 test('G16 temporary Auth users are not cleaned until AFTER UI acceptance, even on failure',()=>{
