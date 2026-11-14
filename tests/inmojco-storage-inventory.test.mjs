@@ -1,4 +1,11 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {chmodSync,mkdirSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {
+  validateStorageManifest,assertExactStorageCoverage,verifyRestoredStorageBytes,
+} from '../scripts/ops/verify-restored-storage-binaries.mjs';
 import { test } from 'node:test';
 import {
   parseStorageInventory, verifyStorageCoverage, readStorageInventory,
@@ -99,4 +106,71 @@ test('actual PostgreSQL 17 metadata inventory can be read without returning raw 
     {bucket:'jco-inventory-private',path:'apt/fixture.png'},
   ],['organization-documents','jco-inventory-private']);
   assert.equal(checks.objects,2);
+});
+
+
+test('G18 restored binaries: verify original disk SHA-256 against every HTTPS clone byte',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'jco-g18-test-'));
+ const file=join(root,'storage','jco-inventory-private','sample.png');
+ const bytes=Buffer.from([137,80,78,71,13,10,26,10,0,1,2,3]);
+ const sha256=createHash('sha256').update(bytes).digest('hex');
+ try{
+  chmodSync(root,0o700);
+  mkdirSync(join(root,'storage','jco-inventory-private'),{recursive:true,mode:0o700});
+  writeFileSync(file,bytes,{mode:0o600});
+  const manifest=[{bucket:'jco-inventory-private',path:'sample.png',bytes:bytes.length,sha256}];
+  const fetchMock=async(url,options)=>{
+   const pathname=new URL(url).pathname;
+   assert.equal(new URL(url).origin,'https://zjgstfgiirgjssnihaam.supabase.co');
+   assert.equal(options.redirect,'error');
+   assert.equal(options.headers.apikey,'fixture-not-a-real-key');
+   if(pathname.endsWith('/storage/v1/bucket'))
+    return new Response(JSON.stringify([{id:'jco-inventory-private'}]),{status:200});
+   if(pathname.includes('/storage/v1/object/list/'))
+    return new Response(JSON.stringify([{name:'sample.png',id:'fake-object'}]),{status:200});
+   if(pathname.includes('/storage/v1/object/authenticated/'))
+    return new Response(bytes,{status:200});
+   throw Error('Unrecognized fixture endpoint');
+  };
+  const args={root,manifest,origin:'https://zjgstfgiirgjssnihaam.supabase.co',
+   secret:'fixture-not-a-real-key',fetchImpl:fetchMock};
+  const result=await verifyRestoredStorageBytes(args);
+  assert.deepEqual(result,{objects:1,buckets:1,verifiedBytes:bytes.length});
+  assert.equal(validateStorageManifest(manifest).length,1);
+  assert.equal(assertExactStorageCoverage(manifest,
+   new Set(['jco-inventory-private\0sample.png'])),true);
+
+  await assert.rejects(()=>verifyRestoredStorageBytes({...args,
+    origin:'https://cuitgyqrjibgwuniapmk.supabase.co'}),/lanzamiento bloqueado/);
+  const forged=structuredClone(manifest);forged[0].sha256='f'.repeat(64);
+  await assert.rejects(()=>verifyRestoredStorageBytes({...args,manifest:forged}),/lanzamiento bloqueado/);
+  const altered=async(url,opts)=>{
+   if(new URL(url).pathname.includes('/object/authenticated/'))
+    return new Response(Buffer.from([1,2,3]),{status:200});
+   return fetchMock(url,opts);
+  };
+  await assert.rejects(()=>verifyRestoredStorageBytes({...args,fetchImpl:altered}),
+    /lanzamiento bloqueado/);
+  const extra=async(url,opts)=>{
+   if(new URL(url).pathname.includes('/object/list/'))
+    return new Response(JSON.stringify([
+      {name:'sample.png',id:'fixture-one'},
+      {name:'untracked.pdf',id:'fixture-two'}]),{status:200});
+   return fetchMock(url,opts);
+  };
+  await assert.rejects(()=>verifyRestoredStorageBytes({...args,fetchImpl:extra}),
+    /lanzamiento bloqueado/);
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test('G18 manifest rejects traversal, duplicates, size drift, unauthenticated restores',()=>{
+ const entry={bucket:'organization-documents',path:'signed/lease.pdf',bytes:100,
+  sha256:'a'.repeat(64)};
+ for(const path of ['../lease.pdf','signed//lease.pdf','./lease.pdf','signed\\lease.pdf']){
+  assert.throws(()=>validateStorageManifest([{...entry,path}]),/lanzamiento bloqueado/);
+ }
+ assert.throws(()=>validateStorageManifest([entry,entry]),/lanzamiento bloqueado/);
+ assert.throws(()=>validateStorageManifest([{...entry,bytes:0}]),/lanzamiento bloqueado/);
+ assert.throws(()=>validateStorageManifest([{...entry,sha256:'not-sha'}]),/lanzamiento bloqueado/);
+ assert.throws(()=>assertExactStorageCoverage([entry],new Set()),/lanzamiento bloqueado/);
 });
