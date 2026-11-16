@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
 
-const sql=readFileSync(new URL('../security/candidates/g23_cursor_catalog_REVIEW_ONLY.sql',import.meta.url),'utf8');
+const sql=readFileSync(new URL('../supabase/migrations/20261116052914_g23_public_catalog_keyset_pages.sql',import.meta.url),'utf8');
 const hook=readFileSync(new URL('../src/core/use-public-tenant-catalog.ts',import.meta.url),'utf8');
 const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
 
