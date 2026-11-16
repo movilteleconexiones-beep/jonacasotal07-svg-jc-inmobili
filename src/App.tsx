@@ -590,7 +590,7 @@ export default function App() {
               {tenantSlug && page.showCatalog && (
                 <div className="border-y border-white/15 py-4">
                   <p className="text-3xl font-semibold">{properties.length}</p>
-                  <p className="text-sm text-stone-300">Inmuebles publicados por {publicCompanyName}</p>
+                  <p className="text-sm text-stone-300">{publicCatalog.complete ? 'Inmuebles publicados' : 'Inmuebles cargados (catálogo aún en verificación)'} por {publicCompanyName}</p>
                 </div>
               )}
             </div>
@@ -637,7 +637,7 @@ export default function App() {
                     href="#catalogo"
                     className="w-full py-2.5 px-4 bg-[var(--tenant-primary)] hover:brightness-110 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
                   >
-                    <span>Ver ({filteredProperties.length})</span>
+                    <span>Ver ({filteredProperties.length}{publicCatalog.loadingMore ? '+' : ''})</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </a>
                 </div>
@@ -699,6 +699,14 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          {tenantSlug && (publicCatalog.loadingMore || publicCatalog.error) && (
+            <p role="status" className="mb-6 rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-slate-700">
+              {publicCatalog.loadingMore
+                ? `Cargando inventario completo de ${publicCompanyName}: ${properties.length} inmuebles revisados. Los filtros se actualizarán al terminar.`
+                : publicCatalog.error}
+            </p>
+          )}
 
           {/* Side-by-Side Comparison Bar & Table when properties are selected for comparison */}
           {comparedProperties.length > 0 && (
@@ -774,7 +782,7 @@ export default function App() {
                 No se encontraron propiedades con los filtros seleccionados.
               </p>
               <p className="text-xs text-stone-500 max-w-md mx-auto">
-                {publicCatalog.loading ? 'Consultando inventario…' : publicCatalog.error || 'Esta inmobiliaria aún no tiene inmuebles publicados con esos criterios.'}
+                {publicCatalog.loading || publicCatalog.loadingMore ? 'Consultando inventario completo…' : publicCatalog.error || 'Esta inmobiliaria aún no tiene inmuebles publicados con esos criterios.'}
               </p>
               <button
                 type="button"

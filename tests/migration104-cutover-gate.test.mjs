@@ -21,7 +21,8 @@ const inputs={
 test('#104 DRAFT cutover pins all 99 original applied SQL bodies and preserves 109 sources',()=>{
   const result=inspectCutover();
   assert.equal(result.ok,true,JSON.stringify(result.errors));
-  assert.equal(result.canonicalCount,105);
+  assert.equal(result.canonicalCount,106);
+  assert.equal(result.verifiedLater,1);
   assert.equal(result.archivedSources,109);
   assert.equal(result.matchedRecordedSql,99);
   assert.equal(result.verifiedForward,6);
@@ -41,6 +42,10 @@ test('#104 DRAFT cutover rejects altered canonical SQL and lost historical sourc
   const badCapacity=checkCutover({...inputs,getCanonical:n=>n===capacity?Buffer.from('SELECT 1;'):inputs.getCanonical(n)});
   assert.equal(badCapacity.ok,false);
   assert.match(badCapacity.errors.join(';'),/forward migration differs/);
+  const newer='20261116052914_g23_public_catalog_keyset_pages.sql';
+  const tamperedNewer=checkCutover({...inputs,getCanonical:n=>n===newer?Buffer.from('SELECT 1;'):inputs.getCanonical(n)});
+  assert.equal(tamperedNewer.ok,false);
+  assert.match(tamperedNewer.errors.join(';'),/Approved later migration SQL hash drift/);
   const missing=checkCutover({...inputs,legacyFiles:inputs.legacyFiles.filter(n=>!n.endsWith('.sql'))});
   assert.equal(missing.ok,false);
   assert.match(missing.errors.join(';'),/archive incomplete/);

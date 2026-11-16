@@ -22,6 +22,12 @@ const forwards=Object.freeze([
   {name:'20261107124207_optional_eight_day_trial_release_gated.sql',sha:'135ff4e7593255a214223daeb5f4690bf1b51dcf'},
   {name:'20261107133623_scope_maintenance_property_to_tenant.sql',sha:'0bf9a164f518702702879852b5fc70322cda6f9c'},
 ]);
+// New production forwards must be explicitly pinned; the original 99 + six Nov-7
+// migrations and 108-file historical staging bootstrap remain immutable.
+const laterApplied = Object.freeze([
+  {name:'20261116052914_g23_public_catalog_keyset_pages.sql',
+   sha:'3778f9b13249c7bd364baea8bdf3f7424b18b4b8'},
+]);
 
 export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFiles,getCanonical,getLegacy}) {
   const errors=[];
@@ -31,17 +37,23 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
      archives.files.length!==109 || !Array.isArray(canonicalFiles) || !Array.isArray(legacyFiles))
     return {ok:false,safeToPush:false,errors:['Unreviewed or incomplete migration input']};
   const reference=manifest.records.map(r=>r.version+'_'+r.appliedName+'.sql');
-  const permitted=new Set([...reference,...forwards.map(x=>x.name)]);
+  const permitted=new Set([...reference,...forwards.map(x=>x.name),...laterApplied.map(x=>x.name)]);
   const canonicalNames=canonicalFiles.filter(n=>n.endsWith('.sql')).sort();
   const legacyNames=legacyFiles.filter(n=>n.endsWith('.sql')).sort();
-  if(canonicalNames.length!==105 || permitted.size!==105 ||
+  if(canonicalNames.length!==106 || permitted.size!==106 ||
      JSON.stringify(canonicalNames)!==JSON.stringify([...permitted].sort()))
-    errors.push('Canonical file names differ from 99 historical + 6 pinned forward migrations');
+    errors.push('Canonical file names differ from 99 historical + 6 pinned forward + 1 separately approved migration');
   for(const forward of forwards){
     try {
       if(gitBlobSha(getCanonical(forward.name))!==forward.sha)
         errors.push('Verified forward migration differs from applied SQL: '+forward.name);
     } catch { errors.push('Missing verified forward migration: '+forward.name); }
+  }
+  for(const row of laterApplied){
+    try {
+      if(gitBlobSha(getCanonical(row.name))!==row.sha)
+        errors.push('Approved later migration SQL hash drift: '+row.name);
+    } catch { errors.push('Missing approved later migration: '+row.name); }
   }
   const archivedNames=archives.files.map(x=>x.name).sort();
   if(legacyNames.length!==109 || new Set(archivedNames).size!==109 ||
@@ -78,6 +90,7 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
   return {ok:errors.length===0,safeToPush:false,safeToRepair:false,
     readyToMerge:false,canonicalCount:canonicalNames.length,
     archivedSources:legacyNames.length,matchedRecordedSql:99,verifiedForward:6,
+    verifiedLater:1,
     requiresHistoricalFixtureCompatibility:true,errors};
 }
 

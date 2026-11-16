@@ -71,7 +71,7 @@ function pinnedLegacySql(item) {
 
 export function buildCandidate325() {
   const cutover = inspectCutover();
-  if (!cutover.ok || cutover.canonicalCount !== 105 || cutover.archivedSources !== 109)
+  if (!cutover.ok || cutover.canonicalCount !== 106 || cutover.verifiedLater !== 1 || cutover.archivedSources !== 109)
     throw Error('Canonical 99 + 6 verified forward SQL or archived 109 SQL inventory changed');
   const historic = buildPinnedHistoricalArchive();
   if (!historic.ok || historic.count !== 99 || historic.bytes !== 493999 ||

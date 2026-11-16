@@ -29,11 +29,13 @@ interface CatalogState {
   properties: Property[];
   brand: PublicTenantBrand | null;
   loading: boolean;
+  loadingMore: boolean;
+  complete: boolean;
   error: string | null;
 }
 
 const EMPTY: CatalogState = {
-  properties: [], brand: null, loading: false, error: null,
+  properties: [], brand: null, loading: false, loadingMore: false, complete: true, error: null,
 };
 
 type Row = Record<string, unknown>;
@@ -99,69 +101,118 @@ function asProperty(row: Row): Property {
  * Public data is supplied only by the server-side allowlisted RPC. Never
  * query private tenant inventory or read private photo buckets as anonymous.
  */
+/**
+ * Loads all published properties in bounded, stable server-side cursor pages.
+ * Each page is tenant-scoped by a security-definer RPC, not by public table reads.
+ * Partial inventories are explicitly marked incomplete until every page arrives.
+ */
 export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState {
-  const [state, setState] = useState<CatalogState>(EMPTY);
+  const [state,setState]=useState<CatalogState>(EMPTY);
 
-  useEffect(() => {
-    const slug = tenantSlug?.trim().toLowerCase();
+  useEffect(()=>{
+    const slug=tenantSlug?.trim().toLowerCase();
     if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
       setState(EMPTY);
       return;
     }
-    let live = true;
-    setState({ ...EMPTY, requestedSlug: slug, loading: true });
+    let live=true;
+    setState({...EMPTY,requestedSlug:slug,loading:true,complete:false});
 
-    void (async () => {
-      const { data, error } = await supabase.rpc('tenant_public_catalog', { tenant_slug: slug });
-      if (!live) return;
-      if (error) {
-        setState({ ...EMPTY, requestedSlug: slug, error: 'No se pudo consultar el inventario de la inmobiliaria.' });
+    void (async()=>{
+      const {data,error}=await supabase.rpc('tenant_public_catalog',{tenant_slug:slug});
+      if(!live)return;
+      if(error || !data || typeof data!=='object' || Array.isArray(data)){
+        setState({...EMPTY,requestedSlug:slug,error:'No se pudo consultar el sitio de esta inmobiliaria.'});
         return;
       }
-      if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        setState({ ...EMPTY, requestedSlug: slug, error: 'El catálogo no está disponible para esta inmobiliaria.' });
-        return;
-      }
-
-      const value = data as Record<string, unknown>;
-      const brand: PublicTenantBrand = {
-        companyName: text(value.company_name),
-        publicHeadline: text(value.public_headline) || undefined,
-        publicDescription: text(value.public_description) || undefined,
-        publicHeroUrl: text(value.public_hero_url) || undefined,
-        publicServices: parsePublicAgencyServices(value.public_services),
+      const value=data as Record<string,unknown>;
+      const brand:PublicTenantBrand={
+        companyName:text(value.company_name),
+        publicHeadline:text(value.public_headline)||undefined,
+        publicDescription:text(value.public_description)||undefined,
+        publicHeroUrl:text(value.public_hero_url)||undefined,
+        publicServices:parsePublicAgencyServices(value.public_services),
         publicPage: parsePublicPageContent(value.public_page_content),
-        logoUrl: text(value.logo_url) || undefined,
-        primaryColor: text(value.primary_color) || undefined,
-        secondaryColor: text(value.secondary_color) || undefined,
-        phone: text(value.phone) || undefined,
-        email: text(value.email) || undefined,
-        website: text(value.website) || undefined,
-        whatsapp: text(value.whatsapp) || undefined,
-        publicOfficeAddress: text(value.public_office_address) || undefined,
-        country: text(value.country) || 'CO',
-        currency: text(value.currency) || 'COP',
-        locale: text(value.locale) || 'es-CO',
+        logoUrl:text(value.logo_url)||undefined,
+        primaryColor:text(value.primary_color)||undefined,
+        secondaryColor:text(value.secondary_color)||undefined,
+        phone:text(value.phone)||undefined,
+        email:text(value.email)||undefined,
+        website:text(value.website)||undefined,
+        whatsapp:text(value.whatsapp)||undefined,
+        publicOfficeAddress:text(value.public_office_address)||undefined,
+        country:text(value.country)||'CO',
+        currency:text(value.currency)||'COP',
+        locale:text(value.locale)||'es-CO',
       };
+      setState({...EMPTY,requestedSlug:slug,brand,loading:true,complete:false});
 
-      setState({
-        requestedSlug: slug,
-        brand,
-        properties: (Array.isArray(value.properties) ? value.properties : [])
-          .filter((item): item is Row => Boolean(item && typeof item === 'object' && !Array.isArray(item)))
-          .map(asProperty),
-        loading: false, error: null,
-      });
-    })().catch(() => {
-      if (live) setState({ ...EMPTY, requestedSlug: slug, error: 'No se pudo cargar el catálogo.' });
+      const ids=new Set<string>();
+      const properties:Property[]=[];
+      let cursor:{after_featured:boolean;after_created_at:string;after_id:string}|null=null;
+
+      // Maximum commercial plan capacity is 2,000 published properties: 40 pages.
+      for(let page=0;page<40;page++){
+        const args={
+          tenant_slug:slug,
+          page_size:50,
+          ...(cursor??{}),
+        };
+        const {data:pageData,error:pageError}=await supabase.rpc('tenant_public_catalog_page',args);
+        if(!live)return;
+        if(pageError || !pageData || typeof pageData!=='object' || Array.isArray(pageData)){
+          throw new Error('No se pudo verificar la siguiente página del catálogo.');
+        }
+        const batch=pageData as Record<string,unknown>;
+        if(!Array.isArray(batch.properties) || typeof batch.has_more!=='boolean' ||
+           batch.properties.length>50 || (batch.has_more && batch.properties.length!==50)){
+          throw new Error('Respuesta de catálogo paginado incompleta.');
+        }
+        const parsed=batch.properties.filter(
+          (item):item is Row=>Boolean(item && typeof item==='object' && !Array.isArray(item))
+        );
+        if(parsed.length!==batch.properties.length)throw new Error('Fila de catálogo inválida.');
+        for(const item of parsed){
+          const property=asProperty(item);
+          if(!property.id || ids.has(property.id))throw new Error('Propiedad duplicada o inválida.');
+          ids.add(property.id);
+          properties.push(property);
+        }
+        const hasMore=batch.has_more;
+        const next=batch.next_cursor;
+        if(hasMore){
+          if(!next || typeof next!=='object' || Array.isArray(next))throw new Error('Cursor de catálogo ausente.');
+          const v=next as Record<string,unknown>;
+          if(typeof v.after_featured!=='boolean' ||
+             typeof v.after_created_at!=='string' || !Number.isFinite(Date.parse(v.after_created_at)) ||
+             typeof v.after_id!=='string' ||
+             !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.after_id)){
+            throw new Error('Cursor de catálogo inválido.');
+          }
+          cursor={after_featured:v.after_featured,after_created_at:v.after_created_at,after_id:v.after_id};
+        }
+        setState({
+          requestedSlug:slug,brand,properties:[...properties],
+          loading:false,loadingMore:hasMore,complete:!hasMore,error:null,
+        });
+        if(!hasMore)return;
+      }
+      // A 41st page means plan capacity or catalog integrity is inconsistent.
+      throw new Error('El inventario excede el máximo certificado de publicaciones.');
+    })().catch(()=>{
+      if(live)setState(previous=>previous.requestedSlug===slug
+        ? {...previous,loading:false,loadingMore:false,complete:false,
+           error:'El inventario no pudo verificarse por completo. Los filtros muestran resultados parciales.'}
+        : {...EMPTY,requestedSlug:slug,complete:false,
+           error:'No se pudo cargar el catálogo.'});
     });
 
-    return () => { live = false; };
-  }, [tenantSlug]);
+    return()=>{live=false;};
+  },[tenantSlug]);
 
-  // Avoid showing previous tenant branding for one render before effect resets it.
-  const requestedSlug = tenantSlug?.trim().toLowerCase();
-  return requestedSlug && state.requestedSlug !== requestedSlug
-    ? { ...EMPTY, requestedSlug, loading: true }
+  // Never flash another tenant's brand, photos or inventory during a route change.
+  const requestedSlug=tenantSlug?.trim().toLowerCase();
+  return requestedSlug && state.requestedSlug!==requestedSlug
+    ? {...EMPTY,requestedSlug,loading:true,complete:false}
     : state;
 }

@@ -56,13 +56,14 @@ function getPinned() {
   const legacyInventoryRoot=historicSourceRoot(ROOT);
   const inventory=inventoryLegacyFiles(readdirSync(legacyInventoryRoot),ledger);
   const activeCount=readdirSync(MIGRATIONS).filter(f=>f.endsWith('.sql')).length;
-  // The 105-file active directory holds 99 immutable originals plus 6 verified forward SQL;
+  // The 106-file active directory holds 99 immutable originals, 6 verified forward SQL
+  // and the one separately SHA-pinned, actually applied G23 migration;
   // it needs exactly the original 109 SQL
   // archived AND the immutable 99-blob contract. The CI-only fixture overlay
   // remains intentionally 109 files until the workflow exits.
-  if(activeCount===105) {
+  if(activeCount===106) {
     const canonical=inspectCutover();
-    if(!canonical.ok)throw Error('105-file canonical directory corrupted: '+canonical.errors.join('; '));
+    if(!canonical.ok)throw Error('106-file canonical directory corrupted: '+canonical.errors.join('; '));
   } else if(activeCount!==109)throw Error('Unreviewed active migration file count');
   // Baseline is pinned as of 2026-11-06. Stop if the repository moves.
   if(inventory.localSqlFiles!==109 || inventory.appliedVersions!==99 ||
