@@ -4,7 +4,7 @@ import {chmodSync,mkdirSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {
-  validateStorageManifest,assertExactStorageCoverage,verifyRestoredStorageBytes,
+  validateStorageManifest,assertBackupMatchesBaseline,assertExactStorageCoverage,verifyRestoredStorageBytes,
 } from '../scripts/ops/verify-restored-storage-binaries.mjs';
 import { test } from 'node:test';
 import {
@@ -173,4 +173,19 @@ test('G18 manifest rejects traversal, duplicates, size drift, unauthenticated re
  assert.throws(()=>validateStorageManifest([{...entry,bytes:0}]),/lanzamiento bloqueado/);
  assert.throws(()=>validateStorageManifest([{...entry,sha256:'not-sha'}]),/lanzamiento bloqueado/);
  assert.throws(()=>assertExactStorageCoverage([entry],new Set()),/lanzamiento bloqueado/);
+});
+
+test('G18 must reject an empty or incomplete original snapshot, even if restored state matches',()=>{
+ const rows=[
+  {bucket:'jco-inventory-private',path:'a.png',bytes:7,sha256:'a'.repeat(64)},
+  {bucket:'organization-documents',path:'signed/b.pdf',bytes:11,sha256:'b'.repeat(64)},
+ ];
+ assert.throws(()=>validateStorageManifest([]),/lanzamiento bloqueado/);
+ assert.deepEqual(assertBackupMatchesBaseline(rows,2,18),rows);
+ for(const [expectedObjects,expectedBytes] of [[1,18],[2,17],[3,18],[2,0],[0,18],[undefined,18],[2,undefined]]) {
+  assert.throws(()=>assertBackupMatchesBaseline(rows,expectedObjects,expectedBytes),
+    /lanzamiento bloqueado/);
+ }
+ assert.throws(()=>assertBackupMatchesBaseline(rows.slice(0,1),2,18),
+   /lanzamiento bloqueado/);
 });
