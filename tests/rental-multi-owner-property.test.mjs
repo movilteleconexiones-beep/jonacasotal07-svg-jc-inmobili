@@ -17,8 +17,9 @@ test('one owner can own many different properties without duplicate owner or inv
   assert.equal(new Set(links.map(row=>row.owner_id)).size,1);
   assert.equal(new Set(links.map(row=>row.property_id)).size,3);
   assert.equal(automaticOwnerId(links.filter(link=>link.property_id==='property-2')),'owner-1');
-  assert.match(wizard,/\.eq\('owner_id',ownerId\)\.limit\(501\)/);
-  assert.match(wizard,/\.in\('id',ids\)\.limit\(501\)/);
+  assert.match(wizard,/\.eq\('owner_id',ownerId\)/);
+  assert.match(wizard,/\.order\('property_id'\)\.range\(from,to\)/);
+  assert.match(wizard,/\.in\('id',group\)/);
   assert.match(wizard,/linkedProperties\.map\(item=>/);
   assert.match(wizard,/Elegir inmueble/);
   assert.match(wizard,/setPropertyId\(item\.id\)/);
@@ -52,12 +53,12 @@ test('property inventory status AND active contract prevent misleading availabil
 
 test('lookup scopes owner, property and active leases to tenant with safe count checks',()=>{
   assert.match(wizard,/\.eq\('property_id',selectedId\)\.limit\(501\)/);
-  assert.match(wizard,/\.eq\('organization_id',organizationId\)\.in\('id',ids\)/);
-  assert.match(wizard,/\.eq\('organization_id',organizationId\)\.in\('property_id',ids\)/);
+  assert.match(wizard,/\.eq\('organization_id',organizationId\)\.in\('id',group\)/);
+  assert.match(wizard,/\.eq\('organization_id',organizationId\)\.in\('property_id',group\)/);
   assert.match(wizard,/version !== lookupVersion\.current/);
   assert.match(wizard,/if\(cancelled\)return/);
   assert.match(wizard,/\.count[^\n]*|links\.count/);
-  assert.match(wizard,/No se pudo comprobar el inventario o los contratos activos/);
+  assert.match(wizard,/No se pudieron comprobar todas las propiedades/);
   assert.doesNotMatch(wizard,/\.from\('property_ownerships'\)\s*\.insert\(/);
 });
 

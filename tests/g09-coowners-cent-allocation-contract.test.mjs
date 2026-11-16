@@ -51,7 +51,7 @@ test('G09 reconciliation must use share allocation instead of entire period inco
 });
 
 test('G09 UI shows shares and routes shared to dedicated RPC; old single-owner unchanged',()=>{
- assert.match(ui,/select\('id,owner_id,property_id,contract_number,status'\)/);
+ assert.match(ui,/select\('id,owner_id,property_id,contract_number,status',\{count:'exact'\}\)/);
  assert.match(ui,/from\('property_ownerships'\)/);
  assert.match(ui,/const hasMultipleOwners=propertyShares.length>1/);
  assert.match(ui,/const sharesValid=!hasMultipleOwners/);
