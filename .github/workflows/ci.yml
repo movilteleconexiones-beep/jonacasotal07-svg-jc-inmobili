@@ -43,6 +43,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: G26 protected photo review URL scope and canonical origin
+        run: node --test tests/g26-private-consignment-photo-signed-url.test.mjs
       - name: G25 pinned Chromium runner compatibility contract
         run: node --test tests/g25-playwright-runner-compatibility.test.mjs
       - name: Production CI source contract regression

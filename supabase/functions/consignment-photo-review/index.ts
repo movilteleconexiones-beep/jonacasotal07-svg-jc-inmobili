@@ -5,7 +5,7 @@ const anon=Deno.env.get('SUPABASE_ANON_KEY')!;
 const privileged=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{
  auth:{persistSession:false,autoRefreshToken:false}
 });
-const origins=new Set(['https://app.inmojco.com','https://www.inmojco.com','https://inmojco.com',
+const origins=new Set(['https://www.inmojco.com','https://inmojco.com',
 'https://jonacasotal07-svg-jc-inmobili-production.up.railway.app']);
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 Deno.serve(async(req:Request)=>{
@@ -32,13 +32,24 @@ Deno.serve(async(req:Request)=>{
  auth:{persistSession:false,autoRefreshToken:false}});
  // The requester's RLS must grant access to the private consignment first.
  const {data:accessible,error:readError}=await asUser.from('property_consignments')
-  .select('id').eq('id',id).maybeSingle();
+  .select('id,organization_id').eq('id',id).maybeSingle();
  if(readError||!accessible)return reply(404,{error:'not_found'});
  const {data:photos,error:photoError}=await asUser.from('property_consignment_photos')
   .select('id,position,storage_path').eq('consignment_id',id).order('position');
  if(photoError)return reply(403,{error:'access_denied'});
+ // Never use the privileged signer on a file path that does not belong to
+ // the exact tenant, request and position visible to the authenticated reviewer.
+ // This remains fail-closed even if a document row is later corrupted.
+ if(!uuid.test(accessible.organization_id) || !Array.isArray(photos) || photos.length>10)
+   return reply(403,{error:'invalid_photo_scope'});
  const results=[];
- for(const photo of photos??[]){
+ for(const photo of photos){
+  const expectedPrefix=`${accessible.organization_id}/${id}/${photo.position}-`;
+  if(!Number.isInteger(photo.position) || photo.position<0 || photo.position>9 ||
+     typeof photo.storage_path!=='string' ||
+     !photo.storage_path.startsWith(expectedPrefix) ||
+     !uuid.test(photo.storage_path.slice(expectedPrefix.length)))
+    return reply(403,{error:'invalid_photo_scope'});
   const {data,error}=await privileged.storage.from('jco-consignment-photos')
    .createSignedUrl(photo.storage_path,300);
   if(error||!data?.signedUrl)return reply(503,{error:'storage_unavailable'});
