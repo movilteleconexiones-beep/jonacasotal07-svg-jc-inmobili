@@ -35,7 +35,7 @@ const identity=(bucket,path)=>bucket+'\0'+path;
 
 /** Exact paths/sizes/hashes from original offline export, no data exposure. */
 export function validateStorageManifest(rows) {
- if(!Array.isArray(rows)||rows.length>MAX_FILES)throw fail();
+ if(!Array.isArray(rows)||rows.length===0||rows.length>MAX_FILES)throw fail();
  const seen=new Set();
  return rows.map(entry=>{
    const bucket=safeBucket(entry?.bucket);
@@ -48,6 +48,17 @@ export function validateStorageManifest(rows) {
    seen.add(id);
    return {bucket,path:entry.path,bytes:entry.bytes,sha256:entry.sha256.toLowerCase()};
  });
+}
+
+/** Independently bind the original snapshot inventory to this recovery run. */
+export function assertBackupMatchesBaseline(rows, expectedObjects, expectedBytes) {
+ const entries=validateStorageManifest(rows);
+ if(!Number.isSafeInteger(expectedObjects)||expectedObjects<1 ||
+    !Number.isSafeInteger(expectedBytes)||expectedBytes<1 ||
+    entries.length!==expectedObjects ||
+    entries.reduce((sum,item)=>sum+item.bytes,0)!==expectedBytes)
+   throw fail();
+ return entries;
 }
 
 /** Reject manifests that omit or invent even one restored Storage object. */
@@ -179,6 +190,10 @@ async function main(){
   const root=process.argv[2];
   if(!root || !isAbsolute(root))throw fail();
   const manifest=JSON.parse(readFileSync(join(root,'storage-manifest.json'),'utf8'));
+  // These totals must come from an independently recorded pre-backup inventory.
+  assertBackupMatchesBaseline(manifest,
+    Number(process.env.JCO_STORAGE_EXPECTED_OBJECTS),
+    Number(process.env.JCO_STORAGE_EXPECTED_BYTES));
   const result=await verifyRestoredStorageBytes({
    root,manifest,origin:process.env.JCO_STORAGE_CLONE_URL,
    secret:process.env.JCO_STORAGE_SECRET_KEY,
