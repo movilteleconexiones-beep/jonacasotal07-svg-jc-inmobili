@@ -112,6 +112,11 @@ export default function App() {
   const organizationBrand = branding.companyName || fallbackCompanyName;
   const softwareBrand = tenantSlug ? (branding.softwareName || 'INMOJCO') : PUBLIC_COMMERCIAL_NAME;
   const publicCompanyName = publicCatalog.brand?.companyName || organizationBrand;
+  // Never invent a phone number or create an empty tel: link.
+  const publishedPhone = typeof branding.phone === 'string' &&
+    /^\+?[0-9\s().-]{7,24}$/.test(branding.phone.trim()) &&
+    /^\d{7,15}$/.test(branding.phone.replace(/\D/g, ''))
+      ? branding.phone.trim() : null;
   const tenantPrimary = safeTenantColor(branding.primaryColor, TENANT_DEFAULT_PRIMARY);
   const agencyCopy = agencyHeroCopy(publicCompanyName, publicCatalog.brand?.publicHeadline, publicCatalog.brand?.publicDescription, countryProfile.name);
   const publicAgencyServices = publicCatalog.brand?.publicServices || [];
@@ -1289,12 +1294,12 @@ export default function App() {
                     <Phone className="w-4 h-4 text-[var(--tenant-primary)] mt-1 shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-900">Teléfono Directo y Recepción</p>
-                      <a
-                        href={`tel:${(branding.phone || (tenantSlug ? '' : '+573001234567')).replace(/\s+/g, '')}`}
+                      {publishedPhone ? <a
+                        href={`tel:${publishedPhone.replace(/[^\d+]/g, '')}`}
                         className="text-xs font-mono-tabular text-[var(--tenant-primary)] hover:underline mt-0.5 inline-block"
                       >
-                        {branding.phone || (tenantSlug ? 'Teléfono no publicado' : '+57 300 123 4567')}
-                      </a>
+                        {publishedPhone}
+                      </a> : <p className="text-xs text-stone-600 mt-0.5">Teléfono no publicado</p>}
                     </div>
                   </div>
 
@@ -1568,6 +1573,11 @@ export default function App() {
             {!tenantSlug && <a href="#inmobilearning" className="hover:text-slate-900">
               Academia Inmobiliaria
             </a>}
+            <a href="https://www.sic.gov.co/" target="_blank" rel="noopener noreferrer"
+              aria-label="Superintendencia de Industria y Comercio - derechos del consumidor"
+              className="underline underline-offset-2 hover:text-slate-900">
+              Derechos del consumidor · SIC
+            </a>
             <span>© {new Date().getFullYear()} {tenantSlug ? publicCompanyName : softwareBrand}.</span>
           </div>
         </div>
