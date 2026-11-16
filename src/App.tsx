@@ -1299,7 +1299,7 @@ export default function App() {
                         className="text-xs font-mono-tabular text-[var(--tenant-primary)] hover:underline mt-0.5 inline-block"
                       >
                         {publishedPhone}
-                      </a> : <p className="text-xs text-stone-600 mt-0.5">Teléfono no publicado</p>
+                      </a> : <p className="text-xs text-stone-600 mt-0.5">Teléfono no publicado</p>}
                     </div>
                   </div>
 
