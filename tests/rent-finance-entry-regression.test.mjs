@@ -176,7 +176,7 @@ test('creating a draft owner settlement holds a synchronous lock across its RPC'
   const end=owner.indexOf('return <section',start);
   assert.ok(start>0&&end>start);
   const body=owner.slice(start,end);
-  const guard=body.indexOf('if(!permitted||busy||settlementInFlight.current||!organizationId)return;');
+  const guard=body.indexOf('if(!permitted||loading||busy||settlementInFlight.current||!organizationId)return;');
   const confirm=body.indexOf('window.confirm(',guard);
   const checkAgain=body.indexOf('if(settlementInFlight.current)return;',confirm);
   const locked=body.indexOf('settlementInFlight.current=true;',checkAgain);

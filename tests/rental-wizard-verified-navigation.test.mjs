@@ -27,5 +27,6 @@ test('lookup failure or changed occupancy revision blocks stale forward navigati
   assert.match(wizard,/!linksLoading && !linksError/);
   assert.match(wizard,/setLinksLoading\(Boolean\(ownerId&&canViewOwners\)\)/);
   assert.match(wizard,/setOccupancyRevision\(n=>n\+1\)/);
-  assert.match(wizard,/No se pudo comprobar el inventario o los contratos activos del propietario/);
+  assert.match(wizard,/readCompletePages\(\(from,to\)=>supabase\.from\('property_ownerships'\)/);
+  assert.match(wizard,/No se pudieron comprobar todas las propiedades de este propietario/);
 });
