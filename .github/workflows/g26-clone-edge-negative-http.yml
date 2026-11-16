@@ -1,0 +1,25 @@
+name: G26 isolated clone photo Edge HTTP safety
+
+on:
+  pull_request:
+    paths:
+      - 'tests/g26-clone-edge-negative-http.test.mjs'
+      - 'supabase/functions/consignment-photo-review/index.ts'
+      - 'supabase/functions/consignment-photo-upload/index.ts'
+      - '.github/workflows/g26-clone-edge-negative-http.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clone-photo-negative-http:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deny unauthenticated and wrong-origin photo actions on Supabase clone
+        run: node --test tests/g26-clone-edge-negative-http.test.mjs
