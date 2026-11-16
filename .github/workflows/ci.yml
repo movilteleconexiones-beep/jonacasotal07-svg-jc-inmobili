@@ -45,6 +45,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Production CI source contract regression
         run: node --test tests/main-ci-deploy-contract.test.mjs
+      - name: G23 complete public catalog cursor security and capacity contract
+        run: node --test tests/g23-public-catalog-cursor.test.mjs
       - name: Build and verify 108-file staging-only candidate before legacy fixture overlay
         run: |
           set -euo pipefail
@@ -564,8 +566,6 @@ jobs:
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d jco_property_boundary_test -f security/tests/private_properties_tenant_guard_assertions.sql
       - name: G16 real Auth five-role private browser safety contract (QA execution remains opt-in)
         run: node --test tests/g16-five-role-browser-release-contract.test.mjs tests/g16-private-five-role-browser-qa.test.mjs
-      - name: G23 complete public catalog cursor security and capacity contract
-        run: node --test tests/g23-public-catalog-cursor.test.mjs
 
       - name: G15 mobile catalog category filter responsive contract
         run: node --test tests/g15-mobile-catalog-categories-contract.test.mjs
