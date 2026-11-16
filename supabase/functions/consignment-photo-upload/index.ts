@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
  auth: { persistSession:false, autoRefreshToken:false },
 });
-const origins = new Set(['https://app.inmojco.com','https://www.inmojco.com','https://inmojco.com',
+const origins = new Set(['https://www.inmojco.com','https://inmojco.com',
 'https://jonacasotal07-svg-jc-inmobili-production.up.railway.app']);
 const bucket='jco-consignment-photos';
 function respond(code:number, payload:unknown, origin:string|null) {
