@@ -23,3 +23,7 @@ jobs:
           node-version: '22'
       - name: Deny unauthenticated and wrong-origin photo actions on Supabase clone
         run: node --test tests/g26-clone-edge-negative-http.test.mjs
+      - name: Deny unauthenticated and wrong-origin photo actions on official production
+        env:
+          G26_EDGE_BASE_URL: https://cuitgyqrjibgwuniapmk.supabase.co/functions/v1
+        run: node --test tests/g26-clone-edge-negative-http.test.mjs
