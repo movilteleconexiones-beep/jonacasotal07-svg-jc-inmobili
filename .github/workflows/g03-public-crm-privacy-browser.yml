@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   public-policy-privacy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 7
     env:
       INMOJCO_REQUIRE_POLICY_PUBLISHED: ${{ inputs.require_policy_published && '1' || '0' }}

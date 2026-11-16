@@ -43,6 +43,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: G25 pinned Chromium runner compatibility contract
+        run: node --test tests/g25-playwright-runner-compatibility.test.mjs
       - name: Production CI source contract regression
         run: node --test tests/main-ci-deploy-contract.test.mjs
       - name: G23 complete public catalog cursor security and capacity contract
