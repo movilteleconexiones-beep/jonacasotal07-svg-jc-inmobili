@@ -132,7 +132,7 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
         publicDescription:text(value.public_description)||undefined,
         publicHeroUrl:text(value.public_hero_url)||undefined,
         publicServices:parsePublicAgencyServices(value.public_services),
-        publicPage:parsePublicPageContent(value.public_page_content),
+        publicPage: parsePublicPageContent(value.public_page_content),
         logoUrl:text(value.logo_url)||undefined,
         primaryColor:text(value.primary_color)||undefined,
         secondaryColor:text(value.secondary_color)||undefined,
