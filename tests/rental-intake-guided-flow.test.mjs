@@ -63,8 +63,8 @@ test('agent receives draft/view only, admin activation requires private signed P
   assert.doesNotMatch(migration,/WOMPI_PRIVATE_KEY|UPDATE public\.rent_payments/);
   assert.match(rentals,/if\(!activationAllowed\|\|busy/);
   assert.match(rentals,/activeMembership\?\.roles\.some\(role=>role\.key==='ADMIN'\)/);
-  assert.match(rentals,/canReadRent \? supabase\.from\('rent_payments'\)/);
-  assert.match(rentals,/Promise\.resolve\(\{data:\[\] as Period\[\],error:null\}\)/);
+  assert.match(rentals,/canReadRent \? readCompletePages\(\(from,to\)=>supabase\.from\('rent_payments'\)/);
+  assert.match(rentals,/Promise\.resolve\(\[\] as Period\[\]\)/);
   assert.match(rentals,/mode==='APPROVAL'/);
   assert.match(rentals,/Revisé el PDF · Aprobar y activar/);
   assert.match(pdf,/preferredLeaseId\?: string/);

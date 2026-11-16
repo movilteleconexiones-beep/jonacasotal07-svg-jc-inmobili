@@ -37,6 +37,9 @@ protegido con la clave de servicio **solo del clon**, nunca de producción.
 ```bash
 export JCO_STORAGE_VERIFY_CLONE=1
 export JCO_STORAGE_CLONE_URL='https://zjgstfgiirgjssnihaam.supabase.co'
+# Línea base independiente: inventario oficial del 01-nov, reconfirmado el 15-nov.
+export JCO_STORAGE_EXPECTED_OBJECTS=6
+export JCO_STORAGE_EXPECTED_BYTES=932740
 # Configurar JCO_STORAGE_SECRET_KEY mediante gestor de secretos local
 node scripts/ops/verify-restored-storage-binaries.mjs /ruta/absoluta/backup-privado
 ```
@@ -56,3 +59,13 @@ ni archivos reales**. Un PASS sintético no cierra G18. Para certificar la copia
 histórica de seis objetos se necesita ejecutarlo de verdad desde un terminal
 que pueda acceder simultáneamente al backup original y al Storage del clon.
 No subir llaves, manifiestos privados, imágenes o PDFs a GitHub.
+
+### Cierre de falso positivo G18 (15-nov-2026)
+
+El verificador ahora rechaza manifiestos vacíos y requiere que el operador declare
+`JCO_STORAGE_EXPECTED_OBJECTS` y `JCO_STORAGE_EXPECTED_BYTES` a partir de un
+inventario **independiente y anterior al respaldo**. Así no puede certificar
+una copia truncada aunque el clon coincida con el propio manifiesto truncado.
+Los valores 6 y 932740 son específicos de la instantánea histórica y deben
+revalidarse si se certifica un respaldo distinto. No sustituye la descarga
+privada y comparación SHA-256 de cada binario original.

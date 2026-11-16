@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { etiquetaES } from '../../core/etiquetas-es';
 import { Building2, CheckCircle2, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { supabase } from '../../lib/supabase';
+import { readCompletePages } from '../../lib/tenant-pagination';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { MAX_PHOTOS, validateInventoryPhotos, saveInventoryPhotos, loadInventoryPhotos, type InventoryPhoto } from '../../lib/property-private-photos';
 
@@ -47,29 +48,43 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
   const [editBusy, setEditBusy] = useState(false);
 
   const organizationId = activeMembership?.organization.id;
+  const scope = useRef(organizationId);
+  scope.current = organizationId;
+  const loadSequence = useRef(0);
 
   async function load() {
     if (!organizationId) return;
+    const version = ++loadSequence.current;
+    const targetOrganization = organizationId;
     setLoading(true);
-    const [propertyResult,leaseResult]=await Promise.all([
-      supabase.from('properties')
-        .select('id,code,title,operation_type,property_type,status,price,currency,city,neighborhood,created_at')
-        .eq('organization_id',organizationId).order('created_at',{ascending:false}),
-      supabase.from('leases').select('property_id',{count:'exact'})
-        .eq('organization_id',organizationId).in('status',['ACTIVE','RENEWAL']).limit(501),
-    ]);
-    const incomplete=leaseResult.count==null||(leaseResult.data??[]).length<leaseResult.count;
-    if(propertyResult.error||leaseResult.error||incomplete){
+    try {
+      // Counted pagination is essential: PostgREST commonly caps each response
+      // at 1,000 rows, while a PRO agency may hold 2,000 properties.
+      const [properties,activeLeases]=await Promise.all([
+        readCompletePages((from,to)=>supabase.from('properties')
+          .select('id,code,title,operation_type,property_type,status,price,currency,city,neighborhood,created_at',{count:'exact'})
+          .eq('organization_id',targetOrganization)
+          .order('created_at',{ascending:false}).order('id').range(from,to),
+          {maxRows:5000,key:row=>row.id}),
+        readCompletePages((from,to)=>supabase.from('leases')
+          .select('id,property_id',{count:'exact'})
+          .eq('organization_id',targetOrganization).in('status',['ACTIVE','RENEWAL'])
+          .order('id').range(from,to),{maxRows:20000,key:row=>row.id}),
+      ]);
+      if (version!==loadSequence.current || scope.current!==targetOrganization) return;
+      setOccupancyError(false);
+      setRows(properties as PropertyRow[]);
+      setOccupiedPropertyIds(new Set(activeLeases.map(row=>row.property_id)));
+    } catch {
+      if (version!==loadSequence.current || scope.current!==targetOrganization) return;
       setOccupancyError(true);
       setOccupiedPropertyIds(new Set());
       setRows([]);
-      setMessage('No se puede verificar inventario y contratos activos. Actualiza antes de asignar inmuebles.');
-    }else{
-      setOccupancyError(false);
-      setRows((propertyResult.data??[]) as PropertyRow[]);
-      setOccupiedPropertyIds(new Set((leaseResult.data??[]).map(x=>x.property_id)));
+      setMessage('No se puede verificar el inventario completo y los contratos activos. Actualiza antes de asignar inmuebles.');
+    } finally {
+      if (version===loadSequence.current && scope.current===targetOrganization)
+        setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -84,6 +99,7 @@ export function PropertiesModule({onCreated,onSelect,onClearSelection,selectedPr
     window.addEventListener('focus',reload);
     document.addEventListener('visibilitychange',reloadWhenVisible);
     return()=>{
+      loadSequence.current++;
       window.removeEventListener('lease-finished',reload);
       window.removeEventListener('lease-activated',reload);
       window.removeEventListener('tenant-rent-updated',reload);

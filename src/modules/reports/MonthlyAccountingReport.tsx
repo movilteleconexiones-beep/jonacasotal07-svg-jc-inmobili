@@ -4,6 +4,7 @@ import { useAuth } from '../../core/auth-context';
 import { PERMISSIONS } from '../../core/permissions';
 import { useTenantBranding } from '../../core/use-tenant-branding';
 import { supabase } from '../../lib/supabase';
+import { readCompletePages } from '../../lib/tenant-pagination';
 import { effectiveCommissionRows } from '../../core/effective-commissions';
 import { reconciliationAlerts } from '../../core/owner-reconciliation-alerts';
 import {
@@ -76,41 +77,35 @@ export function MonthlyAccountingReport({ selection, onSelect, month, onMonthCha
         // Report approved owner deductions by their actual ledger state, not stale statement totals.
         // The displayed deduction figure is a live breakdown; owner statement net stays as last reconciled.
         const deductionQuery=can(PERMISSIONS.OWNER_STATEMENTS_VIEW)
-          ? await supabase.from('owner_statement_deductions')
+          ? await readCompletePages((from,to)=>supabase.from('owner_statement_deductions')
               .select('id,statement_id,amount,responsible_party,status,category,charge_date',{count:'exact'})
               .eq('organization_id',organizationId)
-              .gte('charge_date',start).lt('charge_date',end).limit(1000)
+              .gte('charge_date',start).lt('charge_date',end)
+              .order('id').range(from,to),{maxRows:10000,key:row=>row.id})
           : null;
-        if(deductionQuery?.error)throw new Error('No se pudieron consultar las deducciones: '+deductionQuery.error.message);
-        const deductionRows=deductionQuery?.data??[];
-        if(deductionQuery&&(deductionQuery.count==null||deductionQuery.count>deductionRows.length))
-          throw new Error('La consulta de deducciones está incompleta.');
+        const deductionRows=deductionQuery??[];
         let rectifications: {commission_id:string;archived_from_active:boolean}[] = [];
         if (permitted.some(item=>item.name==='Comisiones')) {
-          const correctionQuery=await supabase.from('commission_accounting_corrections')
-            .select('commission_id,archived_from_active',{count:'exact'})
-            .eq('organization_id',organizationId).limit(1000);
-          if(correctionQuery.error)throw new Error('No se pudieron conciliar las comisiones rectificadas: '+correctionQuery.error.message);
-          rectifications=correctionQuery.data??[];
-          if(correctionQuery.count==null||correctionQuery.count>rectifications.length)
-            throw new Error('Existen más rectificaciones que las consultadas: no se mostrarán cifras incompletas.');
+          rectifications=await readCompletePages((from,to)=>supabase
+            .from('commission_accounting_corrections')
+            .select('id,commission_id,archived_from_active',{count:'exact'})
+            .eq('organization_id',organizationId).order('id').range(from,to),
+            {maxRows:10000,key:row=>row.id});
         }
         for (const section of permitted) {
           const columns = section.cols.split(',');
           const tableName: string = section.table;
           const selectFields: string = section.cols;
           const dateColumn: string = section.date;
-          // A hard result cap and exact count prevent exporting a silently truncated workbook.
-          const query = await supabase.from(tableName)
+          // Count every page. Never export an incomplete monthly workbook when
+          // a PRO agency exceeds the API's 1,000-row response cap.
+          const rows = await readCompletePages((from,to)=>supabase.from(tableName)
             .select(selectFields,{count:'exact'})
-            .eq('organization_id', organizationId)
+            .eq('organization_id',organizationId)
             .gte(dateColumn,start).lt(dateColumn,end)
-            .order(dateColumn,{ascending:true}).limit(1000);
+            .order(dateColumn,{ascending:true}).order('id').range(from,to),
+            {maxRows:10000}) as unknown as DataRow[];
           if (cancelled) return;
-          if (query.error) throw new Error('No fue posible consultar '+section.name+': '+query.error.message);
-          const rows = (query.data ?? []) as unknown as DataRow[];
-          if (query.count == null || query.count > rows.length)
-            throw new Error('La sección '+section.name+' tiene más de 1000 registros o una consulta parcial. No se exportarán cifras incompletas.');
           const effectiveRows=section.name==='Comisiones'
             ? effectiveCommissionRows(rows as ({id:string;status:string;amount:number|null}&DataRow)[],rectifications)
             : rows;
@@ -119,26 +114,24 @@ export function MonthlyAccountingReport({ selection, onSelect, month, onMonthCha
         // A closed deal belongs to the month of closing, never its creation month.
         // Colombia uses a fixed -05:00 civil offset (no daylight-saving time).
         if (can(PERMISSIONS.DEALS_VIEW)) {
-          const {data,count,error:closedError}=await supabase.from('deals')
+          const closed=await readCompletePages((from,to)=>supabase.from('deals')
             .select('id,stage,operation_type,asking_price,offered_price,final_price,commission_amount,closed_at',{count:'exact'})
             .eq('organization_id',organizationId).eq('stage','WON')
             .gte('closed_at',start+'T00:00:00-05:00').lt('closed_at',end+'T00:00:00-05:00')
-            .order('closed_at',{ascending:true}).limit(1000);
-          if(closedError)throw new Error('No se pudieron consultar los cierres por fecha: '+closedError.message);
-          if(count==null||count>(data??[]).length)throw new Error('La lista de cierres del mes está incompleta.');
-          results.push({name:'Cierres',columns:['id','closed_at','operation_type','stage','final_price','offered_price','asking_price','commission_amount'],rows:data??[]});
+            .order('closed_at',{ascending:true}).order('id').range(from,to),
+            {maxRows:10000,key:row=>row.id});
+          results.push({name:'Cierres',columns:['id','closed_at','operation_type','stage','final_price','offered_price','asking_price','commission_amount'],rows:closed});
         }
         // ACCEPTED here denotes accepted intake, not an active management contract.
         if (can(PERMISSIONS.PROPERTIES_VIEW)&&can(PERMISSIONS.CLIENTS_VIEW)) {
-          const {data,count,error:adminError}=await supabase.from('property_consignments')
-            .select('reference,status,reviewed_at,payload',{count:'exact'})
+          const accepted=await readCompletePages((from,to)=>supabase.from('property_consignments')
+            .select('id,reference,status,reviewed_at,payload',{count:'exact'})
             .eq('organization_id',organizationId).eq('status','ACCEPTED')
             .gte('reviewed_at',start+'T00:00:00-05:00').lt('reviewed_at',end+'T00:00:00-05:00')
-            .order('reviewed_at',{ascending:true}).limit(1000);
-          if(adminError)throw new Error('No se pudieron consultar las consignaciones aceptadas: '+adminError.message);
-          if(count==null||count>(data??[]).length)throw new Error('Las consignaciones del mes están incompletas.');
+            .order('reviewed_at',{ascending:true}).order('id').range(from,to),
+            {maxRows:10000,key:row=>row.id});
           results.push({name:'Administraciones',columns:['reference','status','reviewed_at','operation_type'],
-            rows:(data??[]).map(item=>({
+            rows:accepted.map(item=>({
               reference:item.reference,status:item.status,reviewed_at:item.reviewed_at,
               operation_type:(item.payload as {operation_type?:string}|null)?.operation_type??'',
             }))});

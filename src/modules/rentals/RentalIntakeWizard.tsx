@@ -9,6 +9,7 @@ import { ActiveLeaseCorrection } from '../finance/ActiveLeaseCorrection';
 import { TenantRentBalanceSummary } from '../finance/RentOwnerBalances';
 import { RentalContractClosure } from './RentalContractClosure';
 import { supabase } from '../../lib/supabase';
+import { readCompletePages } from '../../lib/tenant-pagination';
 import {
   automaticOwnerId, canPrepareRental, rentalAvailability,
   type LinkedRentalProperty,
@@ -132,12 +133,12 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
     if (!ownerId || !canViewOwners) return () => {cancelled=true;};
     void (async()=>{
       try {
-        const links=await supabase.from('property_ownerships')
-          .select('property_id',{count:'exact'}).eq('owner_id',ownerId).limit(501);
-        if (cancelled)return;
-        if(links.error||links.count==null||links.count>(links.data??[]).length||(links.data??[]).length>500)
-          throw new Error('No se pudo consultar la totalidad de inmuebles del propietario.');
-        const ids=[...new Set((links.data??[]).map(link=>link.property_id))];
+        const links=await readCompletePages((from,to)=>supabase.from('property_ownerships')
+          .select('property_id',{count:'exact'}).eq('owner_id',ownerId)
+          .order('property_id').range(from,to),
+          {maxRows:5000,key:row=>row.property_id});
+        if(cancelled)return;
+        const ids=[...new Set(links.map(link=>link.property_id))];
         if(!ids.length){
           if(propertyId){
             setPropertyId(undefined);setPropertyName('');
@@ -145,19 +146,31 @@ export function RentalIntakeWizard({ organizationId }: { organizationId: string 
           }
           return;
         }
-        const [p,l]=await Promise.all([
-          supabase.from('properties').select('id,code,title,status,operation_type')
-            .eq('organization_id',organizationId).in('id',ids).limit(501),
-          supabase.from('leases').select('property_id',{count:'exact'})
-            .eq('organization_id',organizationId).in('property_id',ids)
-            .in('status',['ACTIVE','RENEWAL']).limit(501),
-        ]);
-        if(cancelled)return;
-        if(p.error||l.error||(p.data??[]).length!==ids.length||l.count==null||
-           l.count>(l.data??[]).length||(l.data??[]).length>500)
-          throw new Error('No se pudo comprobar el inventario o los contratos activos del propietario.');
-        const occupied=new Set((l.data??[]).map(row=>row.property_id));
-        const options:LinkedRentalProperty[]=(p.data??[]).map(item=>({
+        const properties:LinkedRentalProperty[]=[];
+        const leases:{id:string;property_id:string}[]=[];
+        // Bounded ID groups avoid PostgREST URL overflow for an owner with
+        // 2,000 properties. Counted pages avoid silent truncation.
+        for(let offset=0;offset<ids.length;offset+=75){
+          const group=ids.slice(offset,offset+75);
+          const [propertyRows,activeRows]=await Promise.all([
+            readCompletePages((from,to)=>supabase.from('properties')
+              .select('id,code,title,status,operation_type',{count:'exact'})
+              .eq('organization_id',organizationId).in('id',group)
+              .order('id').range(from,to),{maxRows:5000,key:row=>row.id}),
+            readCompletePages((from,to)=>supabase.from('leases')
+              .select('id,property_id',{count:'exact'})
+              .eq('organization_id',organizationId).in('property_id',group)
+              .in('status',['ACTIVE','RENEWAL']).order('id').range(from,to),
+              {maxRows:20000,key:row=>row.id}),
+          ]);
+          if(cancelled)return;
+          properties.push(...(propertyRows as LinkedRentalProperty[]));
+          leases.push(...activeRows);
+        }
+        if(properties.length!==ids.length)
+          throw new Error('No se pudieron comprobar todas las propiedades de este propietario.');
+        const occupied=new Set(leases.map(row=>row.property_id));
+        const options:LinkedRentalProperty[]=properties.map(item=>({
           ...item,has_active_lease:occupied.has(item.id),
         })).sort((a,b)=>a.code.localeCompare(b.code,'es'));
         setLinkedProperties(options);

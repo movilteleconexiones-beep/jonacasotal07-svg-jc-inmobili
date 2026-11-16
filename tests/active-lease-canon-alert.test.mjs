@@ -10,7 +10,7 @@ const helper=readFileSync(new URL('../src/core/rental-canon-reference.ts',import
 const sql=readFileSync(new URL('../supabase/migrations/20261029081500_active_lease_rectification_with_signed_evidence.sql',import.meta.url),'utf8');
 
 test('new contracts warn about a lower or higher canon than the listed rental value',()=>{
- assert.match(entry,/select\('id,code,title,price,operation_type'\)/);
+ assert.match(entry,/select\('id,code,title,price,operation_type',\{count:'exact'\}\)/);
  assert.match(entry,/newCanonMismatch&&<p role="alert"/);
  assert.match(entry,/rentalCanonWarning\(newCanonMismatch\)/);
  assert.match(entry,/propertyCheck\.data\.price/);
