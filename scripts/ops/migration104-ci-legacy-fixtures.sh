@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # DRAFT #104 — CI ONLY: temporarily use 109 archived historical SQL sources
-# for existing legacy unit/isolated PG fixtures after 99 + 6 forward migrations
+# for existing legacy unit/isolated PG fixtures after 99 + 6 verified older forwards
+# and separately SHA-pinned G23 (20261116052914) have passed inspection
 # has been independently verified. NEVER run on a user's PC or in production.
 set -euo pipefail
 if [[ "${GITHUB_ACTIONS:-}" != "true" || -z "${RUNNER_TEMP:-}" ]]; then
@@ -30,7 +31,7 @@ if [[ "$finance_status" -ne 2 ]]; then
   exit 2
 fi
 grep -q 'Do not run db push' "$RUNNER_TEMP/canonical-finance-no-go.txt"
-test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 105
+test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 106
 archive="$RUNNER_TEMP/inmojco-104-canonical-sql-for-review"
 if [[ -e "$archive" ]]; then
   echo "NO-GO: canonical CI snapshot path already exists" >&2
@@ -40,4 +41,4 @@ mv supabase/migrations "$archive"
 mkdir -p supabase/migrations
 cp docs/ops/archive/legacy-sql-20261107/*.sql supabase/migrations/
 test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 109
-echo "DRAFT #104: canonical 99 historic + 6 forward files verified and preserved in runner temporary directory; 109 legacy fixture sources activated for existing CI only; NO production SQL write."
+echo "DRAFT #104: canonical 99 historic + 6 older forwards + 1 SHA-pinned G23 verified and preserved in runner temporary directory; 109 legacy fixture sources activated for existing CI only; NO production SQL write."
