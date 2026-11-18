@@ -49,6 +49,10 @@ const verifiedSeller=()=>({
   checkout_identity_verified:true,
   consumer_rights_link_verified:true,
   buyer_information_verified:true,
+  vat_status_reviewed:true,
+  vat_regime:'NON_RESPONSIBLE',
+  checkout_tax_treatment_verified:true,
+  saas_activity_classification_reviewed:true,
   dian_obligation_reviewed:true,
   invoice_mode:'ELECTRONIC_INVOICE',
   electronic_invoicing_tested:true,
@@ -261,6 +265,18 @@ test('G24: commercial release fails without the seller identity, even with both 
   const noCheckout=structuredClone(evidence);
   noCheckout.legal.saas_seller.checkout_identity_verified=false;
   assert.match(onlySeller(noCheckout).join(' '),/checkout/);
+  const noVat=structuredClone(evidence);
+  noVat.legal.saas_seller.vat_status_reviewed=false;
+  assert.match(onlySeller(noVat).join(' '),/IVA/);
+  const unknownVat=structuredClone(evidence);
+  unknownVat.legal.saas_seller.vat_regime='ASSUMED_FREE';
+  assert.match(onlySeller(unknownVat).join(' '),/IVA/);
+  const untestedTaxTotal=structuredClone(evidence);
+  untestedTaxTotal.legal.saas_seller.checkout_tax_treatment_verified=false;
+  assert.match(onlySeller(untestedTaxTotal).join(' '),/precio SaaS/);
+  const missingActivity=structuredClone(evidence);
+  missingActivity.legal.saas_seller.saas_activity_classification_reviewed=false;
+  assert.match(onlySeller(missingActivity).join(' '),/CIIU/);
   const noDian=structuredClone(evidence);
   noDian.legal.saas_seller.electronic_invoicing_tested=false;
   assert.match(onlySeller(noDian).join(' '),/DIAN/);
