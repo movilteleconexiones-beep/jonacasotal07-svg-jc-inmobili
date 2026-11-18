@@ -4,11 +4,20 @@
 
 La función `evaluateReleaseReadiness(...,{phase:'commercial'})` exige `legal.saas_seller` **además de** las dos políticas de las inmobiliarias, las pruebas G16/G18, la venta Wompi LIVE G12 y los demás controles. El cambio **no** activa cobros, ni modifica la base de datos, ni publica datos legales.
 
+## Modalidad comercial confirmada — persona natural
+
+La persona responsable comercial del SaaS confirmó que venderá **como persona natural colombiana**, no a nombre de una sociedad constituida. La puerta G24 exige `legal.saas_seller.taxpayer_type='NATURAL_PERSON'` y mantiene `NO-GO` hasta verificar los datos auténticos de identidad, RUT/NIT según documentación, dirección de notificación y contacto al comprador. **No sustituir el nombre real por la marca Sistema Inmobiliario JCO ni usar la razón social de una inmobiliaria cliente**. No mostrar número de cédula/identificadores desde un archivo privado hasta revisar qué datos jurídicos deben hacerse públicos.
+
+La calidad de persona natural **no determina por sí sola** si hay obligación de facturar electrónicamente o responsabilidad IVA. Revisar RUT, actividad, régimen, topes y realidad tributaria; sin la valoración documentada de contador/DIAN no marcar `dian_obligation_reviewed`. Para el flujo de facturación electrónico cuando corresponda, DIAN cuenta con `Facturación Gratuita DIAN` sin imponer contratar un tercero.
+
+Fuentes: [DIAN — ¿debe facturar electrónicamente?](https://micrositios.dian.gov.co/sistema-de-facturacion-electronica/debes-facturar-electronicamente/), [DIAN — requerimientos facturación](https://micrositios.dian.gov.co/sistema-de-facturacion-electronica/requerimientos-para-ser-facturador-electronico/), [SIC — enlace obligatorio](https://sedeelectronica.sic.gov.co/publicaciones/boletin-juridico/concepto/titulo-obligacion-de-incluir-enlace-la-superindustria-en-plataformas-de-comercio-electronico).
+
 ## Evidencia privada requerida
 
 La evidencia G24 se completa **solo después** de contrastar documentos auténticos del responsable (sin subir cédulas, RUT o datos tributarios privados al repositorio):
 
-- `legal_name`: persona natural o razón social real del vendedor del software; no confundir con nombres de las inmobiliarias clientes.
+- `taxpayer_type`: `NATURAL_PERSON` (confirmado por titular); no se permite `LEGAL_ENTITY` en este lanzamiento.
+- `legal_name`: nombres y apellidos auténticos de la persona natural vendedora del software; no confundir con nombres de las inmobiliarias clientes.
 - `identification_type`: `NIT`, `CC` o `CE`; `identification_number` debe coincidir con la documentación legal.
 - `business_address` y `pqr_email`: domicilio y canal verdadero para atención, quejas, reclamaciones y hábeas data.
 - `identity_documents_verified=true` e `identity_verified_at` reciente (<= 168 horas) tras revisión manual; no son una verificación automatizada en RUES o DIAN.
