@@ -126,6 +126,16 @@ function checkSaasSellerEvidence(legal, now, errors) {
       seller.buyer_information_verified!==true) {
     errors.push('G24: falta comprobar identificación del vendedor y derechos del consumidor en portada y checkout.');
   }
+  // IVA, invoice duties and CIIU classification are three separate legal
+  // assessments. An RUT code is NOT proof of exempted SaaS invoices.
+  if (seller.vat_status_reviewed!==true ||
+      !['NON_RESPONSIBLE','RESPONSIBLE'].includes(seller.vat_regime) ||
+      seller.checkout_tax_treatment_verified!==true) {
+    errors.push('G24: tratamiento IVA y presentación tributaria del precio SaaS no verificados.');
+  }
+  if (seller.saas_activity_classification_reviewed!==true) {
+    errors.push('G24: actividad CIIU de venta y operación SaaS pendiente de revisión.');
+  }
   if (seller.dian_obligation_reviewed!==true ||
       !['ELECTRONIC_INVOICE','DOCUMENTED_EXCEPTION'].includes(seller.invoice_mode) ||
       (seller.invoice_mode==='ELECTRONIC_INVOICE' && seller.electronic_invoicing_tested!==true) ||
