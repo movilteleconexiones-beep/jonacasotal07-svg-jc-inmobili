@@ -37,7 +37,8 @@ const readiness = (e, extra) => evaluateReleaseReadiness(e, {now,expectedCommit:
 
 const verifiedSeller=()=>({
   // Synthetic unit-test data only. NEVER use this as merchant identity in prod.
-  legal_name:'Entidad sintética de pruebas S.A.S.',
+  taxpayer_type:'NATURAL_PERSON',
+  legal_name:'Titular ficticio de pruebas',
   identification_type:'NIT',
   identification_number:'900555001-1',
   business_address:'Dirección sintética 123, Colombia',
@@ -248,6 +249,12 @@ test('G24: commercial release fails without the seller identity, even with both 
   assert.ok(onlySeller(evidence).length>0,'Absent seller must be blocking');
   evidence.legal.saas_seller=verifiedSeller();
   assert.deepEqual(onlySeller(evidence),[],'Independently verified seller clears only G24, not other launch gates');
+  const juridical=structuredClone(evidence);
+  juridical.legal.saas_seller.taxpayer_type='LEGAL_ENTITY';
+  assert.match(onlySeller(juridical).join(' '),/persona natural/);
+  const missingTaxType=structuredClone(evidence);
+  delete missingTaxType.legal.saas_seller.taxpayer_type;
+  assert.ok(onlySeller(missingTaxType).length>0);
   const placeholder=structuredClone(evidence);
   placeholder.legal.saas_seller.legal_name='[NOMBRE PENDIENTE]';
   assert.ok(onlySeller(placeholder).length>0);
