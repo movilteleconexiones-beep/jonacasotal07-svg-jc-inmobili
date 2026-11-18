@@ -99,6 +99,11 @@ function checkSaasSellerEvidence(legal, now, errors) {
     errors.push('G24: falta la identidad jurídica verificable del vendedor del SaaS.');
     return;
   }
+  // G24 commercial seller: owner explicitly confirmed Colombian natural person.
+  // This does not certify RUT, IVA, or DIAN obligations.
+  if (seller.taxpayer_type !== 'NATURAL_PERSON') {
+    errors.push('G24: vendedor SaaS debe identificarse como persona natural según la configuración comercial aprobada.');
+  }
   const meaningful=(value,min=4,max=200)=>
     typeof value==='string' &&
     value.trim().length>=min && value.trim().length<=max &&
