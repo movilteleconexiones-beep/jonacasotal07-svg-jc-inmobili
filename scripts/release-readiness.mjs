@@ -102,7 +102,7 @@ function checkSaasSellerEvidence(legal, now, errors) {
   const meaningful=(value,min=4,max=200)=>
     typeof value==='string' &&
     value.trim().length>=min && value.trim().length<=max &&
-    !/\\[[^\\]]*\\]|PENDIENTE|POR DEFINIR|BORRADOR|PLACEHOLDER/i.test(value);
+    !/\[[^\]]*\]|PENDIENTE|POR DEFINIR|BORRADOR|PLACEHOLDER/i.test(value);
   const id=String(seller.identification_number??'').trim();
   const email=String(seller.pqr_email??'').trim();
   if (!meaningful(seller.legal_name) ||
@@ -110,7 +110,7 @@ function checkSaasSellerEvidence(legal, now, errors) {
       !/^[0-9][0-9.-]{4,19}$/.test(id) ||
       !/[1-9]/.test(id) ||
       !meaningful(seller.business_address,8,250) ||
-      !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(email) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ||
       !recentTimestamp(seller.identity_verified_at,now,168) ||
       seller.identity_documents_verified!==true) {
     errors.push('G24: identificación, domicilio, contacto PQR y soporte jurídico auténtico del vendedor no verificados.');
