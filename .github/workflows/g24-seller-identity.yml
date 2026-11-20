@@ -1,0 +1,24 @@
+name: G24 public seller identification
+on:
+  pull_request:
+    paths:
+      - 'src/components/SoftwareSellerIdentity.tsx'
+      - 'src/App.tsx'
+      - 'tests/g24-seller-identity.test.mjs'
+      - '.github/workflows/g24-seller-identity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/g24-seller-identity.test.mjs
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build

@@ -18,6 +18,7 @@ import { PatrimonialSimulator } from './components/PatrimonialSimulator.tsx';
 import { PropertyDetailModal } from './components/PropertyDetailModal.tsx';
 import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
 import { AuthAccessButton } from './components/AuthAccessButton.tsx';
+import { SoftwareSellerIdentity } from './components/SoftwareSellerIdentity';
 import { PasswordResetPage } from './components/PasswordResetPage';
 import { isPasswordResetPath } from './core/password-recovery';
 import { useAuth } from './core/auth-context.tsx';
@@ -1564,8 +1565,9 @@ export default function App() {
           <div className="space-y-1">
             <p className="text-lg font-display font-bold text-slate-900">{tenantSlug ? publicCompanyName : softwareBrand}</p>
             <p>
-              {tenantSlug ? (page.footerDescription || `Sitio público de ${publicCompanyName}`) : 'Datos de contacto configurables por cada inmobiliaria'}
+              {tenantSlug ? (page.footerDescription || `Sitio público de ${publicCompanyName}`) : 'Proveedor de licencias SaaS · Información del vendedor y atención al consumidor'}
             </p>
+            {!tenantSlug && <SoftwareSellerIdentity />}
           </div>
 
           <div className="max-w-3xl text-xs leading-relaxed text-slate-500">
