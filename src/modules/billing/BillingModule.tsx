@@ -71,7 +71,10 @@ export function BillingModule() {
     // Defense in depth: each checkout starts from an explicit, per-plan
     // non-prechecked disclosure. The server remains the payment authority.
     if (!orgId || busy || !purchaseSummaryAcknowledged || reviewPlanId !== planId ||
-        !billing?.terms_accepted || !settings || !(billing.is_test ? settings.sandbox_enabled : settings.production_enabled)) return;
+        !billing?.terms_accepted || billing.status === 'SUSPENDED' ||
+        (billing.operational && billing.subscription_status === 'LIFETIME') ||
+        (activePlan && activePlan.id !== planId) ||
+        !settings || !(billing.is_test ? settings.sandbox_enabled : settings.production_enabled)) return;
     // A subscription can be renewed, but never start an extra checkout by accident.
     if (activePlan?.id === planId && !window.confirm(
       billing?.is_test
@@ -197,7 +200,8 @@ export function BillingModule() {
                 setReviewPlanId(null);
                 setPurchaseSummaryAcknowledged(false);
               }} className="rounded-lg border px-4 py-2 text-sm">Volver a los planes</button>
-              <button type="button" disabled={busy || !available || !billing.terms_accepted || !purchaseSummaryAcknowledged}
+              <button type="button" disabled={busy || !available || !billing.terms_accepted || !purchaseSummaryAcknowledged ||
+                billing.status === 'SUSPENDED' || differentActivePlan || isLifetime}
                 onClick={() => void checkout(plan.id)}
                 className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
                 {billing.is_test ? 'Confirmar e ir a Wompi Sandbox' : 'Confirmar e ir a Wompi'}
