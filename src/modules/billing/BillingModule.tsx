@@ -167,7 +167,7 @@ export function BillingModule() {
             setPurchaseSummaryAcknowledged(false);
           }} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
           {differentActivePlan ? 'Cambio de plan: requiere revisión'
-            : isCurrentPlan ? billing.is_test ? 'Revisar renovación de prueba' : 'Revisar renovación'
+            : isCurrentPlan ? billing.is_test ? 'Simular renovación (revisar antes)' : 'Revisar renovación'
             : isLifetime ? 'Licencia perpetua vigente' : billing.is_test ? 'Revisar pago Sandbox' : 'Revisar plan antes de pagar'}</button>
         {reviewPlanId === plan.id && (
           <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-stone-50 p-4" role="region"
