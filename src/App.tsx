@@ -18,6 +18,8 @@ import { PatrimonialSimulator } from './components/PatrimonialSimulator.tsx';
 import { PropertyDetailModal } from './components/PropertyDetailModal.tsx';
 import { SubmitPropertyModal } from './components/SubmitPropertyModal.tsx';
 import { AuthAccessButton } from './components/AuthAccessButton.tsx';
+import { PasswordResetPage } from './components/PasswordResetPage';
+import { isPasswordResetPath } from './core/password-recovery';
 import { useAuth } from './core/auth-context.tsx';
 import type { TenantBrandingState } from './core/use-tenant-branding';
 import { usePublicTenantCatalog } from './core/use-public-tenant-catalog';
@@ -377,6 +379,13 @@ export default function App() {
       setContactBusy(false);
     }
   };
+
+  // G29: recovery callback must render before the private workspace and
+  // SuperAdmin route. A verified Supabase session, not a tenant role, governs
+  // password updates on this isolated screen.
+  if (isPasswordResetPath(window.location.pathname)) {
+    return <PasswordResetPage />;
+  }
 
   if (isSuperAdminRoute) {
     return <React.Suspense fallback={<p role="status" className="p-6">Cargando administración…</p>}><SuperAdminModule /></React.Suspense>;

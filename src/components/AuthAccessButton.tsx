@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { LogIn, LogOut, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../core/auth-context';
 import { OrganizationRegistration } from './OrganizationRegistration';
+import { supabase } from '../lib/supabase';
+import { PASSWORD_RESET_REDIRECT_URL } from '../core/password-recovery';
 
-type AuthMode = 'SIGN_IN' | 'SIGN_UP';
+type AuthMode = 'SIGN_IN' | 'SIGN_UP' | 'RECOVER';
 
 /** Anonymous-facing headers never display the signed-in account's private identity. */
 export function AuthAccessButton({
@@ -60,6 +62,20 @@ export function AuthAccessButton({
     setBusy(true);
 
     try {
+      if (mode === 'RECOVER') {
+        // Never disclose if a mailbox belongs to a registered account.
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: PASSWORD_RESET_REDIRECT_URL,
+        });
+        if (error) {
+          // Avoid returning provider errors that may reveal user existence.
+          setMessage('No pudimos procesar la solicitud en este momento. Inténtalo nuevamente más tarde.');
+          return;
+        }
+        setPassword('');
+        setMessage('Si el correo corresponde a una cuenta registrada, recibirás instrucciones para restablecer tu contraseña. Revisa también spam.');
+        return;
+      }
       if (mode === 'SIGN_UP') {
         const result = await signUp(email.trim(), password, fullName.trim());
 
@@ -174,12 +190,14 @@ export function AuthAccessButton({
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-950">
-                  {mode === 'SIGN_UP' ? 'Crear cuenta' : 'Acceso al sistema'}
+                  {mode === 'RECOVER' ? 'Recuperar contraseña' : mode === 'SIGN_UP' ? 'Crear cuenta' : 'Acceso al sistema'}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {mode === 'SIGN_UP'
-                    ? 'Registra tu usuario. Después podrás crear tu inmobiliaria, elegir un plan y realizar el pago.'
-                    : 'Administradores, asesores y clientes ingresan desde la misma plataforma.'}
+                  {mode === 'RECOVER'
+                    ? 'Introduce tu correo para recibir un enlace seguro de recuperación.'
+                    : mode === 'SIGN_UP'
+                      ? 'Registra tu usuario. Después podrás crear tu inmobiliaria, elegir un plan y realizar el pago.'
+                      : 'Administradores, asesores y clientes ingresan desde la misma plataforma.'}
                 </p>
               </div>
               <button
@@ -198,6 +216,15 @@ export function AuthAccessButton({
               </div>
             ) : (
               <>
+                {mode === 'RECOVER' ? (
+                  <button
+                    type="button"
+                    onClick={() => { setMode('SIGN_IN'); setMessage(''); }}
+                    className="mb-5 text-sm font-semibold text-slate-800 underline underline-offset-4"
+                  >
+                    Volver a iniciar sesión
+                  </button>
+                ) : (
                 <div className="mb-5 grid grid-cols-2 rounded-xl border border-stone-200 bg-stone-100 p-1">
                   <button
                     type="button"
@@ -226,6 +253,7 @@ export function AuthAccessButton({
                     Registrarse
                   </button>
                 </div>
+                )}
 
                 <form onSubmit={submitAuth} className="space-y-4">
                   {mode === 'SIGN_UP' && (
@@ -255,7 +283,7 @@ export function AuthAccessButton({
                     />
                   </label>
 
-                  <label className="block">
+                  {mode !== 'RECOVER' && <label className="block">
                     <span className="mb-1 block text-sm font-medium text-slate-700">Contraseña</span>
                     <input
                       type="password"
@@ -266,7 +294,18 @@ export function AuthAccessButton({
                       autoComplete={mode === 'SIGN_UP' ? 'new-password' : 'current-password'}
                       className="w-full rounded-xl border border-stone-300 px-3 py-2.5 outline-none focus:border-slate-500"
                     />
-                  </label>
+                  </label>}
+                  {mode === 'SIGN_IN' && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => { setMode('RECOVER'); setPassword(''); setMessage(''); }}
+                        className="text-sm font-semibold text-slate-800 underline underline-offset-4"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </button>
+                    </div>
+                  )}
 
                   {message && (
                     <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm text-slate-700">
@@ -280,10 +319,10 @@ export function AuthAccessButton({
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
                     {mode === 'SIGN_UP' ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-                    {busy ? 'Procesando…' : mode === 'SIGN_UP' ? 'Registrarme' : 'Iniciar sesión'}
+                    {busy ? 'Procesando…' : mode === 'RECOVER' ? 'Enviar enlace de recuperación' : mode === 'SIGN_UP' ? 'Registrarme' : 'Iniciar sesión'}
                   </button>
 
-                  <div className="pt-1 text-center text-sm text-slate-600">
+                  {mode !== 'RECOVER' && <div className="pt-1 text-center text-sm text-slate-600">
                     {mode === 'SIGN_IN' ? (
                       <>
                         ¿No tienes una cuenta?{' '}
@@ -313,7 +352,7 @@ export function AuthAccessButton({
                         </button>
                       </>
                     )}
-                  </div>
+                  </div>}
                 </form>
               </>
             )}
