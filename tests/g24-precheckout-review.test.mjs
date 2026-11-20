@@ -47,3 +47,13 @@ test('G24: no checkout based only on browser redirect or user-supplied total', (
   assert.doesNotMatch(billing, /amount_in_cents:\s*Number\(plan\.price\)/);
   assert.match(billing, /url\.origin !== 'https:\/\/checkout\.wompi\.co'/);
 });
+
+test('G24: plan or tenant drift while review is open fails closed in UI and handler', () => {
+  // A signed-in organization can become suspended, lifetime, or switch plan
+  // while the review card is open. The server is authoritative, but the
+  // browser must not continue displaying a valid payment action.
+  assert.match(billing, /billing\.status === 'SUSPENDED'/);
+  assert.match(billing, /billing\.operational && billing\.subscription_status === 'LIFETIME'/);
+  assert.match(billing, /activePlan && activePlan\.id !== planId/);
+  assert.match(billing, /billing\.status === 'SUSPENDED' \|\| differentActivePlan \|\| isLifetime/);
+});
