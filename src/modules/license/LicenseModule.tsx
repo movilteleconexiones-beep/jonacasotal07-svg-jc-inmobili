@@ -100,7 +100,7 @@ export function LicenseModule({ onAccepted }: { onAccepted?: () => void } = {}) 
   }
 
   return (
-    <section className="space-y-5">
+    <section id="terminos-licencia" className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Licencia y propiedad intelectual</h1>
         <p className="mt-1 text-sm text-slate-600">

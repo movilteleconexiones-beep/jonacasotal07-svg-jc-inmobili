@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../core/auth-context';
 import { supabase } from '../../lib/supabase';
 import { LicenseModule } from '../license/LicenseModule';
+import { SoftwareSellerIdentity } from '../../components/SoftwareSellerIdentity';
 import { paymentDisplayLabel, paymentReviewNotice } from '../../core/payment-display';
 import { trialAndLifetimeActionsEnabled } from '../../core/billing-release-flags';
 
@@ -19,6 +20,8 @@ export function BillingModule() {
   const [settings, setSettings] = useState<{ sandbox_enabled: boolean; production_enabled: boolean; activation_mode: string } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [reviewPlanId, setReviewPlanId] = useState<string | null>(null);
+  const [purchaseSummaryAcknowledged, setPurchaseSummaryAcknowledged] = useState(false);
   const attempts = useRef(new Map<string, string>());
 
   const load = useCallback(async () => {
@@ -33,7 +36,12 @@ export function BillingModule() {
     setPlans(catalog.data ?? []); setOrders(history.data ?? []); setSettings(config.data);
     setLifetimeAvailable(Boolean(perpetual.data?.id)); setError('');
   }, [orgId, billing?.can_manage_billing]);
-  useEffect(() => { attempts.current.clear(); void load(); }, [load]);
+  useEffect(() => {
+    attempts.current.clear();
+    setReviewPlanId(null);
+    setPurchaseSummaryAcknowledged(false);
+    void load();
+  }, [load]);
 
   async function activateEightDayTrial(planId: string) {
     if (!trialAndLifetimeActionsEnabled || settings?.production_enabled !== true) {
@@ -60,7 +68,10 @@ export function BillingModule() {
   }
   async function refresh() { setBusy(true); try { await Promise.all([load(), refreshMemberships()]); } finally { setBusy(false); } }
   async function checkout(planId: string) {
-    if (!orgId || busy) return;
+    // Defense in depth: each checkout starts from an explicit, per-plan
+    // non-prechecked disclosure. The server remains the payment authority.
+    if (!orgId || busy || !purchaseSummaryAcknowledged || reviewPlanId !== planId ||
+        !billing?.terms_accepted || !settings || !(billing.is_test ? settings.sandbox_enabled : settings.production_enabled)) return;
     // A subscription can be renewed, but never start an extra checkout by accident.
     if (activePlan?.id === planId && !window.confirm(
       billing?.is_test
@@ -151,10 +162,49 @@ export function BillingModule() {
           Probar gratis 8 días
         </button>}
         <button type="button" disabled={busy || !available || !billing.terms_accepted || billing.status === 'SUSPENDED' || differentActivePlan || isLifetime}
-          onClick={() => void checkout(plan.id)} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
+          onClick={() => {
+            setReviewPlanId(plan.id);
+            setPurchaseSummaryAcknowledged(false);
+          }} className="mt-4 w-full rounded-xl bg-slate-900 p-3 text-sm font-semibold text-white disabled:opacity-40">
           {differentActivePlan ? 'Cambio de plan: requiere revisión'
-            : isCurrentPlan ? billing.is_test ? 'Simular renovación' : 'Renovar este plan'
-            : isLifetime ? 'Licencia perpetua vigente' : billing.is_test ? 'Probar pago en entorno de pruebas' : 'Elegir plan y pagar'}</button>
+            : isCurrentPlan ? billing.is_test ? 'Simular renovación (revisar antes)' : 'Revisar renovación'
+            : isLifetime ? 'Licencia perpetua vigente' : billing.is_test ? 'Revisar pago Sandbox' : 'Revisar plan antes de pagar'}</button>
+        {reviewPlanId === plan.id && (
+          <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-stone-50 p-4" role="region"
+            aria-label={`Resumen previo al pago del plan ${plan.name}`}>
+            <h3 className="font-semibold">Confirma tu compra antes de continuar</h3>
+            <dl className="grid grid-cols-2 gap-2 text-sm">
+              <dt>Plan seleccionado</dt><dd className="text-right font-medium">{plan.name}</dd>
+              <dt>Total de la compra</dt><dd className="text-right font-bold">{money(Number(plan.price))} COP</dd>
+              <dt>Periodicidad</dt><dd className="text-right">{plan.billing_cycle === 'ANNUAL' ? 'Anual' : 'Mensual'}</dd>
+              <dt>Capacidad</dt><dd className="text-right">{plan.max_users ?? 'Según contrato'} usuarios, {plan.max_properties ?? 'según contrato'} inmuebles</dd>
+              <dt>Pasarela</dt><dd className="text-right">{billing.is_test ? 'Wompi Sandbox (sin cobro real)' : 'Wompi'}</dd>
+            </dl>
+            <SoftwareSellerIdentity />
+            <p className="text-xs text-slate-600">
+              Consulta las condiciones de licencia, renovación, cancelación, retracto cuando aplique
+              y solicitudes de devolución en los <a className="font-semibold underline" href="#terminos-licencia">términos de licencia vigentes</a>.
+              Este resumen no constituye factura de venta. El comprobante de Wompi no reemplaza un
+              documento tributario cuando la ley exija su expedición.
+            </p>
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
+              <input type="checkbox" className="mt-1" checked={purchaseSummaryAcknowledged}
+                onChange={event => setPurchaseSummaryAcknowledged(event.target.checked)} />
+              <span>He revisado el vendedor, el plan, el valor total, la periodicidad y las condiciones de contratación.</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={busy} onClick={() => {
+                setReviewPlanId(null);
+                setPurchaseSummaryAcknowledged(false);
+              }} className="rounded-lg border px-4 py-2 text-sm">Volver a los planes</button>
+              <button type="button" disabled={busy || !available || !billing.terms_accepted || !purchaseSummaryAcknowledged}
+                onClick={() => void checkout(plan.id)}
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                {billing.is_test ? 'Confirmar e ir a Wompi Sandbox' : 'Confirmar e ir a Wompi'}
+              </button>
+            </div>
+          </div>
+        )}
       </article>;
       })}</div>
       {lifetimeAvailable && <section aria-label="Licencia vitalicia" className="rounded-2xl border border-stone-200 bg-white p-5">
