@@ -11,9 +11,14 @@ import { fileURLToPath } from 'node:url';
  * Never commit signed actas, identification documents, RUT or client PII.
  */
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// Allowlist includes the operator's policy and SaaS terms in addition to
+// separately controlled agency policies. Never let an unrelated tenant
+// publish with the central operator's identity.
 const POLICIES = Object.freeze({
-  'sistema-inmobiliario-jco': 'Sistema Inmobiliario JCO',
-  'jco-inmodigital-global': 'JCO InmoDigital Global',
+  'operador-inmojco': { label: 'Sistema Inmobiliario JCO', kind: 'privacy' },
+  'terminos-saas-jco': { label: 'Sistema Inmobiliario JCO', kind: 'terms' },
+  'sistema-inmobiliario-jco': { label: 'Sistema Inmobiliario JCO', kind: 'privacy' },
+  'jco-inmodigital-global': { label: 'JCO InmoDigital Global', kind: 'privacy' },
 });
 const HASH = /^[a-f0-9]{64}$/;
 const REF = /^[A-Za-z0-9][A-Za-z0-9_.-]{5,95}$/;
@@ -90,10 +95,13 @@ export function verifyPolicyPublication(root = REPO_ROOT, extractText = extractP
       'G07: published PDF differs from the document explicitly approved ' + id);
     const content = extractText(file);
     assert.ok(content.length > 1_200, 'G07: unreadable/scanned legal PDF ' + id);
-    assert.ok(content.includes(POLICIES[id]), 'G07: wrong agency in PDF ' + id);
-    assert.ok(/pol[ií]tica de tratamiento/i.test(content), 'G07: not a policy ' + id);
+    assert.ok(content.includes(POLICIES[id].label), 'G07: wrong seller or agency in PDF ' + id);
+    const correctKind = POLICIES[id].kind === 'terms'
+      ? /t[eé]rminos y condiciones/i
+      : /pol[ií]tica de tratamiento/i;
+    assert.ok(correctKind.test(content), 'G07: wrong legal document kind ' + id);
     assert.doesNotMatch(content,
-      /BORRADOR\s+DE\s+AUDITOR[IÍ]A|NO\s+PUBLICAR|PENDIENTE\s+DE\s+APROBACI[OÓ]N|\[(?:RAZ[OÓ]N\s+SOCIAL|NIT|DATO\s+DE|DIRECCI[OÓ]N|CORREO|TEL[EÉ]FONO|FECHA\s+DE|COMPLETAR|NOMBRE\s+DEL|MUNICIPIO)/i,
+      /BORRADOR\s+DE\s+AUDITOR[IÍ]A|NO\s+PUBLICAR|PENDIENTE\s+DE\s+APROBACI[OÓ]N|VERSI[OÓ]N\s+CANDIDATA|TEXTO\s+PREPARADO\s+PARA\s+ADOPCI[OÓ]N|\[(?:RAZ[OÓ]N\s+SOCIAL|NIT|DATO\s+DE|DIRECCI[OÓ]N|CORREO|TEL[EÉ]FONO|FECHA\s+DE|COMPLETAR|NOMBRE\s+DEL|MUNICIPIO)/i,
       'G07: publication contains audit/draft notice or unresolved legal placeholders ' + id);
   }
   return { state: 'APPROVED_STATIC_ARTIFACTS_VERIFIED', verified: actualNames.length };
