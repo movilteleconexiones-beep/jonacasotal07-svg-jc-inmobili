@@ -1,0 +1,26 @@
+name: G07 approved JCO registry manifest guard
+on:
+  pull_request:
+    paths:
+      - 'security/candidates/g07_register_approved_jco_v1_2_REVIEW_ONLY.sql'
+      - 'tests/g07-approved-jco-registry-manifest.test.mjs'
+      - 'security/legal/approved-policy-publication.json'
+      - '.github/workflows/g07-approved-jco-registry-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'security/candidates/g07_register_approved_jco_v1_2_REVIEW_ONLY.sql'
+      - 'tests/g07-approved-jco-registry-manifest.test.mjs'
+      - 'security/legal/approved-policy-publication.json'
+      - '.github/workflows/g07-approved-jco-registry-guard.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/g07-approved-jco-registry-manifest.test.mjs
