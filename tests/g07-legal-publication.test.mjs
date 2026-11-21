@@ -71,3 +71,51 @@ test('G07: legal PDFs must use Caddy static-only 404, never SPA index.html fallb
  assert.match(caddy, /@legalDocuments path \/politicas \/politicas\/\*/);
  assert.match(caddy.slice(legal,fallback),/file_server/);
 });
+
+test('G07: allowlist contains the SaaS vendor policy and contractual terms', () => {
+ const f=fixture();
+ try {
+   const cases = [
+    ['operador-inmojco', 'POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES — Sistema Inmobiliario JCO\n' + 'Consentimiento y seguridad. '.repeat(110)],
+    ['terminos-saas-jco', 'Términos y Condiciones de Uso y Contratación — Sistema Inmobiliario JCO\n' + 'Precio, retracto, condiciones y renovaciones. '.repeat(95)],
+   ];
+   for (const [id, text] of cases) {
+     const path = join(f.dir,id+'.pdf');
+     writeFileSync(path,PDF);
+     f.manifest.policies[id] = {
+       ...f.policy,
+       policy_url:'https://www.inmojco.com/politicas/'+id+'.pdf',
+       policy_version:'1.2'
+     };
+   }
+   // The original agency policy is absent from this fixture.
+   delete f.manifest.policies['sistema-inmobiliario-jco'];
+   f.write();
+   assert.equal(verifyPolicyPublication(f.root, path =>
+     path.includes('operador-inmojco.pdf') ? cases[0][1] : cases[1][1]).verified, 2);
+ } finally {f.cleanup()}
+});
+
+test('G07: an operator policy cannot be passed off as SaaS contract terms', () => {
+ const f=fixture();
+ try {
+   writeFileSync(join(f.dir,'terminos-saas-jco.pdf'),PDF);
+   delete f.manifest.policies['sistema-inmobiliario-jco'];
+   f.manifest.policies['terminos-saas-jco'] = {...f.policy, policy_version:'1.2',
+    policy_url:'https://www.inmojco.com/politicas/terminos-saas-jco.pdf'};
+   f.write();
+   assert.throws(()=>verifyPolicyPublication(f.root,()=>'POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES — Sistema Inmobiliario JCO\n' + 'Contenido legal. '.repeat(200)),/wrong legal document kind/);
+ } finally {f.cleanup()}
+});
+
+test('G07: editorial markers remain prohibited in a v1.2 public PDF', () => {
+ const f=fixture();
+ try {
+   writeFileSync(join(f.dir,'operador-inmojco.pdf'),PDF);
+   delete f.manifest.policies['sistema-inmobiliario-jco'];
+   f.manifest.policies['operador-inmojco']={...f.policy,policy_version:'1.2',
+     policy_url:'https://www.inmojco.com/politicas/operador-inmojco.pdf'};
+   f.write();
+   assert.throws(()=>verifyPolicyPublication(f.root,()=> 'POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES — Sistema Inmobiliario JCO\n'+'Texto legal. '.repeat(100)+' VERSIÓN CANDIDATA'),/draft notice/);
+ } finally {f.cleanup()}
+});
