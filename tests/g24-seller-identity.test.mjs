@@ -27,3 +27,11 @@ test('G24 - central footer retains independent consumer authority link', () => {
   assert.match(app, /Derechos del consumidor · SIC/);
   assert.match(app, /Proveedor de licencias SaaS/);
 });
+
+test('G07 - links to exact approved legal PDF routes are accessible from seller identity', () => {
+  assert.match(identity, /href="\/politicas\/operador-inmojco\.pdf"/);
+  assert.match(identity, /href="\/politicas\/terminos-saas-jco\.pdf"/);
+  assert.match(identity, /rel="noopener noreferrer"/);
+  // The vendor block is not the controller of an unrelated agency.
+  assert.doesNotMatch(identity, /href="\/politicas\/jco-inmodigital-global\.pdf"/);
+});
