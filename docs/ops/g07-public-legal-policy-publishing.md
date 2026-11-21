@@ -4,10 +4,14 @@
 
 ## Rutas públicas reservadas
 
-- Sistema Inmobiliario JCO: `https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf`
-- JCO InmoDigital Global: `https://www.inmojco.com/politicas/jco-inmodigital-global.pdf`
+- Política del operador INMOJCO (responsable de licencias y encargado de agencias): `https://www.inmojco.com/politicas/operador-inmojco.pdf`
+- Términos y condiciones SaaS JCO: `https://www.inmojco.com/politicas/terminos-saas-jco.pdf`
+- Política de inmobiliaria propia Sistema Inmobiliario JCO: `https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf`
+- Política de inmobiliaria independiente JCO InmoDigital Global: `https://www.inmojco.com/politicas/jco-inmodigital-global.pdf` (**solo con aprobación específica de su responsable**).
 
-El servidor **no permite el fallback SPA** en `/politicas` y `/politicas/*`. Si no existe el PDF, devuelve **HTTP 404 real**, no `index.html` falsamente marcado 200. Ambas rutas deben permanecer 404 hasta que se aprueben los documentos correctos.
+Las dos primeras rutas identifican al vendedor de licencias, pero **no sustituyen** la política de tratamiento de la agencia que recolecte datos del público. Cada agencia debe mostrar y registrar su propia versión aprobada. Las tres primeras forman el expediente propio v1.2; la cuarta es una reserva distinta, no autorizada por el acta del operador.
+
+El servidor **no permite el fallback SPA** en `/politicas` y `/politicas/*`. Si no existe el PDF, devuelve **HTTP 404 real**, no `index.html` falsamente marcado 200. Cada ruta debe permanecer 404 mientras no exista para ese PDF un acta de adopción auténtica, SHA-256 y manifest aprobados.
 
 ## Puertas antes de subir cada política
 
@@ -16,7 +20,7 @@ El servidor **no permite el fallback SPA** en `/politicas` y `/politicas/*`. Si 
 3. Revisar el PDF **definitivo**: sin pie «BORRADOR», corchetes sin completar ni notas de auditoría internas; verificar contenido, legibilidad, identidad, canales vigentes, fecha/versión, accesibilidad y ausencia de datos privados innecesarios.
 4. Adoptar **individualmente** la política mediante acta auténtica firmada por quien tenga facultades. Guardar el acta firmada **en un repositorio privado del titular**, no en `public/`, GitHub ni logs.
 5. Calcular los SHA-256 **finales** del PDF público y del acta firmada. Son archivos diferentes y sus digests deben ser distintos. **La firma y la autoridad del firmante se verifican manualmente**; un SHA-256 demuestra correspondencia de bytes, no legalidad ni validez de firma.
-6. Colocar **solo** el PDF aprobado en `public/politicas/<slug>.pdf` y crear, **en la misma PR**, `security/legal/approved-policy-publication.json`. Ejemplo **NO COPIAR COMO APROBACIÓN**:
+6. Colocar **solo** cada PDF aprobado (política de datos o términos SaaS) en `public/politicas/<slug>.pdf` y crear, **en la misma PR**, `security/legal/approved-policy-publication.json`. Ejemplo **NO COPIAR COMO APROBACIÓN**:
 
 ```json
 {
@@ -34,9 +38,9 @@ El servidor **no permite el fallback SPA** en `/politicas` y `/politicas/*`. Si 
 }
 ```
 
-El ejemplo no se almacena en la ruta operativa del manifest. Pueden aprobarse las agencias en momentos distintos; el manifest debe contener **exactamente los documentos efectivamente presentes** en `public/politicas`.
+Para el operador y sus términos, el manifest debe usar los ID `operador-inmojco` y `terminos-saas-jco` respectivamente, con sus documentos y acta autenticada por el titular. No copiar una aprobación de otra versión ni cargar copias privadas de la firma. El ejemplo no se almacena en la ruta operativa del manifest. Pueden aprobarse las agencias en momentos distintos; el manifest debe contener **exactamente los documentos efectivamente presentes** en `public/politicas`.
 
-7. La CI ejecuta `node --test tests/g07-legal-publication.test.mjs` y `node scripts/legal/verify-approved-policies.mjs`. Con PDF exige manifest, SHA coincidente, acta firmada referenciada por SHA, nombre de agencia correcto y que `pdftotext` pueda extraer el contenido sin campos editoriales; si `pdftotext` no está instalado, **FALLA Y BLOQUEA** la publicación. Esta es una puerta **técnica**, no una validación automática de la firma.
+7. La CI ejecuta `node --test tests/g07-legal-publication.test.mjs` y `node scripts/legal/verify-approved-policies.mjs`. Con PDF exige manifest, SHA coincidente, acta firmada referenciada por SHA, identidad jurídica y naturaleza correcta del documento y que `pdftotext` pueda extraer el contenido sin campos editoriales; si `pdftotext` no está instalado, **FALLA Y BLOQUEA** la publicación. Esta es una puerta **técnica**, no una validación automática de la firma.
 8. Tras fusionar la PR con CI verde, comprobar con `curl -I` o navegador: HTTPS **200**, `Content-Type: application/pdf`, digest del archivo descargado y documento propio de la inmobiliaria. Confirmar que URLs sin documento siguen dando **404**. No sustituir esto por un enlace a la portada.
 9. **Solo entonces** revisar instalación de G07 SQL de consentimiento (hoy `security/candidates/g07_consignment_private_approval_consent_REVIEW_ONLY.sql`) con respaldo reciente/restauración y pruebas de aprobación/denegación por inmobiliaria; registrar la referencia/hash/versión aprobados en tabla privada tras validar actas auténticas. Configurar el `privacyPolicyUrl` correcto de esa inmobiliaria y probar HTTP anónimo, multi-tenant, Storage y consentimientos.
 10. **No habilitar `private.property_intake_sites.enabled` hasta la verificación integral**. El interruptor manual, por sí solo, no sustituye la aprobación del documento ni controles de backend.
@@ -46,3 +50,11 @@ El ejemplo no se almacena en la ruta operativa del manifest. Pueden aprobarse la
 Una nueva versión exige nueva revisión, acta, SHA y despliegue. Las evidencias existentes de consentimiento anteriores se conservan conforme al régimen de conservación y supresión legalmente aprobado. No sobreescribir documentos sin nueva acta; no borrar evidencia privada por cascada. Ante una revocación, cerrar el intake en backend antes de retirar enlaces o archivos.
 
 **Criterio de aceptación final:** actas firmadas verificadas, enlaces PDF reales y hashes correctos, G07 SQL instalado y probado con aprobación vigente por agencia, UI de consentimiento no premarcada, evidencia privada vinculada y ausencia de cruces entre inmobiliarias.
+
+## Extensión G07 para documentos del operador y contratación v1.2
+
+La CI permite `operador-inmojco.pdf` y `terminos-saas-jco.pdf` junto con las políticas independientes de agencias. Los términos deben declarar «Términos y Condiciones» y la política debe declarar «Política de Tratamiento». La ruta de términos **no** se sustituye por una SPA que devuelve 200.
+
+**Orden obligatorio:** (1) titular revisa tres PDF con SHA-256 exactos y adopta acta privada; (2) guardar la firma fuera del repositorio; (3) ingresar en PR única los PDF públicos y el manifest con datos auténticos; (4) comprobar CI, despliegue y HTTP 200 con MIME PDF y SHA; (5) aceptar y persistir consentimientos separados (operador/comercio y agencia) por versión; (6) recién entonces habilitar CRM/consignación pública y, tras pruebas independientes, pagos LIVE. La CI no prueba la autenticidad jurídica del acta: esa verificación corresponde a control humano con evidencia de firma.
+
+**No dar aprobación anticipada:** una solicitud genérica de corrección o la firma facsimilar de la versión 1.0/1.1 no convierte los PDF v1.2 en documentos jurídicamente adoptados. Requerir aprobación expresa de las huellas finales o nueva firma del acta.
