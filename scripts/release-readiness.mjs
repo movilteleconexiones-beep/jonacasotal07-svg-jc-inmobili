@@ -87,6 +87,63 @@ function checkSignedPolicyEvidence(legal, now, errors) {
   }
 }
 
+
+/**
+ * G24 is independent from the two estate agencies' privacy policies. The
+ * SOFTWARE VENDOR must be identified at the commercial point of sale.
+ * Evidence flags are reviewer attestations, never proof of a registry lookup.
+ */
+function checkSaasSellerEvidence(legal, now, errors) {
+  const seller=legal?.saas_seller;
+  if (!seller || typeof seller!=='object') {
+    errors.push('G24: falta la identidad jurídica verificable del vendedor del SaaS.');
+    return;
+  }
+  // G24 commercial seller: owner explicitly confirmed Colombian natural person.
+  // This does not certify RUT, IVA, or DIAN obligations.
+  if (seller.taxpayer_type !== 'NATURAL_PERSON') {
+    errors.push('G24: vendedor SaaS debe identificarse como persona natural según la configuración comercial aprobada.');
+  }
+  const meaningful=(value,min=4,max=200)=>
+    typeof value==='string' &&
+    value.trim().length>=min && value.trim().length<=max &&
+    !/\[[^\]]*\]|PENDIENTE|POR DEFINIR|BORRADOR|PLACEHOLDER/i.test(value);
+  const id=String(seller.identification_number??'').trim();
+  const email=String(seller.pqr_email??'').trim();
+  if (!meaningful(seller.legal_name) ||
+      !['NIT','CC','CE'].includes(seller.identification_type) ||
+      !/^[0-9][0-9.-]{4,19}$/.test(id) ||
+      !/[1-9]/.test(id) ||
+      !meaningful(seller.business_address,8,250) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ||
+      !recentTimestamp(seller.identity_verified_at,now,168) ||
+      seller.identity_documents_verified!==true) {
+    errors.push('G24: identificación, domicilio, contacto PQR y soporte jurídico auténtico del vendedor no verificados.');
+  }
+  if (seller.homepage_identity_verified!==true ||
+      seller.checkout_identity_verified!==true ||
+      seller.consumer_rights_link_verified!==true ||
+      seller.buyer_information_verified!==true) {
+    errors.push('G24: falta comprobar identificación del vendedor y derechos del consumidor en portada y checkout.');
+  }
+  // IVA, invoice duties and CIIU classification are three separate legal
+  // assessments. An RUT code is NOT proof of exempted SaaS invoices.
+  if (seller.vat_status_reviewed!==true ||
+      !['NON_RESPONSIBLE','RESPONSIBLE'].includes(seller.vat_regime) ||
+      seller.checkout_tax_treatment_verified!==true) {
+    errors.push('G24: tratamiento IVA y presentación tributaria del precio SaaS no verificados.');
+  }
+  if (seller.saas_activity_classification_reviewed!==true) {
+    errors.push('G24: actividad CIIU de venta y operación SaaS pendiente de revisión.');
+  }
+  if (seller.dian_obligation_reviewed!==true ||
+      !['ELECTRONIC_INVOICE','DOCUMENTED_EXCEPTION'].includes(seller.invoice_mode) ||
+      (seller.invoice_mode==='ELECTRONIC_INVOICE' && seller.electronic_invoicing_tested!==true) ||
+      (seller.invoice_mode==='DOCUMENTED_EXCEPTION' && seller.exception_documented!==true)) {
+    errors.push('G24: falta evaluar y acreditar el mecanismo de facturación DIAN aplicable.');
+  }
+}
+
 function get(obj, path) {
   return path.split('.').reduce((current, key) => current && current[key], obj);
 }
@@ -153,6 +210,7 @@ export function evaluateReleaseReadiness(evidence, {
         e.commercial?.approved_fulfillment_status !== 'APPLIED')
       errors.push('Falta orden de producción APPROVED/APPLIED verificable.');
     checkSignedPolicyEvidence(e.legal,now,errors);
+    checkSaasSellerEvidence(e.legal,now,errors);
     if(e.legal?.consumer_terms_approved!==true ||
        e.legal?.buyer_acceptance_verified!==true){
       errors.push('Faltan condiciones comerciales aprobadas y aceptación válida del comprador.');

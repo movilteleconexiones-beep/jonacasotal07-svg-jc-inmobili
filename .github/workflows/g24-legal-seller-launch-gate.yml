@@ -1,0 +1,24 @@
+name: G24 seller legal launch gate (isolated, no secrets)
+on:
+  pull_request:
+    paths:
+      - 'scripts/release-readiness.mjs'
+      - 'tests/release-readiness-gates.test.mjs'
+      - 'docs/ops/g24-saas-seller-launch-identity.md'
+      - '.github/workflows/g24-legal-seller-launch-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g24-identity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify fail-closed seller legal identity, checkout and DIAN gate
+        run: node --test tests/release-readiness-gates.test.mjs
