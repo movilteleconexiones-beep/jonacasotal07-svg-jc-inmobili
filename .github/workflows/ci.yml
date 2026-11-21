@@ -804,6 +804,11 @@ jobs:
       - name: Existing property operation and rental price edit safety
         run: node --test tests/property-edit-existing-operation.test.mjs
 
+      - name: G07 install PDF parser (fail closed if unavailable)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          command -v pdftotext
       - name: G07 signed public policy PDF integrity and no-draft publication gate
         run: |
           node --test tests/g07-legal-publication.test.mjs

@@ -18,6 +18,10 @@ export function SoftwareSellerIdentity() {
       <p>Soporte: <a className="underline underline-offset-2 hover:text-slate-900" href="mailto:soporte@inmojco.com">soporte@inmojco.com</a></p>
       <p>Datos personales: <a className="underline underline-offset-2 hover:text-slate-900" href="mailto:privacidad@inmojco.com">privacidad@inmojco.com</a></p>
       <p>Facturación: <a className="underline underline-offset-2 hover:text-slate-900" href="mailto:facturacion@inmojco.com">facturacion@inmojco.com</a></p>
+      <nav aria-label="Documentos legales del proveedor" className="flex flex-wrap gap-x-3 gap-y-1 pt-2">
+        <a className="font-semibold underline underline-offset-2 hover:text-slate-900" href="/politicas/operador-inmojco.pdf" target="_blank" rel="noopener noreferrer">Política de datos de la plataforma</a>
+        <a className="font-semibold underline underline-offset-2 hover:text-slate-900" href="/politicas/terminos-saas-jco.pdf" target="_blank" rel="noopener noreferrer">Términos y condiciones SaaS</a>
+      </nav>
     </section>
   );
 }
