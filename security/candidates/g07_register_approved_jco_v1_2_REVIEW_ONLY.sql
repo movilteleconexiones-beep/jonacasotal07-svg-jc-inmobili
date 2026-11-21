@@ -1,7 +1,7 @@
 -- G07 #370 / #203: REVIEW ONLY. Approved JCO agency policy v1.2 registration.
 -- Execute AFTER the independently reviewed G07 registry migration, current
 -- full PostgreSQL+Storage backup and isolated restore verification.
--- Deliberately does NOT GRANT EXECUTE, enable any public intake, or affect billing.
+-- Does not authorize callable public RPCs, enable intake, or affect billing.
 -- This is the actual approved manifest's immutable identity, NOT a new approval.
 BEGIN;
 SET LOCAL lock_timeout='3s';
