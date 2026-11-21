@@ -1,0 +1,62 @@
+name: G07 legal PDFs verified on public HTTPS
+on:
+  workflow_run:
+    workflows: ["Verify JCO application"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-public-legal-documents:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+      - name: Verify HTTPS, PDF MIME, body SHA and missing-agency 404
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, time, urllib.error, urllib.request
+          manifest=pathlib.Path("security/legal/approved-policy-publication.json")
+          if not manifest.exists():
+              print("G07 not published: no approved manifest on this commit")
+              raise SystemExit(0)
+          policies=json.loads(manifest.read_text())["policies"]
+          assert policies, "G07 manifest must not be empty"
+          for id, record in policies.items():
+              url=record["policy_url"]
+              assert url == "https://www.inmojco.com/politicas/"+id+".pdf", url
+              expected=record["pdf_sha256"]
+              verified=False
+              for attempt in range(40):
+                  try:
+                      req=urllib.request.Request(url+"?g07-release-check="+str(int(time.time())),
+                          headers={"Cache-Control":"no-cache","User-Agent":"G07-release-verify/1.2"})
+                      with urllib.request.urlopen(req,timeout=15) as resp:
+                          status=resp.status
+                          mime=resp.headers.get("Content-Type","").split(";")[0].lower()
+                          actual=hashlib.sha256(resp.read(10_000_000)).hexdigest()
+                      if status==200 and mime=="application/pdf" and actual==expected:
+                          print("VERIFIED",id,"HTTP",status,"MIME",mime,"SHA",actual)
+                          verified=True
+                          break
+                      print("Not yet deployed",id,status,mime,actual,"expected",expected)
+                  except (urllib.error.URLError, TimeoutError) as exc:
+                      print("Not yet available",id,str(exc)[:140])
+                  time.sleep(12)
+              assert verified, "G07 publication or integrity failed: "+id
+          other="jco-inmodigital-global"
+          if other not in policies:
+              url="https://www.inmojco.com/politicas/"+other+".pdf"
+              req=urllib.request.Request(url+"?g07-release-check="+str(int(time.time())),
+                  headers={"Cache-Control":"no-cache"})
+              try:
+                  with urllib.request.urlopen(req,timeout=15) as resp:
+                      raise AssertionError("Unapproved agency policy must be 404: "+str(resp.status))
+              except urllib.error.HTTPError as exc:
+                  assert exc.code==404, "Unexpected status "+str(exc.code)
+                  print("VERIFIED unapproved agency 404",other)
+          PY
