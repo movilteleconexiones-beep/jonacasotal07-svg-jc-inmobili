@@ -1,7 +1,10 @@
 /**
- * Historical 2026 JCO price proposal in COP. Production plan prices are
- * stored in Supabase and MUST be reconciled to an explicitly approved seller
- * catalogue before Wompi LIVE. These constants do not authorize payments.
+ * JCO prices in COP: BASIC/PRO superseded October 9 proposals by the
+ * owner's explicit October 15, 2026 authorization (129900/299900).
+ * Production plan prices are
+ * stored in Supabase and MUST match the approved checkout catalogue before
+ * Wompi LIVE. Other annual/Enterprise/Lifetime legacy reference amounts
+ * are NOT an active consumer checkout offer. No constant authorizes payment.
  *
  * The SaaS seller's updated 20-Nov-2026 RUT shows responsibility 49:
  * NOT RESPONSIBLE FOR IVA. No IVA may be silently added or described as
@@ -14,8 +17,8 @@ export const JCO_SELLER_RUT_2026 = Object.freeze({
   reviewedRutDate:'2026-11-20',
 } as const);
 export const JCO_APPROVED_PRICES_COP = Object.freeze({
-  BASIC: 104900,
-  PRO: 194900,
+  BASIC: 129900,
+  PRO: 299900,
   ENTERPRISE: 389900,
   BASIC_ANNUAL: 1039000,
   PRO_ANNUAL: 1949000,
