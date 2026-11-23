@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { JCO_APPROVED_PRICES_COP, getJcoTaxDecision } from '../src/core/jco-pricing-tax-policy.ts';
+import { JCO_APPROVED_PRICES_COP, JCO_SELLER_RUT_2026, getJcoTaxDecision } from '../src/core/jco-pricing-tax-policy.ts';
 
 test('approved catalog contains exactly seven positive integer COP amounts', () => {
   assert.deepEqual(JCO_APPROVED_PRICES_COP, {
@@ -11,9 +11,12 @@ test('approved catalog contains exactly seven positive integer COP amounts', () 
   assert.ok(Object.values(JCO_APPROVED_PRICES_COP).every(Number.isSafeInteger));
 });
 
-test('2026 checkout price is final and includes applicable tax', () => {
+test('2026 RUT responsibility 49: do not collect or advertise IVA in seller totals', () => {
+  assert.equal(JCO_SELLER_RUT_2026.responsibilityCode,'49');
+  assert.equal(JCO_SELLER_RUT_2026.vatRegime,'NON_RESPONSIBLE');
   assert.deepEqual(getJcoTaxDecision('PRO','2026-12-31'), {
-    kind:'2026_final_price', amountCop:194900, taxIncludedWhenApplicable:true,
+    kind:'2026_final_price', amountCop:194900,
+    sellerVatRegime:'NON_RESPONSIBLE',vatChargedCop:0,
   });
 });
 
