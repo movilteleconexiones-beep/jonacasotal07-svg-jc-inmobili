@@ -48,45 +48,73 @@ const commercialChecks = [
   ['deployment.rollback_rehearsed', 'Simulacro reproducible de reversión y recuperación sin alterar datos reales'],
 ];
 
-// Two separate legal owners/brands must be verified against the exact PDF
-// bytes actually published on the canonical HTTPS domain. Boolean flags alone
-// must never turn unsigned draft policies into launch approval.
+// G07: the personal SuperAdmin tenant and the separately owned test tenant
+// have distinct data controllers. Never equate SaaS vendor approval with
+// the future external tenant's adoption of an agency privacy policy.
+// The external tenant may remain legally non-collecting, with fresh,
+// independent negative evidence, without blocking SaaS commercial readiness.
+const PERSONAL_TENANT = 'jco-inmodigital-global';
+const EXTERNAL_TENANT = 'sistema-inmobiliario-jco';
 const REQUIRED_POLICY_URLS = new Map([
-  ['sistema-inmobiliario-jco', 'https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf'],
-  ['jco-inmodigital-global', 'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf'],
+  [PERSONAL_TENANT, 'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf'],
+  [EXTERNAL_TENANT, 'https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf'],
 ]);
-function checkSignedPolicyEvidence(legal, now, errors) {
-  const policies=legal?.policies;
-  if (!Array.isArray(policies) || policies.length!==REQUIRED_POLICY_URLS.size) {
-    errors.push('Faltan las dos políticas jurídicas aprobadas y firmadas de las inmobiliarias.');
-    return;
-  }
-  const seen=new Set();
-  for(const policy of policies){
-    const slug=policy?.slug;
-    const target=REQUIRED_POLICY_URLS.get(slug);
-    if(!target || seen.has(slug)){
-      errors.push('Política jurídica duplicada o perteneciente a inmobiliaria desconocida.');
-      continue;
-    }
-    seen.add(slug);
-    if(policy.url!==target ||
-      !SHA256.test(policy.sha256??'') ||
-      typeof policy.version!=='string' || !/^[a-zA-Z0-9._-]{1,80}$/.test(policy.version) ||
-      policy.signed_adoption_act!==true ||
-      policy.pdf_sha256_matches_published_bytes!==true ||
-      !recentTimestamp(policy.pdf_verified_at,now,168) ||
-      typeof policy.approved_at!=='string' ||
-      !Number.isFinite(Date.parse(policy.approved_at)) ||
-      Date.parse(policy.approved_at)>now.getTime()+600000){
-      errors.push('Política de '+slug+': faltan acta firmada, versión, PDF HTTPS/hash auténtico o verificación reciente.');
-    }
-  }
-  for(const slug of REQUIRED_POLICY_URLS.keys()){
-    if(!seen.has(slug))errors.push('Falta la política específica de '+slug+'.');
+
+function checkClosedExternalAgencyEvidence(legal, now, errors, commitSha) {
+  const closed = legal?.noncollecting_external_agency;
+  if (!closed || closed.slug !== EXTERNAL_TENANT ||
+      closed.project_ref !== PRODUCTION_PROJECT_REF ||
+      closed.commit_sha !== commitSha ||
+      !recentTimestamp(closed.verified_at, now, 24) ||
+      closed.property_intake_disabled_db !== true ||
+      closed.crm_anon_rpc_denied !== true ||
+      closed.consignment_anon_rpc_denied !== true ||
+      closed.public_forms_closed_browser !== true ||
+      closed.legacy_policy_not_advertised !== true ||
+      closed.actual_controller_not_onboarded !== true) {
+    errors.push('G07: la inmobiliaria externa sin aprobación propia debe permanecer cerrada a datos personales; falta prueba negativa actual de DB, RPC, navegador y enlaces legales.');
   }
 }
 
+function checkSignedPolicyEvidence(legal, now, errors, commitSha) {
+  const policies = legal?.policies;
+  if (!Array.isArray(policies) || policies.length < 1 || policies.length > REQUIRED_POLICY_URLS.size) {
+    errors.push('G07: faltan políticas jurídicas específicas; como mínimo la de la inmobiliaria personal del SuperAdmin.');
+    return;
+  }
+  const seen = new Set();
+  for (const policy of policies) {
+    const slug = policy?.slug;
+    const target = REQUIRED_POLICY_URLS.get(slug);
+    if (!target || seen.has(slug)) {
+      errors.push('G07: política duplicada o de inmobiliaria no reconocida.');
+      continue;
+    }
+    seen.add(slug);
+    if (policy.url !== target ||
+        !SHA256.test(policy.sha256 ?? '') ||
+        typeof policy.version !== 'string' || !/^[a-zA-Z0-9._-]{1,80}$/.test(policy.version) ||
+        policy.signed_adoption_act !== true ||
+        policy.pdf_sha256_matches_published_bytes !== true ||
+        !recentTimestamp(policy.pdf_verified_at, now, 168) ||
+        typeof policy.approved_at !== 'string' ||
+        !Number.isFinite(Date.parse(policy.approved_at)) ||
+        Date.parse(policy.approved_at) > now.getTime() + 600000) {
+      errors.push('G07: política de ' + slug + ': faltan adopción auténtica, versión, PDF HTTPS/hash o verificación reciente.');
+    }
+    if (slug === EXTERNAL_TENANT &&
+        (policy.controller_verified_for_org !== true ||
+         policy.brand_name_verified !== true ||
+         policy.current_controller_adoption_verified !== true ||
+         (policy.version === '1.2' && policy.url === target))) {
+      errors.push('G07: política de inmobiliaria externa sin adopción por su nuevo responsable; el PDF histórico v1.2 no acredita a otro titular.');
+    }
+  }
+  if (!seen.has(PERSONAL_TENANT))
+    errors.push('G07: falta política vigente aprobada de la inmobiliaria personal del SuperAdmin (jco-inmodigital-global).');
+  if (!seen.has(EXTERNAL_TENANT))
+    checkClosedExternalAgencyEvidence(legal, now, errors, commitSha);
+}
 
 /**
  * G24 is independent from the two estate agencies' privacy policies. The
@@ -209,7 +237,7 @@ export function evaluateReleaseReadiness(evidence, {
     if (e.commercial?.approved_order_status !== 'APPROVED' ||
         e.commercial?.approved_fulfillment_status !== 'APPLIED')
       errors.push('Falta orden de producción APPROVED/APPLIED verificable.');
-    checkSignedPolicyEvidence(e.legal,now,errors);
+    checkSignedPolicyEvidence(e.legal, now, errors, e.commit_sha);
     checkSaasSellerEvidence(e.legal,now,errors);
     if(e.legal?.consumer_terms_approved!==true ||
        e.legal?.buyer_acceptance_verified!==true){
