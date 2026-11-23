@@ -14,7 +14,7 @@ test('G07 historical PDF manifest matches byte-identical prior approval (not new
   assert.ok(!manifest.policies['jco-inmodigital-global'], 'other agency must not gain approval');
 });
 test('G07 candidate is fail-closed and never opens public collection or billing',()=>{
-  assert.match(sql,/REVIEW ONLY/);
+  assert.match(sql,/DEPRECATED AND BLOCKED/);
   assert.match(sql,/BEGIN;/);
   assert.match(sql,/ROLLBACK|DO NOTHING/);
   assert.match(sql,/relrowsecurity/);
