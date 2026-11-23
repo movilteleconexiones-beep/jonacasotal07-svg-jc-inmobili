@@ -85,6 +85,9 @@ class StorageExporterGuards(unittest.TestCase):
                 self.assertEqual(stored.read_bytes(), payload)
                 manifest = json.loads((output / "storage-manifest.json").read_text())
                 self.assertEqual(manifest[0]["sha256"], hashlib.sha256(payload).hexdigest())
+                buckets = json.loads((output / "bucket-manifest.json").read_text())
+                self.assertEqual(buckets, [{"id": "test-bucket", "public": False}])
+                self.assertEqual((output / "bucket-manifest.json").stat().st_mode & 0o077, 0)
         finally:
             server.shutdown()
             server.server_close()
