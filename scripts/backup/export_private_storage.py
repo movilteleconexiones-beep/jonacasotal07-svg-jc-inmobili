@@ -7,6 +7,7 @@ Never log or commit tokens or downloaded files.
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -35,9 +36,23 @@ def call(endpoint, payload=None):
         return response.read()
 
 buckets = json.loads(call("bucket"))
+if not isinstance(buckets, list):
+    raise ValueError("Invalid Storage bucket response")
 manifest = []
+bucket_manifest = []
+seen_buckets = set()
+seen_objects = set()
 for bucket in buckets:
-    bucket_id = bucket["id"]
+    bucket_id = bucket.get("id")
+    if not isinstance(bucket_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}", bucket_id):
+        raise ValueError("Unsafe Storage bucket identifier")
+    if bucket_id in seen_buckets:
+        raise ValueError("Duplicate Storage bucket")
+    seen_buckets.add(bucket_id)
+    public = bucket.get("public", False)
+    if not isinstance(public, bool):
+        raise ValueError("Invalid bucket privacy flag")
+    bucket_manifest.append({"id": bucket_id, "public": public})
     pending = [""]
     while pending:
         prefix = pending.pop()
@@ -52,9 +67,15 @@ for bucket in buckets:
                 if name in (".", "..") or "/" in name or "\\" in name:
                     raise ValueError("Unsafe Storage path component")
                 object_path = (prefix + "/" if prefix else "") + name
+                if len(object_path) > 2048 or len(object_path.split("/")) > 20:
+                    raise ValueError("Unsafe Storage path length")
                 if item.get("id") is None:
                     pending.append(object_path)
                     continue
+                object_id = (bucket_id, object_path)
+                if object_id in seen_objects or len(seen_objects) >= 100_000:
+                    raise ValueError("Duplicate or excessive Storage export")
+                seen_objects.add(object_id)
                 destination = root / "storage" / bucket_id / object_path
                 if not destination.resolve().is_relative_to(root):
                     raise ValueError("Unsafe object path")
@@ -68,7 +89,10 @@ for bucket in buckets:
                 with destination.open("xb") as output:
                     output.write(data)
                 destination.chmod(0o600)
-                expected_size = item.get("metadata", {}).get("size")
+                metadata = item.get("metadata") or {}
+                if not isinstance(metadata, dict):
+                    raise ValueError("Invalid Storage metadata")
+                expected_size = metadata.get("size")
                 if expected_size is not None and len(data) != int(expected_size):
                     raise IOError(f"Storage size mismatch: {bucket_id}/{object_path}")
                 manifest.append({
@@ -81,4 +105,7 @@ for bucket in buckets:
 with (root / "storage-manifest.json").open("x", encoding="utf-8") as output:
     json.dump(manifest, output, indent=2, ensure_ascii=False)
 os.chmod(root / "storage-manifest.json", 0o600)
-print(f"Exported {len(manifest)} objects; verify and encrypt before transferring.")
+with (root / "bucket-manifest.json").open("x", encoding="utf-8") as output:
+    json.dump(bucket_manifest, output, indent=2, ensure_ascii=False)
+os.chmod(root / "bucket-manifest.json", 0o600)
+print(f"Exported {len(manifest)} objects in {len(bucket_manifest)} buckets; verify and encrypt before transferring.")
