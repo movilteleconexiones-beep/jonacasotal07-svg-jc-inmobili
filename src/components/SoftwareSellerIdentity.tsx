@@ -10,6 +10,7 @@ export function SoftwareSellerIdentity() {
     <section aria-label="Identificación y contacto del proveedor de licencias" className="mt-3 max-w-sm space-y-1 text-xs leading-relaxed text-stone-700">
       <p className="font-semibold text-slate-900">Proveedor de licencias: Jonathan Castaño Otalvaro, persona natural</p>
       <p>NIT: 1017182843-5</p>
+      <p>RUT actualizado el 20/11/2026: no responsable del IVA (código 49). La obligación de expedir factura se determina por separado.</p>
       <address className="not-italic">
         Dirección para notificaciones comerciales: VTE GUARNE - AEROPUERTO KM 3 800 VDA CANOAS, Guarne, Antioquia, Colombia.
       </address>

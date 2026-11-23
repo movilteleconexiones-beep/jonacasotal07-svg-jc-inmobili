@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { evaluateReleaseReadiness, PRODUCTION_PROJECT_REF } from '../scripts/release-readiness.mjs';
+import { evaluateReleaseReadiness, PRODUCTION_PROJECT_REF, APPROVED_COMMERCIAL_CATALOG_SHA256 } from '../scripts/release-readiness.mjs';
 
 const sha = 'a'.repeat(40);
 const now = new Date('2030-03-10T12:00:00.000Z');
@@ -170,6 +170,15 @@ test('sandbox is mandatory for PR phase and commercial launch has stricter gates
     wompi_sandbox_signed:true,
     wompi_real_approved:true,
     licensing_is_superadmin_only:true,
+    pricing_catalog:{
+      project_ref:PRODUCTION_PROJECT_REF,
+      commit_sha:sha,
+      verified_at:'2030-03-10T11:00:00Z',
+      approved_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,
+      live_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,
+      superadmin_catalog_approval_verified:true,
+      checkout_prices_checked_against_live:true,
+    },
     private_financial_browser_e2e:true,
     shared_owner_financial_browser_e2e:true,
     commission_118_documented:true,
@@ -356,4 +365,43 @@ test('G07: personal SuperAdmin policy is mandatory; external agency may stay ful
     'Old policy cannot authorize the future outside data controller');
   legacy.legal.policies[1].version='1.3';
   assert.deepEqual(legalErrors(legacy),[],'Only separately adopted new version can be presented');
+});
+
+test('G25: commercial launch blocks unapproved or mismatched live prices',()=>{
+  const e=completeEvidence();
+  e.deployment.wompi_mode='production';
+  const onlyPricing=input=>readiness(input,{phase:'commercial'}).errors.filter(s=>s.startsWith('G25:'));
+  assert.ok(onlyPricing(e).length>0,'No pricing evidence must block LIVE launch');
+  e.commercial={pricing_catalog:{
+    project_ref:PRODUCTION_PROJECT_REF,commit_sha:sha,
+    verified_at:'2030-03-10T11:00:00Z',
+    approved_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,live_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,
+    superadmin_catalog_approval_verified:true,checkout_prices_checked_against_live:true,
+  }};
+  assert.deepEqual(onlyPricing(e),[],'Only verified exact match clears the pricing gate');
+  const jointlyTampered=structuredClone(e);
+  jointlyTampered.commercial.pricing_catalog.live_catalog_sha256='a'.repeat(64);
+  jointlyTampered.commercial.pricing_catalog.approved_catalog_sha256='a'.repeat(64);
+  assert.ok(onlyPricing(jointlyTampered).length>0,
+    'Two matching but unapproved price hashes must never pass');
+  const wrong=structuredClone(e);
+  wrong.commercial.pricing_catalog.live_catalog_sha256='b'.repeat(64);
+  assert.ok(onlyPricing(wrong).length>0,'Mismatch in even one price blocks launch');
+  const unapproved=structuredClone(e);
+  unapproved.commercial.pricing_catalog.superadmin_catalog_approval_verified=false;
+  assert.ok(onlyPricing(unapproved).length>0);
+  const stale=structuredClone(e);
+  stale.commercial.pricing_catalog.verified_at='2030-03-07T11:00:00Z';
+  assert.ok(onlyPricing(stale).length>0);
+  const wrongCommit=structuredClone(e);
+  wrongCommit.commercial.pricing_catalog.commit_sha='c'.repeat(40);
+  assert.ok(onlyPricing(wrongCommit).length>0);
+  const wrongProject=structuredClone(e);
+  wrongProject.commercial.pricing_catalog.project_ref='another-supabase-project';
+  assert.ok(onlyPricing(wrongProject).length>0);
+  const unchecked=structuredClone(e);
+  unchecked.commercial.pricing_catalog.checkout_prices_checked_against_live=false;
+  assert.ok(onlyPricing(unchecked).length>0);
+  assert.equal(readiness(e,{phase:'commercial'}).ready,false,
+    'Pricing equality does not bypass G07/G12/G16/backup/DIAN gates');
 });

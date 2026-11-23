@@ -13,6 +13,8 @@ test('G24 - root portal identifies true SaaS seller and gives working contact ch
     assert.ok(identity.includes('mailto:' + email), email);
   }
   assert.match(identity, /tel:\+573235228591/);
+  assert.match(identity, /no responsable del IVA \(código 49\)/);
+  assert.match(identity, /La obligación de expedir factura se determina por separado/);
 });
 
 test('G24 - seller identity does not claim ownership of other agencies', () => {

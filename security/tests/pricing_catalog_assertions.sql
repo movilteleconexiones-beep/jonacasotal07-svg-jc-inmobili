@@ -1,3 +1,5 @@
+-- QA synthetic 7-plan fixture, NOT a mandate to enable legacy annual or Enterprise checkout.
+-- BASIC/PRO monthly updated to the owner's 22-Nov-2026 revised monthly prices.
 DO $$
 DECLARE
  v_count integer;
@@ -6,8 +8,8 @@ BEGIN
  IF v_count <> 7 THEN RAISE EXCEPTION 'Expected 7 plans, got %',v_count; END IF;
  IF EXISTS (
    SELECT 1 FROM (VALUES
-    ('BASIC','MONTHLY',104900::numeric),
-    ('PRO','MONTHLY',194900::numeric),
+    ('BASIC','MONTHLY',149900::numeric),
+    ('PRO','MONTHLY',349900::numeric),
     ('ENTERPRISE','MONTHLY',389900::numeric),
     ('BASIC_ANNUAL','ANNUAL',1039000::numeric),
     ('PRO_ANNUAL','ANNUAL',1949000::numeric),
