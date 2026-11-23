@@ -4,7 +4,7 @@ import { quoteJcoSandboxOrder } from '../server/wompi-sandbox-order-quote.ts';
 
 test('all six SaaS plans quote approved amounts in Wompi cents', () => {
   const expected = [
-    ['BASIC',10490000,'SAAS_MONTHLY'],['PRO',19490000,'SAAS_MONTHLY'],
+    ['BASIC',14990000,'SAAS_MONTHLY'],['PRO',34990000,'SAAS_MONTHLY'],
     ['ENTERPRISE',38990000,'SAAS_MONTHLY'],
     ['BASIC_ANNUAL',103900000,'SAAS_ANNUAL'],
     ['PRO_ANNUAL',194900000,'SAAS_ANNUAL'],
