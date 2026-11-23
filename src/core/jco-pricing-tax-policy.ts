@@ -1,10 +1,18 @@
 /**
- * JCO commercial prices, in COP. These are approved customer totals during
- * the 2026 launch, with applicable VAT included. From 2027 the approved
- * amount is the base price and tax may be added ONLY after explicit,
- * jurisdiction-specific tax configuration and contractual review.
- * Never use these constants as evidence of payment or license entitlement.
+ * Historical 2026 JCO price proposal in COP. Production plan prices are
+ * stored in Supabase and MUST be reconciled to an explicitly approved seller
+ * catalogue before Wompi LIVE. These constants do not authorize payments.
+ *
+ * The SaaS seller's updated 20-Nov-2026 RUT shows responsibility 49:
+ * NOT RESPONSIBLE FOR IVA. No IVA may be silently added or described as
+ * collected in the 2026 checkout. The obligation to issue an invoice is
+ * a separate DIAN assessment; neither status authorizes tax exemption.
  */
+export const JCO_SELLER_RUT_2026 = Object.freeze({
+  responsibilityCode:'49',
+  vatRegime:'NON_RESPONSIBLE',
+  reviewedRutDate:'2026-11-20',
+} as const);
 export const JCO_APPROVED_PRICES_COP = Object.freeze({
   BASIC: 104900,
   PRO: 194900,
@@ -18,7 +26,7 @@ export const JCO_APPROVED_PRICES_COP = Object.freeze({
 export type JcoPlanCode = keyof typeof JCO_APPROVED_PRICES_COP;
 
 export type TaxDecision =
-  | { kind: '2026_final_price'; amountCop: number; taxIncludedWhenApplicable: true }
+  | { kind: '2026_final_price'; amountCop: number; sellerVatRegime: 'NON_RESPONSIBLE'; vatChargedCop: 0 }
   | { kind: 'tax_configuration_required'; baseAmountCop: number; effectiveFrom: '2027-01-01' };
 
 /**
@@ -34,7 +42,7 @@ export function getJcoTaxDecision(plan: JcoPlanCode, colombiaDate: string): TaxD
   const amountCop = JCO_APPROVED_PRICES_COP[plan];
   if (!amountCop) throw new Error('Unknown JCO plan');
   if (colombiaDate < '2027-01-01') {
-    return { kind: '2026_final_price', amountCop, taxIncludedWhenApplicable: true };
+    return { kind: '2026_final_price', amountCop, sellerVatRegime: JCO_SELLER_RUT_2026.vatRegime, vatChargedCop: 0 };
   }
   return { kind: 'tax_configuration_required', baseAmountCop: amountCop, effectiveFrom: '2027-01-01' };
 }
