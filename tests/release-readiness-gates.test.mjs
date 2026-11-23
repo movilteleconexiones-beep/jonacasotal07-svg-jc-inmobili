@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { evaluateReleaseReadiness, PRODUCTION_PROJECT_REF } from '../scripts/release-readiness.mjs';
+import { evaluateReleaseReadiness, PRODUCTION_PROJECT_REF, APPROVED_COMMERCIAL_CATALOG_SHA256 } from '../scripts/release-readiness.mjs';
 
 const sha = 'a'.repeat(40);
 const now = new Date('2030-03-10T12:00:00.000Z');
@@ -174,8 +174,8 @@ test('sandbox is mandatory for PR phase and commercial launch has stricter gates
       project_ref:PRODUCTION_PROJECT_REF,
       commit_sha:sha,
       verified_at:'2030-03-10T11:00:00Z',
-      approved_catalog_sha256:'a'.repeat(64),
-      live_catalog_sha256:'a'.repeat(64),
+      approved_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,
+      live_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,
       superadmin_catalog_approval_verified:true,
       checkout_prices_checked_against_live:true,
     },
@@ -375,10 +375,15 @@ test('G25: commercial launch blocks unapproved or mismatched live prices',()=>{
   e.commercial={pricing_catalog:{
     project_ref:PRODUCTION_PROJECT_REF,commit_sha:sha,
     verified_at:'2030-03-10T11:00:00Z',
-    approved_catalog_sha256:'a'.repeat(64),live_catalog_sha256:'a'.repeat(64),
+    approved_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,live_catalog_sha256:APPROVED_COMMERCIAL_CATALOG_SHA256,
     superadmin_catalog_approval_verified:true,checkout_prices_checked_against_live:true,
   }};
   assert.deepEqual(onlyPricing(e),[],'Only verified exact match clears the pricing gate');
+  const jointlyTampered=structuredClone(e);
+  jointlyTampered.commercial.pricing_catalog.live_catalog_sha256='a'.repeat(64);
+  jointlyTampered.commercial.pricing_catalog.approved_catalog_sha256='a'.repeat(64);
+  assert.ok(onlyPricing(jointlyTampered).length>0,
+    'Two matching but unapproved price hashes must never pass');
   const wrong=structuredClone(e);
   wrong.commercial.pricing_catalog.live_catalog_sha256='b'.repeat(64);
   assert.ok(onlyPricing(wrong).length>0,'Mismatch in even one price blocks launch');
