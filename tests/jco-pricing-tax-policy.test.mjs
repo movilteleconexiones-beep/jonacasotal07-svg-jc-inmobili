@@ -4,7 +4,7 @@ import { JCO_APPROVED_PRICES_COP, JCO_SELLER_RUT_2026, getJcoTaxDecision } from 
 
 test('approved catalog contains exactly seven positive integer COP amounts', () => {
   assert.deepEqual(JCO_APPROVED_PRICES_COP, {
-    BASIC: 129900, PRO: 299900, ENTERPRISE: 389900,
+    BASIC: 149900, PRO: 349900, ENTERPRISE: 389900,
     BASIC_ANNUAL: 1039000, PRO_ANNUAL: 1949000,
     ENTERPRISE_ANNUAL: 3899000, LIFETIME: 6490000,
   });
@@ -15,7 +15,7 @@ test('2026 RUT responsibility 49: do not collect or advertise IVA in seller tota
   assert.equal(JCO_SELLER_RUT_2026.responsibilityCode,'49');
   assert.equal(JCO_SELLER_RUT_2026.vatRegime,'NON_RESPONSIBLE');
   assert.deepEqual(getJcoTaxDecision('PRO','2026-12-31'), {
-    kind:'2026_final_price', amountCop:299900,
+    kind:'2026_final_price', amountCop:349900,
     sellerVatRegime:'NON_RESPONSIBLE',vatChargedCop:0,
   });
 });
