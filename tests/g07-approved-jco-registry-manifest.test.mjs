@@ -11,7 +11,18 @@ test('G07 historical PDF manifest matches byte-identical prior approval (not new
   for (const value of [agency.policy_url,agency.pdf_sha256,agency.approval_reference,agency.approved_at]) {
     assert.ok(sql.includes(value), 'approved manifest field must match SQL');
   }
-  assert.ok(!manifest.policies['jco-inmodigital-global'], 'other agency must not gain approval');
+  // The historical PDF's previous approval cannot authorize the future
+  // independent controller. The personal SuperAdmin agency, by contrast,
+  // now has its own separately adopted policy v1.0 and private acta.
+  const personal=manifest.policies['jco-inmodigital-global'];
+  assert.ok(personal,'Personal SuperAdmin organization must have its own signed policy');
+  assert.equal(personal.policy_url,'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf');
+  assert.equal(personal.policy_version,'1.0');
+  assert.equal(personal.approval_reference,'G07-INMODIGITAL-ADOPCION-20261122');
+  assert.equal(personal.pdf_sha256,'df30b71f6c564e9b06f26847d1fe450fce3fcfca0b6305420e719b9c5ffbf384');
+  assert.equal(personal.signed_acta_sha256,'e4365af30f9e56696ffe5a6dcb53def876a8523ee0046826e1feb5ed4f3ff810');
+  assert.notEqual(personal.signed_acta_sha256,agency.signed_acta_sha256);
+  assert.notEqual(personal.approval_reference,agency.approval_reference);
 });
 test('G07 candidate is fail-closed and never opens public collection or billing',()=>{
   assert.match(sql,/DEPRECATED AND BLOCKED/);
