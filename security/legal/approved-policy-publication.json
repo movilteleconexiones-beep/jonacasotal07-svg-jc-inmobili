@@ -24,6 +24,14 @@
       "approval_reference": "G07-JCO-V1.2-RATIFICACION-20261121",
       "policy_version": "1.2",
       "approved_at": "2026-11-21T07:53:34Z"
+    },
+    "jco-inmodigital-global": {
+      "policy_url": "https://www.inmojco.com/politicas/jco-inmodigital-global.pdf",
+      "pdf_sha256": "df30b71f6c564e9b06f26847d1fe450fce3fcfca0b6305420e719b9c5ffbf384",
+      "signed_acta_sha256": "e4365af30f9e56696ffe5a6dcb53def876a8523ee0046826e1feb5ed4f3ff810",
+      "approval_reference": "G07-INMODIGITAL-ADOPCION-20261122",
+      "policy_version": "1.0",
+      "approved_at": "2026-11-23T03:05:43Z"
     }
   }
 }
