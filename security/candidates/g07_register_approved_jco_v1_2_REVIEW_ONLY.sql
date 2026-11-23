@@ -1,8 +1,13 @@
--- G07 #370 / #203: REVIEW ONLY. Approved JCO agency policy v1.2 registration.
--- Execute AFTER the independently reviewed G07 registry migration, current
--- full PostgreSQL+Storage backup and isolated restore verification.
--- Does not authorize callable public RPCs, enable intake, or affect billing.
--- This is the actual approved manifest's immutable identity, NOT a new approval.
+-- G07 #370 / #203: DEPRECATED AND BLOCKED - DO NOT APPLY.
+-- Owner-mismatch correction 22-Nov-2026: 'sistema-inmobiliario-jco'
+-- belongs to a future separate proprietor, not the SaaS SuperAdmin.
+-- Historic PDF publication does NOT imply legal consent by that proprietor.
+-- This candidate is intentionally non-executable until the agency's final
+-- legal name, real data controller and separately adopted policy are verified.
+-- Do not execute this historical script, even after future registry migrations.
+-- It cannot authorize public RPCs, enable intake, or affect billing.
+-- Its SHA and acta are historical facts, NOT proof of the new legal
+-- representative's adoption of the estate agency's future privacy policy.
 BEGIN;
 SET LOCAL lock_timeout='3s';
 SET LOCAL statement_timeout='20s';
@@ -14,6 +19,10 @@ DECLARE
   v_reference constant text := 'G07-JCO-V1.2-RATIFICACION-20261121';
   v_approved_at constant timestamptz := '2026-11-21T07:53:34Z';
 BEGIN
+  -- Deliberate permanent stop: PR #423 source must NEVER be used to
+  -- assign historic policy approval to the separate future agency.
+  RAISE EXCEPTION USING ERRCODE = 'P0001',
+    MESSAGE = 'G07_BLOCKED: historical JCO v1.2 approval is not the other agency controller approval';
   IF current_user <> 'postgres'
     OR to_regclass('private.consignment_policy_approvals') IS NULL
     OR to_regclass('private.consignment_policy_receipts') IS NULL
