@@ -6,10 +6,12 @@
 
 - Política del operador INMOJCO (responsable de licencias y encargado de agencias): `https://www.inmojco.com/politicas/operador-inmojco.pdf`
 - Términos y condiciones SaaS JCO: `https://www.inmojco.com/politicas/terminos-saas-jco.pdf`
-- Política de inmobiliaria propia Sistema Inmobiliario JCO: `https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf`
-- Política de inmobiliaria independiente JCO InmoDigital Global: `https://www.inmojco.com/politicas/jco-inmodigital-global.pdf` (**solo con aprobación específica de su responsable**).
+- Documento histórico de la inmobiliaria actualmente vinculada a `movilteleconexiones`: `https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf`. **Su PDF v1.2 publicado no acredita al futuro titular, representante ni nombre de esta inmobiliaria; no presentarlo como política vigente de la futura entidad.**
+- Política prevista de la inmobiliaria personal del SuperAdmin (`jonacasotal`), JCO InmoDigital Global: `https://www.inmojco.com/politicas/jco-inmodigital-global.pdf` (**reservada hasta aprobación y publicación específica de su titular**).
 
-Las dos primeras rutas identifican al vendedor de licencias, pero **no sustituyen** la política de tratamiento de la agencia que recolecte datos del público. Cada agencia debe mostrar y registrar su propia versión aprobada. Las tres primeras forman el expediente propio v1.2; la cuarta es una reserva distinta, no autorizada por el acta del operador.
+Las dos primeras rutas identifican al **vendedor de licencias SaaS**. Cada agencia que recopile datos personales debe mostrar y registrar su política **propia** adoptada por su responsable real. El documento `sistema-inmobiliario-jco.pdf` y su acta forman parte del expediente histórico publicado el 21-nov-2026, pero no autorizan a la inmobiliaria externa con otro propietario y otro nombre a captar datos. La marca comercial del SaaS sigue siendo **Sistema Inmobiliario JCO**, independientemente del nombre de cada inmobiliaria.
+
+**Control 22-nov-2026:** la inmobiliaria `jco-inmodigital-global` es la personal del SuperAdmin; `sistema-inmobiliario-jco` corresponde a una cuenta separada y tendrá nuevo responsable. Véase `docs/ops/g07-tenant-controller-ownership-correction-20261122.md`.
 
 El servidor **no permite el fallback SPA** en `/politicas` y `/politicas/*`. Si no existe el PDF, devuelve **HTTP 404 real**, no `index.html` falsamente marcado 200. Cada ruta debe permanecer 404 mientras no exista para ese PDF un acta de adopción auténtica, SHA-256 y manifest aprobados.
 
