@@ -172,6 +172,29 @@ function checkSaasSellerEvidence(legal, now, errors) {
   }
 }
 
+/**
+ * G25: never start billing LIVE while the checkout catalogue differs from
+ * the amounts individually reviewed and approved by the software seller.
+ * Private evidence stores only cryptographic hashes; no payment secrets.
+ * Same SHA alone is not proof: reviewers must separately verify the exact
+ * canonical rows, the buyer-facing amounts and the approval's provenance.
+ */
+function checkCommercialPricingEvidence(e, now, errors) {
+  const pricing = e.commercial?.pricing_catalog;
+  if (!pricing ||
+      pricing.project_ref !== PRODUCTION_PROJECT_REF ||
+      pricing.commit_sha !== e.commit_sha ||
+      !recentTimestamp(pricing.verified_at, now, 24) ||
+      !SHA256.test(pricing.approved_catalog_sha256 ?? '') ||
+      !SHA256.test(pricing.live_catalog_sha256 ?? '') ||
+      String(pricing.approved_catalog_sha256).toLowerCase() !==
+        String(pricing.live_catalog_sha256).toLowerCase() ||
+      pricing.superadmin_catalog_approval_verified !== true ||
+      pricing.checkout_prices_checked_against_live !== true) {
+    errors.push('G25: catálogo y precios LIVE sin conciliación reciente, aprobación del SuperAdmin y comparación SHA-256 con importes de checkout.');
+  }
+}
+
 function get(obj, path) {
   return path.split('.').reduce((current, key) => current && current[key], obj);
 }
@@ -239,6 +262,7 @@ export function evaluateReleaseReadiness(evidence, {
       errors.push('Falta orden de producción APPROVED/APPLIED verificable.');
     checkSignedPolicyEvidence(e.legal, now, errors, e.commit_sha);
     checkSaasSellerEvidence(e.legal,now,errors);
+    checkCommercialPricingEvidence(e, now, errors);
     if(e.legal?.consumer_terms_approved!==true ||
        e.legal?.buyer_acceptance_verified!==true){
       errors.push('Faltan condiciones comerciales aprobadas y aceptación válida del comprador.');
