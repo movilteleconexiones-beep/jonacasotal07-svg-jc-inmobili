@@ -179,6 +179,11 @@ function checkSaasSellerEvidence(legal, now, errors) {
  * Same SHA alone is not proof: reviewers must separately verify the exact
  * canonical rows, the buyer-facing amounts and the approval's provenance.
  */
+// Canonical active COP monthly/annual checkout rows approved by the owner
+// on 2026-11-22 (BASIC 149900; PRO 349900; capacities 5/200 and 25/2000).
+// Updating either amount requires a new explicit approval and SHA review.
+export const APPROVED_COMMERCIAL_CATALOG_SHA256 = '51ae873f180c1a5cb05de659106771edfae0b994f85fde271d4c23441d8bee46';
+
 function checkCommercialPricingEvidence(e, now, errors) {
   const pricing = e.commercial?.pricing_catalog;
   if (!pricing ||
@@ -187,6 +192,7 @@ function checkCommercialPricingEvidence(e, now, errors) {
       !recentTimestamp(pricing.verified_at, now, 24) ||
       !SHA256.test(pricing.approved_catalog_sha256 ?? '') ||
       !SHA256.test(pricing.live_catalog_sha256 ?? '') ||
+      String(pricing.approved_catalog_sha256).toLowerCase() !== APPROVED_COMMERCIAL_CATALOG_SHA256 ||
       String(pricing.approved_catalog_sha256).toLowerCase() !==
         String(pricing.live_catalog_sha256).toLowerCase() ||
       pricing.superadmin_catalog_approval_verified !== true ||
