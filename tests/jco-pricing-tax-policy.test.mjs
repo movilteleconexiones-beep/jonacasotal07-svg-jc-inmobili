@@ -22,7 +22,7 @@ test('2026 RUT responsibility 49: do not collect or advertise IVA in seller tota
 
 test('2027 does not invent VAT rate or authorize automatic charge', () => {
   assert.deepEqual(getJcoTaxDecision('PRO','2027-01-01'), {
-    kind:'tax_configuration_required',baseAmountCop:194900,effectiveFrom:'2027-01-01',
+    kind:'tax_configuration_required',baseAmountCop:349900,effectiveFrom:'2027-01-01',
   });
 });
 
