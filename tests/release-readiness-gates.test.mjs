@@ -146,6 +146,8 @@ test('sandbox is mandatory for PR phase and commercial launch has stricter gates
         url:'https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf',
         sha256:'d'.repeat(64), version:'1.0',
         signed_adoption_act:true, pdf_sha256_matches_published_bytes:true,
+        controller_verified_for_org:true, brand_name_verified:true,
+        current_controller_adoption_verified:true,
         pdf_verified_at:'2030-03-10T11:00:00.000Z', approved_at:'2030-03-09T12:00:00Z' },
       { slug:'jco-inmodigital-global',
         url:'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf',
@@ -192,7 +194,7 @@ test('G17: signed legal evidence is mandatory, never inferred from Wompi APPROVE
     approved_fulfillment_status:'APPLIED'};
   const result=readiness(data,{phase:'commercial'});
   assert.equal(result.ready,false);
-  assert.match(result.errors.join(' '),/políticas jurídicas aprobadas/);
+  assert.match(result.errors.join(' '),/políticas jurídicas específicas/);
 });
 
 test('G17: verify identity, document hash, signed act and canonical URL for each policy',()=>{
@@ -202,13 +204,14 @@ test('G17: verify identity, document hash, signed act and canonical URL for each
     slug,url:'https://www.inmojco.com/politicas/'+slug+'.pdf',sha256:'f'.repeat(64),
     version:'1.0',signed_adoption_act:true,pdf_sha256_matches_published_bytes:true,
     approved_at:'2030-03-09T12:00:00Z',pdf_verified_at:'2030-03-10T11:00:00Z',
+    controller_verified_for_org:true, brand_name_verified:true, current_controller_adoption_verified:true,
   });
   src.legal={consumer_terms_approved:true,buyer_acceptance_verified:true,policies:[
     policy('sistema-inmobiliario-jco'),policy('jco-inmodigital-global')]};
   // The other commercial gates remain missing in this unit; focus only on
   // whether legal evidence is rejected independently.
   const legalErrors=e=>readiness(e,{phase:'commercial'}).errors.filter(
-    msg=>/^Política de |^Falta la política específica|^Faltan las dos políticas jurídicas|^Faltan condiciones comerciales/.test(msg));
+    msg=>/^G07:|^Faltan condiciones comerciales/.test(msg));
   assert.deepEqual(legalErrors(src),[]);
   const missing=structuredClone(src);missing.legal.policies.pop();
   assert.ok(legalErrors(missing).length>0,'One signed tenant is not both signed tenants');
@@ -294,4 +297,63 @@ test('G24: commercial release fails without the seller identity, even with both 
   unsafe.legal.saas_seller.identification_number='00000000';
   assert.ok(onlySeller(unsafe).length>0);
   assert.equal(readiness(evidence,{phase:'commercial'}).ready,false,'G24 alone is not a release permit');
+});
+
+
+test('G07: personal SuperAdmin policy is mandatory; external agency may stay fully closed',()=>{
+  const e=completeEvidence();
+  e.deployment.wompi_mode='production';
+  const personal={
+    slug:'jco-inmodigital-global',
+    url:'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf',
+    sha256:'a'.repeat(64),version:'1.0',
+    signed_adoption_act:true,pdf_sha256_matches_published_bytes:true,
+    pdf_verified_at:'2030-03-10T11:00:00Z', approved_at:'2030-03-10T10:00:00Z',
+  };
+  const closed={
+    slug:'sistema-inmobiliario-jco',
+    project_ref:PRODUCTION_PROJECT_REF,
+    commit_sha:sha,
+    verified_at:'2030-03-10T11:00:00Z',
+    property_intake_disabled_db:true,
+    crm_anon_rpc_denied:true,
+    consignment_anon_rpc_denied:true,
+    public_forms_closed_browser:true,
+    legacy_policy_not_advertised:true,
+    actual_controller_not_onboarded:true,
+  };
+  e.legal={consumer_terms_approved:true,buyer_acceptance_verified:true,
+    saas_seller:verifiedSeller(),policies:[personal],
+    noncollecting_external_agency:closed};
+  const legalErrors=(input)=>readiness(input,{phase:'commercial'}).errors.filter(x=>x.startsWith('G07:'));
+  assert.deepEqual(legalErrors(e),[],'Verified closed external tenant must not block other legal owner');
+  const absent=structuredClone(e);absent.legal.policies=[];
+  assert.ok(legalErrors(absent).some(x=>/SuperAdmin|políticas jurídicas/.test(x)),'Personal agency cannot be skipped');
+  for(const key of ['property_intake_disabled_db','crm_anon_rpc_denied',
+    'consignment_anon_rpc_denied','public_forms_closed_browser',
+    'legacy_policy_not_advertised','actual_controller_not_onboarded']){
+    const broken=structuredClone(e);broken.legal.noncollecting_external_agency[key]=false;
+    assert.ok(legalErrors(broken).length>0,'Missing negative evidence must fail: '+key);
+  }
+  for(const [key,value] of [['commit_sha','c'.repeat(40)],
+    ['project_ref','another-project'],['verified_at','2030-02-01T00:00:00Z'],
+    ['slug','jco-inmodigital-global']]){
+    const broken=structuredClone(e);broken.legal.noncollecting_external_agency[key]=value;
+    assert.ok(legalErrors(broken).length>0,'Incorrect source/scope must fail: '+key);
+  }
+  const legacy=structuredClone(e);
+  delete legacy.legal.noncollecting_external_agency;
+  legacy.legal.policies.push({
+    slug:'sistema-inmobiliario-jco',
+    url:'https://www.inmojco.com/politicas/sistema-inmobiliario-jco.pdf',
+    sha256:'b'.repeat(64),version:'1.2',
+    signed_adoption_act:true,pdf_sha256_matches_published_bytes:true,
+    pdf_verified_at:'2030-03-10T11:00:00Z',approved_at:'2030-03-09T12:00:00Z',
+    controller_verified_for_org:true,brand_name_verified:true,
+    current_controller_adoption_verified:true,
+  });
+  assert.ok(legalErrors(legacy).some(x=>/PDF histórico/.test(x)),
+    'Old policy cannot authorize the future outside data controller');
+  legacy.legal.policies[1].version='1.3';
+  assert.deepEqual(legalErrors(legacy),[],'Only separately adopted new version can be presented');
 });
