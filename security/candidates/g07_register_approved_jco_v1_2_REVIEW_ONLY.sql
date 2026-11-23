@@ -4,10 +4,10 @@
 -- Historic PDF publication does NOT imply legal consent by that proprietor.
 -- This candidate is intentionally non-executable until the agency's final
 -- legal name, real data controller and separately adopted policy are verified.
--- Execute AFTER the independently reviewed G07 registry migration, current
--- full PostgreSQL+Storage backup and isolated restore verification.
--- Does not authorize callable public RPCs, enable intake, or affect billing.
--- This is the actual approved manifest's immutable identity, NOT a new approval.
+-- Do not execute this historical script, even after future registry migrations.
+-- It cannot authorize public RPCs, enable intake, or affect billing.
+-- Its SHA and acta are historical facts, NOT proof of the new legal
+-- representative's adoption of the estate agency's future privacy policy.
 BEGIN;
 SET LOCAL lock_timeout='3s';
 SET LOCAL statement_timeout='20s';
