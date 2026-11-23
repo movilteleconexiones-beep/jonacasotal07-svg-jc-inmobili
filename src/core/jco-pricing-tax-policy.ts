@@ -1,6 +1,6 @@
 /**
- * JCO prices in COP: BASIC/PRO superseded October 9 proposals by the
- * owner's explicit October 15, 2026 authorization (129900/299900).
+ * JCO prices in COP: BASIC/PRO prices were revised explicitly by the owner on
+ * 22-Nov-2026: BASIC 149900 and PRO 349900 COP monthly.
  * Production plan prices are
  * stored in Supabase and MUST match the approved checkout catalogue before
  * Wompi LIVE. Other annual/Enterprise/Lifetime legacy reference amounts
@@ -17,8 +17,8 @@ export const JCO_SELLER_RUT_2026 = Object.freeze({
   reviewedRutDate:'2026-11-20',
 } as const);
 export const JCO_APPROVED_PRICES_COP = Object.freeze({
-  BASIC: 129900,
-  PRO: 299900,
+  BASIC: 149900,
+  PRO: 349900,
   ENTERPRISE: 389900,
   BASIC_ANNUAL: 1039000,
   PRO_ANNUAL: 1949000,
