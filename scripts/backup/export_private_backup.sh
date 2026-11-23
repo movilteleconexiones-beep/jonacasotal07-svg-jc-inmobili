@@ -21,6 +21,11 @@ import pathlib
 import sys
 root = pathlib.Path(sys.argv[1])
 entries = json.loads((root / "storage-export/storage-manifest.json").read_text())
+buckets = json.loads((root / "storage-export/bucket-manifest.json").read_text())
+if not isinstance(buckets, list) or not isinstance(entries, list):
+    raise SystemExit("Storage manifest invalid")
+if set(e["bucket"] for e in entries) - set(b["id"] for b in buckets):
+    raise SystemExit("Storage manifest references unknown bucket")
 for item in entries:
     path = root / "storage-export/storage" / item["bucket"] / item["path"]
     digest = hashlib.sha256()
@@ -44,6 +49,7 @@ if checksum_line.split()[0] != actual_hash:
 (root / "EXPORT_COMPLETE.json").write_text(json.dumps({
     "status": "export_complete_restore_unverified",
     "storage_objects": len(entries),
+    "storage_buckets": len(buckets),
     "database_dump_sha256": actual_hash
 }, indent=2))
 (root / "EXPORT_COMPLETE.json").chmod(0o600)
