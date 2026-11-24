@@ -48,7 +48,30 @@ test('G07: own approved intake visible, external unapproved intake remains close
           const pageResponse = await page.goto(origin + '/inmobiliaria/' + slug, {
             waitUntil: 'domcontentloaded', timeout: 25000,
           });
-          assert.equal(pageResponse?.status(), 200, slug + ': portal must be online');
+          assert.equal(pageResponse?.status(), 200, slug + ': public route must respond');
+          // The unlicensed, unapproved external tenant may intentionally render
+          // a no-site status instead of a catalog. This is a SAFE closure only
+          // when no contact, consent, consignment or other PII inputs exist.
+          if (slug !== ownSlug) {
+            const closedStatus = page.getByText(
+              'No se pudo consultar el sitio de esta inmobiliaria.', { exact: true },
+            );
+            const state = await Promise.race([
+              page.locator('#inicio').waitFor({ state: 'visible', timeout: 15000 })
+                .then(() => 'storefront').catch(() => 'unrendered'),
+              closedStatus.waitFor({ state: 'visible', timeout: 15000 })
+                .then(() => 'closed').catch(() => 'unrendered'),
+            ]);
+            if (state === 'closed') {
+              assert.equal(await page.locator('#c-name, #c-email, #c-phone, #owner-name, #owner-phone').count(), 0,
+                'Non-operational external agency must not ask for personal information');
+              assert.equal(await page.getByRole('button', { name: 'Consignar Propiedad' }).count(), 0);
+              assert.equal(submissions, 0);
+              assert.equal(photoUploads, 0);
+              console.log('G07_HOSTED_INTAKE ' + slug + ' SAFE_CLOSED_NON_OPERATIONAL');
+              return;
+            }
+          }
           try {
             await page.locator('#inicio').waitFor({ state: 'visible', timeout: 12000 });
           } catch {
