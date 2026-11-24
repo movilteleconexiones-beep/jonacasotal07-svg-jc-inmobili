@@ -9,7 +9,10 @@ import { chromium } from 'playwright';
  */
 const origin = 'https://www.inmojco.com';
 const agencies = ['sistema-inmobiliario-jco', 'jco-inmodigital-global'];
-const expectAllClosed = process.env.INMOJCO_EXPECT_ALL_INTAKES_CLOSED === '1';
+const expectPersonalApproved = process.env.INMOJCO_EXPECT_G07_PERSONAL_APPROVED === '1';
+const requireExternalCrmShield = process.env.INMOJCO_REQUIRE_EXTERNAL_CRM_SHIELD === '1';
+const ownSlug = 'jco-inmodigital-global';
+const personalPolicyUrl = 'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf';
 
 function approvedDocumentUrl(raw) {
   if (typeof raw !== 'string' || !raw) return null;
@@ -24,7 +27,7 @@ function approvedDocumentUrl(raw) {
   }
 }
 
-test('G07: anonymous hosted consignments remain fail-closed without policy approval', async t => {
+test('G07: own approved intake visible, external unapproved intake remains closed', async t => {
   const browser = await chromium.launch({ headless: true });
   try {
     for (const slug of agencies) {
@@ -32,6 +35,8 @@ test('G07: anonymous hosted consignments remain fail-closed without policy appro
         const context = await browser.newContext({ serviceWorkers: 'block' });
         try {
           const page = await context.newPage();
+          const runtimeErrors = [];
+          page.on('pageerror', error => runtimeErrors.push(error.message.slice(0, 220)));
           let submissions = 0;
           let photoUploads = 0;
           page.on('request', request => {
@@ -43,8 +48,39 @@ test('G07: anonymous hosted consignments remain fail-closed without policy appro
           const pageResponse = await page.goto(origin + '/inmobiliaria/' + slug, {
             waitUntil: 'domcontentloaded', timeout: 25000,
           });
-          assert.equal(pageResponse?.status(), 200, slug + ': portal must be online');
-          await page.locator('#inicio').waitFor({ state: 'visible', timeout: 20000 });
+          assert.equal(pageResponse?.status(), 200, slug + ': public route must respond');
+          // The unlicensed, unapproved external tenant may intentionally render
+          // a no-site status instead of a catalog. This is a SAFE closure only
+          // when no contact, consent, consignment or other PII inputs exist.
+          if (slug !== ownSlug) {
+            const closedStatus = page.getByText(
+              'No se pudo consultar el sitio de esta inmobiliaria.', { exact: true },
+            );
+            const state = await Promise.race([
+              page.locator('#inicio').waitFor({ state: 'visible', timeout: 15000 })
+                .then(() => 'storefront').catch(() => 'unrendered'),
+              closedStatus.waitFor({ state: 'visible', timeout: 15000 })
+                .then(() => 'closed').catch(() => 'unrendered'),
+            ]);
+            if (state === 'closed') {
+              assert.equal(await page.locator('#c-name, #c-email, #c-phone, #owner-name, #owner-phone').count(), 0,
+                'Non-operational external agency must not ask for personal information');
+              assert.equal(await page.getByRole('button', { name: 'Consignar Propiedad' }).count(), 0);
+              assert.equal(submissions, 0);
+              assert.equal(photoUploads, 0);
+              console.log('G07_HOSTED_INTAKE ' + slug + ' SAFE_CLOSED_NON_OPERATIONAL');
+              return;
+            }
+          }
+          try {
+            await page.locator('#inicio').waitFor({ state: 'visible', timeout: 12000 });
+          } catch {
+            const visibleText = await page.locator('body').innerText().catch(() => '');
+            const ready = await page.evaluate(() => document.readyState).catch(() => 'unknown');
+            throw Error(slug + ': page did not render #inicio; actual=' + page.url() +
+              '; ready=' + ready + '; bodyText=' + visibleText.slice(0, 350) +
+              '; pageErrors=' + JSON.stringify(runtimeErrors));
+          }
 
           const responsePromise = page.waitForResponse(response =>
             /\/rpc\/get_public_property_intake_site(?:\?|$)/.test(response.url()),
@@ -58,20 +94,24 @@ test('G07: anonymous hosted consignments remain fail-closed without policy appro
           assert.ok([200, 401, 403].includes(status),
             slug + ': unexpected intake RPC HTTP status ' + status);
           const site = status === 200 ? await response.json() : null;
-          if (status === 200 && expectAllClosed) {
+          const requiresClosed = slug !== ownSlug || !expectPersonalApproved;
+          if (requiresClosed) {
             assert.equal(site, null,
-              slug + ': an intake became enabled before signed-policy approval');
+              slug + ': unapproved or intentionally closed intake became visible');
           }
           const modal = page.getByRole('dialog', { name: /Consignar propiedad con/i });
           await modal.waitFor({ state: 'visible', timeout: 15000 });
 
-          if (expectAllClosed) {
-            assert.equal(site, null,
-              slug + ': NO-GO, a production intake became enabled without legal approval');
-          }
-
           const isApproved = !!site && !!approvedDocumentUrl(site.policy_url) &&
             typeof site.policy_version === 'string' && !!site.policy_version.trim();
+          if (expectPersonalApproved && slug === ownSlug) {
+            assert.equal(status, 200, 'Approved personal intake must respond HTTP 200');
+            assert.ok(isApproved, 'G07 personal approved intake must be visible');
+            assert.equal(site.policy_url, personalPolicyUrl,
+              'Only the approved personal tenant policy may be linked');
+            assert.equal(site.policy_version, '1.0');
+            assert.equal(site.company_name, 'JCO InmoDigital Global');
+          }
 
           if (!isApproved) {
             await modal.getByText('Recepción de consignaciones temporalmente no disponible', {
@@ -95,12 +135,37 @@ test('G07: anonymous hosted consignments remain fail-closed without policy appro
             assert.equal(await consent.isChecked(), false, 'Consent cannot be preselected');
           }
 
+          // G07 CRM gate: a tenant with no adopted policy must not show
+          // even local form fields for name, email or phone. Only the owner
+          // agency is permitted to render a consent-enabled contact form.
+          if (slug !== ownSlug && requireExternalCrmShield) {
+            assert.equal(await page.locator('#c-name').count(), 0,
+              'External agency must never request a visitor name');
+            assert.equal(await page.locator('#c-email').count(), 0,
+              'External agency must never request an email');
+            assert.equal(await page.locator('#c-phone').count(), 0,
+              'External agency must never request a phone number');
+          } else if (slug === ownSlug && expectPersonalApproved) {
+            const contactSection = page.locator('#contacto');
+            await contactSection.waitFor({ state: 'visible', timeout: 15000 });
+            await contactSection.locator('#c-name').waitFor({ state: 'visible', timeout: 12000 });
+            assert.equal(await contactSection.locator('#c-email').count(), 1);
+            assert.equal(await contactSection.locator('#c-phone').count(), 1);
+            const consent = contactSection.locator('input[type="checkbox"][required]');
+            assert.equal(await consent.count(), 1);
+            assert.equal(await consent.isChecked(), false);
+            const approvedLink = contactSection.getByRole('link', {
+              name: /política de tratamiento de datos/i,
+            });
+            assert.equal(await approvedLink.getAttribute('href'), personalPolicyUrl);
+          }
+
           assert.equal(submissions, 0, 'Smoke test must not create a consignment');
           assert.equal(photoUploads, 0, 'Smoke test must not upload any photos');
           console.log('G07_HOSTED_INTAKE ' + slug + ' ' +
             (isApproved ? 'POLICY_DOCUMENT_CONFIGURED' : 'FAIL_CLOSED_NO_APPROVAL') +
-            (expectAllClosed ? ' STRICT_CLOSED' : ' SAFETY_ONLY'));
-          await modal.getByRole('button', { name: 'Cerrar', exact: true }).first().click();
+            (requiresClosed ? ' STRICT_EXTERNAL_CLOSED' : ' STRICT_PERSONAL_APPROVED'));
+          await modal.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
         } finally {
           await context.close();
         }

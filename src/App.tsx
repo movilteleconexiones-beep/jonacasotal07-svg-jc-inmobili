@@ -1361,14 +1361,14 @@ export default function App() {
 
               {/* Right 7 Cols: Validated Lead Form */}
               <div className="lg:col-span-7 bg-[#F9F9F7] border border-stone-200/90 rounded-xl p-6 md:p-8">
-                {!automaticContactEnabled && !contactFallbackEmail ? (
+                {!automaticContactEnabled && (Boolean(tenantSlug) || !contactFallbackEmail) ? (
                   <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
                     <h3 className="font-semibold">Contacto temporalmente no disponible</h3>
                     <p className="mt-2">
                       {tenantSlug
-                        ? 'Esta inmobiliaria aún no ha publicado su política de datos personales ni un correo de contacto válido.'
+                        ? 'Esta inmobiliaria aún no ha aprobado su política de tratamiento de datos para recibir consultas mediante este portal.'
                         : 'INMOJCO todavía no tiene un correo comercial configurado para recibir consultas.'}
-                      {' '}No solicitaremos tus datos hasta que exista un canal de atención verificable.
+                      {' '}No solicitaremos tus datos a través de este formulario hasta que esté legalmente habilitado.
                     </p>
                     {tenantSlug ? (
                       <p className="mt-2">Puedes consultar el catálogo público y volver cuando la inmobiliaria habilite sus medios de contacto.</p>

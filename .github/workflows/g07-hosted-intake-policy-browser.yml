@@ -3,15 +3,25 @@ name: G07 public consignment hosted HTTP and browser privacy gate
 on:
   pull_request:
     paths:
+      - 'src/App.tsx'
+      - 'tests/g07-external-crm-privacy-shield.test.mjs'
       - 'tests/g07-hosted-intake-policy-browser.test.mjs'
       - '.github/workflows/g07-hosted-intake-policy-browser.yml'
       - 'src/components/SubmitPropertyModal.tsx'
       - 'src/lib/property-consignments.ts'
       - 'security/ops/g07_freeze_public_consignment_until_approved.sql'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/g07-hosted-intake-policy-browser.test.mjs'
+      - '.github/workflows/g07-hosted-intake-policy-browser.yml'
+      - 'src/App.tsx'
+      - 'src/components/SubmitPropertyModal.tsx'
+      - 'src/lib/property-consignments.ts'
   workflow_dispatch:
     inputs:
-      expect_all_closed:
-        description: 'Enforce both public consignment intakes remain disabled before signed policies'
+      expect_personal_approved:
+        description: 'Require approved JCO InmoDigital Global intake active; external agency stays closed'
         required: true
         type: boolean
         default: true
@@ -28,7 +38,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 7
     env:
-      INMOJCO_EXPECT_ALL_INTAKES_CLOSED: ${{ github.event_name != 'workflow_dispatch' && '1' || (inputs.expect_all_closed && '1' || '0') }}
+      INMOJCO_EXPECT_G07_PERSONAL_APPROVED: ${{ github.event_name != 'workflow_dispatch' && '1' || (inputs.expect_personal_approved && '1' || '0') }}
+      INMOJCO_REQUIRE_EXTERNAL_CRM_SHIELD: ${{ github.event_name == 'pull_request' && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +49,8 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm install --no-save --ignore-scripts playwright@1.56.1
-          npx playwright install --with-deps chromium
+          # Hosted Ubuntu runner ships common Chromium libraries. Avoid a full
+          # apt upgrade on every G07 smoke run; use only the headless binary.
+          npx playwright install chromium --only-shell
       - name: Verify live anonymous intake RPC and no-PII modal in both agencies
         run: node --test tests/g07-hosted-intake-policy-browser.test.mjs
