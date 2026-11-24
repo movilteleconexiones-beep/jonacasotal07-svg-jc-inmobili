@@ -13,6 +13,7 @@ on:
       - 'scripts/qa/protected-http-negative.mjs'
       - 'scripts/qa/finance96-run-auth.mjs'
       - 'scripts/qa/finance96-browser-runtime.mjs'
+      - 'scripts/qa/private-documents-transactions.test.mjs'
       - 'tests/g16-private-five-role-browser-qa.test.mjs'
 permissions:
   contents: read
@@ -61,6 +62,7 @@ jobs:
           JCO_QA96_PROVISION: '1'
           JCO_QA96_AUTO_FIXTURES: '1'
           JCO_QA96_RUN_BROWSER: '1'
+          JCO_QA203_DOCUMENTS: ${{ github.event_name == 'push' && '1' || '0' }}
           JCO_QA96_OWNER_DESKTOP_ONLY: ${{ (github.event_name == 'push' || inputs.owner_desktop_only) && '1' || '0' }}
           JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
           JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
