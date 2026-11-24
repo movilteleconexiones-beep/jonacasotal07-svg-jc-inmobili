@@ -101,6 +101,7 @@ export async function runProtectedQaBrowser(env){
    PATH:process.env.PATH||'',HOME:process.env.HOME||'',
    TMPDIR:process.env.TMPDIR||'/tmp',
    JCO_QA96_RUN_BROWSER:'1',
+   JCO_QA203_ONLY_DOCUMENTS:process.env.JCO_QA203_ONLY_DOCUMENTS==='1'?'1':'0',
    JCO_QA96_PROVISION:'1',
    JCO_QA96_SUPABASE_URL:CLONE,
    JCO_QA96_BROWSER_ORIGIN:LOCAL,
