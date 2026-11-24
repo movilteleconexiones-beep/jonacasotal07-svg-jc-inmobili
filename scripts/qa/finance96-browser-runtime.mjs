@@ -56,7 +56,9 @@ export async function runProtectedQaBrowser(env){
  assert.equal(process.env.JCO_QA96_PROVISION,'1','QA provisioner required');
  assert.equal(new URL(env.JCO_QA96_SUPABASE_URL).origin,CLONE,'CLONE ONLY');
  assert.ok(env.JCO_QA96_PUBLISHABLE_KEY,'Missing cloned publishable key');
- for(const suffix of ROLES){
+ const ownerDesktopOnly=process.env.JCO_QA96_OWNER_DESKTOP_ONLY==='1';
+ const roleSuffixes=ownerDesktopOnly?['OWNER']:ROLES;
+ for(const suffix of roleSuffixes){
   assert.ok(env['JCO_QA96_'+suffix+'_EMAIL']&&env['JCO_QA96_'+suffix+'_PASSWORD'],
    'Missing ephemeral Auth identity '+suffix);
  }
@@ -102,9 +104,9 @@ export async function runProtectedQaBrowser(env){
    JCO_QA96_PROVISION:'1',
    JCO_QA96_SUPABASE_URL:CLONE,
    JCO_QA96_BROWSER_ORIGIN:LOCAL,
-   JCO_QA96_OWNER_DESKTOP_ONLY:process.env.JCO_QA96_OWNER_DESKTOP_ONLY==='1'?'1':'0',
+   JCO_QA96_OWNER_DESKTOP_ONLY:ownerDesktopOnly?'1':'0',
   };
-  for(const suffix of ROLES){
+  for(const suffix of roleSuffixes){
    browserEnv['JCO_QA96_'+suffix+'_EMAIL']=env['JCO_QA96_'+suffix+'_EMAIL'];
    browserEnv['JCO_QA96_'+suffix+'_PASSWORD']=env['JCO_QA96_'+suffix+'_PASSWORD'];
   }

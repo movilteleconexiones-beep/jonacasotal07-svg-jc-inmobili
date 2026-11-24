@@ -12,6 +12,8 @@ on:
       - '.github/workflows/protected-qa-clone.yml'
       - 'scripts/qa/protected-http-negative.mjs'
       - 'scripts/qa/finance96-run-auth.mjs'
+      - 'scripts/qa/finance96-browser-runtime.mjs'
+      - 'tests/g16-private-five-role-browser-qa.test.mjs'
 permissions:
   contents: read
 concurrency:
