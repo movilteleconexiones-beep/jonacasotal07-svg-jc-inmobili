@@ -40,6 +40,7 @@ async function signIn(page,email,password){
 }
 
 const enabled=process.env.JCO_QA96_RUN_BROWSER==='1';
+const ownerDesktopOnly=process.env.JCO_QA96_OWNER_DESKTOP_ONLY==='1';
 test('G16 five genuine private-browser role journeys against restored QA clone', {
  skip:enabled?false:'Opt-in gated QA browser must never be claimed as run by default',
 },async t=>{
@@ -51,6 +52,7 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
  try{
   for(const [role,suffix] of AGENT_ROLES){
    for(const mobile of [false,true]){
+   if(ownerDesktopOnly && (role!=='ORGANIZATION_OWNER'||mobile))continue;
    await t.test('real JWT UI role '+role+(mobile?' mobile':' desktop'),async()=>{
     const context=await browser.newContext({
       viewport:mobile?{width:390,height:844}:{width:1280,height:800},serviceWorkers:'block',
