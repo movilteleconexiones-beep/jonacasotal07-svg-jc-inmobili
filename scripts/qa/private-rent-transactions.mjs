@@ -21,7 +21,7 @@ const runId=randomUUID(),created=[];
 const browser=await chromium.launch();
 try{
  const settlementOnly=process.env.JCO_QA203_PHASE==='settlement';
- for(const role of settlementOnly?['ADMIN']:['MANAGER','AGENT','ADMIN']){
+ for(const role of settlementOnly?['ADMIN']:['ADMIN','MANAGER','AGENT']){
   const roleId=checked(await admin.from('roles').select('id').eq('organization_id',org).eq('key',role).eq('active',true).single()).id;
   const email='qa96-'+randomUUID()+'@example.invalid',password=randomBytes(32).toString('base64url');
   const {user}=checked(await admin.auth.admin.createUser({email,password,email_confirm:true,app_metadata:{qa_suite:'finance96',qa_run:runId}}));
@@ -48,6 +48,17 @@ try{
     await menu.getByRole('button',{name:'Propiedades',exact:true}).waitFor();
     assert.equal(await rental.count(),0,role+' unexpectedly has rental authoring UI');
     console.log(role+' rental authoring restricted PASS');
+    const commissions=menu.getByRole('button',{name:'Comisiones',exact:true});
+    if(await commissions.count()){
+     const loaded=page.waitForResponse(r=>new URL(r.url()).pathname==='/rest/v1/commissions' && r.request().method()==='GET');
+     await commissions.click();
+     assert.ok((await loaded).ok());
+     const fixtureRow=page.locator('tr').filter({hasText:contract});
+     await fixtureRow.waitFor();
+     assert.equal(await fixtureRow.locator('select:enabled').count(),0);
+     assert.equal(await fixtureRow.getByRole('button',{name:'Recuperar',exact:true}).count(),0);
+    }
+    console.log(role+' commission authorization and recovery unavailable PASS');
     continue;
    }
    await rental.click();
