@@ -75,9 +75,9 @@ test('public intake never asks for PII without a configured destination',()=>{
  const app=read('src/App.tsx');
  const settings=read('src/modules/settings/SettingsModule.tsx');
  assert.match(app,/const contactFallbackEmail = /);
- assert.match(app,/!automaticContactEnabled && !contactFallbackEmail/);
+ assert.match(app,/!automaticContactEnabled && \\(Boolean\\(tenantSlug\\) \\|\\| !contactFallbackEmail\\)/);
  assert.match(app,/Contacto temporalmente no disponible/);
- assert.match(app,/No solicitaremos tus datos hasta que exista un canal/);
+ assert.match(app,/No solicitaremos tus datos a través de este formulario hasta que esté legalmente habilitado/);
  assert.match(app,/href=\{\x60mailto:\$\{contactFallbackEmail\}/);
  assert.match(app,/setContactError\(tenantSlug/);
   assert.match(app,/La inmobiliaria todavía no tiene un canal de contacto configurado/);
