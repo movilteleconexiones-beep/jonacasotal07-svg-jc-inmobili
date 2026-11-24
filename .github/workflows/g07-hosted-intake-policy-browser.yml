@@ -10,8 +10,8 @@ on:
       - 'security/ops/g07_freeze_public_consignment_until_approved.sql'
   workflow_dispatch:
     inputs:
-      expect_all_closed:
-        description: 'Enforce both public consignment intakes remain disabled before signed policies'
+      expect_personal_approved:
+        description: 'Require approved JCO InmoDigital Global intake active; external agency stays closed'
         required: true
         type: boolean
         default: true
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 7
     env:
-      INMOJCO_EXPECT_ALL_INTAKES_CLOSED: ${{ github.event_name != 'workflow_dispatch' && '1' || (inputs.expect_all_closed && '1' || '0') }}
+      INMOJCO_EXPECT_G07_PERSONAL_APPROVED: ${{ github.event_name != 'workflow_dispatch' && '1' || (inputs.expect_personal_approved && '1' || '0') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
