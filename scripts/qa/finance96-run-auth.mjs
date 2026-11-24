@@ -143,13 +143,15 @@ async function main() {
     'Refuse any production, staging or unexpected Supabase project');
   const key = required('JCO_QA96_SECRET_KEY');
   const publicKey = required('JCO_QA96_PUBLISHABLE_KEY');
-  const autoFixtures = process.env.JCO_QA96_AUTO_FIXTURES === '1';
-  const ownPath = autoFixtures ? null : required('JCO_QA96_PRIVATE_PDF_PATH');
-  const foreignPath = autoFixtures ? null : required('JCO_QA96_OTHER_PRIVATE_PDF_PATH');
+  const ownerDesktopOnly = process.env.JCO_QA96_OWNER_DESKTOP_ONLY === '1';
+  if (ownerDesktopOnly) assert.equal(process.env.JCO_QA96_RUN_BROWSER,'1');
+  const autoFixtures = !ownerDesktopOnly && process.env.JCO_QA96_AUTO_FIXTURES === '1';
+  const ownPath = (autoFixtures || ownerDesktopOnly) ? null : required('JCO_QA96_PRIVATE_PDF_PATH');
+  const foreignPath = (autoFixtures || ownerDesktopOnly) ? null : required('JCO_QA96_OTHER_PRIVATE_PDF_PATH');
   const admin = createClient(CLONE_ORIGIN,key,{
     auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
   });
-  const {own,foreign,byRole} = await preflight(admin,ownPath,foreignPath,{autoFixtures});
+  const {own,foreign,byRole} = await preflight(admin,ownPath,foreignPath,{autoFixtures:autoFixtures || ownerDesktopOnly});
   const created = [];
   const createdFixtures = [];
   let error = null;
@@ -164,7 +166,8 @@ async function main() {
     JCO_QA96_OTHER_PRIVATE_PDF_PATH:foreignPath,
   };
   try {
-    for(const [role,suffix] of ROLES) {
+    const roles = ownerDesktopOnly ? ROLES.filter(([, suffix]) => suffix === 'OWNER') : ROLES;
+    for(const [role,suffix] of roles) {
       const email = 'qa96-' + suffix.toLowerCase() + '-' +
         randomUUID().slice(0,12) + '@example.invalid';
       const password = randomBytes(32).toString('base64url');
@@ -179,10 +182,26 @@ async function main() {
       await addTemporaryQaMember({
         admin,orgId:own.id,userId:user.id,roleId:byRole.get(role),record,
       });
+      if (ownerDesktopOnly) {
+        const {data:license,error:licenseError} = await admin.from('organization_licenses')
+          .select('id').eq('organization_id',own.id).single();
+        const {data:terms,error:termsError} = await admin.from('license_terms_versions')
+          .select('id').eq('active',true).order('effective_date',{ascending:false})
+          .order('created_at',{ascending:false}).limit(1).single();
+        const {error:acceptanceError} = await admin.from('license_acceptances').insert({
+          organization_license_id:checked(license,licenseError,'QA organization license').id,
+          terms_version_id:checked(terms,termsError,'Active QA license terms').id,
+          organization_id:own.id,
+          accepted_by:user.id,
+          user_agent:'Synthetic QA owner desktop fixture',
+        });
+        assert.ifError(acceptanceError && new Error('Synthetic license fixture: ' + acceptanceError.code));
+        // Removing the ephemeral Auth identity cascades to its sole acceptance.
+      }
       env['JCO_QA96_' + suffix + '_EMAIL']=email;
       env['JCO_QA96_' + suffix + '_PASSWORD']=password;
     }
-    assert.equal(created.length,5,'Exactly five temporary test users required');
+    assert.equal(created.length,roles.length,'Unexpected temporary QA user count');
     if (autoFixtures) {
       const email = 'qa96-foreign-' + randomUUID().slice(0,12) + '@example.invalid';
       const password = randomBytes(32).toString('base64url');
@@ -201,14 +220,14 @@ async function main() {
         admin,tenant:foreign,uploaderId:foreignUser.id,runId,created:createdFixtures,
       });
     }
-    await spawnAcceptance(env);
+    if (!ownerDesktopOnly) await spawnAcceptance(env);
     // Optional UI continuation while the five REAL JWT accounts are alive.
     // Failure propagates through the existing finally cleanup; never run it
     // after accounts are deleted or against production.
     if(process.env.JCO_QA96_RUN_BROWSER==='1'){
       await runProtectedQaBrowser(env);
     }
-    console.log('QA96 CERTIFICATION: real Auth/PostgREST/Storage checks completed');
+    if (!ownerDesktopOnly) console.log('QA96 CERTIFICATION: real Auth/PostgREST/Storage checks completed');
   } catch (e) {
     error=e;
   } finally {
