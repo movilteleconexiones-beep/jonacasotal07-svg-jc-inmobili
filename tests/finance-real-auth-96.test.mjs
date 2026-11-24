@@ -55,6 +55,12 @@ function checkError(error, code, label) {
   assert.equal(error.code, code, label + ': unexpected PostgREST SQLSTATE');
 }
 
+function safeStorageCode(error) {
+  const status = String(error?.statusCode ?? error?.status ?? 'unknown');
+  const code = String(error?.code ?? error?.name ?? 'unknown');
+  return [status,code].map(x => /^[a-zA-Z0-9_-]{1,64}$/.test(x) ? x : 'unknown').join('/');
+}
+
 const enabled = process.env.JCO_QA96_RUN_REAL_AUTH === '1';
 test('#96 real Auth: five separate JWT sessions, 25 RPC decisions and private receipt PDF isolation',
   {skip: enabled ? false : 'QA gate intentionally disabled; CI must not claim live-session certification'},
@@ -141,6 +147,19 @@ test('#96 real Auth: five separate JWT sessions, 25 RPC decisions and private re
         assert.equal(paymentTenant.get(support.rent_payment_id),support.organization_id,
           'Receipt support is not linked to its own tenant');
       }
+      // Establish that the two fixture objects really exist and contain the
+      // expected bytes before counting any role-specific denial as evidence.
+      // The service credential stays in this isolated Node process.
+      for (const [label, path] of [['own',receipt],['foreign',foreignReceipt]]) {
+        const support = supports.find(x => x.storage_path === path);
+        const {data:pdf,error} = await auditor.storage
+          .from('jco-rent-receipts-private').download(path);
+        assert.ok(!error && pdf, 'QA fixture '+label+' service download failed: '+safeStorageCode(error));
+        const bytes = Buffer.from(await pdf.arrayBuffer());
+        assert.equal(bytes.length,Number(support.size_bytes),'QA fixture size mismatch: '+label);
+        assert.equal(bytes.subarray(0,5).toString('utf8'),'%PDF-','QA fixture bytes invalid: '+label);
+        console.log('QA96 PDF PREFLIGHT '+label+' PASS');
+      }
       const {data:members,error:memberError} = await auditor
         .from('organization_members').select('id,user_id,organization_id,status')
         .in('user_id',[...userIds]);
@@ -201,7 +220,20 @@ test('#96 real Auth: five separate JWT sessions, 25 RPC decisions and private re
           const {data:ownPdf,error:ownError} =
             await client.storage.from('jco-rent-receipts-private').download(receipt);
           if (role.privileged) {
-            assert.ok(!ownError && ownPdf, role.name + ' should read authorized PDF');
+            if (ownError || !ownPdf) {
+              const paymentId = receipt.split('/')[1];
+              const {data:visiblePayment,error:paymentError} = await client
+                .from('rent_payments').select('id').eq('id',paymentId)
+                .eq('organization_id',org).maybeSingle();
+              const {data:visibleSupport,error:receiptError} = await client
+                .from('rent_receipt_supports').select('receipt_id')
+                .eq('storage_path',receipt).eq('organization_id',org).maybeSingle();
+              console.log('QA96 PDF DIAGNOSTIC '+role.name+
+                ' storage='+safeStorageCode(ownError)+
+                ' paymentVisible='+Boolean(visiblePayment && !paymentError)+
+                ' supportVisible='+Boolean(visibleSupport && !receiptError));
+            }
+            assert.ok(!ownError && ownPdf, role.name + ' should read authorized PDF: '+safeStorageCode(ownError));
             const start = Buffer.from(await ownPdf.arrayBuffer()).subarray(0,5).toString('utf8');
             assert.equal(start,'%PDF-', 'Expected a real PDF, not a QA placeholder');
           } else {
