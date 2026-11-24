@@ -15,7 +15,13 @@ test('G25: all protected hosted Chromium suites use supported pinned OS', () => 
     const src = readFileSync(new URL('../.github/workflows/' + workflow, import.meta.url), 'utf8');
     assert.match(src, /^\s*runs-on: ubuntu-24\.04$/m, workflow);
     assert.match(src, /npm install --no-save --ignore-scripts playwright@1\.56\.1/, workflow);
-    assert.match(src, /npx playwright install --with-deps chromium/, workflow);
+    // G07's real hosted browser smoke confirmed the pinned headless shell
+    // works on ubuntu-24.04 without a full apt dist-upgrade. Keep the normal
+    // installation contract for the other browser suites.
+    const browserInstall = workflow === 'g07-hosted-intake-policy-browser.yml'
+      ? /npx playwright install chromium --only-shell/
+      : /npx playwright install --with-deps chromium/;
+    assert.match(src, browserInstall, workflow);
     assert.doesNotMatch(src, /runs-on:\s*ubuntu-latest/, workflow);
   }
 });
