@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {randomUUID} from 'node:crypto';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -41,7 +41,7 @@ test('Private report downloads and agenda persistence',async t=>{
       await page.getByRole('button',{name:/Exportar seleccionado/}).click();
       const file=join(dir,'report.xlsx');
       await (await downloading).saveAs(file);
-      const book=XLSX.readFile(file);
+      const book=XLSX.read(await readFile(file),{type:'buffer'});
       assert.deepEqual(book.SheetNames,['Cánones']);
       const grid=XLSX.utils.sheet_to_json(book.Sheets['Cánones'],{header:1});
       assert.ok(grid.some(row=>row[0]==='Período' && row[1]==='2026-10'));
@@ -64,6 +64,7 @@ test('Private report downloads and agenda persistence',async t=>{
       assert.match(text,/Saldo pendiente[^\n]*1[.,]700[.,]000/);
       await popup.close();
     });
+    if (process.env.JCO_QA203_ONLY_DOCUMENTS==='1') return;
     await t.test('Create, confirm and cancel a synthetic appointment across reloads',async()=>{
       await button('Agenda').click();
       await page.getByRole('button',{name:'Nueva cita'}).click();
