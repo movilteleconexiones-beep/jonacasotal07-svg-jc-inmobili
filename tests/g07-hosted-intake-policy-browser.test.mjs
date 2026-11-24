@@ -101,6 +101,31 @@ test('G07: own approved intake visible, external unapproved intake remains close
             assert.equal(await consent.isChecked(), false, 'Consent cannot be preselected');
           }
 
+          // G07 CRM gate: a tenant with no adopted policy must not show
+          // even local form fields for name, email or phone. Only the owner
+          // agency is permitted to render a consent-enabled contact form.
+          if (slug !== ownSlug) {
+            assert.equal(await page.locator('#c-name').count(), 0,
+              'External agency must never request a visitor name');
+            assert.equal(await page.locator('#c-email').count(), 0,
+              'External agency must never request an email');
+            assert.equal(await page.locator('#c-phone').count(), 0,
+              'External agency must never request a phone number');
+          } else if (expectPersonalApproved) {
+            const contactSection = page.locator('#contacto');
+            await contactSection.waitFor({ state: 'visible', timeout: 15000 });
+            await contactSection.locator('#c-name').waitFor({ state: 'visible', timeout: 12000 });
+            assert.equal(await contactSection.locator('#c-email').count(), 1);
+            assert.equal(await contactSection.locator('#c-phone').count(), 1);
+            const consent = contactSection.locator('input[type="checkbox"][required]');
+            assert.equal(await consent.count(), 1);
+            assert.equal(await consent.isChecked(), false);
+            const approvedLink = contactSection.getByRole('link', {
+              name: /política de tratamiento de datos/i,
+            });
+            assert.equal(await approvedLink.getAttribute('href'), personalPolicyUrl);
+          }
+
           assert.equal(submissions, 0, 'Smoke test must not create a consignment');
           assert.equal(photoUploads, 0, 'Smoke test must not upload any photos');
           console.log('G07_HOSTED_INTAKE ' + slug + ' ' +
