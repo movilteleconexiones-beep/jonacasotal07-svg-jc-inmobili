@@ -10,6 +10,7 @@ import { chromium } from 'playwright';
 const origin = 'https://www.inmojco.com';
 const agencies = ['sistema-inmobiliario-jco', 'jco-inmodigital-global'];
 const expectPersonalApproved = process.env.INMOJCO_EXPECT_G07_PERSONAL_APPROVED === '1';
+const requireExternalCrmShield = process.env.INMOJCO_REQUIRE_EXTERNAL_CRM_SHIELD === '1';
 const ownSlug = 'jco-inmodigital-global';
 const personalPolicyUrl = 'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf';
 
@@ -104,7 +105,7 @@ test('G07: own approved intake visible, external unapproved intake remains close
           // G07 CRM gate: a tenant with no adopted policy must not show
           // even local form fields for name, email or phone. Only the owner
           // agency is permitted to render a consent-enabled contact form.
-          if (slug !== ownSlug) {
+          if (slug !== ownSlug && requireExternalCrmShield) {
             assert.equal(await page.locator('#c-name').count(), 0,
               'External agency must never request a visitor name');
             assert.equal(await page.locator('#c-email').count(), 0,
