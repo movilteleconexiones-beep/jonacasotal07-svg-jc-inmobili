@@ -35,7 +35,7 @@ try{
    await page.getByRole('button',{name:'Acceso',exact:true}).click();
    await page.getByLabel('Correo',{exact:true}).fill(email);
    await page.getByLabel('Contraseña',{exact:true}).fill(password);
-   await page.getByRole('button',{name:'Iniciar sesión'}).click();
+   await page.locator('form').filter({has:page.locator('input[type=password]')}).getByRole('button',{name:'Iniciar sesión',exact:true}).click();
    const menu=page.getByRole('navigation',{name:'Módulos del sistema'});
    await menu.waitFor();
    const rental=menu.getByRole('button',{name:'Nueva vinculación',exact:true});
@@ -85,11 +85,15 @@ try{
    await receipt.locator('select[name=period_id]').selectOption(payment.id);
    assert.match(await receipt.locator('option:checked').first().innerText(),/saldo 1[.,]000[.,]000 COP/);
    console.log('ADMIN partial receipt and remaining balance after reload PASS');
+   if(process.env.JCO_QA203_PHASE==='all'){
+    const {runSettlementJourney}=await import('./private-settlement-journey.mjs');
+    await runSettlementJourney({page,menu,admin,org,lease,contract,checked});
+   }
   }finally{await ctx.close();}
  }
  }finally{
   try{await browser.close();}finally{
-   if(process.env.JCO_QA203_PHASE!=='settlement'){
+   if(!['settlement','all'].includes(process.env.JCO_QA203_PHASE)){
     await cleanupQaAccounts({admin,created,orgId:org,runId});
    }else{
     // Issued statements retain a mandatory foreign key to the issuing user.
