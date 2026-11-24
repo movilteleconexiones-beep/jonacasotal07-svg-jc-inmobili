@@ -88,7 +88,9 @@ Deno.serve(async req=>{
   const {data:resolved,error:resolveError}=await supabase.rpc('resolve_consignment_photo_submission',{
     p_slug:slug,p_request_id:id,p_reference:reference,
   });
-  const consignment=Array.isArray(resolved)?resolved[0]:null;
+  const row=Array.isArray(resolved)?resolved[0]:null;
+  const idFromResolver=row?.consignment_id ?? row?.id;
+  const consignment=idFromResolver && row?.organization_id ? {id:idFromResolver,organization_id:row.organization_id} : null;
   if(resolveError||!consignment)return respond(404,{error:'submission_unavailable'},origin);
   // Look for an already persisted position BEFORE checking the quota.
   // This also permits retries of the tenth photo without adding a new object.
