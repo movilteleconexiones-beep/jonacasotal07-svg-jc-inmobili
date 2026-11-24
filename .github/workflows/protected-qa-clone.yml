@@ -31,3 +31,27 @@ jobs:
           JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
           JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
           JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
+  browser-mobile:
+    if: github.ref == 'refs/heads/main'
+    needs: http-negative
+    environment: qa-clone
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: Real authenticated desktop and mobile journeys
+        run: node scripts/qa/finance96-run-auth.mjs
+        env:
+          JCO_QA96_PROVISION: '1'
+          JCO_QA96_AUTO_FIXTURES: '1'
+          JCO_QA96_RUN_BROWSER: '1'
+          JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
+          JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
+          JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
