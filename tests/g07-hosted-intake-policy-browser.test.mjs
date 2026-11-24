@@ -9,7 +9,9 @@ import { chromium } from 'playwright';
  */
 const origin = 'https://www.inmojco.com';
 const agencies = ['sistema-inmobiliario-jco', 'jco-inmodigital-global'];
-const expectAllClosed = process.env.INMOJCO_EXPECT_ALL_INTAKES_CLOSED === '1';
+const expectPersonalApproved = process.env.INMOJCO_EXPECT_G07_PERSONAL_APPROVED === '1';
+const ownSlug = 'jco-inmodigital-global';
+const personalPolicyUrl = 'https://www.inmojco.com/politicas/jco-inmodigital-global.pdf';
 
 function approvedDocumentUrl(raw) {
   if (typeof raw !== 'string' || !raw) return null;
@@ -24,7 +26,7 @@ function approvedDocumentUrl(raw) {
   }
 }
 
-test('G07: anonymous hosted consignments remain fail-closed without policy approval', async t => {
+test('G07: own approved intake visible, external unapproved intake remains closed', async t => {
   const browser = await chromium.launch({ headless: true });
   try {
     for (const slug of agencies) {
@@ -58,20 +60,24 @@ test('G07: anonymous hosted consignments remain fail-closed without policy appro
           assert.ok([200, 401, 403].includes(status),
             slug + ': unexpected intake RPC HTTP status ' + status);
           const site = status === 200 ? await response.json() : null;
-          if (status === 200 && expectAllClosed) {
+          const requiresClosed = slug !== ownSlug || !expectPersonalApproved;
+          if (requiresClosed) {
             assert.equal(site, null,
-              slug + ': an intake became enabled before signed-policy approval');
+              slug + ': unapproved or intentionally closed intake became visible');
           }
           const modal = page.getByRole('dialog', { name: /Consignar propiedad con/i });
           await modal.waitFor({ state: 'visible', timeout: 15000 });
 
-          if (expectAllClosed) {
-            assert.equal(site, null,
-              slug + ': NO-GO, a production intake became enabled without legal approval');
-          }
-
           const isApproved = !!site && !!approvedDocumentUrl(site.policy_url) &&
             typeof site.policy_version === 'string' && !!site.policy_version.trim();
+          if (expectPersonalApproved && slug === ownSlug) {
+            assert.equal(status, 200, 'Approved personal intake must respond HTTP 200');
+            assert.ok(isApproved, 'G07 personal approved intake must be visible');
+            assert.equal(site.policy_url, personalPolicyUrl,
+              'Only the approved personal tenant policy may be linked');
+            assert.equal(site.policy_version, '1.0');
+            assert.equal(site.company_name, 'JCO InmoDigital Global');
+          }
 
           if (!isApproved) {
             await modal.getByText('Recepción de consignaciones temporalmente no disponible', {
@@ -99,7 +105,7 @@ test('G07: anonymous hosted consignments remain fail-closed without policy appro
           assert.equal(photoUploads, 0, 'Smoke test must not upload any photos');
           console.log('G07_HOSTED_INTAKE ' + slug + ' ' +
             (isApproved ? 'POLICY_DOCUMENT_CONFIGURED' : 'FAIL_CLOSED_NO_APPROVAL') +
-            (expectAllClosed ? ' STRICT_CLOSED' : ' SAFETY_ONLY'));
+            (requiresClosed ? ' STRICT_EXTERNAL_CLOSED' : ' STRICT_PERSONAL_APPROVED'));
           await modal.getByRole('button', { name: 'Cerrar', exact: true }).first().click();
         } finally {
           await context.close();
