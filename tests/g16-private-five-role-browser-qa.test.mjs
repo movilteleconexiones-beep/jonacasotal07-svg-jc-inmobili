@@ -50,9 +50,11 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
  const browser=await chromium.launch({headless:true});
  try{
   for(const [role,suffix] of AGENT_ROLES){
-   await t.test('real JWT UI role '+role,async()=>{
+   for(const mobile of [false,true]){
+   await t.test('real JWT UI role '+role+(mobile?' mobile':' desktop'),async()=>{
     const context=await browser.newContext({
-      viewport:{width:1280,height:800},serviceWorkers:'block',
+      viewport:mobile?{width:390,height:844}:{width:1280,height:800},serviceWorkers:'block',
+      isMobile:mobile,hasTouch:mobile,deviceScaleFactor:mobile?2:1,
       acceptDownloads:false,
     });
     const page=await context.newPage();
@@ -109,11 +111,19 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
        console.log('G16_REAL_AUTH CLIENT private-only PASS');
      }else{
        const menu=page.getByRole('navigation',{name:'Módulos del sistema'});
+       if(mobile && !(await menu.isVisible())){
+         const toggle=page.getByRole('button',{name:/abrir menú|mostrar menú|menú de navegación/i}).first();
+         if(await toggle.count()) await toggle.click();
+       }
        await menu.waitFor({state:'visible',timeout:25_000});
        assert.equal(await page.getByRole('link',{name:/Superadministrador/}).count(),0,
         'An ordinary QA tenant gained platform access');
        for(const label of operationalButtons){
          const btn=menu.getByRole('button',{name:label,exact:true});
+         if(mobile && !(await menu.isVisible())){
+           const toggle=page.getByRole('button',{name:/abrir menú|mostrar menú|menú de navegación/i}).first();
+           if(await toggle.count()) await toggle.click();
+         }
          await btn.waitFor({state:'visible',timeout:15_000});
          assert.equal(await btn.isEnabled(),true,role+' cannot access allowed module '+label);
          await btn.click();
@@ -147,9 +157,14 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
       'Public route displayed signed-in operational sidebar');
      assert.deepEqual(uncaught,[],'Unhandled UI exceptions for '+role);
      assert.deepEqual(violations,[],'Production API request or financial mutation for '+role);
-     console.log('G16_REAL_AUTH '+role+' public boundary PASS');
+     if(mobile){
+       const dimensions=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
+       assert.ok(dimensions.scroll<=dimensions.width+2,'Mobile public page horizontal overflow');
+     }
+     console.log('G16_REAL_AUTH '+role+' '+(mobile?'MOBILE':'DESKTOP')+' public boundary PASS');
     }finally{await context.close();}
    });
+   }
   }
  }finally{await browser.close();}
 });
