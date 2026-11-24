@@ -20,7 +20,8 @@ const getPeriod=async()=>checked(await admin.from('rent_payments').select('id,ex
 const runId=randomUUID(),created=[];
 const browser=await chromium.launch();
 try{
- for(const role of ['MANAGER','AGENT','ADMIN']){
+ const settlementOnly=process.env.JCO_QA203_PHASE==='settlement';
+ for(const role of settlementOnly?['ADMIN']:['ADMIN','MANAGER','AGENT']){
   const roleId=checked(await admin.from('roles').select('id').eq('organization_id',org).eq('key',role).eq('active',true).single()).id;
   const email='qa96-'+randomUUID()+'@example.invalid',password=randomBytes(32).toString('base64url');
   const {user}=checked(await admin.auth.admin.createUser({email,password,email_confirm:true,app_metadata:{qa_suite:'finance96',qa_run:runId}}));
@@ -34,14 +35,30 @@ try{
    await page.getByRole('button',{name:'Acceso',exact:true}).click();
    await page.getByLabel('Correo',{exact:true}).fill(email);
    await page.getByLabel('Contraseña',{exact:true}).fill(password);
-   await page.getByRole('button',{name:'Iniciar sesión'}).click();
+   await page.locator('form').filter({has:page.locator('input[type=password]')}).getByRole('button',{name:'Iniciar sesión',exact:true}).click();
    const menu=page.getByRole('navigation',{name:'Módulos del sistema'});
    await menu.waitFor();
    const rental=menu.getByRole('button',{name:'Nueva vinculación',exact:true});
+   if(settlementOnly){
+    const {runSettlementJourney}=await import('./private-settlement-journey.mjs');
+    await runSettlementJourney({page,menu,admin,org,lease,contract,checked});
+    continue;
+   }
    if(role!=='ADMIN'){
     await menu.getByRole('button',{name:'Propiedades',exact:true}).waitFor();
     assert.equal(await rental.count(),0,role+' unexpectedly has rental authoring UI');
     console.log(role+' rental authoring restricted PASS');
+    const commissions=menu.getByRole('button',{name:'Comisiones',exact:true});
+    if(await commissions.count()){
+     const loaded=page.waitForResponse(r=>new URL(r.url()).pathname==='/rest/v1/commissions' && r.request().method()==='GET');
+     await commissions.click();
+     assert.ok((await loaded).ok());
+     const fixtureRow=page.locator('tr').filter({hasText:contract});
+     await fixtureRow.waitFor();
+     assert.equal(await fixtureRow.locator('select:enabled').count(),0);
+     assert.equal(await fixtureRow.getByRole('button',{name:'Recuperar',exact:true}).count(),0);
+    }
+    console.log(role+' commission authorization and recovery unavailable PASS');
     continue;
    }
    await rental.click();
@@ -79,6 +96,31 @@ try{
    await receipt.locator('select[name=period_id]').selectOption(payment.id);
    assert.match(await receipt.locator('option:checked').first().innerText(),/saldo 1[.,]000[.,]000 COP/);
    console.log('ADMIN partial receipt and remaining balance after reload PASS');
+   if(process.env.JCO_QA203_PHASE==='all'){
+    const {runSettlementJourney}=await import('./private-settlement-journey.mjs');
+    await runSettlementJourney({page,menu,admin,org,lease,contract,checked});
+   }
   }finally{await ctx.close();}
  }
-}finally{try{await browser.close();}finally{await cleanupQaAccounts({admin,created,orgId:org,runId});}}
+ }finally{
+  try{await browser.close();}finally{
+   if(!['settlement','all'].includes(process.env.JCO_QA203_PHASE)){
+    await cleanupQaAccounts({admin,created,orgId:org,runId});
+   }else{
+    // Issued statements retain a mandatory foreign key to the issuing user.
+    for(const entry of created){
+     const {user}=checked(await admin.auth.admin.getUserById(entry.userId));
+     assert.equal(user.app_metadata.qa_run,runId);
+     checked(await admin.auth.admin.updateUserById(user.id,{ban_duration:'876000h'}));
+     if(entry.memberId) checked(await admin.from('organization_members').delete()
+       .eq('organization_id',org).eq('id',entry.memberId).eq('user_id',user.id));
+     const remaining=checked(await admin.from('organization_members').select('id')
+       .eq('organization_id',org).eq('user_id',user.id));
+     assert.equal(remaining.length,0);
+     const attested=checked(await admin.auth.admin.getUserById(user.id)).user;
+     assert.ok(Date.parse(attested.banned_until)>Date.now());
+     console.log('Synthetic issuing identity disabled and membership removed PASS');
+    }
+   }
+  }
+ }
