@@ -20,7 +20,8 @@ const getPeriod=async()=>checked(await admin.from('rent_payments').select('id,ex
 const runId=randomUUID(),created=[];
 const browser=await chromium.launch();
 try{
- for(const role of ['MANAGER','AGENT','ADMIN']){
+ const settlementOnly=process.env.JCO_QA203_PHASE==='settlement';
+ for(const role of settlementOnly?['ADMIN']:['MANAGER','AGENT','ADMIN']){
   const roleId=checked(await admin.from('roles').select('id').eq('organization_id',org).eq('key',role).eq('active',true).single()).id;
   const email='qa96-'+randomUUID()+'@example.invalid',password=randomBytes(32).toString('base64url');
   const {user}=checked(await admin.auth.admin.createUser({email,password,email_confirm:true,app_metadata:{qa_suite:'finance96',qa_run:runId}}));
@@ -38,6 +39,11 @@ try{
    const menu=page.getByRole('navigation',{name:'Módulos del sistema'});
    await menu.waitFor();
    const rental=menu.getByRole('button',{name:'Nueva vinculación',exact:true});
+   if(settlementOnly){
+    const {runSettlementJourney}=await import('./private-settlement-journey.mjs');
+    await runSettlementJourney({page,menu,admin,org,lease,contract,checked});
+    continue;
+   }
    if(role!=='ADMIN'){
     await menu.getByRole('button',{name:'Propiedades',exact:true}).waitFor();
     assert.equal(await rental.count(),0,role+' unexpectedly has rental authoring UI');
