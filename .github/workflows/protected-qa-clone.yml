@@ -11,6 +11,7 @@ on:
     paths:
       - '.github/workflows/protected-qa-clone.yml'
       - 'scripts/qa/protected-http-negative.mjs'
+      - 'scripts/qa/finance96-run-auth.mjs'
 permissions:
   contents: read
 concurrency:
@@ -18,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   http-negative:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && !inputs.owner_desktop_only
     environment: qa-clone
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -37,7 +38,7 @@ jobs:
           JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
           JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
   browser-mobile:
-    if: github.ref == 'refs/heads/main'
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && (needs.http-negative.result == 'success' || needs.http-negative.result == 'skipped') }}
     needs: http-negative
     environment: qa-clone
     runs-on: ubuntu-24.04
