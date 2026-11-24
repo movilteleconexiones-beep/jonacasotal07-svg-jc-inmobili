@@ -110,8 +110,11 @@ export async function runProtectedQaBrowser(env){
    browserEnv['JCO_QA96_'+suffix+'_EMAIL']=env['JCO_QA96_'+suffix+'_EMAIL'];
    browserEnv['JCO_QA96_'+suffix+'_PASSWORD']=env['JCO_QA96_'+suffix+'_PASSWORD'];
   }
-  await run(['--test','tests/g16-private-five-role-browser-qa.test.mjs'],
+  const documentJourney=process.env.JCO_QA203_DOCUMENTS==='1';
+  const testFile=documentJourney?'scripts/qa/private-documents-transactions.test.mjs':'tests/g16-private-five-role-browser-qa.test.mjs';
+  await run(['--test',testFile],
     browserEnv,'Five role authenticated Chromium journeys');
+  if(documentJourney) return;
   console.log(browserEnv.JCO_QA96_OWNER_DESKTOP_ONLY==='1'?'G16 BROWSER: targeted owner desktop journey PASS':'G16 BROWSER: five independent Auth sessions checked on local clone UI');
  }finally{
   // Browser and preview terminate BEFORE the existing runner deletes Auth
