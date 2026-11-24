@@ -1,0 +1,33 @@
+name: Protected QA clone HTTP
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/protected-qa-clone.yml'
+      - 'scripts/qa/protected-http-negative.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: protected-qa-clone
+  cancel-in-progress: false
+jobs:
+  http-negative:
+    if: github.ref == 'refs/heads/main'
+    environment: qa-clone
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - name: Real HTTP negative acceptance
+        run: node scripts/qa/protected-http-negative.mjs
+        env:
+          JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
+          JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
+          JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
