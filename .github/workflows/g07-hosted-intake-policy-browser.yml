@@ -49,6 +49,8 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm install --no-save --ignore-scripts playwright@1.56.1
-          npx playwright install --with-deps chromium
+          # Hosted Ubuntu runner ships common Chromium libraries. Avoid a full
+          # apt upgrade on every G07 smoke run; use only the headless binary.
+          npx playwright install chromium --only-shell
       - name: Verify live anonymous intake RPC and no-PII modal in both agencies
         run: node --test tests/g07-hosted-intake-policy-browser.test.mjs
