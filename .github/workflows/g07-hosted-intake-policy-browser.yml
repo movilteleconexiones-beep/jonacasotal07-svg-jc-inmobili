@@ -3,6 +3,8 @@ name: G07 public consignment hosted HTTP and browser privacy gate
 on:
   pull_request:
     paths:
+      - 'src/App.tsx'
+      - 'tests/g07-external-crm-privacy-shield.test.mjs'
       - 'tests/g07-hosted-intake-policy-browser.test.mjs'
       - '.github/workflows/g07-hosted-intake-policy-browser.yml'
       - 'src/components/SubmitPropertyModal.tsx'
