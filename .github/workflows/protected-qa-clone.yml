@@ -1,6 +1,11 @@
 name: Protected QA clone HTTP
 on:
   workflow_dispatch:
+    inputs:
+      owner_desktop_only:
+        description: 'Only retry owner desktop browser journey'
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -53,6 +58,7 @@ jobs:
           JCO_QA96_PROVISION: '1'
           JCO_QA96_AUTO_FIXTURES: '1'
           JCO_QA96_RUN_BROWSER: '1'
+          JCO_QA96_OWNER_DESKTOP_ONLY: ${{ (github.event_name == 'push' || inputs.owner_desktop_only) && '1' || '0' }}
           JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
           JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
           JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}

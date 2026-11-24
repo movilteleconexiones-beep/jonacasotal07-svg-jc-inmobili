@@ -102,6 +102,7 @@ export async function runProtectedQaBrowser(env){
    JCO_QA96_PROVISION:'1',
    JCO_QA96_SUPABASE_URL:CLONE,
    JCO_QA96_BROWSER_ORIGIN:LOCAL,
+   JCO_QA96_OWNER_DESKTOP_ONLY:process.env.JCO_QA96_OWNER_DESKTOP_ONLY==='1'?'1':'0',
   };
   for(const suffix of ROLES){
    browserEnv['JCO_QA96_'+suffix+'_EMAIL']=env['JCO_QA96_'+suffix+'_EMAIL'];
@@ -109,7 +110,7 @@ export async function runProtectedQaBrowser(env){
   }
   await run(['--test','tests/g16-private-five-role-browser-qa.test.mjs'],
     browserEnv,'Five role authenticated Chromium journeys');
-  console.log('G16 BROWSER: five independent Auth sessions checked on local clone UI');
+  console.log(browserEnv.JCO_QA96_OWNER_DESKTOP_ONLY==='1'?'G16 BROWSER: targeted owner desktop journey PASS':'G16 BROWSER: five independent Auth sessions checked on local clone UI');
  }finally{
   // Browser and preview terminate BEFORE the existing runner deletes Auth
   // users/PDF fixtures, including on exception or failed assertions.
