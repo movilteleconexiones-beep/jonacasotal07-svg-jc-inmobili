@@ -70,8 +70,16 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
         violations.push('Invalid request URL');
         return route.abort('blockedbyclient');
       }
+      // Fonts are presentation-only. Fulfill the exact known font stylesheet
+      // locally without sending any request, cookies or headers externally.
+      if(u.origin==='https://fonts.googleapis.com' && u.pathname==='/css2' &&
+         req.method()==='GET' && req.resourceType()==='stylesheet'){
+        return route.fulfill({status:200,contentType:'text/css',body:''});
+      }
       if(u.origin!==LOCAL && u.origin!==CLONE){
-        violations.push('Blocked unexpected network origin');
+        // Log only origin and resource type, never paths, query or credentials.
+        const safeOrigin=u.protocol==='https:'||u.protocol==='http:' ? u.origin : u.protocol;
+        violations.push('Blocked unexpected network origin '+safeOrigin+' ('+req.resourceType()+')');
         return route.abort('blockedbyclient');
       }
       if(u.origin===CLONE && req.method()!=='GET' && req.method()!=='OPTIONS'){
