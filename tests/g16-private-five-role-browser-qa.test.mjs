@@ -125,6 +125,8 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
            if(await toggle.count()) await toggle.click();
          }
          await btn.waitFor({state:'visible',timeout:15_000});
+         // Wait for the actual license/permission guard, not a transient initial render.
+         await page.waitForFunction(({label})=>Array.from(document.querySelectorAll('nav[aria-label="Módulos del sistema"] button')).some(b=>b.textContent.trim()===label && !b.disabled),{label},{timeout:25_000});
          assert.equal(await btn.isEnabled(),true,role+' cannot access allowed module '+label);
          await btn.click();
          await page.locator('main').first().waitFor({state:'visible',timeout:15_000});

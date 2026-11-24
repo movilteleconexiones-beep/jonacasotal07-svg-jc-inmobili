@@ -126,11 +126,18 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loadingStats, setLoadingStats] = useState(false);
 
-  const [termsRequired, setTermsRequired] = useState(false);
-  const [licenseCheckLoading, setLicenseCheckLoading] = useState(true);
+  const [termsRejected, setTermsRequired] = useState(true);
+  const [licenseCheckPending, setLicenseCheckLoading] = useState(true);
+  const [licenseCheckedScope, setLicenseCheckedScope] = useState('');
+  const [licenseCheckError, setLicenseCheckError] = useState(false);
+  const [licenseRetry, setLicenseRetry] = useState(0);
 
   const organizationId = activeMembership?.organization.id;
   const billingOwner = activeMembership?.billing.can_manage_billing ?? false;
+  const licenseScope = `${organizationId ?? ''}:${user?.id ?? ''}`;
+  // Never render owner operations before checking terms for this exact session/tenant.
+  const licenseCheckLoading = billingOwner && (licenseCheckPending || licenseCheckedScope !== licenseScope);
+  const termsRequired = billingOwner && (licenseCheckLoading || termsRejected);
   const previewAsTenant=isPlatformAdmin&&Boolean(activeMembership);
   const selectedPreviewMode=clientPortalMode&&mode.clientLinkedRole?'CLIENT':tenantPreviewRole;
   function changePreviewMode(next:string){
@@ -200,12 +207,25 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
 
     let cancelled = false;
     setLicenseCheckLoading(true);
+    setLicenseCheckError(false);
 
     void (async () => {
-      const { data: access, error } = await supabase.rpc('billing_get_access', { target_org: organizationId });
+      // Retry transient failures only; an explicit refusal or unaccepted terms is never overridden.
+      let result = await supabase.rpc('billing_get_access', { target_org: organizationId });
+      for (const delay of [300, 900]) {
+        if (cancelled || (!result.error && result.data)) break;
+        const status = result.status;
+        if (status !== 0 && status !== 408 && status !== 429 && status < 500) break;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        if (cancelled) return;
+        result = await supabase.rpc('billing_get_access', { target_org: organizationId });
+      }
+      const { data: access, error } = result;
       if (error || !access) {
         if (!cancelled) {
           setTermsRequired(true);
+          setLicenseCheckError(true);
+          setLicenseCheckedScope(licenseScope);
           setLicenseCheckLoading(false);
           setView('LICENSE');
         }
@@ -213,8 +233,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
       }
 
       if (!cancelled) {
-        const required = !access.terms_accepted;
+        const required = access.terms_accepted !== true;
         setTermsRequired(required);
+        setLicenseCheckedScope(licenseScope);
         setLicenseCheckLoading(false);
         if (required) setView('LICENSE');
       }
@@ -223,7 +244,7 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, user?.id, billingOwner]);
+  }, [organizationId, user?.id, billingOwner, licenseScope, licenseRetry]);
 
   useEffect(() => {
     if (!organizationId) {
@@ -519,7 +540,14 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
         </aside>
 
         <main className="min-w-0">
-          {termsRequired && !licenseCheckLoading && (
+          {licenseCheckLoading && <p role="status" className="mb-4 rounded-xl border bg-white p-4 text-sm">Verificando licencia y permisos de la inmobiliaria…</p>}
+          {licenseCheckError && !licenseCheckLoading && (
+            <div role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
+              No fue posible verificar la licencia. Los módulos permanecen protegidos.
+              <button type="button" className="ml-3 rounded-lg border bg-white px-3 py-2 font-semibold" onClick={()=>setLicenseRetry(n=>n+1)}>Reintentar verificación</button>
+            </div>
+          )}
+          {termsRequired && !licenseCheckLoading && !licenseCheckError && (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
               <div className="font-bold">Aceptación de licencia requerida</div>
               <p className="mt-1">
@@ -566,6 +594,9 @@ export function PrivateDashboard({ onClose }: PrivateDashboardProps) {
             <LicenseModule
               onAccepted={() => {
                 setTermsRequired(false);
+                setLicenseCheckError(false);
+                setLicenseCheckedScope(licenseScope);
+                setLicenseCheckLoading(false);
                 void refreshMemberships();
                 setView('DASHBOARD');
               }}
