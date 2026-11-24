@@ -201,7 +201,11 @@ async function main() {
       env['JCO_QA96_' + suffix + '_EMAIL']=email;
       env['JCO_QA96_' + suffix + '_PASSWORD']=password;
     }
-    assert.equal(created.length,roles.length,'Unexpected temporary QA user count');
+    if (ownerDesktopOnly) {
+      assert.equal(created.length,1,'Exactly one temporary desktop owner required');
+    } else {
+      assert.equal(created.length,5,'Exactly five temporary test users required');
+    }
     if (autoFixtures) {
       const email = 'qa96-foreign-' + randomUUID().slice(0,12) + '@example.invalid';
       const password = randomBytes(32).toString('base64url');
