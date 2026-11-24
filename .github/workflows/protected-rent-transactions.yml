@@ -5,8 +5,8 @@ on:
       phase:
         description: Private UI journey
         type: choice
-        options: [settlement, rent]
-        default: settlement
+        options: [all, settlement, rent]
+        default: all
   push:
     branches: [main]
     paths:
@@ -46,6 +46,6 @@ jobs:
           curl --fail --silent --retry 12 --retry-connrefused http://127.0.0.1:4173/app >/dev/null
           node scripts/qa/private-rent-transactions.mjs
         env:
-          JCO_QA203_PHASE: ${{ inputs.phase || 'settlement' }}
+          JCO_QA203_PHASE: ${{ inputs.phase || 'all' }}
           JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
           JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
