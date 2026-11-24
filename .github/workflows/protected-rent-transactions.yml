@@ -1,0 +1,43 @@
+name: Protected rent transaction UI
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/qa/private-rent-transactions.mjs
+      - .github/workflows/protected-rent-transactions.yml
+permissions:
+  contents: read
+concurrency: protected-qa-clone
+jobs:
+  chromium:
+    if: github.ref == 'refs/heads/main'
+    environment: qa-clone
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm install --no-save --ignore-scripts --package-lock=false playwright@1.56.1
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: npx --no-install vite build
+        env:
+          VITE_SUPABASE_URL: https://zjgstfgiirgjssnihaam.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
+          VITE_PUBLIC_SITE_SLUG: sistema-inmobiliario-jco
+      - name: Test synthetic rent period and payment from the UI
+        shell: bash
+        run: |
+          node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort > "$RUNNER_TEMP/jco-preview.log" 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --retry 12 --retry-connrefused http://127.0.0.1:4173/app >/dev/null
+          node scripts/qa/private-rent-transactions.mjs
+        env:
+          JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
+          JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
