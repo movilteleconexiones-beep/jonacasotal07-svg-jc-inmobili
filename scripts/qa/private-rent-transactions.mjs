@@ -87,4 +87,25 @@ try{
    console.log('ADMIN partial receipt and remaining balance after reload PASS');
   }finally{await ctx.close();}
  }
-}finally{try{await browser.close();}finally{await cleanupQaAccounts({admin,created,orgId:org,runId});}}
+ }finally{
+  try{await browser.close();}finally{
+   if(process.env.JCO_QA203_PHASE!=='settlement'){
+    await cleanupQaAccounts({admin,created,orgId:org,runId});
+   }else{
+    // Issued statements retain a mandatory foreign key to the issuing user.
+    for(const entry of created){
+     const {user}=checked(await admin.auth.admin.getUserById(entry.userId));
+     assert.equal(user.app_metadata.qa_run,runId);
+     checked(await admin.auth.admin.updateUserById(user.id,{ban_duration:'876000h'}));
+     if(entry.memberId) checked(await admin.from('organization_members').delete()
+       .eq('organization_id',org).eq('id',entry.memberId).eq('user_id',user.id));
+     const remaining=checked(await admin.from('organization_members').select('id')
+       .eq('organization_id',org).eq('user_id',user.id));
+     assert.equal(remaining.length,0);
+     const attested=checked(await admin.auth.admin.getUserById(user.id)).user;
+     assert.ok(Date.parse(attested.banned_until)>Date.now());
+     console.log('Synthetic issuing identity disabled and membership removed PASS');
+    }
+   }
+  }
+ }
