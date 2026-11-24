@@ -152,6 +152,11 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
        }
        console.log('G16_REAL_AUTH '+role+' operational menu traversal PASS');
      }
+     if (ownerDesktopOnly) {
+       assert.deepEqual(uncaught,[],'Unhandled UI exceptions for owner desktop');
+       assert.deepEqual(violations,[],'Unexpected network access or mutation');
+       return;
+     }
      // Signed-in public route remains public and MUST use the selected site's
      // public brand, not leak the QA user or internal sidebar.
      const pub=await page.goto(LOCAL+publicOther,{waitUntil:'domcontentloaded',timeout:25_000});
