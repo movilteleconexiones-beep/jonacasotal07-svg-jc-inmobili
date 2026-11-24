@@ -35,6 +35,8 @@ test('G07: own approved intake visible, external unapproved intake remains close
         const context = await browser.newContext({ serviceWorkers: 'block' });
         try {
           const page = await context.newPage();
+          const runtimeErrors = [];
+          page.on('pageerror', error => runtimeErrors.push(error.message.slice(0, 220)));
           let submissions = 0;
           let photoUploads = 0;
           page.on('request', request => {
@@ -47,7 +49,15 @@ test('G07: own approved intake visible, external unapproved intake remains close
             waitUntil: 'domcontentloaded', timeout: 25000,
           });
           assert.equal(pageResponse?.status(), 200, slug + ': portal must be online');
-          await page.locator('#inicio').waitFor({ state: 'visible', timeout: 20000 });
+          try {
+            await page.locator('#inicio').waitFor({ state: 'visible', timeout: 12000 });
+          } catch {
+            const visibleText = await page.locator('body').innerText().catch(() => '');
+            const ready = await page.evaluate(() => document.readyState).catch(() => 'unknown');
+            throw Error(slug + ': page did not render #inicio; actual=' + page.url() +
+              '; ready=' + ready + '; bodyText=' + visibleText.slice(0, 350) +
+              '; pageErrors=' + JSON.stringify(runtimeErrors));
+          }
 
           const responsePromise = page.waitForResponse(response =>
             /\/rpc\/get_public_property_intake_site(?:\?|$)/.test(response.url()),
@@ -112,7 +122,7 @@ test('G07: own approved intake visible, external unapproved intake remains close
               'External agency must never request an email');
             assert.equal(await page.locator('#c-phone').count(), 0,
               'External agency must never request a phone number');
-          } else if (expectPersonalApproved) {
+          } else if (slug === ownSlug && expectPersonalApproved) {
             const contactSection = page.locator('#contacto');
             await contactSection.waitFor({ state: 'visible', timeout: 15000 });
             await contactSection.locator('#c-name').waitFor({ state: 'visible', timeout: 12000 });
@@ -132,7 +142,7 @@ test('G07: own approved intake visible, external unapproved intake remains close
           console.log('G07_HOSTED_INTAKE ' + slug + ' ' +
             (isApproved ? 'POLICY_DOCUMENT_CONFIGURED' : 'FAIL_CLOSED_NO_APPROVAL') +
             (requiresClosed ? ' STRICT_EXTERNAL_CLOSED' : ' STRICT_PERSONAL_APPROVED'));
-          await modal.getByRole('button', { name: 'Cerrar', exact: true }).first().click();
+          await modal.getByRole('button', { name: 'Cerrar ventana', exact: true }).click();
         } finally {
           await context.close();
         }
