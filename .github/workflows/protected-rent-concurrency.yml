@@ -1,0 +1,30 @@
+name: Protected concurrent rent requests
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/qa/private-rent-concurrency.mjs
+      - .github/workflows/protected-rent-concurrency.yml
+permissions:
+  contents: read
+concurrency: protected-qa-clone
+jobs:
+  concurrent-http:
+    if: github.ref == 'refs/heads/main'
+    environment: qa-clone
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: node scripts/qa/private-rent-concurrency.mjs
+        env:
+          JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
+          JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
+          JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
