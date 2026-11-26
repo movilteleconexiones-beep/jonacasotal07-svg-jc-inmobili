@@ -1,0 +1,26 @@
+name: G24 hosted seller browser
+on:
+  pull_request:
+    paths:
+      - 'scripts/qa/g24-hosted-seller-browser.mjs'
+      - '.github/workflows/g24-hosted-seller-browser.yml'
+      - 'src/components/SoftwareSellerIdentity.tsx'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  seller-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install chromium --only-shell
+      - name: Verify hosted seller disclosure without payment or personal submissions
+        run: node scripts/qa/g24-hosted-seller-browser.mjs
