@@ -85,8 +85,6 @@ export default function App() {
   const tenantSlug = resolvePublicTenantSlug({
     pathname: window.location.pathname,
     search: window.location.search,
-    membershipSlug: activeMembership?.organization.slug,
-    configuredSlug: import.meta.env.VITE_PUBLIC_SITE_SLUG,
   });
   const publicCatalog = usePublicTenantCatalog(tenantSlug);
   const viewingAnotherAgency = Boolean(activeMembership?.organization.slug && tenantSlug && tenantSlug !== activeMembership.organization.slug);
@@ -137,7 +135,7 @@ export default function App() {
       ? publicCompanyName
       : tenantSlug ? 'Portal inmobiliario' : `${PUBLIC_COMMERCIAL_NAME} | Software inmobiliario`;
     // Index only the official WWW homepage and explicit tenant URLs.
-    // Logged-in tenant previews at / remain canonical to the commercial root.
+    // The central root is independent of active membership and deployment defaults.
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) {
       const path = window.location.pathname.startsWith('/inmobiliaria/')
