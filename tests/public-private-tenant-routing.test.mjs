@@ -24,9 +24,9 @@ test('public links are tied to the URL, never the signed-in agency',()=>{
   assert.equal(slug('/inmobiliaria/tenant-b/','', 'tenant-a'),'tenant-b');
   assert.equal(slug('/?not-a-route','?inmobiliaria=tenant-b','tenant-a'),'tenant-b');
   assert.equal(slug('/','?inmobiliaria=tenant-b','tenant-a'),'tenant-b');
-  assert.equal(slug('/','','tenant-a'),'tenant-a');
-  assert.equal(slug('/','','tenant-a','deployment-brand'),'tenant-a');
-  assert.equal(slug('/','','','deployment-brand'),'deployment-brand');
+  assert.equal(slug('/','','tenant-a'),'');
+  assert.equal(slug('/','','tenant-a','deployment-brand'),'');
+  assert.equal(slug('/','','','deployment-brand'),'');
   assert.equal(slug('/','?inmobiliaria=tenant-b','tenant-a','deployment-brand'),'tenant-b');
   assert.equal(slug('/inmobiliaria/tenant-b','','tenant-a','deployment-brand'),'tenant-b');
   assert.equal(tenantPublicPath(' Tenant-A '),'/inmobiliaria/tenant-a');
@@ -45,6 +45,9 @@ test('public branded storefront is not replaced with operating dashboard',()=>{
   const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
   const privateUI=readFileSync(new URL('../src/modules/dashboard/PrivateDashboard.tsx',import.meta.url),'utf8');
   assert.match(app,/resolvePublicTenantSlug\(\{/);
+  const resolver = app.slice(app.indexOf('const tenantSlug = resolvePublicTenantSlug('),app.indexOf('const publicCatalog ='));
+  assert.doesNotMatch(resolver,/activeMembership|VITE_PUBLIC_SITE_SLUG/);
+  assert.match(readFileSync(new URL('../src/core/use-public-tenant-catalog.ts',import.meta.url),'utf8'),/if \(!requestedSlug\) return EMPTY;/);
   assert.match(app,/const explicitlyPublic = isPublicStorefrontPath\(/);
   assert.match(app,/!explicitlyPublic &&/);
   assert.match(app,/window\.location\.assign\(tenantPrivatePath\(activeMembership\?\.organization\.slug \|\| ''\)\)/);
