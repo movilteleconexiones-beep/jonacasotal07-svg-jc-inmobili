@@ -101,6 +101,7 @@ export async function runProtectedQaBrowser(env){
    PATH:process.env.PATH||'',HOME:process.env.HOME||'',
    TMPDIR:process.env.TMPDIR||'/tmp',
    JCO_QA96_RUN_BROWSER:'1',
+   JCO_QA24_CHECKOUT_SUMMARY:process.env.JCO_QA24_CHECKOUT_SUMMARY==='1'?'1':'0',
    JCO_QA203_ONLY_DOCUMENTS:process.env.JCO_QA203_ONLY_DOCUMENTS==='1'?'1':'0',
    JCO_QA96_PROVISION:'1',
    JCO_QA96_SUPABASE_URL:CLONE,
@@ -116,6 +117,7 @@ export async function runProtectedQaBrowser(env){
   await run(['--test',testFile],
     browserEnv,'Five role authenticated Chromium journeys');
   if(documentJourney) return;
+  if(browserEnv.JCO_QA24_CHECKOUT_SUMMARY==='1') {console.log('G24 BROWSER: checkout summary review-only PASS');return;}
   console.log(browserEnv.JCO_QA96_OWNER_DESKTOP_ONLY==='1'?'G16 BROWSER: targeted owner desktop journey PASS':'G16 BROWSER: five independent Auth sessions checked on local clone UI');
  }finally{
   // Browser and preview terminate BEFORE the existing runner deletes Auth

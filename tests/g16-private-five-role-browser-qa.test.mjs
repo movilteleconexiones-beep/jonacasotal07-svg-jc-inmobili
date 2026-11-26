@@ -92,6 +92,7 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
           '/rpc/process_verified_payment_event','/rpc/admin_record_owner_payout',
           '/rpc/record_tenant_rent_receipt','/rpc/submit_public_website_lead',
           '/functions/v1/wompi','/storage/v1/object/',
+          '/rpc/billing_create_order','/functions/v1/billing/checkout','/functions/v1/billing-production/checkout',
         ];
         if(protectedRoutes.some(path=>u.pathname.includes(path))){
           violations.push('Forbidden mutation '+u.pathname.slice(0,90));
@@ -120,6 +121,52 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
        await menu.waitFor({state:'visible',timeout:25_000});
        assert.equal(await page.getByRole('link',{name:/Superadministrador/}).count(),0,
         'An ordinary QA tenant gained platform access');
+       if(process.env.JCO_QA24_CHECKOUT_SUMMARY==='1' && ownerDesktopOnly && role==='ORGANIZATION_OWNER'){
+         // Targeted G24: only review, never invoke a checkout or create an order.
+         await menu.locator('summary').filter({hasText:'Administración y ajustes'}).click();
+         const license=menu.getByRole('button',{name:'Licencia',exact:true});
+         await license.waitFor({state:'visible',timeout:15000});
+         await license.click();
+         await page.getByRole('button',{name:'Plan y activación',exact:true}).click();
+         await page.getByRole('heading',{name:'Plan y activación',exact:true}).waitFor({state:'visible'});
+         const plan=page.locator('article').filter({has:page.getByRole('heading',{name:/básico|basico|basic/i,exact:false})}).first();
+         const review=plan.getByRole('button',{name:/Simular renovación \(revisar antes\)|Revisar pago Sandbox/});
+         await review.waitFor({state:'visible',timeout:20000});
+         await review.click({timeout:20000});
+         const summary=plan.getByRole('region',{name:/Resumen previo al pago del plan/});
+         await summary.waitFor({state:'visible'});
+         for(const width of [1280,390]){
+           await page.setViewportSize({width,height:844});
+           assert.ok(await summary.getByText('Total de la compra',{exact:true}).isVisible());
+           assert.match(await summary.innerText(),/149[.\s]900\s*COP/);
+           assert.match(await summary.innerText(),/5 usuarios, 200 inmuebles/);
+           assert.match(await summary.innerText(),/Mensual/);
+           assert.match(await summary.innerText(),/Wompi Sandbox \(sin cobro real\)/);
+           const identity=summary.getByRole('region',{name:'Identificación y contacto del proveedor de licencias'});
+           assert.ok(await identity.isVisible());
+           assert.ok(await identity.getByText('Atención y PQR:',{exact:false}).first().isVisible());
+           assert.ok(await summary.locator('a[href="#terminos-licencia"]').isVisible());
+           assert.equal(await page.locator('#terminos-licencia').count(),1);
+           assert.equal(await summary.locator('a[href="/politicas/operador-inmojco.pdf"]').count(),1);
+           assert.equal(await summary.locator('a[href="/politicas/terminos-saas-jco.pdf"]').count(),1);
+           const ack=summary.getByRole('checkbox',{name:/He revisado el vendedor/});
+           const confirm=summary.getByRole('button',{name:'Confirmar e ir a Wompi Sandbox',exact:true});
+           assert.equal(await ack.isChecked(),false);
+           assert.equal(await confirm.isEnabled(),false);
+           await ack.check();
+           assert.equal(await confirm.isEnabled(),true);
+           // Do not click confirm. Returning to the plans must reset consent.
+           await summary.getByRole('button',{name:'Volver a los planes',exact:true}).click();
+           await review.click();
+           assert.equal(await ack.isChecked(),false);
+           assert.equal(await confirm.isEnabled(),false);
+           console.log('G24_CHECKOUT_REAL_AUTH review-only PASS viewport '+width);
+         }
+         await summary.getByRole('button',{name:'Volver a los planes',exact:true}).click();
+         assert.deepEqual(uncaught,[]);
+         assert.deepEqual(violations,[]);
+         return;
+       }
        for(const label of operationalButtons){
          const btn=menu.getByRole('button',{name:label,exact:true});
          if(mobile && !(await menu.isVisible())){

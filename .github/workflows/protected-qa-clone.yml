@@ -2,6 +2,14 @@ name: Protected QA clone HTTP
 on:
   workflow_dispatch:
     inputs:
+      documents_only:
+        description: 'Run the protected document journey only'
+        type: boolean
+        default: false
+      checkout_summary_only:
+        description: 'Review checkout summary with a temporary owner; never submit payment'
+        type: boolean
+        default: false
       owner_desktop_only:
         description: 'Only retry owner desktop browser journey'
         type: boolean
@@ -22,7 +30,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   http-negative:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && !inputs.owner_desktop_only
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && !inputs.owner_desktop_only && !inputs.checkout_summary_only && !inputs.documents_only
     environment: qa-clone
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -64,8 +72,9 @@ jobs:
           JCO_QA96_AUTO_FIXTURES: '1'
           JCO_QA96_RUN_BROWSER: '1'
           JCO_QA203_ONLY_DOCUMENTS: '1'
-          JCO_QA203_DOCUMENTS: ${{ github.event_name == 'push' && '1' || '0' }}
-          JCO_QA96_OWNER_DESKTOP_ONLY: ${{ (github.event_name == 'push' || inputs.owner_desktop_only) && '1' || '0' }}
+          JCO_QA203_DOCUMENTS: ${{ inputs.documents_only && '1' || '0' }}
+          JCO_QA24_CHECKOUT_SUMMARY: ${{ (!inputs.documents_only && (github.event_name == 'push' || inputs.checkout_summary_only)) && '1' || '0' }}
+          JCO_QA96_OWNER_DESKTOP_ONLY: ${{ (github.event_name == 'push' || inputs.owner_desktop_only || inputs.checkout_summary_only || inputs.documents_only) && '1' || '0' }}
           JCO_QA96_SUPABASE_URL: ${{ secrets.JCO_QA96_SUPABASE_URL }}
           JCO_QA96_PUBLISHABLE_KEY: ${{ secrets.JCO_QA96_PUBLISHABLE_KEY }}
           JCO_QA96_SECRET_KEY: ${{ secrets.JCO_QA96_SECRET_KEY }}
