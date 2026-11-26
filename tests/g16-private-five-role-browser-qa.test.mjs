@@ -118,17 +118,19 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
          const toggle=page.getByRole('button',{name:/abrir menú|mostrar menú|menú de navegación/i}).first();
          if(await toggle.count()) await toggle.click();
        }
-       await menu.waitFor({state:'visible',timeout:25_000});
-       assert.equal(await page.getByRole('link',{name:/Superadministrador/}).count(),0,
-        'An ordinary QA tenant gained platform access');
        if(process.env.JCO_QA24_CHECKOUT_SUMMARY==='1' && ownerDesktopOnly && role==='ORGANIZATION_OWNER'){
-         // Targeted G24: only review, never invoke a checkout or create an order.
-         await menu.locator('summary').filter({hasText:'Administración y ajustes'}).click();
-         const license=menu.getByRole('button',{name:'Licencia',exact:true});
-         await license.waitFor({state:'visible',timeout:15000});
-         await license.click();
-         await page.getByRole('button',{name:'Plan y activación',exact:true}).click();
-         await page.getByRole('heading',{name:'Plan y activación',exact:true}).waitFor({state:'visible'});
+         // Expired subscriptions go directly to billing without the operational menu.
+         const billingHeading=page.getByRole('heading',{name:'Plan y activación',exact:true});
+         await billingHeading.or(menu).first().waitFor({state:'visible',timeout:25000});
+         assert.equal(await page.getByRole('link',{name:/Superadministrador/}).count(),0);
+         if(!(await billingHeading.isVisible())){
+           await menu.locator('summary').filter({hasText:'Administración y ajustes'}).click();
+           const license=menu.getByRole('button',{name:'Licencia',exact:true});
+           await license.waitFor({state:'visible',timeout:15000});
+           await license.click();
+           await page.getByRole('button',{name:'Plan y activación',exact:true}).click();
+         }
+         await billingHeading.waitFor({state:'visible',timeout:25000});
          const plan=page.locator('article').filter({has:page.getByRole('heading',{name:/básico|basico|basic/i,exact:false})}).first();
          const review=plan.getByRole('button',{name:/Simular renovación \(revisar antes\)|Revisar pago Sandbox/});
          await review.waitFor({state:'visible',timeout:20000});
@@ -167,6 +169,9 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
          assert.deepEqual(violations,[]);
          return;
        }
+       await menu.waitFor({state:'visible',timeout:25_000});
+       assert.equal(await page.getByRole('link',{name:/Superadministrador/}).count(),0,
+        'An ordinary QA tenant gained platform access');
        for(const label of operationalButtons){
          const btn=menu.getByRole('button',{name:label,exact:true});
          if(mobile && !(await menu.isVisible())){
