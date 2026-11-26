@@ -25,6 +25,8 @@ const forwards=Object.freeze([
 // New production forwards must be explicitly pinned; the original 99 + six Nov-7
 // migrations and 108-file historical staging bootstrap remain immutable.
 const laterApplied = Object.freeze([
+  {name:'20261126040850_business_conflict_http_409.sql',
+   sha:'28bd9b6247ccae8c6dd121dd8c18a6348c4cfe3e'},
   {name:'20261116052914_g23_public_catalog_keyset_pages.sql',
    sha:'3778f9b13249c7bd364baea8bdf3f7424b18b4b8'},
 ]);
@@ -40,9 +42,9 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
   const permitted=new Set([...reference,...forwards.map(x=>x.name),...laterApplied.map(x=>x.name)]);
   const canonicalNames=canonicalFiles.filter(n=>n.endsWith('.sql')).sort();
   const legacyNames=legacyFiles.filter(n=>n.endsWith('.sql')).sort();
-  if(canonicalNames.length!==106 || permitted.size!==106 ||
+  if(canonicalNames.length!==107 || permitted.size!==107 ||
      JSON.stringify(canonicalNames)!==JSON.stringify([...permitted].sort()))
-    errors.push('Canonical file names differ from 99 historical + 6 pinned forward + 1 separately approved migration');
+    errors.push('Canonical file names differ from 99 historical + 6 pinned forward + 2 separately approved migrations');
   for(const forward of forwards){
     try {
       if(gitBlobSha(getCanonical(forward.name))!==forward.sha)
@@ -90,7 +92,7 @@ export function checkCutover({manifest,ledger,archives,canonicalFiles,legacyFile
   return {ok:errors.length===0,safeToPush:false,safeToRepair:false,
     readyToMerge:false,canonicalCount:canonicalNames.length,
     archivedSources:legacyNames.length,matchedRecordedSql:99,verifiedForward:6,
-    verifiedLater:1,
+    verifiedLater:2,
     requiresHistoricalFixtureCompatibility:true,errors};
 }
 
