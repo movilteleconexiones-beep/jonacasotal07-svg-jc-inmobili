@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/qa/trial-atomicity-pg17.sh'
-      - 'docs/ops/pending-sql/g203_one_trial_per_owner.sql'
+      - 'supabase/migrations/20261126042939_g203_one_trial_per_owner.sql'
       - '.github/workflows/g203-trial-atomicity-pg17.yml'
 permissions:
   contents: read
