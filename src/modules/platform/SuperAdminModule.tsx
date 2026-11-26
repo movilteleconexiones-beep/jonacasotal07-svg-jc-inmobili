@@ -7,7 +7,7 @@ import { BillingAdminControls } from './BillingAdminControls';
 import { PlatformMembers } from './PlatformMembers';
 
 export function SuperAdminModule() {
-  const { user, activeMembership, loading: authLoading, isPlatformAdmin } = useAuth();
+  const { user, activeMembership, loading: authLoading, isPlatformAdmin, refreshMemberships } = useAuth();
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -95,7 +95,7 @@ export function SuperAdminModule() {
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Sistema Inmobiliario JCO</p>
       <h1 className="text-3xl font-bold">Panel de Superadministrador</h1><p className="mt-2 text-sm text-slate-600">Todas tus inmobiliarias · Estado y seguimiento mensual</p>
     </div><div className="flex gap-3"><button type="button" onClick={() => void refresh()} disabled={loading} className="rounded-lg border bg-white px-4 py-2 font-semibold disabled:opacity-50">Actualizar</button>
-      {activeMembership && <a href="/?billing=return" className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-900" aria-label="Abrir portal de la inmobiliaria activa">Portal</a>}
+      {activeMembership && <a href="/app" className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-900" aria-label="Abrir panel operativo de la inmobiliaria activa">Panel operativo</a>}
       <a href="/" className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white">Volver al inicio</a></div></header>
     <nav aria-label="Menú de superadministración" className="mb-6 flex flex-wrap gap-2">
       <a href="#resumen-inmobiliarias" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Resumen</a>
@@ -108,7 +108,7 @@ export function SuperAdminModule() {
     <section id="resumen-inmobiliarias" className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Estado general de las inmobiliarias">
       {cards.map(([label,value]) => <article key={label} className="rounded-xl border bg-white p-4"><p className="text-sm text-slate-600">{label}</p><p className="mt-2 text-3xl font-bold tabular-nums">{loading || value === undefined ? '—' : value}</p></article>)}
     </section><p className="mt-2 text-xs text-slate-500">{totals ? `${totals.tests} cuentas de prueba incluidas en el total. ` : ''}El estado de acceso contempla la vigencia, las suspensiones y la activación pendiente.</p>
-    <BillingAdminControls tenant={selectedOrganization} onDone={() => void refresh()} />
+    <BillingAdminControls tenant={selectedOrganization} onDone={() => { void refresh(); void refreshMemberships(); }} />
     {selectedOrganization && <PlatformMembers organization={selectedOrganization} onChanged={() => void refresh()} />}
     <section id="todas-inmobiliarias" className="mt-6"><h2 className="text-xl font-bold">Inmobiliarias registradas</h2>
       <p className="mt-2 text-sm text-slate-600">Para cuentas que dejaron de pagar, utiliza <strong>Suspender acceso</strong>: conserva el historial, los contratos y los datos de la inmobiliaria. La eliminación definitiva requiere respaldo, revisión legal y un proceso independiente; no se realiza desde este panel.</p>
@@ -128,7 +128,7 @@ export function SuperAdminModule() {
         {['Inmobiliaria','Estado','Plan','Contrato','Vigencia','Miembros','Inmuebles','Registro'].map(label => <th key={label} className="p-4">{label}</th>)}
       </tr></thead><tbody>{filteredOrganizations.map(org => <tr key={org.organization_id} className="border-t">
         <td className="p-4"><p className="font-semibold">{org.organization_name}</p><p className="mt-1 text-xs text-slate-500">{org.organization_slug}</p>
-          <button type="button" onClick={() => setSelectedOrganization(org)} className="mt-2 text-xs font-semibold text-blue-700 underline">Gestionar activación y miembros</button>
+          <button type="button" onClick={() => { setSelectedOrganization(org); requestAnimationFrame(() => document.getElementById('gestion-activacion')?.scrollIntoView({block:'start',behavior:'smooth'})); }} className="mt-2 text-xs font-semibold text-blue-700 underline">Gestionar plan, acceso y miembros</button>
           {org.organization_status !== 'SUSPENDED' && (
             <button type="button" onClick={() => void suspendOrganization(org)}
               disabled={retiringOrg !== null || org.organization_id === activeMembership?.organization.id || org.owner_user_id === user?.id}
