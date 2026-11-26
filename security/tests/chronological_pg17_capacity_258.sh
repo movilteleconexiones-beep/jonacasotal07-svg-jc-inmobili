@@ -62,7 +62,7 @@ owned_roles=true
 node scripts/ops/reconstruct-applied-99.mjs --archive-temporary > "$workdir/archive.json"
 archive_dir="$(node -e 'const f=require("node:fs");const x=JSON.parse(f.readFileSync(process.argv[1],"utf8"));if(!x.ok||x.originalBodies!==99||x.bytes!==493999||x.safeToReplay!==false||!x.localArchive?.startsWith("/tmp/inmojco-104-historic-sql-"))process.exit(3);process.stdout.write(x.localArchive)' "$workdir/archive.json")"
 
-# Materialize exactly 104 ordered SQL files in a fresh temporary directory.
+# Materialize the current 108 pinned files and select the historical 105-step baseline.
 # Every canonical source and the three staging candidates is SHA-verified.
 if [[ -f "$RUNNER_TEMP/staging325-candidate.json" ]]; then
   cp -- "$RUNNER_TEMP/staging325-candidate.json" "$workdir/staging-candidate.json"
@@ -73,7 +73,7 @@ fi
 candidate_dir="$(node - "$workdir/staging-candidate.json" <<'JS'
 const fs=require('node:fs');
 const x=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-if(!x.ok || x.canonical!==99 || x.forwardApplied!==3 || x.stagingOnly!==3 || x.total!==105 ||
+if(!x.ok || x.canonical!==99 || x.forwardApplied!==6 || x.stagingOnly!==3 || x.total!==108 ||
    x.safeForProduction!==false ||
    !x.temporaryDirectory?.startsWith('/tmp/inmojco-staging325-NO-PROD-'))
   process.exit(5);
@@ -84,11 +84,14 @@ mapfile -t candidates < <(node - "$candidate_dir/STAGING-ONLY-MANIFEST.json" <<'
 const fs=require('node:fs');
 const m=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
 if(m.safeForProduction!==false||m.doNotMergeWithProduction!==true||
-   m.originalVersions!==99||m.forwardApplied!==3||m.stagingPrerequisites!==3||m.total!==105||
-   m.files.length!==105)process.exit(6);
+   m.originalVersions!==99||m.forwardApplied!==6||m.stagingPrerequisites!==3||m.total!==108||
+   m.files.length!==108)process.exit(6);
 for(const row of m.files) {
  if(!/^[0-9]{14}_[a-z0-9_]+\.sql$/.test(row.name)||
     !['CANONICAL','STAGING_ONLY','FORWARD_APPLIED'].includes(row.kind))process.exit(7);
+ // Preserve the historical v102 baseline: later forwards belong to the
+ // current bootstrap suite, not to the isolated v102/v254 candidate proof.
+ if(row.kind==='FORWARD_APPLIED' && ['20261107115138','20261107124207','20261107133623'].includes(row.version))continue;
  console.log(row.version+'|'+row.kind+'|'+row.name);
 }
 JS
