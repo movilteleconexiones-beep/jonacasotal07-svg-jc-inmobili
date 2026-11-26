@@ -47,7 +47,7 @@ try {
   const desired=[['properties.view','clients.view'],['properties.view','deals.view']];
   const changes=await race((c,i)=>c.rpc('admin_update_role_permissions',{...args,desired_permission_keys:desired[i]}));
   assert.equal(changes.filter(r=>!r.error).length,1);
-  assert.equal(changes.filter(r=>r.error?.code==='40001').length,1);
+  assert.equal(changes.filter(r=>r.error?.code==='PT409' && r.status===409).length,1);
   const winner=changes.findIndex(r=>!r.error);
   const saved=checked(await admin.from('role_permissions').select('permissions(key)').eq('role_id',customRole)).map(r=>r.permissions.key).sort();
   assert.deepEqual(saved,[...desired[winner]].sort());
