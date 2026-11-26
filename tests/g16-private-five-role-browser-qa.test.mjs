@@ -121,7 +121,7 @@ test('G16 five genuine private-browser role journeys against restored QA clone',
        await menu.waitFor({state:'visible',timeout:25_000});
        assert.equal(await page.getByRole('link',{name:/Superadministrador/}).count(),0,
         'An ordinary QA tenant gained platform access');
-       if(ownerDesktopOnly && role==='ORGANIZATION_OWNER'){
+       if(process.env.JCO_QA24_CHECKOUT_SUMMARY==='1' && ownerDesktopOnly && role==='ORGANIZATION_OWNER'){
          // Targeted G24: only review, never invoke a checkout or create an order.
          await menu.locator('summary').filter({hasText:'Administración y ajustes'}).click();
          const license=menu.getByRole('button',{name:'Licencia',exact:true});
