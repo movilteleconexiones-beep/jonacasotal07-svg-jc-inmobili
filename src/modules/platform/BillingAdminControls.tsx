@@ -3,7 +3,13 @@ import { supabase } from '../../lib/supabase';
 import { manualLifetimeAdminEnabled } from '../../core/billing-release-flags';
 
 interface Tenant { organization_id: string; organization_name: string; organization_status: string; owner_user_id: string | null }
-interface Plan { id: string; name: string; code: string; billing_cycle: string; currency: string }
+interface Plan { id: string; name: string; code: string; billing_cycle: string; currency: string; price: number | string; max_users: number | null; max_properties: number | null }
+const money = (price: number | string) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(price));
+function planLabel(p: Plan) {
+  const capacity = `${p.max_users ?? 'Según contrato'} usuarios · ${p.max_properties ?? 'Según contrato'} inmuebles`;
+  if (p.code === 'LIFETIME') return `${p.name} · Sin vencimiento · Precio por cotización · ${capacity}`;
+  return `${p.name} · ${money(p.price)} COP/${p.billing_cycle === 'ANNUAL' ? 'año' : 'mes'} · ${capacity}`;
+}
 export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null; onDone: () => void }) {
   const [mode, setMode] = useState('');
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -16,12 +22,19 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
   useEffect(() => {
     void Promise.all([
       supabase.from('billing_activation_settings').select('activation_mode').single(),
-      supabase.from('plans').select('id,name,code,billing_cycle,currency').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL','ONE_TIME']).order('price'),
+      supabase.from('plans').select('id,name,code,billing_cycle,currency,price,max_users,max_properties').eq('active',true).in('billing_cycle',['MONTHLY','ANNUAL','ONE_TIME']).order('price'),
       supabase.from('plan_features').select('plan_id').eq('enabled',true).like('feature_key','permission:%'),
     ]).then(([config,catalog,features]) => { if (config.error || catalog.error || features.error) { setMessage('No se pudo consultar la configuración comercial y los permisos de los planes.'); return; }
       setMode(config.data.activation_mode); setPlans(catalog.data ?? []); setConfiguredPlanIds([...new Set((features.data ?? []).map(f => f.plan_id))]); });
   }, []);
   useEffect(() => { setReason(''); setPlan(''); setAction('APPROVE'); setMessage(''); }, [tenant?.organization_id]);
+  const selectedPlan = plans.find(p => p.id === plan);
+  const needsPlan = action === 'APPROVE' || action === 'GRANT_LIFETIME';
+  const reasonValid = reason.trim().length >= 10 && reason.length <= 1000;
+  const planValid = Boolean(selectedPlan && configuredPlanIds.includes(selectedPlan.id) &&
+    (action === 'GRANT_LIFETIME' ? selectedPlan.code === 'LIFETIME' :
+      selectedPlan.currency === 'COP' && selectedPlan.billing_cycle !== 'ONE_TIME'));
+  const canApply = Boolean(tenant && !busy && reasonValid && (!needsPlan || planValid));
   async function saveMode(next: string) {
     setBusy(true); setMessage('');
     const { error } = await supabase.rpc('billing_admin_set_mode',{ mode: next });
@@ -30,7 +43,7 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
     setBusy(false);
   }
   async function apply() {
-    if (!tenant || busy) return;
+    if (!tenant || !canApply) return;
     if (action === 'GRANT_LIFETIME' && !manualLifetimeAdminEnabled) {
       setMessage('La licencia perpetua está pendiente de habilitación y verificación contractual.');
       return;
@@ -53,11 +66,22 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
       reason: reason.trim(),
       target_plan: (action === 'APPROVE' || action === 'GRANT_LIFETIME') ? plan : null,
     });
-    if (error) setMessage('No se pudo aplicar el cambio. Verifica los requisitos del contrato, los permisos configurados y la elegibilidad de la cuenta.');
-    else { setMessage('Cambio aplicado y registrado en auditoría.'); onDone(); }
+    if (error) {
+      const errors: Record<string,string> = {
+        'Plan capacity exceeded': 'La inmobiliaria supera los cupos del plan elegido. Revisa los usuarios activos y los inmuebles antes de reducir el plan.',
+        'Dedicated licenses require a separate contract': 'Esta licencia especial o perpetua está protegida y exige revisión contractual independiente.',
+        'Plan permissions not configured': 'El plan no tiene sus permisos comerciales configurados.',
+        'Current terms must be accepted by an active organization owner': 'El propietario activo debe aceptar los términos vigentes de esta inmobiliaria.',
+        'Active paid commercial period requires separate contract review': 'Existe un período comercial pagado vigente. Se requiere revisión contractual antes de conceder perpetuidad.',
+        'Perpetual license already active': 'La licencia perpetua ya está activa.',
+        'Permission denied': 'La sesión no tiene autorización de SuperAdmin.'
+      };
+      setMessage(errors[error.message] ?? 'No se pudo aplicar el cambio. Revisa la elegibilidad, los cupos y las condiciones del contrato.');
+    }
+    else { setMessage('Cambio aplicado y registrado en auditoría.'); setReason(''); onDone(); }
     setBusy(false);
   }
-  return <section className="mt-5 rounded-xl border border-slate-200 bg-white p-5">
+  return <section id="gestion-activacion" className="mt-5 scroll-mt-5 rounded-xl border border-slate-200 bg-white p-5">
     <div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-bold">Activación comercial</h2>
       <p className="mt-1 text-sm text-slate-600">El pago confirmado puede habilitar el plan automáticamente. Las suspensiones administrativas requieren revisión.</p></div>
       <label className="text-sm font-medium">Modalidad
@@ -67,15 +91,17 @@ export function BillingAdminControls({ tenant, onDone }: { tenant: Tenant | null
     {tenant && <div className="mt-5 border-t pt-5"><h3 className="font-semibold">Gestionar {tenant.organization_name}</h3>
       <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm">Acción
         <select aria-label="Acción administrativa" value={action} onChange={e=>{setAction(e.target.value);setPlan('');}} className="mt-1 w-full rounded-lg border p-3">
-          <option value="APPROVE">Autorizar acceso por un período del plan</option>{manualLifetimeAdminEnabled && <option value="GRANT_LIFETIME">Conceder licencia perpetua · sin vencimiento</option>}<option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para entorno de pruebas</option>
+          <option value="APPROVE">Autorizar o renovar acceso manual por un período del plan</option>{manualLifetimeAdminEnabled && <option value="GRANT_LIFETIME">Conceder licencia perpetua · sin vencimiento</option>}<option value="SUSPEND">Suspender operación</option><option value="MARK_TEST">Marcar cuenta pendiente para entorno de pruebas</option>
         </select></label>
         {(action==='APPROVE' || action==='GRANT_LIFETIME') && <label className="text-sm">Plan
           <select aria-label="Plan para autorización" value={plan} onChange={e=>setPlan(e.target.value)} className="mt-1 w-full rounded-lg border p-3">
-            <option value="">Selecciona un plan</option>{plans.filter(p=>action==='GRANT_LIFETIME' ? p.code==='LIFETIME' : p.billing_cycle!=='ONE_TIME').map(p=><option key={p.id} value={p.id}>{p.name} · {p.currency}{configuredPlanIds.includes(p.id) ? '' : ' · pendiente de configurar'}</option>)}
+            <option value="">Selecciona un plan</option>{plans.filter(p=>action==='GRANT_LIFETIME' ? p.code==='LIFETIME' : p.currency==='COP' && p.billing_cycle!=='ONE_TIME').map(p=><option key={p.id} value={p.id} disabled={!configuredPlanIds.includes(p.id)}>{planLabel(p)}{configuredPlanIds.includes(p.id) ? '' : ' · pendiente de configurar'}</option>)}
           </select></label>}
-      </div>{action==='GRANT_LIFETIME' && <p role="status" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">La licencia perpetua es solo de duración ilimitada, no de usuarios ni inmuebles: mantiene cupos definidos, registra el motivo y no cobra por Wompi. Requiere términos aceptados y permisos configurados.</p>}{(action==='APPROVE' || action==='GRANT_LIFETIME') && plans.length>0 && configuredPlanIds.length===0 && <p role="status" className="mt-3 text-sm text-amber-800">Los planes existen, pero todavía no tienen permisos habilitados en el catálogo comercial. No se puede autorizar un período nuevo hasta completar esa configuración.</p>}<label className="mt-3 block text-sm">Motivo (queda en auditoría)
-        <textarea aria-label="Motivo del cambio" value={reason} minLength={10} maxLength={1000} onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <button type="button" disabled={busy || reason.trim().length<10 || ((action==='APPROVE' || action==='GRANT_LIFETIME') && (!plan || !configuredPlanIds.includes(plan)))} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
+      </div>{action === 'APPROVE' && <p className="mt-3 text-sm text-slate-600">Autoriza el acceso y los cupos del plan elegido sin generar un cobro ni modificar el historial de pagos. Los permisos de cada usuario siguen dependiendo de su rol en la inmobiliaria.</p>}
+      {selectedPlan && needsPlan && <p className="mt-2 text-sm font-medium">{planLabel(selectedPlan)}</p>}{action==='GRANT_LIFETIME' && <p role="status" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">La licencia perpetua es solo de duración ilimitada, no de usuarios ni inmuebles: mantiene cupos definidos, registra el motivo y no cobra por Wompi. Requiere términos aceptados y permisos configurados.</p>}{(action==='APPROVE' || action==='GRANT_LIFETIME') && plans.length>0 && configuredPlanIds.length===0 && <p role="status" className="mt-3 text-sm text-amber-800">Los planes existen, pero todavía no tienen permisos habilitados en el catálogo comercial. No se puede autorizar un período nuevo hasta completar esa configuración.</p>}<label className="mt-3 block text-sm">Motivo obligatorio (mínimo 10 caracteres, queda en auditoría)
+        <textarea aria-label="Motivo del cambio" value={reason} minLength={10} maxLength={1000} placeholder="Ej.: Renovación autorizada para pruebas operativas" onChange={e=>setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
+      {!canApply && !busy && <p className="mt-2 text-xs text-slate-600" role="status">{needsPlan && !planValid ? 'Selecciona un plan disponible con permisos configurados.' : 'Escribe un motivo de al menos 10 caracteres para habilitar el cambio.'}</p>}
+      <button type="button" disabled={!canApply} onClick={()=>void apply()} className="mt-3 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Aplicar cambio</button>
     </div>}
     {message && <p role="status" className="mt-3 text-sm">{message}</p>}
   </section>;
