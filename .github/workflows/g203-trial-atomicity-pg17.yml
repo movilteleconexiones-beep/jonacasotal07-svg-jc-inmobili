@@ -1,0 +1,37 @@
+name: G203 trial atomicity PG17
+on:
+  pull_request:
+    paths:
+      - 'scripts/qa/trial-atomicity-pg17.sh'
+      - 'docs/ops/pending-sql/g203_one_trial_per_owner.sql'
+      - '.github/workflows/g203-trial-atomicity-pg17.yml'
+permissions:
+  contents: read
+jobs:
+  trial-atomicity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: jco_trial_atomicity
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-disposable-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jco_trial_atomicity"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGDATABASE: jco_trial_atomicity
+      PGUSER: postgres
+      PGPASSWORD: local-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Concurrent trial transaction test
+        run: bash scripts/qa/trial-atomicity-pg17.sh
