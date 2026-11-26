@@ -17,7 +17,7 @@ sql <<'SQL'
 CREATE TABLE public.audit_log(actor_user_id uuid, action text NOT NULL);
 CREATE TABLE public.qa_trial(organization_id int PRIMARY KEY, actor_user_id uuid NOT NULL);
 SQL
-sql -f docs/ops/pending-sql/g203_one_trial_per_owner.sql
+sql -f supabase/migrations/20261126042939_g203_one_trial_per_owner.sql
 # Each transaction creates a synthetic trial before recording its audit event,
 # matching the real RPC's atomic ordering. The winner holds the unique key.
 PGAPPNAME=qa-trial-winner sql >"$tmp/winner" 2>&1 <<'SQL' &
