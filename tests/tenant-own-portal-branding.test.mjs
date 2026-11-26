@@ -5,11 +5,11 @@ import { resolvePublicTenantSlug, tenantPublicPath } from '../src/core/public-te
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('two signed-in agencies on the same domain see their own root public storefront', () => {
+test('central root never inherits an authenticated agency or deployment default', () => {
   const data = { pathname: '/', search: '', configuredSlug: 'main-owner-agency' };
-  assert.equal(resolvePublicTenantSlug({...data,membershipSlug:'agency-jco'}), 'agency-jco');
-  assert.equal(resolvePublicTenantSlug({...data,membershipSlug:'agency-b'}), 'agency-b');
-  assert.equal(resolvePublicTenantSlug({...data,membershipSlug:null}), 'main-owner-agency');
+  assert.equal(resolvePublicTenantSlug({...data,membershipSlug:'agency-jco'}), '');
+  assert.equal(resolvePublicTenantSlug({...data,membershipSlug:'agency-b'}), '');
+  assert.equal(resolvePublicTenantSlug({...data,membershipSlug:null}), '');
 });
 
 test('explicit cross-agency public link always remains that agency, never swaps to signed-in member', () => {

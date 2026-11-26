@@ -212,7 +212,8 @@ export function usePublicTenantCatalog(tenantSlug?: string | null): CatalogState
 
   // Never flash another tenant's brand, photos or inventory during a route change.
   const requestedSlug=tenantSlug?.trim().toLowerCase();
-  return requestedSlug && state.requestedSlug!==requestedSlug
+  if (!requestedSlug) return EMPTY;
+  return state.requestedSlug!==requestedSlug
     ? {...EMPTY,requestedSlug,loading:true,complete:false}
     : state;
 }
